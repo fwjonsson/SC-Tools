@@ -62,6 +62,14 @@ public sealed partial class MainForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(1500, 860);
         MinimumSize = new Size(1250, 700);
+        try
+        {
+            // the window and taskbar icon is the one built into the exe
+            if (Environment.ProcessPath is { } exe) Icon = Icon.ExtractAssociatedIcon(exe);
+        }
+        catch
+        {
+        }
         BackColor = Color.White;
 
         BuildUi();
@@ -171,12 +179,31 @@ public sealed partial class MainForm : Form
         {
             _fitPending = false;
             if (_root == null || _left == null) return;
-            int Need(DataGridView g) => g.ColumnHeadersHeight + Math.Max(g.Rows.GetRowsHeight(DataGridViewElementStates.Visible), g.RowTemplate.Height) + 3;
+            int Need(DataGridView g)
+            {
+                var rows = 0;
+                foreach (DataGridViewRow r in g.Rows) rows += r.Height + r.DividerHeight;
+                return g.ColumnHeadersHeight + Math.Max(rows, g.RowTemplate.Height) + 4;
+            }
             var pickups = Need(_logGrid);
             var leaders = Need(_statsGrid);
-            _left.RowStyles[1].Height = pickups;
-            var top = Math.Max(TitleHeight * 2 + pickups + leaders + 6, TitleHeight + 86 + 14 + 170 + 6);   // the right side needs its own height too
-            _root.RowStyles[1].Height = top;
+
+            // set the heights, then check that every row really is shown and add what is missing
+            for (var pass = 0; pass < 4; pass++)
+            {
+                var heights = _left.GetRowHeights();
+                var titles = heights.Length >= 3 ? heights[0] + heights[2] : TitleHeight * 2;   // as drawn, also on a scaled screen
+                _left.RowStyles[1].Height = pickups;
+                _root.RowStyles[1].Height = Math.Max(titles + pickups + leaders + 8, TitleHeight + 86 + 14 + 170 + 6);   // the right side needs its own height too
+                _root.PerformLayout();
+                _left.PerformLayout();
+
+                var missingPickups = _logGrid.Rows.Count - _logGrid.DisplayedRowCount(false);
+                var missingLeaders = _statsGrid.Rows.Count - _statsGrid.DisplayedRowCount(false);
+                if (missingPickups <= 0 && missingLeaders <= 0) break;
+                if (missingPickups > 0) pickups += missingPickups * _logGrid.RowTemplate.Height;
+                if (missingLeaders > 0) leaders += missingLeaders * _statsGrid.RowTemplate.Height;
+            }
         }));
     }
 

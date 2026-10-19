@@ -9,6 +9,7 @@
     <AssemblyName>HaulingTracker</AssemblyName>
     <RootNamespace>HaulingTracker</RootNamespace>
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>
