@@ -901,6 +901,7 @@ public sealed partial class MainForm : Form
         ["70120"] = "Patch City",
         ["69936"] = "Gaslight",
         ["72785"] = "Dudley & Daughters",
+        ["73041"] = "Orbituary",
     };
 
     string LocationName(string zone)
