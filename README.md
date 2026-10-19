@@ -57,7 +57,7 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 ## Runs, lost cargo and history
 
 - **Lost Cargo** on a run is a drop-down: None, Little or All. It is only for your own notes and never changes who owes what. A run row is yellow while the run is on the way, green when it is completed with everything delivered, orange for Little lost and red for All lost.
-- **Completed** is the time the run ended, at the hand-in at Ruin Station. It stays empty while the run is on the way. **Missions** is how many missions were handed in then. **Pickup Location & Time** lists where cargo was picked up and when.
+- **Completed** is the time the run ended, at the hand-in at Ruin Station. It stays empty while the run is on the way. **Missions** is how many missions were handed in then. **Pickup Location & Time** lists where cargo was picked up and when. The time columns sit together after Missions: **Started**, **Completed** and **Duration**. For a run that is on the way, Duration counts up from Started while you watch live.
 - **End Run** (last column) is a button that ends the run of that worker by hand, for example when all cargo was lost. You get an "are you sure" box. On a completed run the button is greyed out. A run ended by hand shows **Undo End** to bring it back.
 - **History tab:** every session is saved with its date, missions, revenue and what each worker carried, so earlier sessions stay after their logs are gone.
 
@@ -70,7 +70,7 @@ The program starts watching the logs by itself when it opens, and reads the back
 ## Leaderboards
 
 The **Session Leaderboard** has one row per worker who started a cargo run in the session, and a total row, the highest earner on top (marked with a star on each side of the name and a gold row; the other names are indented to line up):
-- **Avg Run Time** and **Avg Missions/Run**: averages over the completed runs (ended by a hand-in, not ended by hand). Missions/run counts the missions picked up at each location, like the Missions column of the run board.
+- **Avg Missions/Run** and **Avg Run Time**: averages over the completed runs (ended by a hand-in, not ended by hand). Missions/run counts the missions picked up at each location, like the Missions column of the run board.
 - **Completed Runs** and **Perfect Runs** (completed runs with lost cargo None).
 - **Missions Carried**: all pickups of the worker this session, also of the run still on the way.
 - **Earned aUEC**: the value of the locations assigned to him this session. **Share of value** is his part of the value carried by everyone this session. **aUEC/hour** is that divided by the session duration (Start Time to End Time).

@@ -27,11 +27,11 @@ public sealed partial class MainForm
         grid.AllowUserToDeleteRows = false;
         grid.Columns.Add(Col("Worker", 190, true, DataGridViewContentAlignment.MiddleLeft));   // as wide as Pickup Location above
         if (withSessions) grid.Columns.Add(Col("Sessions", 80, true));
-        grid.Columns.Add(Col("Avg Run Time", 100, true));
-        grid.Columns.Add(Col("Avg Missions/Run", 130, true));
         grid.Columns.Add(Col("Completed Runs", 120, true));
         grid.Columns.Add(Col("Perfect Runs", 110, true));
         grid.Columns.Add(Col("Missions Carried", 130, true));
+        grid.Columns.Add(Col("Avg Missions/Run", 130, true));
+        grid.Columns.Add(Col("Avg Run Time", 100, true));
         grid.Columns.Add(Col("Earned aUEC", 120, true, DataGridViewContentAlignment.MiddleRight));
         grid.Columns.Add(Col("Share of Value", 110, true));
         grid.Columns.Add(Col("aUEC/Hour", 120, true, DataGridViewContentAlignment.MiddleRight, true));
@@ -91,7 +91,7 @@ public sealed partial class MainForm
 
             var cells = new List<object> { l.Name };
             if (withSessions) cells.Add(l.Sessions);
-            cells.AddRange(new object[] { avgTime, avgMissions, l.S.Runs, l.S.Perfect, l.S.Missions, Num(l.Earned), share, PerHour(l.Earned, l.Seconds) });
+            cells.AddRange(new object[] { l.S.Runs, l.S.Perfect, l.S.Missions, avgMissions, avgTime, Num(l.Earned), share, PerHour(l.Earned, l.Seconds) });
             var idx = grid.Rows.Add(cells.ToArray());
             if (first && l.Earned > 0)
             {
@@ -114,7 +114,7 @@ public sealed partial class MainForm
         if (withSessions) total.Add(totalSessions);
         total.AddRange(new object[]
         {
-            "", "", sum.S.Runs, sum.S.Perfect, sum.S.Missions, Num(sum.Earned), sum.Earned > 0 ? "100%" : "", PerHour(sum.Earned, totalSeconds),
+            sum.S.Runs, sum.S.Perfect, sum.S.Missions, "", "", Num(sum.Earned), sum.Earned > 0 ? "100%" : "", PerHour(sum.Earned, totalSeconds),
         });
         var tr = grid.Rows.Add(total.ToArray());
         grid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
