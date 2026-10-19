@@ -37,6 +37,7 @@ public sealed partial class MainForm
         grid.Columns.Add(Col("Avg Batches/Run", 100, true));
         grid.Columns.Add(Col("Avg Run Time", 90, true));
         grid.Columns.Add(Col("Distance Travelled", 105, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col("Gm / Hour", 80, true, DataGridViewContentAlignment.MiddleRight));
         grid.Columns.Add(Col("Total Run Value", 105, true, DataGridViewContentAlignment.MiddleRight));
         grid.Columns.Add(Col("Total Earned aUEC", 105, true, DataGridViewContentAlignment.MiddleRight));
         grid.Columns.Add(Col("Lost Value", 90, true, DataGridViewContentAlignment.MiddleRight));
@@ -58,6 +59,9 @@ public sealed partial class MainForm
     /// <summary>Gm flown in one run: Ruin, the pickup stations in the order they were visited, and back to Ruin. Locations missing from the table are skipped.</summary>
     static double RunDistance(WorkerTrip t, Func<string, string?> stationOf) =>
         PyroDistances.Run(t.Pickups.OrderBy(p => p.Time).Select(p => stationOf(p.Zone)).OfType<string>());
+
+    static string GmPerHour(double gm, double seconds) =>
+        gm > 0 && seconds > 0 ? (gm / (seconds / 3600.0)).ToString("N1", CultureInfo.InvariantCulture) : "";
 
     static string PerHour(decimal earned, double seconds) =>
         earned > 0 && seconds > 0 ? Num(earned / (decimal)(seconds / 3600.0)) : "";
@@ -111,7 +115,7 @@ public sealed partial class MainForm
 
             var cells = new List<object> { l.Name };
             if (withSessions) cells.Add(l.Sessions);
-            cells.AddRange(new object[] { l.S.Runs, l.S.Perfect, l.S.Missions, avgMissions, avgTime, Dist(l.S.Distance), Num(l.RunValue), Num(l.Confirmed), Num(l.Lost), share, PerHour(l.RunValue, l.Seconds) });
+            cells.AddRange(new object[] { l.S.Runs, l.S.Perfect, l.S.Missions, avgMissions, avgTime, Dist(l.S.Distance), GmPerHour(l.S.Distance, l.Seconds), Num(l.RunValue), Num(l.Confirmed), Num(l.Lost), share, PerHour(l.RunValue, l.Seconds) });
             var idx = grid.Rows.Add(cells.ToArray());
             if (first && l.RunValue > 0)
             {
@@ -136,7 +140,7 @@ public sealed partial class MainForm
         if (withSessions) total.Add(totalSessions);
         total.AddRange(new object[]
         {
-            sum.S.Runs, sum.S.Perfect, sum.S.Missions, "", "", Dist(sum.S.Distance), Num(sum.RunValue), Num(sum.Confirmed), Num(sum.Lost), sum.RunValue > 0 ? "100%" : "", PerHour(sum.RunValue, totalSeconds),
+            sum.S.Runs, sum.S.Perfect, sum.S.Missions, "", "", Dist(sum.S.Distance), GmPerHour(sum.S.Distance, totalSeconds), Num(sum.RunValue), Num(sum.Confirmed), Num(sum.Lost), sum.RunValue > 0 ? "100%" : "", PerHour(sum.RunValue, totalSeconds),
         });
         var tr = grid.Rows.Add(total.ToArray());
         grid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
