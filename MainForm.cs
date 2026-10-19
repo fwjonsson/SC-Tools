@@ -434,7 +434,7 @@ public sealed partial class MainForm : Form
         StyleGrid(_tripGrid);
         _tripGrid.AllowUserToAddRows = false;
         _tripGrid.AllowUserToDeleteRows = false;
-        _tripGrid.Columns.Add(Col("Worker", 120, true));
+        _tripGrid.Columns.Add(Col("Worker", 190, true));   // as wide as Pickup Location above
         _tripGrid.Columns.Add(Col("Run", 60, true));
         _tripGrid.Columns.Add(Col("Started", 80, true));
         _tripGrid.Columns.Add(Col("Pickups (location, missions, time)", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
@@ -911,9 +911,9 @@ public sealed partial class MainForm : Form
         RefreshFromLog();
     }
 
-    static readonly TimeSpan BackupAge = TimeSpan.FromHours(6);
+    static readonly TimeSpan BackupAge = TimeSpan.FromHours(24);
 
-    /// <summary>Reads the logs in the logbackups folder next to Game.log that are less than 6 hours old.</summary>
+    /// <summary>Reads the logs in the logbackups folder next to Game.log that are less than 24 hours old.</summary>
     static void Backfill(LiveSource src, string liveFile)
     {
         try
