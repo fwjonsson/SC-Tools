@@ -197,22 +197,43 @@ public sealed partial class MainForm : Form
         b.Padding = new Padding(8, 0, 8, 0);
     }
 
-    /// <summary>The session summary: times, missions, the reward table in the middle, revenue and hourly rate.</summary>
+    /// <summary>The session summary on the right: a short title, the clean times and totals table, and the blue contract table below it.</summary>
     Control BuildHeader()
     {
-        var p = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 0, 0, 0) };
+        var p = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 4,
+            Padding = new Padding(10, 0, 0, 0),
+        };
+        p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
 
+        p.Controls.Add(new Label
+        {
+            Text = "Hauling Tracker",
+            Font = new Font("Segoe UI", 15f, FontStyle.Bold),
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(0),
+        }, 0, 0);
+
+        // start / end / duration / totals, neutral and clean
         var t = new TableLayoutPanel
         {
-            Dock = DockStyle.Top,
-            Height = 250,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0),
             ColumnCount = 2,
-            RowCount = 7,
+            RowCount = 6,
             CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
         };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        for (var i = 0; i < 7; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, i == 4 ? 84 : 26));
+        for (var i = 0; i < 6; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
 
         ConfigureTimeBox(_startBox);
         ConfigureTimeBox(_endBox);
@@ -225,8 +246,11 @@ public sealed partial class MainForm : Form
         AddSummaryRow(t, 1, "End Time", WrapInput(_endBox));
         AddSummaryRow(t, 2, "Duration", _durationVal);
         AddSummaryRow(t, 3, "Total Missions", _missionsVal);
+        AddSummaryRow(t, 4, "Total Revenue", _revenueVal);
+        AddSummaryRow(t, 5, "Hourly Rate", _hourlyVal);
+        p.Controls.Add(t, 0, 1);
 
-        // the reward table sits between Total Missions and Total Revenue
+        // the contract table below it, in the blue style of the other boards
         StyleGrid(_rewards);
         _rewards.Dock = DockStyle.Fill;
         _rewards.Margin = new Padding(0);
@@ -249,12 +273,7 @@ public sealed partial class MainForm : Form
             UpdateSnapshots();
             RefreshDebts();
         };
-        t.Controls.Add(_rewards, 0, 4);
-        t.SetColumnSpan(_rewards, 2);
-
-        AddSummaryRow(t, 5, "Total Revenue", _revenueVal);
-        AddSummaryRow(t, 6, "Hourly Rate", _hourlyVal);
-        p.Controls.Add(t);
+        p.Controls.Add(_rewards, 0, 3);
         return p;
     }
 
