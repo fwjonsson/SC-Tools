@@ -309,7 +309,7 @@ public sealed partial class MainForm
             var trips = WorkerTripBuilder.Build(g,
                 z => inp.Rows.TryGetValue(z, out var r) && !string.IsNullOrWhiteSpace(r.Worker) ? r.Worker : "Unassigned",
                 _log, inp.ManualEnds);
-            var stats = ComputeStats(trips, inp);   // a perfect run stays perfect, whatever the server does later
+            var stats = ComputeStats(trips, inp, StationOf);   // a perfect run stays perfect, whatever the server does later
 
             var same = SameStats(inp.Stats, stats)
                 && inp.Carried.Count == carried.Count

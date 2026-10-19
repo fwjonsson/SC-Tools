@@ -31,6 +31,7 @@ public sealed record WorkerStat
     public int Missions { get; set; }        // missions carried, also in a run still on the way
     public int RunMissions { get; set; }     // missions in the completed runs
     public double RunSeconds { get; set; }   // total time of the completed runs
+    public double Distance { get; set; }     // distance travelled in the completed runs, in Gm (Ruin, the pickups, back to Ruin)
 }
 
 /// <summary>What you typed yourself for one session.</summary>
