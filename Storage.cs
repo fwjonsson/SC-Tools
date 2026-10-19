@@ -16,6 +16,13 @@ public sealed class RowInputs
     public bool PartialPickup { get; set; }
 }
 
+/// <summary>A run you ended by hand (for example when all cargo was lost).</summary>
+public sealed class ManualEnd
+{
+    public string Worker { get; set; } = "";
+    public DateTime Time { get; set; }
+}
+
 /// <summary>What you typed yourself for one session.</summary>
 public sealed class SessionInputs
 {
@@ -24,11 +31,17 @@ public sealed class SessionInputs
     public List<RewardRow> Rewards { get; set; } = new();   // old format, no longer used
     public decimal Reward2 { get; set; }   // payout of a 2 stop contract
     public decimal Reward3 { get; set; }   // payout of a 3 stop contract
-    public List<string> LostRuns { get; set; } = new();   // runs ticked as "lost cargo"
+    public List<string> LostRuns { get; set; } = new();   // old format: runs ticked as "lost cargo" (counts as All)
+    public Dictionary<string, string> LostCargo { get; set; } = new();   // run key -> Little or All
+    public List<ManualEnd> ManualEnds { get; set; } = new();
     public Dictionary<string, RowInputs> Rows { get; set; } = new();   // key = pickup location id
     public Dictionary<string, decimal> Carried { get; set; } = new();   // worker -> value of the locations he carried (saved for the Debts tab)
     public List<string> MissionIds { get; set; } = new();
     public List<string>? Party { get; set; }   // who was in the party this session (null = everyone who carried something), set with "Session party…"
+    public DateTime? StartUtc { get; set; }   // saved with the session so the History tab works without the logs
+    public DateTime? EndUtc { get; set; }
+    public int MissionCount { get; set; }
+    public decimal Revenue { get; set; }
     public List<string> Members { get; set; } = new();   // the party of the session as used for the split (saved with Carried)   // missions of the session, to avoid counting a session twice
 }
 
@@ -58,15 +71,51 @@ public static class Storage
 {
     static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
-    static string FilePath
+    static string DefaultDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HaulingTracker");
+
+    // A small file next to the program's settings says where the data file is (for example a folder in OneDrive).
+    static string PointerFile => Path.Combine(DefaultDir, "location.txt");
+
+    static string? _path;
+
+    /// <summary>Full path of the data file in use.</summary>
+    public static string FilePath
     {
         get
         {
-            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HaulingTracker");
-            Directory.CreateDirectory(dir);
-            return Path.Combine(dir, "data.json");
+            if (_path != null) return _path;
+            try
+            {
+                Directory.CreateDirectory(DefaultDir);
+                if (File.Exists(PointerFile))
+                {
+                    var p = File.ReadAllText(PointerFile).Trim();
+                    if (p.Length > 0)
+                    {
+                        _path = p;
+                        return _path;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // fall back to the normal place
+            }
+            _path = Path.Combine(DefaultDir, "data.json");
+            return _path;
         }
     }
+
+    /// <summary>Use another data file from now on. It is remembered the next time the program starts.</summary>
+    public static void SetLocation(string path)
+    {
+        Directory.CreateDirectory(DefaultDir);
+        File.WriteAllText(PointerFile, path);
+        _path = path;
+    }
+
+    /// <summary>Raised with a short text when the data file could not be saved (for example a OneDrive folder that is not available).</summary>
+    public static event Action<string>? SaveFailed;
 
     public static AppData Load()
     {
@@ -80,7 +129,8 @@ public static class Storage
         }
         catch (Exception)
         {
-            // A damaged settings file should never stop the program from starting.
+            // A damaged settings file should never stop the program from starting. Keep a copy so nothing is lost.
+            try { File.Copy(FilePath, FilePath + ".broken", true); } catch (Exception) { }
         }
         return new AppData();
     }
@@ -89,11 +139,18 @@ public static class Storage
     {
         try
         {
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(data, Options));
+            var path = FilePath;
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+            // write to a temporary file first, so a sync client never sees a half written file
+            var tmp = path + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(data, Options));
+            File.Move(tmp, path, true);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Saving is best effort.
+            SaveFailed?.Invoke(ex.Message);
         }
     }
 }

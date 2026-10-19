@@ -23,7 +23,7 @@ To make a single exe: `dotnet publish -c Release -r win-x64 --self-contained fal
 5. Pick the worker for each location, tick Partial pickup if needed, write notes. Payouts can be changed in the reward table.
 6. **Copy table for Google Sheets** copies the pickup table, ready to paste into the sheet.
 
-Your data is saved in `%AppData%\HaulingTracker\data.json`.
+Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **Data file…** moves it to another folder, for example in OneDrive, so it follows you between PCs. Run the tracker on only one PC at a time then, because it rewrites the whole file on every change.
 
 ## What the log can and cannot tell
 
@@ -53,6 +53,12 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`.
 - The reward table counts every accepted 2 and 3 stop mission, payouts start at 1,268,250 and 1,691,000.
 
 - **Value** on the upper board is what the missions at that location are worth: every mission pays its reward split over its stops (reward / 2 for a 2 stop mission, reward / 3 for a 3 stop mission), times the stops at that location. It follows the payouts in the reward table.
+
+## Runs, lost cargo and history
+
+- **Lost cargo** on a run is a drop-down: None, Little or All. It is only for your own notes and never changes who owes what. A row turns red for All, yellow for Little, and green when the run ended with everything delivered.
+- **End run** (last column) ends the run of that worker by hand, for example when all cargo was lost. You get an "are you sure" box. A run ended by hand shows **Undo end** to bring it back.
+- **History tab:** every session is saved with its date, missions, revenue and what each worker carried, so earlier sessions stay after their logs are gone.
 
 ## Debts tab
 

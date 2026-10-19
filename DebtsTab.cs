@@ -9,6 +9,7 @@ public sealed partial class MainForm
     readonly DataGridView _balanceGrid = new();
     readonly DataGridView _earnGrid = new();
     readonly DataGridView _txGrid = new();
+    readonly DataGridView _historyGrid = new();
     string _debtSelected = "";
     bool _debtUpdating;
 
@@ -49,6 +50,10 @@ public sealed partial class MainForm
         StyleButton(partyBtn, "Session party…");
         partyBtn.Click += (_, _) => EditSessionParty();
         bar.Controls.Add(partyBtn);
+        var fileBtn = new Button();
+        StyleButton(fileBtn, "Data file…");
+        fileBtn.Click += (_, _) => ChooseDataFile();
+        bar.Controls.Add(fileBtn);
         t.Controls.Add(bar, 0, 0);
 
         t.Controls.Add(Caption("Balance with the other members   (+ they owe the selected member, − the selected member owes them; type over a number to correct it)"), 0, 1);
@@ -103,6 +108,51 @@ public sealed partial class MainForm
             AutoEllipsis = true,
         }, 0, 7);
         return t;
+    }
+
+    Control BuildHistoryPage()
+    {
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(12) };
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        t.Controls.Add(Caption("Saved sessions (they stay here also when their logs are gone)"), 0, 0);
+        StyleGrid(_historyGrid);
+        _historyGrid.Dock = DockStyle.Fill;
+        _historyGrid.AllowUserToAddRows = false;
+        _historyGrid.AllowUserToDeleteRows = false;
+        _historyGrid.Columns.Add(Col("Date", 130, true));
+        _historyGrid.Columns.Add(Col("Time", 130, true));
+        _historyGrid.Columns.Add(Col("Missions", 90, true, DataGridViewContentAlignment.MiddleRight));
+        _historyGrid.Columns.Add(Col("Revenue", 140, true, DataGridViewContentAlignment.MiddleRight));
+        _historyGrid.Columns.Add(Col("Carried per worker", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
+        t.Controls.Add(_historyGrid, 0, 1);
+        return t;
+    }
+
+    void FillHistory()
+    {
+        _historyGrid.Rows.Clear();
+        var saved = _data.Sessions.Values
+            .Where(s => s.Carried.Count > 0 && s.StartUtc.HasValue)
+            .OrderByDescending(s => s.StartUtc)
+            .ToList();
+        decimal revenue = 0;
+        var missions = 0;
+        foreach (var s in saved)
+        {
+            var start = s.StartUtc!.Value.ToLocalTime();
+            var time = start.ToString("HH:mm", CultureInfo.InvariantCulture)
+                + (s.EndUtc.HasValue ? " to " + s.EndUtc.Value.ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture) : "");
+            var carried = string.Join(",  ", s.Carried.OrderByDescending(kv => kv.Value)
+                .Select(kv => kv.Key + " " + kv.Value.ToString("N0", CultureInfo.InvariantCulture)));
+            _historyGrid.Rows.Add(start.ToString("d MMM yyyy", CultureInfo.CurrentCulture), time, s.MissionCount,
+                s.Revenue.ToString("N0", CultureInfo.InvariantCulture), carried);
+            revenue += s.Revenue;
+            missions += s.MissionCount;
+        }
+        var tr = _historyGrid.Rows.Add("Total", "", missions, revenue.ToString("N0", CultureInfo.InvariantCulture), "");
+        _historyGrid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
     }
 
     // ------------------------------------------------------------------ saving what the logs show
@@ -162,6 +212,19 @@ public sealed partial class MainForm
             foreach (var k in carried.Keys)
             {
                 if (!members.Any(x => SameName(x, k))) members.Add(k);
+            }
+
+            var summary = SessionBuilder.Summarize(g);
+            var r2 = inp.Reward2 == 0 ? DefaultReward2 : inp.Reward2;
+            var r3 = inp.Reward3 == 0 ? DefaultReward3 : inp.Reward3;
+            var revenue = g.Missions.Count(m => m.Multi == 2) * r2 + g.Missions.Count(m => m.Multi == 3) * r3;
+            if (inp.StartUtc != g.Start || inp.EndUtc != summary.End || inp.MissionCount != g.Missions.Count || inp.Revenue != revenue)
+            {
+                inp.StartUtc = g.Start;
+                inp.EndUtc = summary.End;
+                inp.MissionCount = g.Missions.Count;
+                inp.Revenue = revenue;
+                changed = true;
             }
 
             var same = inp.Carried.Count == carried.Count
@@ -267,6 +330,8 @@ public sealed partial class MainForm
             var tr = _earnGrid.Rows.Add("Total", sumNow.ToString("N0", CultureInfo.InvariantCulture), sumAll.ToString("N0", CultureInfo.InvariantCulture), "");
             _earnGrid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
 
+            FillHistory();
+
             _txGrid.Rows.Clear();
             if (_debtSelected.Length > 0)
             {
@@ -287,6 +352,57 @@ public sealed partial class MainForm
         finally
         {
             _debtUpdating = false;
+        }
+    }
+
+    // ------------------------------------------------------------------ data file
+
+    bool _skipSave;
+
+    /// <summary>Lets you keep the data file somewhere else, for example in a OneDrive folder, so it follows you between PCs.</summary>
+    void ChooseDataFile()
+    {
+        using var dlg = new FolderBrowserDialog
+        {
+            Description = "Pick the folder for the data file, for example a folder in your OneDrive. Now in use: " + Storage.FilePath,
+            UseDescriptionForTitle = true,
+        };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+        var target = Path.Combine(dlg.SelectedPath, "HaulingTracker-data.json");
+        if (string.Equals(Path.GetFullPath(target), Path.GetFullPath(Storage.FilePath), StringComparison.OrdinalIgnoreCase))
+        {
+            SetStatus("That file is already in use.");
+            return;
+        }
+
+        try
+        {
+            if (File.Exists(target))
+            {
+                var answer = MessageBox.Show(this,
+                    "There is already a data file in that folder (for example from another PC).\n\n" +
+                    "Yes = use that file (the tracker restarts, the data on this PC stays in its old file)\n" +
+                    "No = replace it with the data from this PC\n" +
+                    "Cancel = do nothing",
+                    "Data file", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                if (answer == DialogResult.Cancel) return;
+                if (answer == DialogResult.Yes)
+                {
+                    Storage.SetLocation(target);
+                    _skipSave = true;   // do not overwrite the file we are switching to
+                    Application.Restart();
+                    return;
+                }
+            }
+
+            Storage.SetLocation(target);
+            Storage.Save(_data);
+            SetStatus("Data is now saved in " + target);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Could not use that folder", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
