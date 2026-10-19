@@ -1,0 +1,391 @@
+using System.Globalization;
+
+namespace HaulingTracker;
+
+// The "Debts" tab: earnings per worker, balance with every other party member and the money transfers found in the logs.
+public sealed partial class MainForm
+{
+    readonly ComboBox _debtMember = new();
+    readonly DataGridView _balanceGrid = new();
+    readonly DataGridView _earnGrid = new();
+    readonly DataGridView _txGrid = new();
+    string _debtSelected = "";
+    bool _debtUpdating;
+
+    static Label Caption(string text) => new()
+    {
+        Text = text,
+        Dock = DockStyle.Fill,
+        TextAlign = ContentAlignment.BottomLeft,
+        Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+    };
+
+    Control BuildDebtsPage()
+    {
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 8, Padding = new Padding(12) };
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 28));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 28));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 44));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+
+        var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight };
+        bar.Controls.Add(new Label { Text = "Party member:", AutoSize = true, Margin = new Padding(0, 10, 6, 0) });
+        _debtMember.DropDownStyle = ComboBoxStyle.DropDownList;
+        _debtMember.Width = 170;
+        _debtMember.Margin = new Padding(0, 6, 24, 4);
+        _debtMember.SelectedIndexChanged += (_, _) =>
+        {
+            if (_debtUpdating) return;
+            _debtSelected = _debtMember.SelectedItem as string ?? "";
+            RefreshDebts();
+        };
+        bar.Controls.Add(_debtMember);
+        var partyBtn = new Button();
+        StyleButton(partyBtn, "Session party…");
+        partyBtn.Click += (_, _) => EditSessionParty();
+        bar.Controls.Add(partyBtn);
+        t.Controls.Add(bar, 0, 0);
+
+        t.Controls.Add(Caption("Balance with the other members   (+ they owe the selected member, − the selected member owes them; type over a number to correct it)"), 0, 1);
+        StyleGrid(_balanceGrid);
+        _balanceGrid.Dock = DockStyle.Fill;
+        _balanceGrid.AllowUserToAddRows = false;
+        _balanceGrid.AllowUserToDeleteRows = false;
+        _balanceGrid.Columns.Add(Col("Party member", 200, true, DataGridViewContentAlignment.MiddleLeft));
+        _balanceGrid.Columns.Add(Col("Balance", 160, false, DataGridViewContentAlignment.MiddleRight));
+        _balanceGrid.Columns.Add(Col("Meaning", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
+        _balanceGrid.CellEndEdit += BalanceEdited;
+        t.Controls.Add(_balanceGrid, 0, 2);
+
+        t.Controls.Add(Caption("Earnings (value of the pickup locations each worker carried)"), 0, 3);
+        StyleGrid(_earnGrid);
+        _earnGrid.Dock = DockStyle.Fill;
+        _earnGrid.AllowUserToAddRows = false;
+        _earnGrid.AllowUserToDeleteRows = false;
+        _earnGrid.Columns.Add(Col("Worker", 200, true, DataGridViewContentAlignment.MiddleLeft));
+        _earnGrid.Columns.Add(Col("This session", 160, true, DataGridViewContentAlignment.MiddleRight));
+        _earnGrid.Columns.Add(Col("All sessions", 160, true, DataGridViewContentAlignment.MiddleRight));
+        _earnGrid.Columns.Add(Col("Net balance (+ owed to them)", 240, true, DataGridViewContentAlignment.MiddleRight, true));
+        t.Controls.Add(_earnGrid, 0, 4);
+
+        t.Controls.Add(Caption("Money transfers of the selected member   (tick Payment when it pays off a debt)"), 0, 5);
+        StyleGrid(_txGrid);
+        _txGrid.Dock = DockStyle.Fill;
+        _txGrid.AllowUserToAddRows = false;
+        _txGrid.AllowUserToDeleteRows = false;
+        _txGrid.Columns.Add(Col("Time", 150, true));
+        _txGrid.Columns.Add(Col("From", 160, true));
+        _txGrid.Columns.Add(Col("To", 160, true));
+        _txGrid.Columns.Add(Col("Amount", 170, true, DataGridViewContentAlignment.MiddleRight));
+        _txGrid.Columns.Add(new DataGridViewCheckBoxColumn
+        {
+            HeaderText = "Payment",
+            Width = 100,
+            SortMode = DataGridViewColumnSortMode.NotSortable,
+        });
+        _txGrid.CurrentCellDirtyStateChanged += (_, _) =>
+        {
+            if (_txGrid.IsCurrentCellDirty) _txGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
+        };
+        _txGrid.CellValueChanged += TxChanged;
+        t.Controls.Add(_txGrid, 0, 6);
+
+        t.Controls.Add(new Label
+        {
+            Text = "Mission rewards are split equally between the party of each session, but everybody is owed the value he carried. Use Session party… if someone was in the party without carrying. Ticked payments reduce the debts.",
+            Dock = DockStyle.Fill,
+            ForeColor = Color.DimGray,
+            AutoEllipsis = true,
+        }, 0, 7);
+        return t;
+    }
+
+    // ------------------------------------------------------------------ saving what the logs show
+
+    static bool SameName(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+    static decimal CarriedBy(Dictionary<string, decimal> carried, string name) =>
+        carried.Where(kv => SameName(kv.Key, name)).Sum(kv => kv.Value);
+
+    Dictionary<string, decimal> ComputeCarried(SessionGroup g, SessionInputs inp)
+    {
+        var carried = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var r2 = inp.Reward2 == 0 ? DefaultReward2 : inp.Reward2;
+        var r3 = inp.Reward3 == 0 ? DefaultReward3 : inp.Reward3;
+        foreach (var r in SessionBuilder.Locations(g))
+        {
+            string? who = null;
+            if (inp.Rows.TryGetValue(r.Zone, out var ri) && !string.IsNullOrWhiteSpace(ri.Worker)) who = ri.Worker.Trim();
+            else if (_log != null) who = WorkerTripBuilder.PickupActor(g, r.Zone, _log);
+            if (who == null) continue;
+
+            var value = r.Stops2 * r2 / 2m + r.Stops3 * r3 / 3m;
+            if (value <= 0) continue;
+            carried.TryGetValue(who, out var old);
+            carried[who] = old + value;
+        }
+        return carried;
+    }
+
+    /// <summary>Keeps what every session earned per worker, and the money transfers, so they survive closing the program.</summary>
+    void UpdateSnapshots()
+    {
+        if (_log == null) return;
+        var changed = false;
+
+        foreach (var g in _sessions)
+        {
+            _data.Sessions.TryGetValue(g.Key, out var stored);
+            var carried = ComputeCarried(g, stored ?? new SessionInputs());
+            if (carried.Count == 0) continue;
+
+            var inp = stored ?? GetInputs(g.Key);
+            var ids = g.Missions.Select(m => m.Id).ToList();
+
+            // a session that grew and got a new key must not be counted twice
+            foreach (var kv in _data.Sessions)
+            {
+                if (kv.Key == g.Key || kv.Value.Carried.Count == 0) continue;
+                if (kv.Value.MissionIds.Any(id => ids.Contains(id)))
+                {
+                    kv.Value.Carried = new Dictionary<string, decimal>();
+                    changed = true;
+                }
+            }
+
+            var members = new List<string>(inp.Party ?? new List<string>());
+            foreach (var k in carried.Keys)
+            {
+                if (!members.Any(x => SameName(x, k))) members.Add(k);
+            }
+
+            var same = inp.Carried.Count == carried.Count
+                && carried.All(kv => inp.Carried.TryGetValue(kv.Key, out var v) && v == kv.Value)
+                && inp.Members.Count == members.Count
+                && members.All(m => inp.Members.Any(x => SameName(x, m)));
+            if (!same || inp.MissionIds.Count != ids.Count)
+            {
+                inp.Carried = new Dictionary<string, decimal>(carried);
+                inp.Members = members;
+                inp.MissionIds = ids;
+                changed = true;
+            }
+        }
+
+        foreach (var t in _log.Transfers)
+        {
+            var known = _data.Transfers.Any(x => x.Amount == t.Amount && SameName(x.From, t.From) && SameName(x.To, t.To)
+                && Math.Abs((x.Time - t.Time).TotalSeconds) <= 10);
+            if (known) continue;
+            _data.Transfers.Add(new SavedTransfer { Time = t.Time, From = t.From, To = t.To, Amount = t.Amount });
+            changed = true;
+        }
+
+        if (changed) Storage.Save(_data);
+    }
+
+    // ------------------------------------------------------------------ showing it
+
+    List<string> DebtPartyNames()
+    {
+        var list = new List<string>(_data.Party);
+        foreach (var s in _data.Sessions.Values)
+        {
+            foreach (var k in s.Carried.Keys)
+            {
+                if (!list.Any(x => SameName(x, k))) list.Add(k);
+            }
+        }
+        return list;
+    }
+
+    static void SetItems(ComboBox box, List<string> items)
+    {
+        var same = box.Items.Count == items.Count;
+        for (var i = 0; same && i < items.Count; i++) same = (box.Items[i] as string) == items[i];
+        if (same) return;
+        box.Items.Clear();
+        foreach (var x in items) box.Items.Add(x);
+    }
+
+    static string Signed(decimal v) => v.ToString("+#,##0;-#,##0;0", CultureInfo.InvariantCulture);
+
+    static string Meaning(string me, string other, decimal v)
+    {
+        if (Math.Abs(v) < 0.5m) return "even";
+        var amount = Math.Abs(v).ToString("N0", CultureInfo.InvariantCulture);
+        return v > 0 ? other + " owes " + me + " " + amount : me + " owes " + other + " " + amount;
+    }
+
+    void RefreshDebts()
+    {
+        if (_debtUpdating || _balanceGrid.IsCurrentCellInEditMode) return;
+        _debtUpdating = true;
+        try
+        {
+            var party = DebtPartyNames();
+
+            SetItems(_debtMember, party);
+            var idx = party.FindIndex(p => SameName(p, _debtSelected));
+            if (idx < 0) idx = party.Count > 0 ? 0 : -1;
+            _debtMember.SelectedIndex = idx;
+            _debtSelected = idx >= 0 ? party[idx] : "";
+
+            var nets = DebtCalc.Nets(_data.Sessions.Values, _data.Transfers);
+            var settle = DebtCalc.Settle(nets);
+
+            _balanceGrid.Rows.Clear();
+            if (_debtSelected.Length > 0)
+            {
+                foreach (var o in party)
+                {
+                    if (SameName(o, _debtSelected)) continue;
+                    var calc = DebtCalc.Between(settle, _debtSelected, o);
+                    var shown = calc + GetAdj(_debtSelected, o);
+                    var i = _balanceGrid.Rows.Add(o, Signed(shown), Meaning(_debtSelected, o, shown));
+                    _balanceGrid.Rows[i].Tag = calc;
+                }
+            }
+
+            _earnGrid.Rows.Clear();
+            decimal sumNow = 0;
+            decimal sumAll = 0;
+            foreach (var p in party)
+            {
+                var now = _inputs == null ? 0m : CarriedBy(_inputs.Carried, p);
+                var all = _data.Sessions.Values.Sum(s => CarriedBy(s.Carried, p));
+                nets.TryGetValue(p, out var net);
+                sumNow += now;
+                sumAll += all;
+                _earnGrid.Rows.Add(p, now.ToString("N0", CultureInfo.InvariantCulture), all.ToString("N0", CultureInfo.InvariantCulture), Signed(net));
+            }
+            var tr = _earnGrid.Rows.Add("Total", sumNow.ToString("N0", CultureInfo.InvariantCulture), sumAll.ToString("N0", CultureInfo.InvariantCulture), "");
+            _earnGrid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+
+            _txGrid.Rows.Clear();
+            if (_debtSelected.Length > 0)
+            {
+                foreach (var t in _data.Transfers
+                    .Where(x => SameName(x.From, _debtSelected) || SameName(x.To, _debtSelected))
+                    .OrderByDescending(x => x.Time))
+                {
+                    var i = _txGrid.Rows.Add(
+                        t.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture),
+                        t.From,
+                        t.To,
+                        t.Amount.ToString("N0", CultureInfo.InvariantCulture),
+                        t.Payment);
+                    _txGrid.Rows[i].Tag = t;
+                }
+            }
+        }
+        finally
+        {
+            _debtUpdating = false;
+        }
+    }
+
+    // ------------------------------------------------------------------ editing
+
+    /// <summary>Who was in the party of the selected session. The reward is split equally between them.</summary>
+    void EditSessionParty()
+    {
+        if (_inputs == null || _current == null)
+        {
+            SetStatus("Pick a session first.");
+            return;
+        }
+
+        var names = DebtPartyNames();
+        var now = _inputs.Party ?? _inputs.Members;
+        using var f = new Form
+        {
+            Text = "Session party",
+            ClientSize = new Size(360, 320),
+            StartPosition = FormStartPosition.CenterParent,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ShowInTaskbar = false,
+            Font = Font,
+        };
+        var label = new Label
+        {
+            Text = "Everyone who was in the party this session, also someone who carried nothing. The reward is split equally between them.",
+            Dock = DockStyle.Top,
+            Height = 58,
+            Padding = new Padding(6, 6, 6, 0),
+        };
+        var list = new CheckedListBox { Dock = DockStyle.Fill, CheckOnClick = true };
+        foreach (var n in names) list.Items.Add(n, now.Any(x => SameName(x, n)));
+        var ok = new Button { Text = "Save", AutoSize = true, DialogResult = DialogResult.OK };
+        var bar = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 44, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(6) };
+        bar.Controls.Add(ok);
+        f.Controls.Add(list);
+        f.Controls.Add(label);
+        f.Controls.Add(bar);
+        f.AcceptButton = ok;
+        if (f.ShowDialog(this) != DialogResult.OK) return;
+
+        _inputs.Party = list.CheckedItems.Cast<object>().Select(x => x.ToString() ?? "").Where(x => x.Length > 0).ToList();
+        Storage.Save(_data);
+        UpdateSnapshots();
+        RefreshDebts();
+    }
+
+    static string PairKey(string a, string b, out bool aFirst)
+    {
+        aFirst = string.Compare(a, b, StringComparison.OrdinalIgnoreCase) <= 0;
+        var x = aFirst ? a : b;
+        var y = aFirst ? b : a;
+        return x.ToLowerInvariant() + "|" + y.ToLowerInvariant();
+    }
+
+    /// <summary>Your typed correction for the pair: positive = other owes me.</summary>
+    decimal GetAdj(string me, string other)
+    {
+        var key = PairKey(me, other, out var meFirst);
+        _data.PairAdjust.TryGetValue(key, out var v);
+        return meFirst ? v : -v;
+    }
+
+    void SetAdj(string me, string other, decimal balance)
+    {
+        var key = PairKey(me, other, out var meFirst);
+        var v = meFirst ? balance : -balance;
+        if (Math.Abs(v) < 0.5m) _data.PairAdjust.Remove(key);
+        else _data.PairAdjust[key] = v;
+    }
+
+    static decimal ParseSigned(object? value)
+    {
+        var s = Convert.ToString(value, CultureInfo.CurrentCulture) ?? "";
+        var negative = s.Contains('-') || s.Contains('−');
+        return (negative ? -1m : 1m) * ParseNumber(s);
+    }
+
+    void BalanceEdited(object? sender, DataGridViewCellEventArgs e)
+    {
+        if (_debtUpdating || e.RowIndex < 0 || e.ColumnIndex != 1 || _debtSelected.Length == 0) return;
+        var row = _balanceGrid.Rows[e.RowIndex];
+        if (row.Tag is not decimal calc) return;
+        var other = Convert.ToString(row.Cells[0].Value) ?? "";
+        SetAdj(_debtSelected, other, ParseSigned(row.Cells[1].Value) - calc);
+        Storage.Save(_data);
+        BeginInvoke(new Action(RefreshDebts));
+    }
+
+    void TxChanged(object? sender, DataGridViewCellEventArgs e)
+    {
+        if (_debtUpdating || e.RowIndex < 0 || e.ColumnIndex != 4) return;
+        var row = _txGrid.Rows[e.RowIndex];
+        if (row.Tag is not SavedTransfer t) return;
+        t.Payment = row.Cells[4].Value is true;
+        Storage.Save(_data);
+        BeginInvoke(new Action(RefreshDebts));
+    }
+}
