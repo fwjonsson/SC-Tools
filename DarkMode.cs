@@ -70,7 +70,7 @@ public sealed partial class MainForm
                 break;
             case ComboBox cb:
                 cb.FlatStyle = Theme.Dark ? FlatStyle.Flat : FlatStyle.Standard;
-                cb.BackColor = Theme.Dark ? Theme.Input : SystemColors.Window;
+                cb.BackColor = Theme.Dark ? (cb is ThemedCombo ? Theme.Button : Theme.Input) : SystemColors.Window;
                 cb.ForeColor = Theme.Dark ? Theme.Text : SystemColors.WindowText;
                 Theme.Native(cb);
                 break;
