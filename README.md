@@ -54,6 +54,12 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 
 - **Value** on the upper board is what the missions at that location are worth: every mission pays its reward split over its stops (reward / 2 for a 2 stop mission, reward / 3 for a 3 stop mission), times the stops at that location. It follows the payouts in the reward table.
 
+## Runs, lost cargo and history
+
+- **Lost cargo** on a run is a drop-down: None, Little or All. It is only for your own notes and never changes who owes what. A row turns red for All, yellow for Little, and green when the run ended with everything delivered.
+- **End run** (last column) ends the run of that worker by hand, for example when all cargo was lost. You get an "are you sure" box. A run ended by hand shows **Undo end** to bring it back.
+- **History tab:** every session is saved with its date, missions, revenue and what each worker carried, so earlier sessions stay after their logs are gone.
+
 ## Debts tab
 
 - **Earnings:** every session saves how much each worker carried (the Value of the locations assigned to him). The table shows this session, all sessions and the net balance per worker.

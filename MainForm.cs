@@ -106,9 +106,12 @@ public sealed partial class MainForm : Form
         Controls.Add(tabs);
         sessionPage.Controls.Add(root);
         debtsPage.Controls.Add(BuildDebtsPage());
+        var historyPage = new TabPage("History") { BackColor = Color.White };
+        tabs.TabPages.Add(historyPage);
+        historyPage.Controls.Add(BuildHistoryPage());
         tabs.SelectedIndexChanged += (_, _) =>
         {
-            if (tabs.SelectedIndex == 1) RefreshDebts();
+            if (tabs.SelectedIndex >= 1) RefreshDebts();
         };
 
         root.Controls.Add(BuildToolbar(), 0, 0);
@@ -370,12 +373,25 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(Col("Handed in", 90, true));
         _tripGrid.Columns.Add(Col("Missions", 80, true));
         _tripGrid.Columns.Add(Col("Duration", 90, true));
-        _tripGrid.Columns.Add(new DataGridViewCheckBoxColumn
+        var lostCol = new DataGridViewComboBoxColumn
         {
             HeaderText = "Lost cargo",
-            Width = 90,
+            Width = 100,
+            FlatStyle = FlatStyle.Flat,
+            SortMode = DataGridViewColumnSortMode.NotSortable,
+        };
+        lostCol.Items.AddRange("None", "Little", "All");
+        lostCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+        _tripGrid.Columns.Add(lostCol);
+        _tripGrid.Columns.Add(new DataGridViewButtonColumn
+        {
+            HeaderText = "",
+            Width = 110,
+            FlatStyle = FlatStyle.Flat,
             SortMode = DataGridViewColumnSortMode.NotSortable,
         });
+        _tripGrid.DataError += (_, e) => e.ThrowException = false;
+        _tripGrid.CellContentClick += TripGrid_CellContentClick;
         _tripGrid.CurrentCellDirtyStateChanged += (_, _) =>
         {
             if (_tripGrid.IsCurrentCellDirty) _tripGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
@@ -384,13 +400,51 @@ public sealed partial class MainForm : Form
         {
             if (_updating || _inputs == null || e.RowIndex < 0 || e.ColumnIndex != 7) return;
             var row = _tripGrid.Rows[e.RowIndex];
-            if (row.Tag is not string key) return;
-            var lost = row.Cells[7].Value is true;
-            _inputs.LostRuns.Remove(key);
-            if (lost) _inputs.LostRuns.Add(key);
-            row.DefaultCellStyle.BackColor = lost ? LostRed : Color.White;
+            if (row.Tag is not WorkerTrip trip) return;
+            var level = Convert.ToString(row.Cells[7].Value) ?? "None";
+            _inputs.LostRuns.Remove(trip.Key);
+            if (level == "None") _inputs.LostCargo.Remove(trip.Key);
+            else _inputs.LostCargo[trip.Key] = level;
+            row.DefaultCellStyle.BackColor = RunColor(level, trip.End.HasValue);
             Storage.Save(_data);
         };
+    }
+
+    /// <summary>Red = all cargo lost, yellow = some lost, green = the run ended with everything delivered.</summary>
+    static Color RunColor(string level, bool ended) =>
+        level == "All" ? LostRed : level == "Little" ? PartialYellow : ended ? DoneGreen : Color.White;
+
+    string LostLevel(string key)
+    {
+        if (_inputs == null) return "None";
+        if (_inputs.LostCargo.TryGetValue(key, out var level)) return level;
+        return _inputs.LostRuns.Contains(key) ? "All" : "None";
+    }
+
+    void TripGrid_CellContentClick(object? sender, DataGridViewCellEventArgs e)
+    {
+        if (_updating || _inputs == null || e.RowIndex < 0 || e.ColumnIndex != 8) return;
+        if (_tripGrid.Rows[e.RowIndex].Tag is not WorkerTrip trip) return;
+
+        if (!trip.End.HasValue)
+        {
+            var answer = MessageBox.Show(this,
+                "End the run of " + trip.Worker + " now?\n\nUse this when the cargo was lost and never handed in. You can undo it afterwards.",
+                "End run", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (answer != DialogResult.Yes) return;
+            _inputs.ManualEnds.Add(new ManualEnd { Worker = trip.Worker, Time = DateTime.UtcNow });
+        }
+        else if (trip.Manual)
+        {
+            var at = trip.End.Value;
+            _inputs.ManualEnds.RemoveAll(x => SameName(x.Worker, trip.Worker) && x.Time == at);
+        }
+        else
+        {
+            return;
+        }
+        Storage.Save(_data);
+        BeginInvoke(new Action(FillTrips));
     }
 
     string WorkerOfZone(string zone)
@@ -410,26 +464,27 @@ public sealed partial class MainForm : Form
             _trips = new List<WorkerTrip>();
             if (_current == null || _inputs == null || _log == null) return;
 
-            _trips = WorkerTripBuilder.Build(_current, WorkerOfZone, _log)
+            _trips = WorkerTripBuilder.Build(_current, WorkerOfZone, _log, _inputs.ManualEnds)
                 .OrderBy(t => t.Start).ThenBy(t => t.Worker, StringComparer.OrdinalIgnoreCase).ToList();
 
             foreach (var t in _trips)
             {
                 var pickups = string.Join(",  ", t.Pickups.Select(p => LocationName(p.Zone) + " " + p.Missions + " (" + FormatTime(p.Time) + ")"));
                 var dur = t.End.HasValue ? (t.End.Value - t.Start) : TimeSpan.Zero;
-                var lost = _inputs.LostRuns.Contains(t.Key);
+                var level = LostLevel(t.Key);
                 var idx = _tripGrid.Rows.Add(
                     t.Worker,
                     "#" + t.Number,
                     FormatTime(t.Start),
                     pickups,
                     t.End.HasValue ? FormatTime(t.End.Value) : "on the way",
-                    t.End.HasValue ? t.HandedIn.ToString() : "",
+                    t.Manual ? "ended by hand" : t.End.HasValue ? t.HandedIn.ToString() : "",
                     t.End.HasValue ? (int)dur.TotalHours + ":" + dur.Minutes.ToString("00") : "",
-                    lost);
+                    level,
+                    t.Manual ? "Undo end" : t.End.HasValue ? "" : "End run");
                 var row = _tripGrid.Rows[idx];
-                row.Tag = t.Key;
-                if (lost) row.DefaultCellStyle.BackColor = LostRed;
+                row.Tag = t;
+                row.DefaultCellStyle.BackColor = RunColor(level, t.End.HasValue);
                 if (!t.End.HasValue) row.Cells[4].Style.BackColor = PartialYellow;
             }
         }

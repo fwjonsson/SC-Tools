@@ -16,6 +16,13 @@ public sealed class RowInputs
     public bool PartialPickup { get; set; }
 }
 
+/// <summary>A run you ended by hand (for example when all cargo was lost).</summary>
+public sealed class ManualEnd
+{
+    public string Worker { get; set; } = "";
+    public DateTime Time { get; set; }
+}
+
 /// <summary>What you typed yourself for one session.</summary>
 public sealed class SessionInputs
 {
@@ -24,11 +31,17 @@ public sealed class SessionInputs
     public List<RewardRow> Rewards { get; set; } = new();   // old format, no longer used
     public decimal Reward2 { get; set; }   // payout of a 2 stop contract
     public decimal Reward3 { get; set; }   // payout of a 3 stop contract
-    public List<string> LostRuns { get; set; } = new();   // runs ticked as "lost cargo"
+    public List<string> LostRuns { get; set; } = new();   // old format: runs ticked as "lost cargo" (counts as All)
+    public Dictionary<string, string> LostCargo { get; set; } = new();   // run key -> Little or All
+    public List<ManualEnd> ManualEnds { get; set; } = new();
     public Dictionary<string, RowInputs> Rows { get; set; } = new();   // key = pickup location id
     public Dictionary<string, decimal> Carried { get; set; } = new();   // worker -> value of the locations he carried (saved for the Debts tab)
     public List<string> MissionIds { get; set; } = new();
     public List<string>? Party { get; set; }   // who was in the party this session (null = everyone who carried something), set with "Session party…"
+    public DateTime? StartUtc { get; set; }   // saved with the session so the History tab works without the logs
+    public DateTime? EndUtc { get; set; }
+    public int MissionCount { get; set; }
+    public decimal Revenue { get; set; }
     public List<string> Members { get; set; } = new();   // the party of the session as used for the split (saved with Carried)   // missions of the session, to avoid counting a session twice
 }
 
