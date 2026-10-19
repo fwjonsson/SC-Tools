@@ -583,13 +583,6 @@ public sealed partial class MainForm : Form
         }
     }
 
-    string WorkerOfZone(string zone)
-    {
-        if (_inputs != null && _inputs.Rows.TryGetValue(zone, out var r) && !string.IsNullOrWhiteSpace(r.Worker))
-            return r.Worker;
-        return "Unassigned";
-    }
-
     void FillTrips()
     {
         var wasUpdating = _updating;
@@ -600,7 +593,8 @@ public sealed partial class MainForm : Form
             _trips = new List<WorkerTrip>();
             if (_current == null || _inputs == null || _log == null) return;
 
-            _trips = WorkerTripBuilder.Build(_current, WorkerOfZone, _log, _inputs.ManualEnds)
+            var inputs = _inputs;
+            _trips = WorkerTripBuilder.Build(_current, (z, t) => WorkerTripBuilder.WorkerAt(inputs, z, t), _log, inputs.ManualEnds)
                 .OrderByDescending(t => t.Start).ThenBy(t => t.Worker, StringComparer.OrdinalIgnoreCase).ToList();   // newest run on top
 
             foreach (var t in _trips)
@@ -1215,6 +1209,7 @@ public sealed partial class MainForm : Form
         try
         {
             _inputs = GetInputs(_current.Key);
+            if (WorkerTripBuilder.ResetWorkersForNewBatch(_current, _inputs)) Storage.Save(_data);   // new missions: a clean slate for the assigned workers
             _summary = SessionBuilder.Summarize(_current);
             _rows = SessionBuilder.Locations(_current);
             // only the missions that are not completed yet; when there are none (you finished everything and did
@@ -1318,7 +1313,7 @@ public sealed partial class MainForm : Form
             {
                 var input = GetRow(r.Zone);
                 if (!string.IsNullOrWhiteSpace(input.Worker)) continue;
-                var who = WorkerTripBuilder.PickupActor(_current, r.Zone, _log);
+                var who = WorkerTripBuilder.PickupActor(_current, r.Zone, _log, _inputs!.WorkersResetAt);
                 if (who == null) continue;
                 input.Worker = who;
                 assignedNow = true;

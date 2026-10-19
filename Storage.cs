@@ -16,6 +16,13 @@ public sealed class RowInputs
     public bool PartialPickup { get; set; }
 }
 
+/// <summary>The workers assigned to the locations before a new set of missions was accepted. Kept so the old runs keep their workers.</summary>
+public sealed class WorkerEra
+{
+    public DateTime Until { get; set; }   // UTC: pickups before this time belong to the old assignments
+    public Dictionary<string, string> Workers { get; set; } = new();   // location id -> worker
+}
+
 /// <summary>A run you ended by hand (for example when all cargo was lost).</summary>
 public sealed class ManualEnd
 {
@@ -47,6 +54,8 @@ public sealed class SessionInputs
     public Dictionary<string, string> LostCargo { get; set; } = new();   // run key -> Little or All
     public List<ManualEnd> ManualEnds { get; set; } = new();
     public Dictionary<string, RowInputs> Rows { get; set; } = new();   // key = pickup location id
+    public List<WorkerEra> PastWorkers { get; set; } = new();   // assigned workers of earlier sets of missions (frozen when the table was reset)
+    public DateTime? WorkersResetAt { get; set; }               // when the last set of missions began: the assigned workers were cleared then
     public Dictionary<string, decimal> Carried { get; set; } = new();   // worker -> value of the locations he carried (saved for the Debts tab)
     public Dictionary<string, decimal> RunValues { get; set; } = new();   // worker -> value of his finished runs (Carried = the part whose missions are completed)
     public Dictionary<string, decimal> FailedValues { get; set; } = new();   // worker -> part of the run value that is known to be lost (failed missions, runs marked as failed)
