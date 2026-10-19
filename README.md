@@ -62,15 +62,17 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 
 ## Layout
 
-The pickup board and the stats board are on the left, the session summary on the right (a clean table with times, missions, revenue and hourly rate, and the contract table below it), and the run board takes the whole lower part of the window. The newest runs are on top, older ones move down.
+Every board has a title. On the left: **Hauling Tracker** (the pickup board) and the **Session Leaderboard**. On the right: the contract table on top and below it the clean table with times, missions, revenue and hourly rate. **Cargo runs** takes the whole lower part of the window, with the newest runs on top.
 
-## Stats board
+## Leaderboards
 
-Between the pickup board and the run board there is a table with one row per party member (and a total row):
+The **Session Leaderboard** has one row per party member and a total row, the highest earner on top:
 - **Avg run time** and **Avg missions/run**: averages over the completed runs (ended by a hand-in, not ended by hand). Missions/run counts the missions picked up at each location, like the Pickups column of the run board.
 - **Completed runs** and **Perfect runs** (completed runs with lost cargo None).
 - **Missions carried**: all pickups of the worker this session, also of the run still on the way.
 - **Earned aUEC**: the value of the locations assigned to him this session. **Share of value** is his part of the value carried by everyone this session. **aUEC/hour** is that divided by the session duration (Start Time to End Time).
+
+The **History** tab has the same table for **all saved sessions** (with an extra Sessions column). It adds up what each session saved, so it keeps working after the logs are gone. Sessions saved by an older version have earnings but no run counts until their logs are opened once.
 
 ## Debts tab
 
