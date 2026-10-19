@@ -81,13 +81,37 @@ public static class SessionBuilder
         return groups;
     }
 
+    /// <summary>
+    /// The latest thing that happened in the session: a pickup, a hand-in, a finished or newly accepted mission.
+    /// It keeps moving while you keep hauling, also when the missions you accepted last are not finished yet.
+    /// </summary>
+    static DateTime? LastActivity(SessionGroup g)
+    {
+        DateTime? last = null;
+        void See(DateTime? t)
+        {
+            if (t.HasValue && (!last.HasValue || t.Value > last.Value)) last = t;
+        }
+        foreach (var m in g.Missions)
+        {
+            See(m.Accepted);
+            See(m.FirstSeen);
+            See(m.EndedAt);
+            foreach (var list in m.Events.Values)
+            {
+                foreach (var e in list) See(e.Time);
+            }
+        }
+        return last;
+    }
+
     public static SessionSummary Summarize(SessionGroup g)
     {
         var done = g.Missions.Where(m => m.Completed && m.EndedAt.HasValue).ToList();
         return new SessionSummary
         {
             Start = g.Start,
-            End = done.Count > 0 ? done.Max(m => m.EndedAt!.Value) : (DateTime?)null,
+            End = LastActivity(g),
             Completed = done.Count,
             Total = g.Missions.Count,
         };
