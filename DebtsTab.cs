@@ -27,7 +27,7 @@ public sealed partial class MainForm
         });
         if (!string.IsNullOrEmpty(hint))
         {
-            p.Controls.Add(new Label { Text = hint, AutoSize = true, ForeColor = Color.DimGray, Margin = new Padding(0, 11, 0, 0) });
+            p.Controls.Add(new Label { Text = hint, AutoSize = true, ForeColor = Color.DimGray, Tag = "muted", Margin = new Padding(0, 11, 0, 0) });
         }
         return p;
     }
@@ -116,6 +116,7 @@ public sealed partial class MainForm
             Text = "Mission rewards are split equally between the party of each session, but everybody is owed the value he carried. Use Session Party… if someone was in the party without carrying. Ticked payments reduce the debts.",
             Dock = DockStyle.Fill,
             ForeColor = Color.DimGray,
+            Tag = "muted",
             AutoEllipsis = true,
         }, 0, 7);
         return t;
@@ -138,6 +139,7 @@ public sealed partial class MainForm
         _bestLine.Dock = DockStyle.Fill;
         _bestLine.TextAlign = ContentAlignment.MiddleLeft;
         _bestLine.ForeColor = Color.DimGray;
+        _bestLine.Tag = "muted";
         t.Controls.Add(_bestLine, 0, 2);
 
         t.Controls.Add(Caption("Saved Sessions", "They stay here also when their logs are gone"), 0, 3);
@@ -490,6 +492,7 @@ public sealed partial class MainForm
         f.Controls.Add(label);
         f.Controls.Add(bar);
         f.AcceptButton = ok;
+        ApplyTheme(f);
         if (f.ShowDialog(this) != DialogResult.OK) return;
 
         _inputs.Party = list.CheckedItems.Cast<object>().Select(x => x.ToString() ?? "").Where(x => x.Length > 0).ToList();

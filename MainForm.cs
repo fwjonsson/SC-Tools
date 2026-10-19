@@ -5,14 +5,14 @@ namespace HaulingTracker;
 
 public sealed partial class MainForm : Form
 {
-    static readonly Color HeaderBlue = Color.FromArgb(54, 92, 138);
-    static readonly Color CalcBlue = Color.FromArgb(243, 248, 253);
+    static Color HeaderBlue => Theme.Header;
+    static Color CalcBlue => Theme.Calc;
     const decimal DefaultReward2 = 1268250m;   // payout of a 2 stop mission
     const decimal DefaultReward3 = 1691000m;   // payout of a 3 stop mission
-    static readonly Color LostRed = Color.FromArgb(253, 224, 224);
-    static readonly Color DoneGreen = Color.FromArgb(226, 244, 226);
-    static readonly Color LostOrange = Color.FromArgb(255, 222, 178);
-    static readonly Color PartialYellow = Color.FromArgb(255, 244, 204);
+    static Color LostRed => Theme.Red;
+    static Color DoneGreen => Theme.Green;
+    static Color LostOrange => Theme.Orange;
+    static Color PartialYellow => Theme.Yellow;
 
     const string DefaultLogPath = @"C:\Program Files\Roberts Space Industries\StarCitizen";
 
@@ -71,9 +71,11 @@ public sealed partial class MainForm : Form
         catch
         {
         }
-        BackColor = Color.White;
+        Theme.Dark = _data.DarkMode;
+        BackColor = Theme.Window;
 
         BuildUi();
+        ApplyTheme(this);
 
         _timer.Interval = 1500;
         _timer.Tick += (_, _) => PollLive();
@@ -105,7 +107,7 @@ public sealed partial class MainForm : Form
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 420));   // fitted to the boards by FitTopArea
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // the run board takes what is left and scrolls
-        var tabs = new TabControl { Dock = DockStyle.Fill };
+        var tabs = new ThemedTabControl { Dock = DockStyle.Fill };
         var sessionPage = new TabPage("Session") { BackColor = Color.White };
         var debtsPage = new TabPage("Debts") { BackColor = Color.White };
         tabs.TabPages.Add(sessionPage);
@@ -277,9 +279,13 @@ public sealed partial class MainForm : Form
 
         _status.AutoSize = true;
         _status.ForeColor = Color.DimGray;
+        _status.Tag = "muted";
         _status.Margin = new Padding(6, 10, 0, 0);
 
-        bar.Controls.AddRange(new Control[] { _openBtn, _liveBtn, _addBtn, _sourcesBtn, _partyBtn, _channelBox, _sessionBox, _resetBtn, _copyBtn, _status });
+        StyleButton(_themeBtn, ThemeButtonText());
+        _themeBtn.Click += (_, _) => ToggleDark();
+
+        bar.Controls.AddRange(new Control[] { _openBtn, _liveBtn, _addBtn, _sourcesBtn, _partyBtn, _channelBox, _sessionBox, _resetBtn, _copyBtn, _themeBtn, _status });
         return bar;
     }
 
@@ -375,7 +381,7 @@ public sealed partial class MainForm : Form
 
     static Control WrapInput(TextBox tb)
     {
-        var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0, 3, 6, 0), Margin = new Padding(0) };
+        var p = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Input, Tag = "input", Padding = new Padding(0, 3, 6, 0), Margin = new Padding(0) };
         p.Controls.Add(tb);
         return p;
     }
@@ -385,6 +391,7 @@ public sealed partial class MainForm : Form
         l.Dock = DockStyle.Fill;
         l.TextAlign = ContentAlignment.MiddleRight;
         l.BackColor = CalcBlue;
+        l.Tag = "calc";
         l.Margin = new Padding(0);
         l.Padding = new Padding(0, 0, 6, 0);
     }
@@ -595,11 +602,8 @@ public sealed partial class MainForm : Form
                     level,
                     t.Manual ? "Undo End" : "End Run");
                 var row = _tripGrid.Rows[idx];
-                if (t.End.HasValue && !t.Manual)
-                {
-                    // a finished run cannot be ended any more: a greyed-out button
-                    row.Cells[8] = new DisabledButtonCell { Value = "End Run" };
-                }
+                // a finished run cannot be ended any more: its button is greyed out
+                row.Cells[8] = new RunButtonCell { Value = t.Manual ? "Undo End" : "End Run", Disabled = t.End.HasValue && !t.Manual };
                 row.Tag = t;
                 row.DefaultCellStyle.BackColor = RunColor(level, t.End.HasValue);
             }
@@ -625,6 +629,7 @@ public sealed partial class MainForm : Form
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Color.DimGray,
+            Tag = "muted",
             AutoEllipsis = true,
         }, 1, 0);
         return f;
@@ -654,15 +659,17 @@ public sealed partial class MainForm : Form
 
     static void StyleGrid(DataGridView g)
     {
-        g.BackgroundColor = Color.White;
+        g.BackgroundColor = Theme.Window;
         g.BorderStyle = BorderStyle.None;
         g.CellBorderStyle = DataGridViewCellBorderStyle.Single;
-        g.GridColor = Color.Black;
+        g.GridColor = Theme.Lines;
+        g.DefaultCellStyle.BackColor = Theme.Cell;
+        g.DefaultCellStyle.ForeColor = Theme.Text;
         g.EnableHeadersVisualStyles = false;
         g.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
-        g.ColumnHeadersDefaultCellStyle.BackColor = HeaderBlue;
+        g.ColumnHeadersDefaultCellStyle.BackColor = Theme.Header;
         g.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-        g.ColumnHeadersDefaultCellStyle.SelectionBackColor = HeaderBlue;
+        g.ColumnHeadersDefaultCellStyle.SelectionBackColor = Theme.Header;
         g.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.White;
         g.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
         g.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -673,8 +680,8 @@ public sealed partial class MainForm : Form
         g.AllowUserToResizeRows = false;
         g.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
         g.SelectionMode = DataGridViewSelectionMode.CellSelect;
-        g.DefaultCellStyle.SelectionBackColor = Color.FromArgb(200, 220, 245);
-        g.DefaultCellStyle.SelectionForeColor = Color.Black;
+        g.DefaultCellStyle.SelectionBackColor = Theme.Selection;
+        g.DefaultCellStyle.SelectionForeColor = Theme.SelectionText;
     }
 
     // ------------------------------------------------------------------ loading logs
@@ -839,6 +846,7 @@ public sealed partial class MainForm : Form
             Fill();
         };
         Fill();
+        ApplyTheme(f);
         f.ShowDialog(this);
 
         if (changed && _live) StartLive();
@@ -1306,6 +1314,7 @@ public sealed partial class MainForm : Form
         f.Controls.Add(label);
         f.Controls.Add(bar);
         f.AcceptButton = ok;
+        ApplyTheme(f);
         if (f.ShowDialog(this) != DialogResult.OK) return;
 
         _data.Party = box.Text
@@ -1502,17 +1511,43 @@ public sealed partial class MainForm : Form
     }
 }
 
-/// <summary>A button that cannot be pressed: drawn greyed out, used for runs that are already completed.</summary>
-sealed class DisabledButtonCell : DataGridViewButtonCell
+/// <summary>The button of a run. Greyed out when it cannot be pressed, and drawn in the dark look when dark mode is on.</summary>
+sealed class RunButtonCell : DataGridViewButtonCell
 {
+    public bool Disabled { get; set; }
+
+    public override object Clone()
+    {
+        var c = (RunButtonCell)base.Clone();
+        c.Disabled = Disabled;
+        return c;
+    }
+
     protected override void Paint(Graphics graphics, Rectangle clipBounds, Rectangle cellBounds, int rowIndex,
         DataGridViewElementStates cellState, object? value, object? formattedValue, string? errorText,
         DataGridViewCellStyle cellStyle, DataGridViewAdvancedBorderStyle advancedBorderStyle, DataGridViewPaintParts paintParts)
     {
+        if (!Disabled && !Theme.Dark)
+        {
+            base.Paint(graphics, clipBounds, cellBounds, rowIndex, cellState, value, formattedValue, errorText, cellStyle, advancedBorderStyle, paintParts);
+            return;
+        }
+
         using (var back = new SolidBrush(cellStyle.BackColor)) graphics.FillRectangle(back, cellBounds);
         var button = Rectangle.Inflate(cellBounds, -5, -3);
-        System.Windows.Forms.ButtonRenderer.DrawButton(graphics, button, formattedValue?.ToString() ?? "", cellStyle.Font,
-            false, System.Windows.Forms.VisualStyles.PushButtonState.Disabled);
+        var text = formattedValue?.ToString() ?? "";
+        if (Theme.Dark)
+        {
+            using (var fill = new SolidBrush(Disabled ? Theme.ButtonOff : Theme.Button)) graphics.FillRectangle(fill, button);
+            using (var pen = new Pen(Theme.Lines)) graphics.DrawRectangle(pen, button.X, button.Y, button.Width - 1, button.Height - 1);
+            TextRenderer.DrawText(graphics, text, cellStyle.Font, button, Disabled ? Theme.Muted : Theme.Text,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+        }
+        else
+        {
+            System.Windows.Forms.ButtonRenderer.DrawButton(graphics, button, text, cellStyle.Font, false,
+                System.Windows.Forms.VisualStyles.PushButtonState.Disabled);
+        }
         PaintBorder(graphics, clipBounds, cellBounds, cellStyle, advancedBorderStyle);
     }
 }

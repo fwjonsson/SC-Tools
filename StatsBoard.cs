@@ -7,7 +7,7 @@ public sealed partial class MainForm
 {
     readonly DataGridView _statsGrid = new();
     readonly DataGridView _allTimeGrid = new();
-    static readonly Color TopGold = Color.FromArgb(255, 240, 184);
+    static Color TopGold => Theme.Gold;
 
     /// <summary>One row of a leaderboard before it is turned into text.</summary>
     sealed class StatLine
@@ -25,7 +25,7 @@ public sealed partial class MainForm
         grid.Dock = DockStyle.Fill;
         grid.AllowUserToAddRows = false;
         grid.AllowUserToDeleteRows = false;
-        grid.Columns.Add(Col("Worker", 190, true, DataGridViewContentAlignment.MiddleLeft));   // as wide as Pickup Location above
+        grid.Columns.Add(Col("Worker", 190, true));   // as wide as Pickup Location above
         if (withSessions) grid.Columns.Add(Col("Sessions", 80, true));
         grid.Columns.Add(Col("Completed Runs", 120, true));
         grid.Columns.Add(Col("Perfect Runs", 110, true));
@@ -75,7 +75,6 @@ public sealed partial class MainForm
         var totalValue = lines.Sum(l => l.Earned);
         var sum = new StatLine();
         var first = true;
-        var topRow = -1;
         foreach (var l in lines.OrderByDescending(l => l.Earned).ThenBy(l => l.Name, StringComparer.OrdinalIgnoreCase))
         {
             var avgTime = "";
@@ -99,7 +98,6 @@ public sealed partial class MainForm
                 grid.Rows[idx].Cells[0].Value = "★ " + l.Name + " ★";
                 grid.Rows[idx].DefaultCellStyle.BackColor = TopGold;
                 first = false;
-                topRow = idx;
             }
 
             sum.S.Runs += l.S.Runs;
@@ -118,16 +116,6 @@ public sealed partial class MainForm
         });
         var tr = grid.Rows.Add(total.ToArray());
         grid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
-
-        // the other names start where the top earner's name starts, after the star
-        if (topRow >= 0)
-        {
-            var indent = TextRenderer.MeasureText("★ ", grid.Font, Size.Empty, TextFormatFlags.NoPadding).Width;
-            for (var i = 0; i < grid.Rows.Count; i++)
-            {
-                if (i != topRow) grid.Rows[i].Cells[0].Style.Padding = new Padding(indent, 0, 0, 0);
-            }
-        }
     }
 
     /// <summary>The leaderboard of the selected session.</summary>
