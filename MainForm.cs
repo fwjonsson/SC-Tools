@@ -446,6 +446,7 @@ public sealed partial class MainForm : Form
     void BuildTripGrid()
     {
         _tripGrid.Dock = DockStyle.Fill;
+        _tripGrid.Margin = new Padding(0, 3, 0, 3);   // no side gap, so it lines up with the boards above
         StyleGrid(_tripGrid);
         _tripGrid.AllowUserToAddRows = false;
         _tripGrid.AllowUserToDeleteRows = false;
