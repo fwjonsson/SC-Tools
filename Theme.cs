@@ -99,7 +99,7 @@ sealed class ThemedTabControl : TabControl
 {
     public void RefreshStyle()
     {
-        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizeDoubleBuffer | ControlStyles.ResizeRedraw, Theme.Dark);
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, Theme.Dark);
         Invalidate();
     }
 
