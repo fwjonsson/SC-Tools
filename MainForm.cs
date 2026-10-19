@@ -218,7 +218,7 @@ public sealed partial class MainForm : Form
                 var title = _left.GetRowHeights().FirstOrDefault();   // as drawn, also on a scaled screen
                 if (title <= 0) title = TitleHeight;
                 _left.RowStyles[1].Height = pickups;
-                var row0 = Math.Max(title + pickups, TitleHeight + 112 + 14 + 170 + 6);   // the summary on the right needs its own height too
+                var row0 = Math.Max(title + pickups, TitleHeight + 138 + 14 + 170 + 6);   // the summary on the right needs its own height too
                 var row1 = title + leaders;
                 _main.RowStyles[0].Height = row0;
                 _main.RowStyles[1].Height = row1;
@@ -346,7 +346,7 @@ public sealed partial class MainForm : Form
             Padding = new Padding(10, TitleHeight, 0, 0),   // lines up with the boards on the left, which have a title above them
         };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 138));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
         p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // empty, so the clean table keeps its small rows
@@ -393,10 +393,11 @@ public sealed partial class MainForm : Form
         _rewards.Columns.Add(Col("Total", 100, true, DataGridViewContentAlignment.MiddleRight, true));
         _rewards.CellEndEdit += (_, _) =>
         {
-            if (_inputs != null && _rewards.Rows.Count >= 2)
+            if (_inputs != null && _rewards.Rows.Count >= 3)
             {
                 _inputs.Reward2 = ParseNumber(_rewards.Rows[0].Cells[1].Value);
                 _inputs.Reward3 = ParseNumber(_rewards.Rows[1].Cells[1].Value);
+                _inputs.Reward4 = ParseNumber(_rewards.Rows[2].Cells[1].Value);
             }
             RecomputeRewards();
             Storage.Save(_data);
@@ -1161,13 +1162,14 @@ public sealed partial class MainForm : Form
             _startBox.Text = _inputs.Start ?? FormatTime(_summary.Start);
             _endBox.Text = _inputs.End ?? (_summary.End.HasValue ? FormatTime(_summary.End.Value) : "");
 
-            // the mission counts come from the log (2 stop and 3 stop contracts), you only type the payouts
+            // the mission counts come from the log (2, 3 and 4 stop contracts), you only type the payouts
             _rewards.Rows.Clear();
             if (_inputs.Reward2 == 0) _inputs.Reward2 = DefaultReward2;
             if (_inputs.Reward3 == 0) _inputs.Reward3 = DefaultReward3;
             var accepted = _current.Missions;   // every accepted mission of the session (abandoned ones are already left out)
             _rewards.Rows.Add("2 stops", _inputs.Reward2.ToString("N0"), accepted.Count(m => m.Multi == 2), "");
             _rewards.Rows.Add("3 stops", _inputs.Reward3.ToString("N0"), accepted.Count(m => m.Multi == 3), "");
+            _rewards.Rows.Add("4 stops", _inputs.Reward4.ToString("N0"), accepted.Count(m => m.Multi == 4), "");   // Master rank: type the payout
             var totalIdx = _rewards.Rows.Add("Total", "", 0, "");
             _rewards.Rows[totalIdx].ReadOnly = true;
             _rewards.Rows[totalIdx].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
@@ -1293,7 +1295,7 @@ public sealed partial class MainForm : Form
     decimal StopValue(LocationRow r)
     {
         if (_inputs == null) return 0;
-        return r.Stops2 * _inputs.Reward2 / 2m + r.Stops3 * _inputs.Reward3 / 3m;
+        return r.Stops2 * _inputs.Reward2 / 2m + r.Stops3 * _inputs.Reward3 / 3m + r.Stops4 * _inputs.Reward4 / 4m;
     }
 
     string StopValueText(LocationRow r)
@@ -1432,7 +1434,7 @@ public sealed partial class MainForm : Form
         {
             foreach (DataGridViewRow row in _rewards.Rows)
             {
-                if (row.Index >= 2) continue;   // the Total row
+                if (row.Index >= 3) continue;   // the Total row
                 var reward = ParseNumber(row.Cells[1].Value);
                 var count = (int)ParseNumber(row.Cells[2].Value);
                 var total = reward * count;
@@ -1449,10 +1451,10 @@ public sealed partial class MainForm : Form
         _revenue = revenue;
         _rewardsTotalMissions.Text = missions.ToString("N0");
         _rewardsTotalRevenue.Text = revenue.ToString("N0");
-        if (_rewards.Rows.Count >= 3)
+        if (_rewards.Rows.Count >= 4)
         {
-            _rewards.Rows[2].Cells[2].Value = missions;
-            _rewards.Rows[2].Cells[3].Value = revenue == 0 ? "" : revenue.ToString("N0");
+            _rewards.Rows[3].Cells[2].Value = missions;
+            _rewards.Rows[3].Cells[3].Value = revenue == 0 ? "" : revenue.ToString("N0");
         }
         RefreshStopValues();
         RecomputeTimes();

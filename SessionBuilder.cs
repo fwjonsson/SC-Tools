@@ -29,6 +29,7 @@ public sealed class LocationRow
     public int Missions;        // missions with a stop here
     public int Stops2;          // of those, stops that belong to 2 stop missions
     public int Stops3;          // of those, stops that belong to 3 stop missions
+    public int Stops4;          // of those, stops that belong to 4 stop missions
     public int Loaded;          // stops fully picked up
     public int Partial;         // stops where only part is picked up so far
     public int Delivered;       // stops whose cargo has been handed in at Ruin
@@ -203,6 +204,7 @@ public static class SessionBuilder
                 Missions = infos.Count,
                 Stops2 = kv.Value.Count(i => i.Mission.Multi == 2),
                 Stops3 = kv.Value.Count(i => i.Mission.Multi == 3),
+                Stops4 = kv.Value.Count(i => i.Mission.Multi == 4),
                 Loaded = infos.Count(i => i.State.StartsWith("loaded")),
                 Partial = infos.Count(i => i.State == "partial"),
                 Delivered = delivered.Count,

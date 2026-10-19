@@ -41,6 +41,7 @@ public sealed class SessionInputs
     public List<RewardRow> Rewards { get; set; } = new();   // old format, no longer used
     public decimal Reward2 { get; set; }   // payout of a 2 stop contract
     public decimal Reward3 { get; set; }   // payout of a 3 stop contract
+    public decimal Reward4 { get; set; }   // payout of a 4 stop contract (Master rank)
     public List<string> LostRuns { get; set; } = new();   // old format: runs ticked as "lost cargo" (counts as All)
     public Dictionary<string, string> LostCargo { get; set; } = new();   // run key -> Little or All
     public List<ManualEnd> ManualEnds { get; set; } = new();
