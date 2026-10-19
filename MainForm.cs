@@ -461,14 +461,15 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(Col("Run", 60, true));
         _tripGrid.Columns.Add(Col("Pickup Location & Time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
         // the columns after Pickups add up to the width of the right panel, so Pickups ends where the boards above end
-        _tripGrid.Columns.Add(Col("Missions", 62, true));
-        _tripGrid.Columns.Add(Col("Started", 62, true));
-        _tripGrid.Columns.Add(Col("Completed", 78, true));
-        _tripGrid.Columns.Add(Col("Duration", 72, true));
+        _tripGrid.Columns.Add(Col("Missions", 56, true));
+        _tripGrid.Columns.Add(Col("Value", 66, true, DataGridViewContentAlignment.MiddleRight));
+        _tripGrid.Columns.Add(Col("Started", 52, true));
+        _tripGrid.Columns.Add(Col("Completed", 66, true));
+        _tripGrid.Columns.Add(Col("Duration", 56, true));
         var lostCol = new DataGridViewComboBoxColumn
         {
             HeaderText = "Lost Cargo",
-            Width = 96,
+            Width = 84,
             FlatStyle = FlatStyle.Flat,
             SortMode = DataGridViewColumnSortMode.NotSortable,
         };
@@ -478,7 +479,7 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(new DataGridViewButtonColumn
         {
             HeaderText = "End Run",
-            Width = 83,
+            Width = 73,
             FlatStyle = FlatStyle.Standard,   // a real button
             SortMode = DataGridViewColumnSortMode.NotSortable,
         });
@@ -490,10 +491,10 @@ public sealed partial class MainForm : Form
         };
         _tripGrid.CellValueChanged += (_, e) =>
         {
-            if (_updating || _inputs == null || e.RowIndex < 0 || e.ColumnIndex != 7) return;
+            if (_updating || _inputs == null || e.RowIndex < 0 || e.ColumnIndex != 8) return;
             var row = _tripGrid.Rows[e.RowIndex];
             if (row.Tag is not WorkerTrip trip) return;
-            var level = Convert.ToString(row.Cells[7].Value) ?? "None";
+            var level = Convert.ToString(row.Cells[8].Value) ?? "None";
             _inputs.LostRuns.Remove(trip.Key);
             if (level == "None") _inputs.LostCargo.Remove(trip.Key);
             else _inputs.LostCargo[trip.Key] = level;
@@ -518,7 +519,7 @@ public sealed partial class MainForm : Form
 
     void TripGrid_CellContentClick(object? sender, DataGridViewCellEventArgs e)
     {
-        if (_updating || _inputs == null || e.RowIndex < 0 || e.ColumnIndex != 8) return;
+        if (_updating || _inputs == null || e.RowIndex < 0 || e.ColumnIndex != 9) return;
         if (_tripGrid.Rows[e.RowIndex].Tag is not WorkerTrip trip) return;
 
         if (!trip.End.HasValue)
@@ -563,7 +564,7 @@ public sealed partial class MainForm : Form
         {
             if (row.Tag is not WorkerTrip t || t.End.HasValue) continue;
             var text = RunDuration(t);
-            if (!Equals(row.Cells[6].Value, text)) row.Cells[6].Value = text;
+            if (!Equals(row.Cells[7].Value, text)) row.Cells[7].Value = text;
         }
     }
 
@@ -596,6 +597,7 @@ public sealed partial class MainForm : Form
                     "#" + t.Number,
                     pickups,
                     t.Manual ? "ended by hand" : t.End.HasValue ? t.HandedIn.ToString() : "",
+                    RunValueText(t),
                     FormatTime(t.Start),
                     t.End.HasValue ? FormatTime(t.End.Value) : "",
                     RunDuration(t),
@@ -603,7 +605,7 @@ public sealed partial class MainForm : Form
                     t.Manual ? "Undo End" : "End Run");
                 var row = _tripGrid.Rows[idx];
                 // a finished run cannot be ended any more: its button is greyed out
-                row.Cells[8] = new RunButtonCell { Value = t.Manual ? "Undo End" : "End Run", Disabled = t.End.HasValue && !t.Manual };
+                row.Cells[9] = new RunButtonCell { Value = t.Manual ? "Undo End" : "End Run", Disabled = t.End.HasValue && !t.Manual };
                 row.Tag = t;
                 row.DefaultCellStyle.BackColor = RunColor(level, t.End.HasValue);
             }
@@ -1265,6 +1267,10 @@ public sealed partial class MainForm : Form
             var info = _rows.FirstOrDefault(x => x.Zone == zone);
             if (info != null) row.Cells[4].Value = StopValueText(info);
         }
+        foreach (DataGridViewRow row in _tripGrid.Rows)
+        {
+            if (row.Tag is WorkerTrip t) row.Cells[4].Value = RunValueText(t);
+        }
     }
 
     void ColorMissionsCell(DataGridViewRow row, LocationRow r)
@@ -1420,21 +1426,26 @@ public sealed partial class MainForm : Form
     }
 
     /// <summary>What the finished runs are worth: every pickup of a run counts its share of the value of that location.</summary>
-    decimal FinishedRunsValue()
+    decimal FinishedRunsValue() => _trips.Where(t => t.End.HasValue && !t.Manual).Sum(RunValue);
+
+    /// <summary>The value of the locations a run picked up at, combined.</summary>
+    decimal RunValue(WorkerTrip t)
     {
         if (_inputs == null) return 0;
         decimal sum = 0;
-        foreach (var t in _trips)
+        foreach (var p in t.Pickups)
         {
-            if (!t.End.HasValue || t.Manual) continue;
-            foreach (var p in t.Pickups)
-            {
-                var loc = _rows.FirstOrDefault(x => x.Zone == p.Zone);
-                if (loc == null || loc.Missions <= 0) continue;
-                sum += StopValue(loc) * Math.Min(p.Missions, loc.Missions) / loc.Missions;
-            }
+            var loc = _rows.FirstOrDefault(x => x.Zone == p.Zone);
+            if (loc == null || loc.Missions <= 0) continue;
+            sum += StopValue(loc) * Math.Min(p.Missions, loc.Missions) / loc.Missions;
         }
         return sum;
+    }
+
+    string RunValueText(WorkerTrip t)
+    {
+        var v = RunValue(t);
+        return v == 0 ? "" : v.ToString("N0");
     }
 
     void RecomputeTimes()
