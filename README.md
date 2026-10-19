@@ -41,7 +41,7 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
   Hand-ins less than 3 minutes apart count as one hand-in. Run #1 starts at the first accepted contract.
 - Each Game.log belongs to one player (the character name in the log). The run board shows the runs of all loaded players side by side, the top table follows the player picked in the drop-down.
 - **Add live source…** adds the StarCitizen folder (the one holding LIVE and HOTFIX), also on another computer through a shared folder (UNC path). The drop-down next to it picks LIVE, HOTFIX or Auto (the log written most recently). All added sources are watched at once.
-- When watching starts (and when the game starts a new Game.log) the logs in the `logbackups` folder that are less than 6 hours old are read first, so a session that was already going on, for example before a crash, continues.
+- When watching starts (and when the game starts a new Game.log) the logs in the `logbackups` folder that are less than 24 hours old are read first, so a session that was already going on, for example before a crash, continues.
 - **Sources…** lists every added live source, shows if it can be reached right now, and lets you remove one.
 - Mission updates reach the whole party, so the logs of all accounts are merged and a shared mission counts once.
 - **Party…** is the list of names in the Assigned Worker dropdown.
