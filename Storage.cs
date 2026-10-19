@@ -77,6 +77,7 @@ public sealed class AppData
     public bool DarkMode { get; set; }   // the dark look
     public string? Channel { get; set; }   // Auto, LIVE, HOTFIX...
     public List<string> WatchPaths { get; set; } = new();   // Game.log files to watch live, also on other computers
+    public List<string> DisabledWatchPaths { get; set; } = new();   // sources that are saved but switched off (unticked in Sources)
     public Dictionary<string, string> LocationNames { get; set; } = new();   // location id -> your name
     public Dictionary<string, SessionInputs> Sessions { get; set; } = new();
     public List<SavedTransfer> Transfers { get; set; } = new();

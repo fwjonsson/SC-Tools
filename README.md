@@ -42,7 +42,7 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 - Each Game.log belongs to one player (the character name in the log). The run board shows the runs of all loaded players side by side, the top table follows the player picked in the drop-down.
 - **Options → Add Live Source…** adds the StarCitizen folder (the one holding LIVE and HOTFIX), also on another computer through a shared folder (UNC path). **Log Channel** in the same menu picks LIVE, HOTFIX or Auto (the log written most recently). All added sources are watched at once.
 - When watching starts (and when the game starts a new Game.log) the logs in the `logbackups` folder that are less than 24 hours old are read first, so a session that was already going on, for example before a crash, continues.
-- **Options → Sources…** lists every added live source, shows if it can be reached right now, and lets you remove one.
+- **Options → Sources…** lists every added live source, shows if it can be reached right now, and lets you remove one. Untick **Enabled** to switch a source off without losing its address; tick it again to use it later. A switched-off source is not read at all.
 - Mission updates reach the whole party, so the logs of all accounts are merged and a shared mission counts once.
 - **Options → Party…** opens a table where you type names and tick **Active**. Only active names show up in the Assigned Worker dropdown (someone already assigned to a location stays visible there).
 - A location nobody is assigned to is assigned automatically to the player the logs show picking up there. You can change it, and bildog123 (no log) has to be assigned by hand.
