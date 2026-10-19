@@ -36,6 +36,7 @@ public sealed partial class MainForm
         grid.Columns.Add(Col("Delivered Batches", 105, true));
         grid.Columns.Add(Col("Avg Batches/Run", 100, true));
         grid.Columns.Add(Col("Avg Run Time", 90, true));
+        grid.Columns.Add(Col("Distance Travelled", 105, true, DataGridViewContentAlignment.MiddleRight));
         grid.Columns.Add(Col("Total Run Value", 105, true, DataGridViewContentAlignment.MiddleRight));
         grid.Columns.Add(Col("Total Earned aUEC", 105, true, DataGridViewContentAlignment.MiddleRight));
         grid.Columns.Add(Col("Lost Value", 90, true, DataGridViewContentAlignment.MiddleRight));
@@ -49,11 +50,20 @@ public sealed partial class MainForm
 
     static string Num(decimal v) => v > 0 ? v.ToString("N0", CultureInfo.InvariantCulture) : "";
 
+    static string Dist(double gm) => gm > 0 ? gm.ToString("N1", CultureInfo.InvariantCulture) + " Gm" : "";
+
+    /// <summary>The station of a pickup location: by its location id, or by the name you gave it. Null when the distance table does not know it.</summary>
+    string? StationOf(string zone) => PyroDistances.IdOfTail(Tail(zone)) ?? PyroDistances.IdOfName(LocationName(zone));
+
+    /// <summary>Gm flown in one run: Ruin, the pickup stations in the order they were visited, and back to Ruin. Locations missing from the table are skipped.</summary>
+    static double RunDistance(WorkerTrip t, Func<string, string?> stationOf) =>
+        PyroDistances.Run(t.Pickups.OrderBy(p => p.Time).Select(p => stationOf(p.Zone)).OfType<string>());
+
     static string PerHour(decimal earned, double seconds) =>
         earned > 0 && seconds > 0 ? Num(earned / (decimal)(seconds / 3600.0)) : "";
 
     /// <summary>Runs and missions per worker. Completed runs are the ones ended by a hand-in (not by hand), perfect runs are completed runs with lost cargo None.</summary>
-    static Dictionary<string, WorkerStat> ComputeStats(IEnumerable<WorkerTrip> trips, SessionInputs inp, HashSet<string>? completed = null)
+    static Dictionary<string, WorkerStat> ComputeStats(IEnumerable<WorkerTrip> trips, SessionInputs inp, Func<string, string?>? stationOf = null, HashSet<string>? completed = null)
     {
         var result = new Dictionary<string, WorkerStat>(StringComparer.OrdinalIgnoreCase);
         foreach (var t in trips)
@@ -68,6 +78,7 @@ public sealed partial class MainForm
             if (LostLevelOf(inp, t.Key) == "None") s.Perfect++;
             s.RunMissions += missions;
             s.RunSeconds += (t.End.Value - t.Start).TotalSeconds;
+            if (stationOf != null) s.Distance += RunDistance(t, stationOf);
         }
         return result;
     }
@@ -100,7 +111,7 @@ public sealed partial class MainForm
 
             var cells = new List<object> { l.Name };
             if (withSessions) cells.Add(l.Sessions);
-            cells.AddRange(new object[] { l.S.Runs, l.S.Perfect, l.S.Missions, avgMissions, avgTime, Num(l.RunValue), Num(l.Confirmed), Num(l.Lost), share, PerHour(l.RunValue, l.Seconds) });
+            cells.AddRange(new object[] { l.S.Runs, l.S.Perfect, l.S.Missions, avgMissions, avgTime, Dist(l.S.Distance), Num(l.RunValue), Num(l.Confirmed), Num(l.Lost), share, PerHour(l.RunValue, l.Seconds) });
             var idx = grid.Rows.Add(cells.ToArray());
             if (first && l.RunValue > 0)
             {
@@ -115,6 +126,7 @@ public sealed partial class MainForm
             sum.S.Missions += l.S.Missions;
             sum.S.RunMissions += l.S.RunMissions;
             sum.S.RunSeconds += l.S.RunSeconds;
+            sum.S.Distance += l.S.Distance;
             sum.RunValue += l.RunValue;
             sum.Confirmed += l.Confirmed;
             sum.Lost += l.Lost;
@@ -124,7 +136,7 @@ public sealed partial class MainForm
         if (withSessions) total.Add(totalSessions);
         total.AddRange(new object[]
         {
-            sum.S.Runs, sum.S.Perfect, sum.S.Missions, "", "", Num(sum.RunValue), Num(sum.Confirmed), Num(sum.Lost), sum.RunValue > 0 ? "100%" : "", PerHour(sum.RunValue, totalSeconds),
+            sum.S.Runs, sum.S.Perfect, sum.S.Missions, "", "", Dist(sum.S.Distance), Num(sum.RunValue), Num(sum.Confirmed), Num(sum.Lost), sum.RunValue > 0 ? "100%" : "", PerHour(sum.RunValue, totalSeconds),
         });
         var tr = grid.Rows.Add(total.ToArray());
         grid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
@@ -143,7 +155,7 @@ public sealed partial class MainForm
 
         var seconds = SessionElapsed()?.TotalSeconds ?? 0;
 
-        var stats = ComputeStats(_trips, _inputs);
+        var stats = ComputeStats(_trips, _inputs, StationOf);
         // only workers who started a cargo run this session
         var names = new List<string>();
         foreach (var t in _trips)
@@ -207,6 +219,7 @@ public sealed partial class MainForm
                 l.S.Missions += kv.Value.Missions;
                 l.S.RunMissions += kv.Value.RunMissions;
                 l.S.RunSeconds += kv.Value.RunSeconds;
+                l.S.Distance += kv.Value.Distance;
             }
         }
         WriteBoard(_allTimeGrid, lines.Values.ToList(), true, sessions, totalSeconds);
