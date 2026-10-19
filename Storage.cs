@@ -144,8 +144,35 @@ public static class Storage
     /// <summary>Raised with a short text when the data file could not be saved (for example a OneDrive folder that is not available).</summary>
     public static event Action<string>? SaveFailed;
 
+    /// <summary>The Backups folder next to the data file.</summary>
+    public static string BackupDir => Path.Combine(Path.GetDirectoryName(FilePath) ?? DefaultDir, "Backups");
+
+    const int BackupsToKeep = 30;
+
+    /// <summary>
+    /// A dated copy of the data file (data-2026-10-20.json) made the first time the program starts each day, so it is the state
+    /// from before you played today. The newest 30 copies are kept. A problem here never stops the program.
+    /// </summary>
+    static void Backup()
+    {
+        try
+        {
+            if (!File.Exists(FilePath) || new FileInfo(FilePath).Length == 0) return;
+            Directory.CreateDirectory(BackupDir);
+            var target = Path.Combine(BackupDir, "data-" + DateTime.Now.ToString("yyyy-MM-dd") + ".json");
+            if (!File.Exists(target)) File.Copy(FilePath, target);
+            foreach (var old in Directory.GetFiles(BackupDir, "data-*.json").OrderByDescending(f => f, StringComparer.Ordinal).Skip(BackupsToKeep))
+                File.Delete(old);
+        }
+        catch (Exception)
+        {
+            // no backup today, the data itself is untouched
+        }
+    }
+
     public static AppData Load()
     {
+        Backup();
         try
         {
             if (File.Exists(FilePath))

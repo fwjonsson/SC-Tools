@@ -307,6 +307,8 @@ public sealed partial class MainForm : Form
         _resetBtn.Click += (_, _) => ResetTimes();
         _copyBtn.Text = "Copy Table for Google Sheets";
         _copyBtn.Click += (_, _) => CopyTable();
+        var backupBtn = new ToolStripMenuItem("Open Backup Folder");
+        backupBtn.Click += (_, _) => OpenBackupFolder();
         _themeBtn.Text = ThemeButtonText();
         _themeBtn.Click += (_, _) => ToggleDark();
 
@@ -316,12 +318,26 @@ public sealed partial class MainForm : Form
             new ToolStripSeparator(),
             _partyBtn,
             new ToolStripSeparator(),
-            _resetBtn, _copyBtn,
+            _resetBtn, _copyBtn, backupBtn,
             new ToolStripSeparator(),
             _themeBtn,
         });
         _menu.Items.Add(options);
         _menu.Dock = DockStyle.Top;
+    }
+
+    /// <summary>Opens the folder with the daily copies of the data file.</summary>
+    void OpenBackupFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(Storage.BackupDir);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "\"" + Storage.BackupDir + "\"") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            SetStatus("Could not open the backup folder: " + ex.Message);
+        }
     }
 
     static readonly string[] Channels = { "Auto", "LIVE", "HOTFIX", "PTU", "EPTU" };

@@ -23,7 +23,7 @@ To make a single exe: `dotnet publish -c Release -r win-x64 --self-contained fal
 5. Pick the worker for each location, write notes. Payouts can be changed in the reward table.
 6. **Copy table for Google Sheets** copies the pickup table, ready to paste into the sheet.
 
-Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **Data File…** moves it to another folder, for example in OneDrive, so it follows you between PCs. Run the tracker on only one PC at a time then, because it rewrites the whole file on every change.
+Your data is saved in `%AppData%\HaulingTracker\data.json`. The first time the program starts each day it also keeps a dated copy (`data-2026-10-20.json`) in a `Backups` folder next to it, the newest 30 days (**Options → Open Backup Folder**). To go back, close the program and copy a backup over `data.json`. On the Debts tab, **Data File…** moves it to another folder, for example in OneDrive, so it follows you between PCs. Run the tracker on only one PC at a time then, because it rewrites the whole file on every change.
 
 ## What the log can and cannot tell
 
