@@ -2,34 +2,114 @@ using System.Globalization;
 
 namespace HaulingTracker;
 
-// The personal stats board between the pickup board and the run board.
+// The session leaderboard (between the pickup board and the run board) and the all-time leaderboard on the History tab.
 public sealed partial class MainForm
 {
     readonly DataGridView _statsGrid = new();
+    readonly DataGridView _allTimeGrid = new();
 
-    void BuildStatsGrid()
+    /// <summary>One row of a leaderboard before it is turned into text.</summary>
+    sealed class StatLine
     {
-        _statsGrid.Dock = DockStyle.Fill;
-        StyleGrid(_statsGrid);
-        _statsGrid.AllowUserToAddRows = false;
-        _statsGrid.AllowUserToDeleteRows = false;
-        _statsGrid.Columns.Add(Col("Worker", 140, true, DataGridViewContentAlignment.MiddleLeft));
-        _statsGrid.Columns.Add(Col("Avg run time", 100, true));
-        _statsGrid.Columns.Add(Col("Avg missions/run", 130, true));
-        _statsGrid.Columns.Add(Col("Completed runs", 120, true));
-        _statsGrid.Columns.Add(Col("Perfect runs", 110, true));
-        _statsGrid.Columns.Add(Col("Missions carried", 130, true));
-        _statsGrid.Columns.Add(Col("Earned aUEC", 120, true, DataGridViewContentAlignment.MiddleRight));
-        _statsGrid.Columns.Add(Col("Share of value", 110, true));
-        _statsGrid.Columns.Add(Col("aUEC/hour", 120, true, DataGridViewContentAlignment.MiddleRight, true));
+        public string Name = "";
+        public int Sessions;
+        public WorkerStat S = new();
+        public decimal Earned;
+        public double Seconds;      // hours worked, for aUEC/hour
     }
+
+    void BuildStatColumns(DataGridView grid, bool withSessions)
+    {
+        StyleGrid(grid);
+        grid.Dock = DockStyle.Fill;
+        grid.AllowUserToAddRows = false;
+        grid.AllowUserToDeleteRows = false;
+        grid.Columns.Add(Col("Worker", 140, true, DataGridViewContentAlignment.MiddleLeft));
+        if (withSessions) grid.Columns.Add(Col("Sessions", 80, true));
+        grid.Columns.Add(Col("Avg run time", 100, true));
+        grid.Columns.Add(Col("Avg missions/run", 130, true));
+        grid.Columns.Add(Col("Completed runs", 120, true));
+        grid.Columns.Add(Col("Perfect runs", 110, true));
+        grid.Columns.Add(Col("Missions carried", 130, true));
+        grid.Columns.Add(Col("Earned aUEC", 120, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col("Share of value", 110, true));
+        grid.Columns.Add(Col("aUEC/hour", 120, true, DataGridViewContentAlignment.MiddleRight, true));
+    }
+
+    void BuildStatsGrid() => BuildStatColumns(_statsGrid, false);
 
     static string ShortDuration(TimeSpan d) => (int)d.TotalHours + ":" + d.Minutes.ToString("00");
 
-    /// <summary>
-    /// Per worker for the selected session. Completed runs are the ones ended by a hand-in (not by hand),
-    /// perfect runs are completed runs with lost cargo None. Earned is the value of the locations he carried.
-    /// </summary>
+    static string Num(decimal v) => v > 0 ? v.ToString("N0", CultureInfo.InvariantCulture) : "";
+
+    static string PerHour(decimal earned, double seconds) =>
+        earned > 0 && seconds > 0 ? Num(earned / (decimal)(seconds / 3600.0)) : "";
+
+    /// <summary>Runs and missions per worker. Completed runs are the ones ended by a hand-in (not by hand), perfect runs are completed runs with lost cargo None.</summary>
+    static Dictionary<string, WorkerStat> ComputeStats(IEnumerable<WorkerTrip> trips, SessionInputs inp)
+    {
+        var result = new Dictionary<string, WorkerStat>(StringComparer.OrdinalIgnoreCase);
+        foreach (var t in trips)
+        {
+            if (t.Worker == "Unassigned") continue;
+            if (!result.TryGetValue(t.Worker, out var s)) result[t.Worker] = s = new WorkerStat();
+            var missions = t.Pickups.Sum(p => p.Missions);
+            s.Missions += missions;
+            if (!t.End.HasValue || t.Manual) continue;
+            s.Runs++;
+            if (LostLevelOf(inp, t.Key) == "None") s.Perfect++;
+            s.RunMissions += missions;
+            s.RunSeconds += (t.End.Value - t.Start).TotalSeconds;
+        }
+        return result;
+    }
+
+    static bool SameStats(Dictionary<string, WorkerStat> a, Dictionary<string, WorkerStat> b) =>
+        a.Count == b.Count && a.All(kv => b.TryGetValue(kv.Key, out var o) && o == kv.Value);
+
+    /// <summary>The leaderboard: the highest earner on top, the total row last.</summary>
+    static void WriteBoard(DataGridView grid, List<StatLine> lines, bool withSessions, int totalSessions, double totalSeconds)
+    {
+        grid.Rows.Clear();
+        var totalValue = lines.Sum(l => l.Earned);
+        var sum = new StatLine();
+        foreach (var l in lines.OrderByDescending(l => l.Earned).ThenBy(l => l.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var avgTime = "";
+            var avgMissions = "";
+            if (l.S.Runs > 0)
+            {
+                avgTime = ShortDuration(TimeSpan.FromSeconds(l.S.RunSeconds / l.S.Runs));
+                avgMissions = ((double)l.S.RunMissions / l.S.Runs).ToString("0.0", CultureInfo.InvariantCulture);
+            }
+            var share = totalValue > 0 && l.Earned > 0
+                ? (l.Earned / totalValue * 100m).ToString("0", CultureInfo.InvariantCulture) + "%"
+                : "";
+
+            var cells = new List<object> { l.Name };
+            if (withSessions) cells.Add(l.Sessions);
+            cells.AddRange(new object[] { avgTime, avgMissions, l.S.Runs, l.S.Perfect, l.S.Missions, Num(l.Earned), share, PerHour(l.Earned, l.Seconds) });
+            grid.Rows.Add(cells.ToArray());
+
+            sum.S.Runs += l.S.Runs;
+            sum.S.Perfect += l.S.Perfect;
+            sum.S.Missions += l.S.Missions;
+            sum.S.RunMissions += l.S.RunMissions;
+            sum.S.RunSeconds += l.S.RunSeconds;
+            sum.Earned += l.Earned;
+        }
+
+        var total = new List<object> { "Total" };
+        if (withSessions) total.Add(totalSessions);
+        total.AddRange(new object[]
+        {
+            "", "", sum.S.Runs, sum.S.Perfect, sum.S.Missions, Num(sum.Earned), sum.Earned > 0 ? "100%" : "", PerHour(sum.Earned, totalSeconds),
+        });
+        var tr = grid.Rows.Add(total.ToArray());
+        grid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+    }
+
+    /// <summary>The leaderboard of the selected session.</summary>
     void FillStats()
     {
         _statsGrid.Rows.Clear();
@@ -37,61 +117,68 @@ public sealed partial class MainForm
 
         var carried = ComputeCarried(_current, _inputs);
 
-        TimeSpan? session = null;
+        double seconds = 0;
         if (TryTime(_startBox.Text, out var s) && TryTime(_endBox.Text, out var e))
         {
             var d = e - s;
             if (d < TimeSpan.Zero) d += TimeSpan.FromDays(1);
-            session = d;
+            seconds = d.TotalSeconds;
         }
 
+        var stats = ComputeStats(_trips, _inputs);
         var names = new List<string>(_data.Party);
-        foreach (var t in _trips)
+        foreach (var n in stats.Keys.Concat(carried.Keys))
         {
-            if (t.Worker != "Unassigned" && !names.Any(n => SameName(n, t.Worker))) names.Add(t.Worker);
+            if (n != "Unassigned" && !names.Any(x => SameName(x, n))) names.Add(n);
         }
 
-        var totalValue = carried.Values.Sum();
-        var sumDone = 0;
-        var sumPerfect = 0;
-        var sumMissions = 0;
-        decimal sumEarned = 0;
-        foreach (var name in names)
+        var lines = names.Select(n => new StatLine
         {
-            var mine = _trips.Where(t => SameName(t.Worker, name)).ToList();
-            var done = mine.Where(t => t.End.HasValue && !t.Manual).ToList();
-            var perfect = done.Count(t => LostLevel(t.Key) == "None");
-            var missions = mine.Sum(t => t.Pickups.Sum(p => p.Missions));
-            var earned = CarriedBy(carried, name);
+            Name = n,
+            Sessions = 1,
+            S = stats.FirstOrDefault(kv => SameName(kv.Key, n)).Value ?? new WorkerStat(),
+            Earned = CarriedBy(carried, n),
+            Seconds = seconds,
+        }).ToList();
+        WriteBoard(_statsGrid, lines, false, 1, seconds);
+    }
 
-            var avgTime = "";
-            var avgMissions = "";
-            if (done.Count > 0)
+    /// <summary>The leaderboard over every saved session (History tab).</summary>
+    void FillAllTime()
+    {
+        var lines = new Dictionary<string, StatLine>(StringComparer.OrdinalIgnoreCase);
+        StatLine Line(string name)
+        {
+            if (!lines.TryGetValue(name, out var l)) lines[name] = l = new StatLine { Name = name };
+            return l;
+        }
+        foreach (var p in _data.Party) Line(p);
+
+        var sessions = 0;
+        double totalSeconds = 0;
+        foreach (var s in _data.Sessions.Values.Where(x => x.Carried.Count > 0))
+        {
+            sessions++;
+            var seconds = s.StartUtc.HasValue && s.EndUtc.HasValue ? Math.Max(0, (s.EndUtc.Value - s.StartUtc.Value).TotalSeconds) : 0;
+            totalSeconds += seconds;
+
+            foreach (var n in s.Members.Concat(s.Carried.Keys).Concat(s.Stats.Keys).Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                avgTime = ShortDuration(TimeSpan.FromTicks((long)done.Average(t => (double)(t.End!.Value - t.Start).Ticks)));
-                avgMissions = done.Average(t => (double)t.Pickups.Sum(p => p.Missions)).ToString("0.0", CultureInfo.InvariantCulture);
+                var l = Line(n);
+                l.Sessions++;
+                l.Seconds += seconds;
             }
-            var perHour = session.HasValue && session.Value.TotalHours > 0 && earned > 0
-                ? (earned / (decimal)session.Value.TotalHours).ToString("N0", CultureInfo.InvariantCulture)
-                : "";
-
-            var share = totalValue > 0 && earned > 0
-                ? (earned / totalValue * 100m).ToString("0", CultureInfo.InvariantCulture) + "%"
-                : "";
-
-            _statsGrid.Rows.Add(name, avgTime, avgMissions, done.Count, perfect, missions,
-                earned > 0 ? earned.ToString("N0", CultureInfo.InvariantCulture) : "", share, perHour);
-            sumDone += done.Count;
-            sumPerfect += perfect;
-            sumMissions += missions;
-            sumEarned += earned;
+            foreach (var kv in s.Carried) Line(kv.Key).Earned += kv.Value;
+            foreach (var kv in s.Stats)
+            {
+                var l = Line(kv.Key);
+                l.S.Runs += kv.Value.Runs;
+                l.S.Perfect += kv.Value.Perfect;
+                l.S.Missions += kv.Value.Missions;
+                l.S.RunMissions += kv.Value.RunMissions;
+                l.S.RunSeconds += kv.Value.RunSeconds;
+            }
         }
-
-        var totalHour = session.HasValue && session.Value.TotalHours > 0 && sumEarned > 0
-            ? (sumEarned / (decimal)session.Value.TotalHours).ToString("N0", CultureInfo.InvariantCulture)
-            : "";
-        var tr = _statsGrid.Rows.Add("Total", "", "", sumDone, sumPerfect, sumMissions,
-            sumEarned > 0 ? sumEarned.ToString("N0", CultureInfo.InvariantCulture) : "", sumEarned > 0 ? "100%" : "", totalHour);
-        _statsGrid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+        WriteBoard(_allTimeGrid, lines.Values.ToList(), true, sessions, totalSeconds);
     }
 }

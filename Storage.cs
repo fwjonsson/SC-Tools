@@ -23,6 +23,16 @@ public sealed class ManualEnd
     public DateTime Time { get; set; }
 }
 
+/// <summary>What one worker did in one session, saved so the all-time leaderboard works without the logs.</summary>
+public sealed record WorkerStat
+{
+    public int Runs { get; set; }            // completed runs (ended by a hand-in)
+    public int Perfect { get; set; }         // completed runs with no lost cargo
+    public int Missions { get; set; }        // missions carried, also in a run still on the way
+    public int RunMissions { get; set; }     // missions in the completed runs
+    public double RunSeconds { get; set; }   // total time of the completed runs
+}
+
 /// <summary>What you typed yourself for one session.</summary>
 public sealed class SessionInputs
 {
@@ -42,6 +52,7 @@ public sealed class SessionInputs
     public DateTime? EndUtc { get; set; }
     public int MissionCount { get; set; }
     public decimal Revenue { get; set; }
+    public Dictionary<string, WorkerStat> Stats { get; set; } = new();   // worker -> runs and missions of the session (for the History leaderboard)
     public List<string> Members { get; set; } = new();   // the party of the session as used for the split (saved with Carried)   // missions of the session, to avoid counting a session twice
 }
 

@@ -112,11 +112,18 @@ public sealed partial class MainForm
 
     Control BuildHistoryPage()
     {
-        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(12) };
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(12) };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        t.Controls.Add(Caption("Saved sessions (they stay here also when their logs are gone)"), 0, 0);
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
+
+        t.Controls.Add(Caption("All-time leaderboard (every saved session)"), 0, 0);
+        BuildStatColumns(_allTimeGrid, true);
+        t.Controls.Add(_allTimeGrid, 0, 1);
+
+        t.Controls.Add(Caption("Saved sessions (they stay here also when their logs are gone)"), 0, 2);
         StyleGrid(_historyGrid);
         _historyGrid.Dock = DockStyle.Fill;
         _historyGrid.AllowUserToAddRows = false;
@@ -126,12 +133,13 @@ public sealed partial class MainForm
         _historyGrid.Columns.Add(Col("Missions", 90, true, DataGridViewContentAlignment.MiddleRight));
         _historyGrid.Columns.Add(Col("Revenue", 140, true, DataGridViewContentAlignment.MiddleRight));
         _historyGrid.Columns.Add(Col("Carried per worker", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
-        t.Controls.Add(_historyGrid, 0, 1);
+        t.Controls.Add(_historyGrid, 0, 3);
         return t;
     }
 
     void FillHistory()
     {
+        FillAllTime();
         _historyGrid.Rows.Clear();
         var saved = _data.Sessions.Values
             .Where(s => s.Carried.Count > 0 && s.StartUtc.HasValue)
@@ -227,13 +235,20 @@ public sealed partial class MainForm
                 changed = true;
             }
 
-            var same = inp.Carried.Count == carried.Count
+            var trips = WorkerTripBuilder.Build(g,
+                z => inp.Rows.TryGetValue(z, out var r) && !string.IsNullOrWhiteSpace(r.Worker) ? r.Worker : "Unassigned",
+                _log, inp.ManualEnds);
+            var stats = ComputeStats(trips, inp);
+
+            var same = SameStats(inp.Stats, stats)
+                && inp.Carried.Count == carried.Count
                 && carried.All(kv => inp.Carried.TryGetValue(kv.Key, out var v) && v == kv.Value)
                 && inp.Members.Count == members.Count
                 && members.All(m => inp.Members.Any(x => SameName(x, m)));
             if (!same || inp.MissionIds.Count != ids.Count)
             {
                 inp.Carried = new Dictionary<string, decimal>(carried);
+                inp.Stats = new Dictionary<string, WorkerStat>(stats);
                 inp.Members = members;
                 inp.MissionIds = ids;
                 changed = true;

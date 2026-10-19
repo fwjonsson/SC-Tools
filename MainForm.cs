@@ -118,23 +118,47 @@ public sealed partial class MainForm : Form
         main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 450));
         main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
+        var left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Margin = new Padding(0) };
         left.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        left.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
         left.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
+        left.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
         left.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
         BuildLogGrid();
         BuildStatsGrid();
-        left.Controls.Add(_logGrid, 0, 0);
-        left.Controls.Add(_statsGrid, 0, 1);
+        left.Controls.Add(SectionTitle("Hauling Tracker"), 0, 0);
+        left.Controls.Add(_logGrid, 0, 1);
+        left.Controls.Add(SectionTitle("Session Leaderboard"), 0, 2);
+        left.Controls.Add(_statsGrid, 0, 3);
 
         main.Controls.Add(left, 0, 0);
         main.Controls.Add(BuildHeader(), 1, 0);
 
+        // the run board with its title
+        var runs = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
+        runs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        runs.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
+        runs.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        runs.Controls.Add(SectionTitle("Cargo runs"), 0, 0);
+
         BuildTripGrid();
         root.Controls.Add(BuildToolbar(), 0, 0);
         root.Controls.Add(main, 0, 1);
-        root.Controls.Add(_tripGrid, 0, 2);
+        runs.Controls.Add(_tripGrid, 0, 1);
+        root.Controls.Add(runs, 0, 2);
     }
+
+    const int TitleHeight = 30;
+
+    static Label SectionTitle(string text) => new()
+    {
+        Text = text,
+        Dock = DockStyle.Fill,
+        TextAlign = ContentAlignment.BottomLeft,
+        Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+        Margin = new Padding(0),
+        Padding = new Padding(2, 0, 0, 3),
+    };
 
     Control BuildToolbar()
     {
@@ -197,30 +221,20 @@ public sealed partial class MainForm : Form
         b.Padding = new Padding(8, 0, 8, 0);
     }
 
-    /// <summary>The session summary on the right: a short title, the clean times and totals table, and the blue contract table below it.</summary>
+    /// <summary>The session summary on the right: the blue contract table on top, the clean times and totals table below it.</summary>
     Control BuildHeader()
     {
         var p = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 4,
-            Padding = new Padding(10, 0, 0, 0),
+            RowCount = 3,
+            Padding = new Padding(10, TitleHeight, 0, 0),   // lines up with the boards on the left, which have a title above them
         };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
-
-        p.Controls.Add(new Label
-        {
-            Text = "Hauling Tracker",
-            Font = new Font("Segoe UI", 15f, FontStyle.Bold),
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            Margin = new Padding(0),
-        }, 0, 0);
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
 
         // start / end / duration / totals, neutral and clean
         var t = new TableLayoutPanel
@@ -248,9 +262,9 @@ public sealed partial class MainForm : Form
         AddSummaryRow(t, 3, "Total Missions", _missionsVal);
         AddSummaryRow(t, 4, "Total Revenue", _revenueVal);
         AddSummaryRow(t, 5, "Hourly Rate", _hourlyVal);
-        p.Controls.Add(t, 0, 1);
+        p.Controls.Add(t, 0, 2);
 
-        // the contract table below it, in the blue style of the other boards
+        // the contract table on top, in the blue style of the other boards
         StyleGrid(_rewards);
         _rewards.Dock = DockStyle.Fill;
         _rewards.Margin = new Padding(0);
@@ -273,7 +287,7 @@ public sealed partial class MainForm : Form
             UpdateSnapshots();
             RefreshDebts();
         };
-        p.Controls.Add(_rewards, 0, 3);
+        p.Controls.Add(_rewards, 0, 0);
         return p;
     }
 
@@ -404,6 +418,7 @@ public sealed partial class MainForm : Form
             row.DefaultCellStyle.BackColor = RunColor(level, trip.End.HasValue);
             Storage.Save(_data);
             FillStats();
+            UpdateSnapshots();
         };
     }
 
@@ -411,11 +426,12 @@ public sealed partial class MainForm : Form
     static Color RunColor(string level, bool ended) =>
         level == "All" ? LostRed : level == "Little" ? PartialYellow : ended ? DoneGreen : Color.White;
 
-    string LostLevel(string key)
+    string LostLevel(string key) => _inputs == null ? "None" : LostLevelOf(_inputs, key);
+
+    static string LostLevelOf(SessionInputs inp, string key)
     {
-        if (_inputs == null) return "None";
-        if (_inputs.LostCargo.TryGetValue(key, out var level)) return level;
-        return _inputs.LostRuns.Contains(key) ? "All" : "None";
+        if (inp.LostCargo.TryGetValue(key, out var level)) return level;
+        return inp.LostRuns.Contains(key) ? "All" : "None";
     }
 
     void TripGrid_CellContentClick(object? sender, DataGridViewCellEventArgs e)
@@ -441,7 +457,11 @@ public sealed partial class MainForm : Form
             return;
         }
         Storage.Save(_data);
-        BeginInvoke(new Action(FillTrips));
+        BeginInvoke(new Action(() =>
+        {
+            FillTrips();
+            UpdateSnapshots();
+        }));
     }
 
     string WorkerOfZone(string zone)
