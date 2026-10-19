@@ -1069,6 +1069,7 @@ public sealed partial class MainForm : Form
         ["70053"] = "Starlight Service Station",
         ["72952"] = "Checkmate",
         ["74320"] = "Nyx Gateway",
+        ["74325"] = "Stanton Gateway",
     };
 
     string LocationName(string zone)
