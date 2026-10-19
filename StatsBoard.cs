@@ -7,6 +7,7 @@ public sealed partial class MainForm
 {
     readonly DataGridView _statsGrid = new();
     readonly DataGridView _allTimeGrid = new();
+    static readonly Color TopGold = Color.FromArgb(255, 240, 184);
 
     /// <summary>One row of a leaderboard before it is turned into text.</summary>
     sealed class StatLine
@@ -73,6 +74,7 @@ public sealed partial class MainForm
         grid.Rows.Clear();
         var totalValue = lines.Sum(l => l.Earned);
         var sum = new StatLine();
+        var first = true;
         foreach (var l in lines.OrderByDescending(l => l.Earned).ThenBy(l => l.Name, StringComparer.OrdinalIgnoreCase))
         {
             var avgTime = "";
@@ -89,7 +91,14 @@ public sealed partial class MainForm
             var cells = new List<object> { l.Name };
             if (withSessions) cells.Add(l.Sessions);
             cells.AddRange(new object[] { avgTime, avgMissions, l.S.Runs, l.S.Perfect, l.S.Missions, Num(l.Earned), share, PerHour(l.Earned, l.Seconds) });
-            grid.Rows.Add(cells.ToArray());
+            var idx = grid.Rows.Add(cells.ToArray());
+            if (first && l.Earned > 0)
+            {
+                // the top earner: a star and a gold row
+                grid.Rows[idx].Cells[0].Value = "★ " + l.Name;
+                grid.Rows[idx].DefaultCellStyle.BackColor = TopGold;
+                first = false;
+            }
 
             sum.S.Runs += l.S.Runs;
             sum.S.Perfect += l.S.Perfect;

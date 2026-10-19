@@ -10,6 +10,7 @@ public sealed partial class MainForm
     readonly DataGridView _earnGrid = new();
     readonly DataGridView _txGrid = new();
     readonly DataGridView _historyGrid = new();
+    readonly Label _bestLine = new();
     string _debtSelected = "";
     bool _debtUpdating;
 
@@ -112,10 +113,11 @@ public sealed partial class MainForm
 
     Control BuildHistoryPage()
     {
-        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(12) };
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(12) };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
 
@@ -123,7 +125,12 @@ public sealed partial class MainForm
         BuildStatColumns(_allTimeGrid, true);
         t.Controls.Add(_allTimeGrid, 0, 1);
 
-        t.Controls.Add(Caption("Saved sessions (they stay here also when their logs are gone)"), 0, 2);
+        _bestLine.Dock = DockStyle.Fill;
+        _bestLine.TextAlign = ContentAlignment.MiddleLeft;
+        _bestLine.ForeColor = Color.DimGray;
+        t.Controls.Add(_bestLine, 0, 2);
+
+        t.Controls.Add(Caption("Saved sessions (they stay here also when their logs are gone)"), 0, 3);
         StyleGrid(_historyGrid);
         _historyGrid.Dock = DockStyle.Fill;
         _historyGrid.AllowUserToAddRows = false;
@@ -133,7 +140,7 @@ public sealed partial class MainForm
         _historyGrid.Columns.Add(Col("Missions", 90, true, DataGridViewContentAlignment.MiddleRight));
         _historyGrid.Columns.Add(Col("Revenue", 140, true, DataGridViewContentAlignment.MiddleRight));
         _historyGrid.Columns.Add(Col("Carried per worker", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
-        t.Controls.Add(_historyGrid, 0, 3);
+        t.Controls.Add(_historyGrid, 0, 4);
         return t;
     }
 
@@ -159,6 +166,19 @@ public sealed partial class MainForm
             revenue += s.Revenue;
             missions += s.MissionCount;
         }
+        // best session: most revenue, and the best aUEC per hour
+        var best = saved.OrderByDescending(x => x.Revenue).FirstOrDefault();
+        var bestHour = saved.Where(x => x.StartUtc.HasValue && x.EndUtc.HasValue && x.EndUtc > x.StartUtc)
+            .OrderByDescending(x => x.Revenue / (decimal)(x.EndUtc!.Value - x.StartUtc!.Value).TotalHours).FirstOrDefault();
+        var parts = new List<string>();
+        if (best != null)
+            parts.Add("Best session: " + best.StartUtc!.Value.ToLocalTime().ToString("d MMM", CultureInfo.CurrentCulture) + ", "
+                + best.Revenue.ToString("N0", CultureInfo.InvariantCulture) + " aUEC");
+        if (bestHour != null)
+            parts.Add("Best aUEC/hour: " + bestHour.StartUtc!.Value.ToLocalTime().ToString("d MMM", CultureInfo.CurrentCulture) + ", "
+                + (bestHour.Revenue / (decimal)(bestHour.EndUtc!.Value - bestHour.StartUtc!.Value).TotalHours).ToString("N0", CultureInfo.InvariantCulture));
+        _bestLine.Text = string.Join("      ", parts);
+
         var tr = _historyGrid.Rows.Add("Total", "", missions, revenue.ToString("N0", CultureInfo.InvariantCulture), "");
         _historyGrid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
     }

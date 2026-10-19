@@ -66,13 +66,13 @@ Every board has a title. On the left: **Hauling Tracker** (the pickup board) and
 
 ## Leaderboards
 
-The **Session Leaderboard** has one row per party member and a total row, the highest earner on top:
+The **Session Leaderboard** has one row per party member and a total row, the highest earner on top (marked with a star and a gold row):
 - **Avg run time** and **Avg missions/run**: averages over the completed runs (ended by a hand-in, not ended by hand). Missions/run counts the missions picked up at each location, like the Pickups column of the run board.
 - **Completed runs** and **Perfect runs** (completed runs with lost cargo None).
 - **Missions carried**: all pickups of the worker this session, also of the run still on the way.
 - **Earned aUEC**: the value of the locations assigned to him this session. **Share of value** is his part of the value carried by everyone this session. **aUEC/hour** is that divided by the session duration (Start Time to End Time).
 
-The **History** tab has the same table for **all saved sessions** (with an extra Sessions column). It adds up what each session saved, so it keeps working after the logs are gone. Sessions saved by an older version have earnings but no run counts until their logs are opened once.
+The **History** tab has the same table for **all saved sessions** (with an extra Sessions column). Under it a line shows the best session (most revenue) and the best aUEC/hour. It adds up what each session saved, so it keeps working after the logs are gone. Sessions saved by an older version have earnings but no run counts until their logs are opened once.
 
 ## Debts tab
 
