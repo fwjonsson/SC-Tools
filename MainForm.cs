@@ -438,9 +438,10 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(Col("Run", 60, true));
         _tripGrid.Columns.Add(Col("Started", 80, true));
         _tripGrid.Columns.Add(Col("Pickups (location, missions, time)", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
+        // the columns after Pickups add up to the width of the right panel, so Pickups ends where the boards above end
         _tripGrid.Columns.Add(Col("Handed in", 90, true));
         _tripGrid.Columns.Add(Col("Missions", 80, true));
-        _tripGrid.Columns.Add(Col("Duration", 90, true));
+        _tripGrid.Columns.Add(Col("Duration", 80, true));
         var lostCol = new DataGridViewComboBoxColumn
         {
             HeaderText = "Lost cargo",
@@ -453,8 +454,8 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(lostCol);
         _tripGrid.Columns.Add(new DataGridViewButtonColumn
         {
-            HeaderText = "",
-            Width = 110,
+            HeaderText = "Status",
+            Width = 103,
             FlatStyle = FlatStyle.Flat,
             SortMode = DataGridViewColumnSortMode.NotSortable,
         });
@@ -558,6 +559,12 @@ public sealed partial class MainForm : Form
                     level,
                     t.Manual ? "Undo end" : t.End.HasValue ? "" : "End run");
                 var row = _tripGrid.Rows[idx];
+                if (t.End.HasValue && !t.Manual)
+                {
+                    // a finished run has nothing to press: show the status as text
+                    row.Cells[8] = new DataGridViewTextBoxCell { Value = "Completed" };
+                    row.Cells[8].Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
                 row.Tag = t;
                 row.DefaultCellStyle.BackColor = RunColor(level, t.End.HasValue);
                 if (!t.End.HasValue) row.Cells[4].Style.BackColor = PartialYellow;
