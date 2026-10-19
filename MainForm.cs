@@ -206,7 +206,7 @@ public sealed partial class MainForm : Form
                 var title = _left.GetRowHeights().FirstOrDefault();   // as drawn, also on a scaled screen
                 if (title <= 0) title = TitleHeight;
                 _left.RowStyles[1].Height = pickups;
-                var row0 = Math.Max(title + pickups, TitleHeight + 86 + 14 + 170 + 6);   // the summary on the right needs its own height too
+                var row0 = Math.Max(title + pickups, TitleHeight + 112 + 14 + 170 + 6);   // the summary on the right needs its own height too
                 var row1 = title + leaders;
                 _main.RowStyles[0].Height = row0;
                 _main.RowStyles[1].Height = row1;
@@ -310,7 +310,7 @@ public sealed partial class MainForm : Form
             Padding = new Padding(10, TitleHeight, 0, 0),   // lines up with the boards on the left, which have a title above them
         };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
         p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // empty, so the clean table keeps its small rows
@@ -611,7 +611,7 @@ public sealed partial class MainForm : Form
         finally
         {
             _updating = wasUpdating;
-            FillStats();
+            RecomputeTimes();   // also refreshes the leaderboard
         }
     }
 
@@ -1134,6 +1134,9 @@ public sealed partial class MainForm : Form
             var accepted = _current.Missions;   // every accepted mission of the session (abandoned ones are already left out)
             _rewards.Rows.Add("2 stops", _inputs.Reward2.ToString("N0"), accepted.Count(m => m.Multi == 2), "");
             _rewards.Rows.Add("3 stops", _inputs.Reward3.ToString("N0"), accepted.Count(m => m.Multi == 3), "");
+            var totalIdx = _rewards.Rows.Add("Total", "", 0, "");
+            _rewards.Rows[totalIdx].ReadOnly = true;
+            _rewards.Rows[totalIdx].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
 
             FillLog();
             FillTrips();
@@ -1371,6 +1374,7 @@ public sealed partial class MainForm : Form
         {
             foreach (DataGridViewRow row in _rewards.Rows)
             {
+                if (row.Index >= 2) continue;   // the Total row
                 var reward = ParseNumber(row.Cells[1].Value);
                 var count = (int)ParseNumber(row.Cells[2].Value);
                 var total = reward * count;
@@ -1387,6 +1391,11 @@ public sealed partial class MainForm : Form
         _revenue = revenue;
         _rewardsTotalMissions.Text = missions.ToString("N0");
         _rewardsTotalRevenue.Text = revenue.ToString("N0");
+        if (_rewards.Rows.Count >= 3)
+        {
+            _rewards.Rows[2].Cells[2].Value = missions;
+            _rewards.Rows[2].Cells[3].Value = revenue == 0 ? "" : revenue.ToString("N0");
+        }
         RefreshStopValues();
         RecomputeTimes();
     }
@@ -1410,6 +1419,24 @@ public sealed partial class MainForm : Form
         ShowSession();
     }
 
+    /// <summary>What the finished runs are worth: every pickup of a run counts its share of the value of that location.</summary>
+    decimal FinishedRunsValue()
+    {
+        if (_inputs == null) return 0;
+        decimal sum = 0;
+        foreach (var t in _trips)
+        {
+            if (!t.End.HasValue || t.Manual) continue;
+            foreach (var p in t.Pickups)
+            {
+                var loc = _rows.FirstOrDefault(x => x.Zone == p.Zone);
+                if (loc == null || loc.Missions <= 0) continue;
+                sum += StopValue(loc) * Math.Min(p.Missions, loc.Missions) / loc.Missions;
+            }
+        }
+        return sum;
+    }
+
     void RecomputeTimes()
     {
         TimeSpan? duration = null;
@@ -1424,14 +1451,12 @@ public sealed partial class MainForm : Form
             ? (int)duration.Value.TotalHours + ":" + duration.Value.Minutes.ToString("00")
             : "";
 
-        _revenueVal.Text = _inputs == null ? "" : _revenue.ToString("N0");
+        // revenue = value of the finished runs, taken from the values of the pickup locations of those runs
+        var runRevenue = FinishedRunsValue();
+        _revenueVal.Text = _inputs == null || runRevenue == 0 ? "" : runRevenue.ToString("N0");
 
-        // the hourly rate counts only what is already handed in (completed missions' share of the revenue)
-        var earnedSoFar = _summary is { Total: > 0 }
-            ? _revenue * _summary.Completed / _summary.Total
-            : _revenue;
-        _hourlyVal.Text = duration.HasValue && duration.Value.TotalHours > 0 && earnedSoFar > 0
-            ? (earnedSoFar / (decimal)duration.Value.TotalHours).ToString("N0")
+        _hourlyVal.Text = duration.HasValue && duration.Value.TotalHours > 0 && runRevenue > 0
+            ? (runRevenue / (decimal)duration.Value.TotalHours).ToString("N0")
             : "";
 
         FillStats();
