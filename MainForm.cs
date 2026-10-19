@@ -218,7 +218,7 @@ public sealed partial class MainForm : Form
                 var title = _left.GetRowHeights().FirstOrDefault();   // as drawn, also on a scaled screen
                 if (title <= 0) title = TitleHeight;
                 _left.RowStyles[1].Height = pickups;
-                var row0 = Math.Max(title + pickups, TitleHeight + 112 + 14 + 170 + 6);   // the summary on the right needs its own height too
+                var row0 = Math.Max(title + pickups, TitleHeight + 138 + 14 + 170 + 6);   // the summary on the right needs its own height too
                 var row1 = title + leaders;
                 _main.RowStyles[0].Height = row0;
                 _main.RowStyles[1].Height = row1;
@@ -346,7 +346,7 @@ public sealed partial class MainForm : Form
             Padding = new Padding(10, TitleHeight, 0, 0),   // lines up with the boards on the left, which have a title above them
         };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 138));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
         p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // empty, so the clean table keeps its small rows
@@ -393,10 +393,11 @@ public sealed partial class MainForm : Form
         _rewards.Columns.Add(Col("Total", 100, true, DataGridViewContentAlignment.MiddleRight, true));
         _rewards.CellEndEdit += (_, _) =>
         {
-            if (_inputs != null && _rewards.Rows.Count >= 2)
+            if (_inputs != null && _rewards.Rows.Count >= 3)
             {
                 _inputs.Reward2 = ParseNumber(_rewards.Rows[0].Cells[1].Value);
                 _inputs.Reward3 = ParseNumber(_rewards.Rows[1].Cells[1].Value);
+                _inputs.Reward4 = ParseNumber(_rewards.Rows[2].Cells[1].Value);
             }
             RecomputeRewards();
             Storage.Save(_data);
@@ -492,30 +493,22 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(Col("Run", 60, true));
         _tripGrid.Columns.Add(Col("Pickup Location & Time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
         // the columns after Pickups add up to the width of the right panel, so Pickups ends where the boards above end
-        _tripGrid.Columns.Add(Col("Batches", 80, true));
-        _tripGrid.Columns.Add(Col("Value", 86, true, DataGridViewContentAlignment.MiddleRight));
-        _tripGrid.Columns.Add(Col("Started", 66, true));
-        _tripGrid.Columns.Add(Col("Completed", 98, true));
-        _tripGrid.Columns.Add(Col("Run Time", 76, true));
+        _tripGrid.Columns.Add(Col("Batches", 90, true));
+        _tripGrid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
+        _tripGrid.Columns.Add(Col("Started", 76, true));
+        _tripGrid.Columns.Add(Col("Completed", 108, true));
+        _tripGrid.Columns.Add(Col("Run Time", 90, true));
         var lostCol = new DataGridViewComboBoxColumn
         {
             HeaderText = "Lost Cargo",
-            Width = 98,
+            Width = 116,
             FlatStyle = FlatStyle.Flat,
             SortMode = DataGridViewColumnSortMode.NotSortable,
         };
         lostCol.Items.AddRange("None", "Little", "All");
         lostCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         _tripGrid.Columns.Add(lostCol);
-        _tripGrid.Columns.Add(new DataGridViewButtonColumn
-        {
-            HeaderText = "Failed",
-            Width = 76,
-            FlatStyle = FlatStyle.Standard,   // a real button
-            SortMode = DataGridViewColumnSortMode.NotSortable,
-        });
         _tripGrid.DataError += (_, e) => e.ThrowException = false;
-        _tripGrid.CellContentClick += TripGrid_CellContentClick;
         _tripGrid.CurrentCellDirtyStateChanged += (_, _) =>
         {
             if (_tripGrid.IsCurrentCellDirty) _tripGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
@@ -530,9 +523,28 @@ public sealed partial class MainForm : Form
             if (level == "None") _inputs.LostCargo.Remove(trip.Key);
             else _inputs.LostCargo[trip.Key] = level;
             row.DefaultCellStyle.BackColor = RunColor(level, trip.End.HasValue);
+
+            // All lost = the run failed: one that is still on the way ends here, and picking something else brings it back
+            var restart = false;
+            if (level == "All" && !trip.End.HasValue)
+            {
+                _inputs.ManualEnds.Add(new ManualEnd { Worker = trip.Worker, Time = DateTime.UtcNow });
+                restart = true;
+            }
+            else if (level != "All" && trip.Manual && trip.End.HasValue)
+            {
+                var at = trip.End.Value;
+                _inputs.ManualEnds.RemoveAll(x => SameName(x.Worker, trip.Worker) && x.Time == at);
+                restart = true;
+            }
             Storage.Save(_data);
-            FillStats();
-            UpdateSnapshots();
+            BeginInvoke(new Action(() =>
+            {
+                if (restart) FillTrips();
+                else RecomputeTimes();
+                UpdateSnapshots();
+                RefreshDebts();
+            }));
         };
     }
 
@@ -546,36 +558,6 @@ public sealed partial class MainForm : Form
     {
         if (inp.LostCargo.TryGetValue(key, out var level)) return level;
         return inp.LostRuns.Contains(key) ? "All" : "None";
-    }
-
-    void TripGrid_CellContentClick(object? sender, DataGridViewCellEventArgs e)
-    {
-        if (_updating || _inputs == null || e.RowIndex < 0 || e.ColumnIndex != 9) return;
-        if (_tripGrid.Rows[e.RowIndex].Tag is not WorkerTrip trip) return;
-
-        if (!trip.End.HasValue)
-        {
-            var answer = MessageBox.Show(this,
-                "Mark the run of " + trip.Worker + " as failed?\n\nUse this when the cargo was lost and never handed in. The run does not count and its value is shown as lost. You can undo it afterwards.",
-                "Failed Run", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            if (answer != DialogResult.Yes) return;
-            _inputs.ManualEnds.Add(new ManualEnd { Worker = trip.Worker, Time = DateTime.UtcNow });
-        }
-        else if (trip.Manual)
-        {
-            var at = trip.End.Value;
-            _inputs.ManualEnds.RemoveAll(x => SameName(x.Worker, trip.Worker) && x.Time == at);
-        }
-        else
-        {
-            return;
-        }
-        Storage.Save(_data);
-        BeginInvoke(new Action(() =>
-        {
-            FillTrips();
-            UpdateSnapshots();
-        }));
     }
 
     /// <summary>Time from the start of the run to its end, or to now while the run is still on the way (when watching live).</summary>
@@ -627,18 +609,15 @@ public sealed partial class MainForm : Form
                     t.Worker,
                     "#" + t.Number,
                     pickups,
-                    t.Manual ? "failed" : t.End.HasValue ? t.HandedIn.ToString() : "",
+                    t.Manual || level == "All" ? "failed" : t.End.HasValue ? t.HandedIn.ToString() : "",
                     RunValueText(t),
                     FormatTime(t.Start),
                     t.End.HasValue ? FormatTime(t.End.Value) : "",
                     RunDuration(t),
-                    level,
-                    t.Manual ? "Undo Failed" : "Failed");
+                    level);
                 var row = _tripGrid.Rows[idx];
-                // a finished run cannot be ended any more: its button is greyed out
-                row.Cells[9] = new RunButtonCell { Value = t.Manual ? "Undo Failed" : "Failed", Disabled = t.End.HasValue && !t.Manual };
                 row.Tag = t;
-                row.DefaultCellStyle.BackColor = RunColor(level, t.End.HasValue);
+                row.DefaultCellStyle.BackColor = RunColor(t.Manual ? "All" : level, t.End.HasValue);
             }
         }
         finally
@@ -1183,13 +1162,14 @@ public sealed partial class MainForm : Form
             _startBox.Text = _inputs.Start ?? FormatTime(_summary.Start);
             _endBox.Text = _inputs.End ?? (_summary.End.HasValue ? FormatTime(_summary.End.Value) : "");
 
-            // the mission counts come from the log (2 stop and 3 stop contracts), you only type the payouts
+            // the mission counts come from the log (2, 3 and 4 stop contracts), you only type the payouts
             _rewards.Rows.Clear();
             if (_inputs.Reward2 == 0) _inputs.Reward2 = DefaultReward2;
             if (_inputs.Reward3 == 0) _inputs.Reward3 = DefaultReward3;
             var accepted = _current.Missions;   // every accepted mission of the session (abandoned ones are already left out)
             _rewards.Rows.Add("2 stops", _inputs.Reward2.ToString("N0"), accepted.Count(m => m.Multi == 2), "");
             _rewards.Rows.Add("3 stops", _inputs.Reward3.ToString("N0"), accepted.Count(m => m.Multi == 3), "");
+            _rewards.Rows.Add("4 stops", _inputs.Reward4.ToString("N0"), accepted.Count(m => m.Multi == 4), "");   // Master rank: type the payout
             var totalIdx = _rewards.Rows.Add("Total", "", 0, "");
             _rewards.Rows[totalIdx].ReadOnly = true;
             _rewards.Rows[totalIdx].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
@@ -1315,7 +1295,7 @@ public sealed partial class MainForm : Form
     decimal StopValue(LocationRow r)
     {
         if (_inputs == null) return 0;
-        return r.Stops2 * _inputs.Reward2 / 2m + r.Stops3 * _inputs.Reward3 / 3m;
+        return r.Stops2 * _inputs.Reward2 / 2m + r.Stops3 * _inputs.Reward3 / 3m + r.Stops4 * _inputs.Reward4 / 4m;
     }
 
     string StopValueText(LocationRow r)
@@ -1454,7 +1434,7 @@ public sealed partial class MainForm : Form
         {
             foreach (DataGridViewRow row in _rewards.Rows)
             {
-                if (row.Index >= 2) continue;   // the Total row
+                if (row.Index >= 3) continue;   // the Total row
                 var reward = ParseNumber(row.Cells[1].Value);
                 var count = (int)ParseNumber(row.Cells[2].Value);
                 var total = reward * count;
@@ -1471,10 +1451,10 @@ public sealed partial class MainForm : Form
         _revenue = revenue;
         _rewardsTotalMissions.Text = missions.ToString("N0");
         _rewardsTotalRevenue.Text = revenue.ToString("N0");
-        if (_rewards.Rows.Count >= 3)
+        if (_rewards.Rows.Count >= 4)
         {
-            _rewards.Rows[2].Cells[2].Value = missions;
-            _rewards.Rows[2].Cells[3].Value = revenue == 0 ? "" : revenue.ToString("N0");
+            _rewards.Rows[3].Cells[2].Value = missions;
+            _rewards.Rows[3].Cells[3].Value = revenue == 0 ? "" : revenue.ToString("N0");
         }
         RefreshStopValues();
         RecomputeTimes();
@@ -1556,7 +1536,7 @@ public sealed partial class MainForm : Form
 
         // batches = pickup stops; delivered = the ones in finished runs
         var totalBatches = _rows.Sum(r => r.Missions);
-        var doneBatches = _trips.Where(t => t.End.HasValue && !t.Manual).Sum(t => t.Pickups.Sum(p => p.Missions));
+        var doneBatches = _trips.Where(t => t.End.HasValue && _inputs != null && !RunFailed(t, _inputs)).Sum(t => t.Pickups.Sum(p => p.Missions));
         _missionsVal.Text = _summary == null || totalBatches == 0 ? "" : Math.Min(doneBatches, totalBatches) + "/" + totalBatches;
         _missionsDoneVal.Text = _summary == null ? "" : _summary.Completed + "/" + _summary.Total;
     }
@@ -1627,47 +1607,6 @@ public sealed partial class MainForm : Form
         {
             if (!_live && (_data.WatchPaths.Count > 0 || Directory.Exists(DefaultLogPath))) ToggleLive();
         };
-    }
-}
-
-/// <summary>The button of a run. Greyed out when it cannot be pressed, and drawn in the dark look when dark mode is on.</summary>
-sealed class RunButtonCell : DataGridViewButtonCell
-{
-    public bool Disabled { get; set; }
-
-    public override object Clone()
-    {
-        var c = (RunButtonCell)base.Clone();
-        c.Disabled = Disabled;
-        return c;
-    }
-
-    protected override void Paint(Graphics graphics, Rectangle clipBounds, Rectangle cellBounds, int rowIndex,
-        DataGridViewElementStates cellState, object? value, object? formattedValue, string? errorText,
-        DataGridViewCellStyle cellStyle, DataGridViewAdvancedBorderStyle advancedBorderStyle, DataGridViewPaintParts paintParts)
-    {
-        if (!Disabled && !Theme.Dark)
-        {
-            base.Paint(graphics, clipBounds, cellBounds, rowIndex, cellState, value, formattedValue, errorText, cellStyle, advancedBorderStyle, paintParts);
-            return;
-        }
-
-        using (var back = new SolidBrush(cellStyle.BackColor)) graphics.FillRectangle(back, cellBounds);
-        var button = Rectangle.Inflate(cellBounds, -5, -3);
-        var text = formattedValue?.ToString() ?? "";
-        if (Theme.Dark)
-        {
-            using (var fill = new SolidBrush(Disabled ? Theme.ButtonOff : Theme.Button)) graphics.FillRectangle(fill, button);
-            using (var pen = new Pen(Theme.Lines)) graphics.DrawRectangle(pen, button.X, button.Y, button.Width - 1, button.Height - 1);
-            TextRenderer.DrawText(graphics, text, cellStyle.Font, button, Disabled ? Theme.Muted : Theme.Text,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
-        }
-        else
-        {
-            System.Windows.Forms.ButtonRenderer.DrawButton(graphics, button, text, cellStyle.Font, false,
-                System.Windows.Forms.VisualStyles.PushButtonState.Disabled);
-        }
-        PaintBorder(graphics, clipBounds, cellBounds, cellStyle, advancedBorderStyle);
     }
 }
 

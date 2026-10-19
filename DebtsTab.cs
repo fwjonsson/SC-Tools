@@ -204,7 +204,8 @@ public sealed partial class MainForm
 
     static decimal RewardOf(Mission m, SessionInputs inp) =>
         m.Multi == 2 ? (inp.Reward2 == 0 ? DefaultReward2 : inp.Reward2)
-        : m.Multi == 3 ? (inp.Reward3 == 0 ? DefaultReward3 : inp.Reward3) : 0;
+        : m.Multi == 3 ? (inp.Reward3 == 0 ? DefaultReward3 : inp.Reward3)
+        : m.Multi == 4 ? inp.Reward4 : 0;
 
     /// <summary>The value of the batches of a run (reward / stops of each mission), and the part whose mission is completed.</summary>
     static (decimal Total, decimal Confirmed, decimal Failed) RunValues(WorkerTrip t, SessionGroup g, SessionInputs inp)
@@ -224,7 +225,7 @@ public sealed partial class MainForm
                 if (m == null || m.Multi == 0) continue;
                 var v = RewardOf(m, inp) / m.Multi;
                 total += v;
-                if (t.Manual || dead) failed += v;   // a run marked as failed lost all its cargo
+                if (t.Manual || dead || LostLevelOf(inp, t.Key) == "All") failed += v;   // a failed run lost all its cargo
                 else if (m.Completed) confirmed += v;
             }
         }
@@ -295,7 +296,7 @@ public sealed partial class MainForm
             var summary = SessionBuilder.Summarize(g);
             var r2 = inp.Reward2 == 0 ? DefaultReward2 : inp.Reward2;
             var r3 = inp.Reward3 == 0 ? DefaultReward3 : inp.Reward3;
-            var revenue = g.Missions.Count(m => m.Multi == 2) * r2 + g.Missions.Count(m => m.Multi == 3) * r3;
+            var revenue = g.Missions.Count(m => m.Multi == 2) * r2 + g.Missions.Count(m => m.Multi == 3) * r3 + g.Missions.Count(m => m.Multi == 4) * inp.Reward4;
             if (inp.StartUtc != g.Start || inp.EndUtc != summary.End || inp.MissionCount != g.Missions.Count || inp.Revenue != revenue)
             {
                 inp.StartUtc = g.Start;
