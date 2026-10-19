@@ -93,14 +93,15 @@ public sealed class WorkerTrip
 {
     public string Worker = "";
     public int Number;
-    public DateTime Start;      // UTC
+    public DateTime Start;      // UTC: the previous hand-in, but never before the missions of this run were accepted
+    public DateTime KeyTime;    // UTC: the start before that correction, so what you ticked on the run keeps its key
     public DateTime? End;       // UTC, null = still on the way
     public List<TripPickup> Pickups = new();
     public int HandedIn;        // missions handed in at the end of this run
     public bool Manual;         // the run was ended by hand
 
     /// <summary>Stable key for saving things you tick on the run.</summary>
-    public string Key => Worker + "|" + Start.ToString("yyyyMMddHHmmss");
+    public string Key => Worker + "|" + (KeyTime == default ? Start : KeyTime).ToString("yyyyMMddHHmmss");
 }
 
 public static class WorkerTripBuilder
@@ -216,6 +217,7 @@ public static class WorkerTripBuilder
         var manual = (manualEnds ?? Enumerable.Empty<ManualEnd>()).ToList();
         var failedIds = g.Failed.Select(m => m.Id).ToHashSet();
         var sessionStart = g.Missions.Min(m => m.Accepted ?? m.FirstSeen ?? g.Start);
+        var acceptedAt = g.Missions.Concat(g.Failed).GroupBy(m => m.Id).ToDictionary(x => x.Key, x => x.First().Accepted ?? x.First().FirstSeen ?? g.Start);
 
         var pickups = new List<(string Worker, string Zone, string Mission, DateTime Time)>();
         var drops = new List<(string Mission, DateTime Time, string? Actor)>();
@@ -299,7 +301,7 @@ public static class WorkerTripBuilder
                 var ends = isManual ? carried.Count > 0 : (e.ActorKnown ? carried.Count > 0 : carried.Contains(e.Mission));
                 if (ends)
                 {
-                    var trip = NewTrip(worker, number++, runStart, e.Time, runPickups, isManual ? 0 : carried.Count, failedIds);
+                    var trip = NewTrip(worker, number++, runStart, e.Time, runPickups, isManual ? 0 : carried.Count, failedIds, acceptedAt);
                     trip.Manual = isManual;
                     result.Add(trip);
                     last = trip;
@@ -316,15 +318,24 @@ public static class WorkerTripBuilder
             }
 
             if (runPickups.Count > 0)
-                result.Add(NewTrip(worker, number, runStart, null, runPickups, 0, failedIds));
+                result.Add(NewTrip(worker, number, runStart, null, runPickups, 0, failedIds, acceptedAt));
         }
         return result;
     }
 
     static WorkerTrip NewTrip(string worker, int number, DateTime start, DateTime? end,
-        List<(string Zone, string Mission, DateTime Time)> pickups, int handedIn, HashSet<string> failedIds)
+        List<(string Zone, string Mission, DateTime Time)> pickups, int handedIn, HashSet<string> failedIds,
+        Dictionary<string, DateTime> acceptedAt)
     {
-        var t = new WorkerTrip { Worker = worker, Number = number, Start = start, End = end, HandedIn = handedIn };
+        // A run starts at the previous hand-in, unless its missions were accepted later (a worker's first run, or new
+        // missions after a break): then it starts when the first of them was accepted, so the break is not run time.
+        var realStart = start;
+        var accepted = pickups.Where(p => acceptedAt.ContainsKey(p.Mission)).Select(p => acceptedAt[p.Mission]).ToList();
+        if (accepted.Count > 0 && accepted.Min() > realStart) realStart = accepted.Min();
+        if (pickups.Count > 0 && pickups.Min(p => p.Time) < realStart) realStart = pickups.Min(p => p.Time);   // never after the first pickup
+        if (end.HasValue && realStart > end.Value) realStart = start;
+
+        var t = new WorkerTrip { Worker = worker, Number = number, Start = realStart, KeyTime = start, End = end, HandedIn = handedIn };
         foreach (var grp in pickups.GroupBy(p => p.Zone))
         {
             t.Pickups.Add(new TripPickup
