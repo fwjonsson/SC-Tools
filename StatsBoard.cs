@@ -25,7 +25,7 @@ public sealed partial class MainForm
         grid.Dock = DockStyle.Fill;
         grid.AllowUserToAddRows = false;
         grid.AllowUserToDeleteRows = false;
-        grid.Columns.Add(Col("Worker", 140, true, DataGridViewContentAlignment.MiddleLeft));
+        grid.Columns.Add(Col("Worker", 190, true, DataGridViewContentAlignment.MiddleLeft));   // as wide as Pickup Location above
         if (withSessions) grid.Columns.Add(Col("Sessions", 80, true));
         grid.Columns.Add(Col("Avg run time", 100, true));
         grid.Columns.Add(Col("Avg missions/run", 130, true));
