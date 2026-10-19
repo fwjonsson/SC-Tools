@@ -24,22 +24,23 @@ public sealed partial class MainForm
 
     void BuildStatColumns(DataGridView grid, bool withSessions)
     {
+        grid.Name = "wrapheader";
         StyleGrid(grid);
         grid.Dock = DockStyle.Fill;
         grid.AllowUserToAddRows = false;
         grid.AllowUserToDeleteRows = false;
         grid.Columns.Add(Col("Worker", 190, true));   // as wide as Pickup Location above
         if (withSessions) grid.Columns.Add(Col("Sessions", 80, true));
-        grid.Columns.Add(Col("Completed Runs", 110, true));
-        grid.Columns.Add(Col("Perfect Runs", 100, true));
-        grid.Columns.Add(Col("Batches Delivered", 120, true));
-        grid.Columns.Add(Col("Avg Batches/Run", 120, true));
-        grid.Columns.Add(Col("Avg Run Time", 95, true));
-        grid.Columns.Add(Col("Total Run Value", 115, true, DataGridViewContentAlignment.MiddleRight));
-        grid.Columns.Add(Col("Total Earned aUEC", 130, true, DataGridViewContentAlignment.MiddleRight));
-        grid.Columns.Add(Col("Lost Value", 95, true, DataGridViewContentAlignment.MiddleRight));
-        grid.Columns.Add(Col("Share of Value", 100, true));
-        grid.Columns.Add(Col("Run Value/Hour", 120, true, DataGridViewContentAlignment.MiddleRight, true));
+        grid.Columns.Add(Col("Completed Runs", 100, true));
+        grid.Columns.Add(Col("Perfect Runs", 90, true));
+        grid.Columns.Add(Col("Delivered Batches", 105, true));
+        grid.Columns.Add(Col("Avg Batches/Run", 100, true));
+        grid.Columns.Add(Col("Avg Run Time", 90, true));
+        grid.Columns.Add(Col("Total Run Value", 105, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col("Total Earned aUEC", 105, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col("Lost Value", 90, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col("Share of Run Value", 100, true));
+        grid.Columns.Add(Col("Run Value / Hour", 110, true, DataGridViewContentAlignment.MiddleRight, true));
     }
 
     void BuildStatsGrid() => BuildStatColumns(_statsGrid, false);
@@ -137,13 +138,7 @@ public sealed partial class MainForm
         var failedNow = ComputeCarried(_current, _inputs, CarryMode.Failed);
         var settled = _summary?.End is DateTime lastActivity && DateTime.UtcNow - lastActivity > SettleTime;   // still running: the rest is only queued
 
-        double seconds = 0;
-        if (TryTime(_startBox.Text, out var s) && TryTime(_endBox.Text, out var e))
-        {
-            var d = e - s;
-            if (d < TimeSpan.Zero) d += TimeSpan.FromDays(1);
-            seconds = d.TotalSeconds;
-        }
+        var seconds = SessionElapsed()?.TotalSeconds ?? 0;
 
         var stats = ComputeStats(_trips, _inputs);
         // only workers who started a cargo run this session

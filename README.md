@@ -20,7 +20,7 @@ To make a single exe: `dotnet publish -c Release -r win-x64 --self-contained fal
 2. Pick the session in the drop-down. Missions less than 30 minutes apart form one session.
 3. Start and End times are filled from the log. Type over them if you want. **Use log times** resets them.
 4. Rename each pickup location once (click the name). It is remembered for every future session.
-5. Pick the worker for each location, tick Partial pickup if needed, write notes. Payouts can be changed in the reward table.
+5. Pick the worker for each location, write notes. Payouts can be changed in the reward table.
 6. **Copy table for Google Sheets** copies the pickup table, ready to paste into the sheet.
 
 Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **Data File…** moves it to another folder, for example in OneDrive, so it follows you between PCs. Run the tracker on only one PC at a time then, because it rewrites the whole file on every change.
@@ -48,7 +48,7 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 - A location nobody is assigned to is assigned automatically to the player the logs show picking up there. You can change it, and bildog123 (no log) has to be assigned by hand.
 - The run board makes runs per worker. The Assigned Worker of a location always decides who did a pickup there. Only for locations with nobody assigned, the logs are used: only the player who takes cargo out of a freight elevator has those lines in his own log, a few seconds before the mission update (needs that account's log).
 - A run is leaving the base, collecting cargo from any number of missions and handing it in at Ruin. A hand-in ends only the run of the player who did it, never somebody else's run, whatever missions it was for. Who did it is read from the logs (the loading platform lines). If no log names anybody, it is credited to a worker without a log (like bildog123).
-- Any pickup signal counts a stop as picked up. Tick **Partial Pickup** yourself if you had to leave cargo (the cell turns yellow) and write what you left in Notes.
+- Any pickup signal counts a stop as picked up. If you had to leave cargo, write it in Notes.
 - **Lost Cargo** on a run is set by hand. It does not change the revenue.
 - The reward table counts every accepted 2 and 3 stop mission, payouts start at 1,268,250 and 1,691,000.
 
@@ -57,7 +57,7 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 ## Runs, lost cargo and history
 
 - **Lost Cargo** on a run is a drop-down: None, Little or All. It is only for your own notes and never changes who owes what. A run row is yellow while the run is on the way, green when it is completed with everything delivered, orange for Little lost and red for All lost.
-- **Completed** is the time the run ended, at the hand-in at Ruin Station. It stays empty while the run is on the way. **Missions** is how many missions were handed in then. **Pickup Location & Time** lists where cargo was picked up and when. The time columns sit together after Missions: **Started**, **Completed** and **Duration**. For a run that is on the way, Duration counts up from Started while you watch live.
+- **Completed** is the time the run ended, at the hand-in at Ruin Station. It stays empty while the run is on the way. **Missions** is how many missions were handed in then. **Pickup Location & Time** lists where cargo was picked up and when. The time columns sit together after Missions: **Started**, **Completed** and **Run Time** (with seconds). For a run that is on the way, Run Time counts up from Started while you watch live.
 - **Failed** (last column) is a button that marks the run of that worker as failed, for example when all cargo was lost. You get an "are you sure" box. A failed run does not count as a run and its value is shown as lost. On a completed run the button is greyed out. A failed run shows **Undo Failed** to bring it back. Missions that failed or were abandoned in the game are not part of the session, but if their cargo was in a run, its value counts as lost.
 - **History tab:** every session is saved with its date, missions, revenue and what each worker carried, so earlier sessions stay after their logs are gone.
 
@@ -76,10 +76,10 @@ The **Dark Mode** button in the toolbar switches between the light and the dark 
 The **Session Leaderboard** has one row per worker who started a cargo run in the session, and a total row, the highest earner on top (marked with a star on each side of the name and a gold row; the other names are indented to line up):
 - **Avg Batches/Run** and **Avg Run Time**: averages over the completed runs (ended by a hand-in, not marked as failed). Batches/run counts the batches picked up at each location, like the Batches column of the run board.
 - **Completed Runs** and **Perfect Runs** (completed runs with lost cargo None).
-- **Batches Delivered**: the batches of the worker's finished runs. Nothing counts (also not the earned aUEC) until the run is done.
-- **Total Run Value**: the value of the batches in the worker's finished runs (reward / stops of each mission), counted as soon as the run is done. Run counts (Completed, Perfect, Batches Delivered) also count at once; a perfect run stays perfect whatever happens to the server afterwards.
-- **Total Earned aUEC**: the part of the run value whose mission is completed. **Lost Value**: run value minus earned, shown once the session has been quiet for 6 hours (until then the rest is just queued). Failed or abandoned missions never pay. **Run Value/Hour** is the run value divided by the session duration, **Share of Value** is his part of the total. The History leaderboard has the same columns over all saved sessions.
-- **Total Revenue** in the start/end table is what completed missions actually paid, **Queued Run Value** is the value of finished runs that still waits for its missions to complete, and **Hourly Rate** is Total Revenue per hour.
+- **Delivered Batches**: the batches of the worker's finished runs. Nothing counts (also not the earned aUEC) until the run is done.
+- **Total Run Value**: the value of the batches in the worker's finished runs (reward / stops of each mission), counted as soon as the run is done. Run counts (Completed Runs, Perfect Runs, Delivered Batches) also count at once; a perfect run stays perfect whatever happens to the server afterwards.
+- **Total Earned aUEC**: the part of the run value whose mission is completed. **Lost Value**: run value minus earned, shown once the session has been quiet for 6 hours (until then the rest is just queued). Failed or abandoned missions never pay. **Run Value/Hour** is the run value divided by the session duration, **Share of Run Value** is his part of the total run value. The History leaderboard has the same columns over all saved sessions.
+- The start/end table shows **Session Time** (ticks every second while you watch live), **Batches Delivered** (finished runs / all batches), **Missions Completed**, **Total aUEC Earned** (what completed missions actually paid) and **aUEC/Hour** (earned per session hour).
 
 The **History** tab has the same table for **all saved sessions** (with an extra Sessions column). Under it a line shows the best session (most revenue) and the best aUEC/hour. It adds up what each session saved, so it keeps working after the logs are gone. Sessions saved by an older version have earnings but no run counts until their logs are opened once.
 
