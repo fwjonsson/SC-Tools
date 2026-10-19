@@ -1426,8 +1426,12 @@ public sealed partial class MainForm : Form
 
         _revenueVal.Text = _inputs == null ? "" : _revenue.ToString("N0");
 
-        _hourlyVal.Text = duration.HasValue && duration.Value.TotalHours > 0 && _revenue > 0
-            ? (_revenue / (decimal)duration.Value.TotalHours).ToString("N0")
+        // the hourly rate counts only what is already handed in (completed missions' share of the revenue)
+        var earnedSoFar = _summary is { Total: > 0 }
+            ? _revenue * _summary.Completed / _summary.Total
+            : _revenue;
+        _hourlyVal.Text = duration.HasValue && duration.Value.TotalHours > 0 && earnedSoFar > 0
+            ? (earnedSoFar / (decimal)duration.Value.TotalHours).ToString("N0")
             : "";
 
         FillStats();
