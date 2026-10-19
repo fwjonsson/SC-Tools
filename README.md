@@ -62,7 +62,7 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 
 ## Layout
 
-Every board has a title. On the left: **Hauling Tracker** (the pickup board) and the **Session Leaderboard**. On the right: the contract table on top and below it the clean table with times, missions, revenue and hourly rate. **Cargo runs** takes the whole lower part of the window, with the newest runs on top.
+Every board has a title. On the left: **Hauling Tracker** (the pickup board) and the **Session Leaderboard**. On the right: the contract table on top and below it the clean table with times, missions, revenue and hourly rate. **Cargo Runs** takes what is left of the window and scrolls, with the newest runs on top. The pickup board and the leaderboard are always shown in full.
 
 ## Leaderboards
 

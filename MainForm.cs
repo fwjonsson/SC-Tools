@@ -85,7 +85,7 @@ public sealed partial class MainForm : Form
 
     void BuildUi()
     {
-        var root = new TableLayoutPanel
+        var root = _root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
@@ -94,8 +94,8 @@ public sealed partial class MainForm : Form
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 54));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 46));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 420));   // fitted to the boards by FitTopArea
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // the run board takes what is left and scrolls
         var tabs = new TabControl { Dock = DockStyle.Fill };
         var sessionPage = new TabPage("Session") { BackColor = Color.White };
         var debtsPage = new TabPage("Debts") { BackColor = Color.White };
@@ -118,14 +118,20 @@ public sealed partial class MainForm : Form
         main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 450));
         main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Margin = new Padding(0) };
+        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Margin = new Padding(0) };
         left.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
-        left.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
+        left.RowStyles.Add(new RowStyle(SizeType.Absolute, 280));   // fitted to the rows by FitTopArea
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
-        left.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
+        left.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         BuildLogGrid();
         BuildStatsGrid();
+        foreach (var grid in new[] { _logGrid, _statsGrid })
+        {
+            grid.RowsAdded += (_, _) => FitTopArea();
+            grid.RowsRemoved += (_, _) => FitTopArea();
+        }
+        Shown += (_, _) => FitTopArea();
         left.Controls.Add(SectionTitle("Hauling Tracker"), 0, 0);
         left.Controls.Add(_logGrid, 0, 1);
         left.Controls.Add(SectionTitle("Session Leaderboard"), 0, 2);
@@ -139,7 +145,7 @@ public sealed partial class MainForm : Form
         runs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         runs.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
         runs.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        runs.Controls.Add(SectionTitle("Cargo runs"), 0, 0);
+        runs.Controls.Add(SectionTitle("Cargo Runs"), 0, 0);
 
         BuildTripGrid();
         root.Controls.Add(BuildToolbar(), 0, 0);
@@ -149,6 +155,30 @@ public sealed partial class MainForm : Form
     }
 
     const int TitleHeight = 30;
+
+    TableLayoutPanel? _root, _left;
+    bool _fitPending;
+
+    /// <summary>
+    /// The pickup board and the leaderboard are always shown in full, the run board gets what is left (and scrolls).
+    /// Called whenever their rows change or the window is resized.
+    /// </summary>
+    void FitTopArea()
+    {
+        if (_fitPending || !IsHandleCreated || _root == null || _left == null) return;
+        _fitPending = true;
+        BeginInvoke(new Action(() =>
+        {
+            _fitPending = false;
+            if (_root == null || _left == null) return;
+            int Need(DataGridView g) => g.ColumnHeadersHeight + Math.Max(g.Rows.GetRowsHeight(DataGridViewElementStates.Visible), g.RowTemplate.Height) + 3;
+            var pickups = Need(_logGrid);
+            var leaders = Need(_statsGrid);
+            _left.RowStyles[1].Height = pickups;
+            var top = Math.Max(TitleHeight * 2 + pickups + leaders + 6, TitleHeight + 86 + 14 + 170 + 6);   // the right side needs its own height too
+            _root.RowStyles[1].Height = top;
+        }));
+    }
 
     static Label SectionTitle(string text) => new()
     {
@@ -228,13 +258,14 @@ public sealed partial class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 4,
             Padding = new Padding(10, TitleHeight, 0, 0),   // lines up with the boards on the left, which have a title above them
         };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
+        p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // empty, so the clean table keeps its small rows
 
         // start / end / duration / totals, neutral and clean
         var t = new TableLayoutPanel
