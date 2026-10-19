@@ -68,7 +68,14 @@ public sealed partial class MainForm : Form
 
         _timer.Interval = 1500;
         _timer.Tick += (_, _) => PollLive();
-        FormClosing += (_, _) => Storage.Save(_data);
+        FormClosing += (_, _) =>
+        {
+            if (!_skipSave) Storage.Save(_data);
+        };
+        Storage.SaveFailed += msg =>
+        {
+            if (IsHandleCreated && !IsDisposed) BeginInvoke(new Action(() => SetStatus("Could not save the data file: " + msg)));
+        };
 
         ClearView();
         SetStatus("Open a log file, or press \"Watch live Game.log\" while you play.");

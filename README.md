@@ -23,7 +23,7 @@ To make a single exe: `dotnet publish -c Release -r win-x64 --self-contained fal
 5. Pick the worker for each location, tick Partial pickup if needed, write notes. Payouts can be changed in the reward table.
 6. **Copy table for Google Sheets** copies the pickup table, ready to paste into the sheet.
 
-Your data is saved in `%AppData%\HaulingTracker\data.json`.
+Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **Data file…** moves it to another folder, for example in OneDrive, so it follows you between PCs. Run the tracker on only one PC at a time then, because it rewrites the whole file on every change.
 
 ## What the log can and cannot tell
 

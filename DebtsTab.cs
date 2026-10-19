@@ -49,6 +49,10 @@ public sealed partial class MainForm
         StyleButton(partyBtn, "Session party…");
         partyBtn.Click += (_, _) => EditSessionParty();
         bar.Controls.Add(partyBtn);
+        var fileBtn = new Button();
+        StyleButton(fileBtn, "Data file…");
+        fileBtn.Click += (_, _) => ChooseDataFile();
+        bar.Controls.Add(fileBtn);
         t.Controls.Add(bar, 0, 0);
 
         t.Controls.Add(Caption("Balance with the other members   (+ they owe the selected member, − the selected member owes them; type over a number to correct it)"), 0, 1);
@@ -287,6 +291,57 @@ public sealed partial class MainForm
         finally
         {
             _debtUpdating = false;
+        }
+    }
+
+    // ------------------------------------------------------------------ data file
+
+    bool _skipSave;
+
+    /// <summary>Lets you keep the data file somewhere else, for example in a OneDrive folder, so it follows you between PCs.</summary>
+    void ChooseDataFile()
+    {
+        using var dlg = new FolderBrowserDialog
+        {
+            Description = "Pick the folder for the data file, for example a folder in your OneDrive. Now in use: " + Storage.FilePath,
+            UseDescriptionForTitle = true,
+        };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+        var target = Path.Combine(dlg.SelectedPath, "HaulingTracker-data.json");
+        if (string.Equals(Path.GetFullPath(target), Path.GetFullPath(Storage.FilePath), StringComparison.OrdinalIgnoreCase))
+        {
+            SetStatus("That file is already in use.");
+            return;
+        }
+
+        try
+        {
+            if (File.Exists(target))
+            {
+                var answer = MessageBox.Show(this,
+                    "There is already a data file in that folder (for example from another PC).\n\n" +
+                    "Yes = use that file (the tracker restarts, the data on this PC stays in its old file)\n" +
+                    "No = replace it with the data from this PC\n" +
+                    "Cancel = do nothing",
+                    "Data file", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                if (answer == DialogResult.Cancel) return;
+                if (answer == DialogResult.Yes)
+                {
+                    Storage.SetLocation(target);
+                    _skipSave = true;   // do not overwrite the file we are switching to
+                    Application.Restart();
+                    return;
+                }
+            }
+
+            Storage.SetLocation(target);
+            Storage.Save(_data);
+            SetStatus("Data is now saved in " + target);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Could not use that folder", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
