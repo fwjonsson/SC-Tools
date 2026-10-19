@@ -28,6 +28,7 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 ## What the log can and cannot tell
 
 - Several missions with the same pickup are grouped into one row with a count.
+- The pickup table only shows missions that are not completed yet. When a mission is completed its stops leave the table, so after you finish a batch of contracts and accept new ones you only see the new ones. Nothing else forgets them: the run board, both leaderboards, the totals (Batches Delivered, Missions Completed, aUEC) and **Copy table for Google Sheets** still cover the whole session. The worker and notes you typed for a location are kept and come back if the location shows up again.
 - The Missions column shows missions still waiting / missions with cargo at that location, so 5 missions start as 5/5 and count down as you load. Yellow = partly loaded, green = all loaded.
   The log has no SCU numbers, so it only knows loaded, partly loaded or not loaded.
 - Loaded and delivered times are shown on the run board. "Copy table for Google Sheets" still fills them in per location.
