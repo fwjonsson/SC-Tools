@@ -7,6 +7,7 @@ public sealed class TripPickup
     public string Zone = "";
     public int Missions;        // missions loaded at this location during the run
     public DateTime Time;       // last pickup event here (UTC)
+    public List<string> MissionIds = new();   // the missions loaded here (one batch each)
 }
 
 /// <summary>One run: from the previous hand-in (or the first accepted contract) to a hand-in at Ruin.</summary>
@@ -289,6 +290,7 @@ public static class WorkerTripBuilder
                 Zone = grp.Key,
                 Missions = grp.Select(p => p.Mission).Distinct().Count(),
                 Time = grp.Max(p => p.Time),
+                MissionIds = grp.Select(p => p.Mission).Distinct().ToList(),
             });
         }
         t.Pickups.Sort((a, b) => a.Time.CompareTo(b.Time));

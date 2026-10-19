@@ -47,6 +47,7 @@ public sealed partial class MainForm : Form
     readonly Label _missionsVal = new();
     readonly Label _revenueVal = new();
     readonly Label _hourlyVal = new();
+    readonly Label _queuedVal = new();
 
     readonly DataGridView _rewards = new();
     readonly Label _rewardsTotalMissions = new();
@@ -206,7 +207,7 @@ public sealed partial class MainForm : Form
                 var title = _left.GetRowHeights().FirstOrDefault();   // as drawn, also on a scaled screen
                 if (title <= 0) title = TitleHeight;
                 _left.RowStyles[1].Height = pickups;
-                var row0 = Math.Max(title + pickups, TitleHeight + 112 + 14 + 170 + 6);   // the summary on the right needs its own height too
+                var row0 = Math.Max(title + pickups, TitleHeight + 112 + 14 + 196 + 6);   // the summary on the right needs its own height too
                 var row1 = title + leaders;
                 _main.RowStyles[0].Height = row0;
                 _main.RowStyles[1].Height = row1;
@@ -312,7 +313,7 @@ public sealed partial class MainForm : Form
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 196));
         p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // empty, so the clean table keeps its small rows
 
         // start / end / duration / totals, neutral and clean
@@ -321,12 +322,12 @@ public sealed partial class MainForm : Form
             Dock = DockStyle.Fill,
             Margin = new Padding(0),
             ColumnCount = 2,
-            RowCount = 6,
+            RowCount = 7,
             CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
         };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        for (var i = 0; i < 6; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        for (var i = 0; i < 7; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
 
         ConfigureTimeBox(_startBox);
         ConfigureTimeBox(_endBox);
@@ -334,13 +335,15 @@ public sealed partial class MainForm : Form
         StyleValue(_missionsVal);
         StyleValue(_revenueVal);
         StyleValue(_hourlyVal);
+        StyleValue(_queuedVal);
 
         AddSummaryRow(t, 0, "Start Time", WrapInput(_startBox));
         AddSummaryRow(t, 1, "End Time", WrapInput(_endBox));
         AddSummaryRow(t, 2, "Duration", _durationVal);
         AddSummaryRow(t, 3, "Total Batches", _missionsVal);
         AddSummaryRow(t, 4, "Total Revenue", _revenueVal);
-        AddSummaryRow(t, 5, "Hourly Rate", _hourlyVal);
+        AddSummaryRow(t, 5, "Queued Run Value", _queuedVal);
+        AddSummaryRow(t, 6, "Hourly Rate", _hourlyVal);
         p.Controls.Add(t, 0, 2);
 
         // the contract table on top, in the blue style of the other boards
@@ -1175,6 +1178,7 @@ public sealed partial class MainForm : Form
         _missionsVal.Text = "";
         _revenueVal.Text = "";
         _hourlyVal.Text = "";
+        _queuedVal.Text = "";
         _rewardsTotalMissions.Text = "";
         _rewardsTotalRevenue.Text = "";
     }
@@ -1425,22 +1429,8 @@ public sealed partial class MainForm : Form
         ShowSession();
     }
 
-    /// <summary>What the finished runs are worth: every pickup of a run counts its share of the value of that location.</summary>
-    decimal FinishedRunsValue() => _trips.Where(t => t.End.HasValue && !t.Manual).Sum(RunValue);
-
-    /// <summary>The value of the locations a run picked up at, combined.</summary>
-    decimal RunValue(WorkerTrip t)
-    {
-        if (_inputs == null) return 0;
-        decimal sum = 0;
-        foreach (var p in t.Pickups)
-        {
-            var loc = _rows.FirstOrDefault(x => x.Zone == p.Zone);
-            if (loc == null || loc.Missions <= 0) continue;
-            sum += StopValue(loc) * Math.Min(p.Missions, loc.Missions) / loc.Missions;
-        }
-        return sum;
-    }
+    /// <summary>The value of the batches a run picked up (reward / stops of each mission).</summary>
+    decimal RunValue(WorkerTrip t) => _current == null || _inputs == null ? 0 : RunValues(t, _current, _inputs).Total;
 
     string RunValueText(WorkerTrip t)
     {
@@ -1462,12 +1452,22 @@ public sealed partial class MainForm : Form
             ? (int)duration.Value.TotalHours + ":" + duration.Value.Minutes.ToString("00")
             : "";
 
-        // revenue = value of the finished runs, taken from the values of the pickup locations of those runs
-        var runRevenue = FinishedRunsValue();
-        _revenueVal.Text = _inputs == null || runRevenue == 0 ? "" : runRevenue.ToString("N0");
+        // revenue = what completed missions really paid; finished runs wait in the queue until their missions are completed
+        decimal income = 0, queued = 0;
+        if (_current != null && _inputs != null)
+        {
+            income = _current.Missions.Where(m => m.Completed).Sum(m => RewardOf(m, _inputs));
+            foreach (var t in _trips.Where(t => t.End.HasValue && !t.Manual))
+            {
+                var v = RunValues(t, _current, _inputs);
+                queued += v.Total - v.Confirmed;
+            }
+        }
+        _revenueVal.Text = income == 0 ? "" : income.ToString("N0");
+        _queuedVal.Text = queued == 0 ? "" : queued.ToString("N0");
 
-        _hourlyVal.Text = duration.HasValue && duration.Value.TotalHours > 0 && runRevenue > 0
-            ? (runRevenue / (decimal)duration.Value.TotalHours).ToString("N0")
+        _hourlyVal.Text = duration.HasValue && duration.Value.TotalHours > 0 && income > 0
+            ? (income / (decimal)duration.Value.TotalHours).ToString("N0")
             : "";
 
         FillStats();

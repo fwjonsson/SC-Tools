@@ -32,9 +32,9 @@ public sealed partial class MainForm
         grid.Columns.Add(Col("Batches Delivered", 130, true));
         grid.Columns.Add(Col("Avg Batches/Run", 130, true));
         grid.Columns.Add(Col("Avg Run Time", 100, true));
-        grid.Columns.Add(Col("Earned aUEC", 120, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col(withSessions ? "Earned aUEC" : "Total Run Value", 120, true, DataGridViewContentAlignment.MiddleRight));
         grid.Columns.Add(Col("Share of Value", 110, true));
-        grid.Columns.Add(Col("aUEC/Hour", 120, true, DataGridViewContentAlignment.MiddleRight, true));
+        grid.Columns.Add(Col(withSessions ? "aUEC/Hour" : "Run Value/Hour", 120, true, DataGridViewContentAlignment.MiddleRight, true));
     }
 
     void BuildStatsGrid() => BuildStatColumns(_statsGrid, false);
@@ -47,7 +47,7 @@ public sealed partial class MainForm
         earned > 0 && seconds > 0 ? Num(earned / (decimal)(seconds / 3600.0)) : "";
 
     /// <summary>Runs and missions per worker. Completed runs are the ones ended by a hand-in (not by hand), perfect runs are completed runs with lost cargo None.</summary>
-    static Dictionary<string, WorkerStat> ComputeStats(IEnumerable<WorkerTrip> trips, SessionInputs inp)
+    static Dictionary<string, WorkerStat> ComputeStats(IEnumerable<WorkerTrip> trips, SessionInputs inp, HashSet<string>? completed = null)
     {
         var result = new Dictionary<string, WorkerStat>(StringComparer.OrdinalIgnoreCase);
         foreach (var t in trips)
@@ -56,6 +56,7 @@ public sealed partial class MainForm
             if (!result.TryGetValue(t.Worker, out var s)) result[t.Worker] = s = new WorkerStat();
             var missions = t.Pickups.Sum(p => p.Missions);
             if (!t.End.HasValue || t.Manual) continue;   // nothing counts until the run is done
+            if (completed != null && !t.Pickups.All(p => p.MissionIds.All(completed.Contains))) continue;   // saved stats: only when the missions are completed
             s.Missions += missions;
             s.Runs++;
             if (LostLevelOf(inp, t.Key) == "None") s.Perfect++;
