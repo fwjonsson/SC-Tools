@@ -462,6 +462,7 @@ public sealed partial class MainForm : Form
 
         // Columns you type in are white. Columns filled in from the log are tinted.
         _logGrid.Columns.Add(Col("Pickup Location", 190, false, DataGridViewContentAlignment.MiddleLeft));
+        _logGrid.Columns.Add(Col("From Ruin", 90, true, DataGridViewContentAlignment.MiddleRight));
         _logGrid.Columns.Add(Col("Batches", 90, true));
         var workerCol = new DataGridViewComboBoxColumn
         {
@@ -1216,7 +1217,10 @@ public sealed partial class MainForm : Form
             _inputs = GetInputs(_current.Key);
             _summary = SessionBuilder.Summarize(_current);
             _rows = SessionBuilder.Locations(_current);
+            // only the missions that are not completed yet; when there are none (you finished everything and did
+            // not accept new contracts yet) the finished ones stay on the table until you start adding new missions
             _openRows = SessionBuilder.Locations(_current, true);
+            if (_openRows.Count == 0) _openRows = _rows;
 
             _startBox.Text = _inputs.Start ?? FormatTime(_summary.Start);
             _endBox.Text = _inputs.End ?? (_summary.End.HasValue ? FormatTime(_summary.End.Value) : "");
@@ -1286,7 +1290,7 @@ public sealed partial class MainForm : Form
 
     void RefreshWorkerChoices()
     {
-        var col = (DataGridViewComboBoxColumn)_logGrid.Columns[2];
+        var col = (DataGridViewComboBoxColumn)_logGrid.Columns[3];
         col.Items.Clear();
         col.Items.Add("");
         // only the active party members can be picked; someone already assigned stays in the list so the cell can show him
@@ -1331,13 +1335,14 @@ public sealed partial class MainForm : Form
         }
         RefreshWorkerChoices();
 
-        // the most valuable location on top. Locations whose missions are all completed are gone from here
+        // the most valuable location on top. Once new missions are accepted, completed ones are gone from here
         // (everything else, runs, leaderboards and totals, keeps counting them)
         foreach (var r in _openRows.OrderByDescending(StopValue))
         {
             _inputs!.Rows.TryGetValue(r.Zone, out var inp);
             var idx = _logGrid.Rows.Add(
                 LocationName(r.Zone),
+                DistanceText(r.Zone),
                 MissionsText(r),
                 inp?.Worker ?? "",
                 StopValueText(r),
@@ -1359,6 +1364,13 @@ public sealed partial class MainForm : Form
         return r.Stops2 * _inputs.Reward2 / 2m + r.Stops3 * _inputs.Reward3 / 3m + r.Stops4 * _inputs.Reward4 / 4m;
     }
 
+    /// <summary>Gm from Ruin Station to this pickup location, empty when the distance table does not know it.</summary>
+    string DistanceText(string zone)
+    {
+        var id = StationOf(zone);
+        return id == null ? "" : PyroDistances.Between(PyroDistances.Ruin, id).ToString("N1", CultureInfo.InvariantCulture) + " Gm";
+    }
+
     string StopValueText(LocationRow r)
     {
         var v = StopValue(r);
@@ -1371,7 +1383,7 @@ public sealed partial class MainForm : Form
         {
             if (row.Tag is not string zone) continue;
             var info = _openRows.FirstOrDefault(x => x.Zone == zone);
-            if (info != null) row.Cells[3].Value = StopValueText(info);
+            if (info != null) row.Cells[4].Value = StopValueText(info);
         }
         foreach (DataGridViewRow row in _tripGrid.Rows)
         {
@@ -1381,7 +1393,7 @@ public sealed partial class MainForm : Form
 
     void ColorMissionsCell(DataGridViewRow row, LocationRow r)
     {
-        row.Cells[1].Style.BackColor = r.Loaded >= r.Missions ? DoneGreen : CalcBlue;
+        row.Cells[2].Style.BackColor = r.Loaded >= r.Missions ? DoneGreen : CalcBlue;
     }
 
     void LogGrid_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
@@ -1390,9 +1402,9 @@ public sealed partial class MainForm : Form
         var row = _logGrid.Rows[e.RowIndex];
         if (row.Tag is not string zone) return;
 
-        if (e.ColumnIndex == 2)
+        if (e.ColumnIndex == 3)
         {
-            GetRow(zone).Worker = (Convert.ToString(row.Cells[2].Value) ?? "").Trim();
+            GetRow(zone).Worker = (Convert.ToString(row.Cells[3].Value) ?? "").Trim();
             Storage.Save(_data);
             FillTrips();   // the run board follows the assigned workers
             UpdateSnapshots();
@@ -1474,8 +1486,9 @@ public sealed partial class MainForm : Form
                 {
                     _data.LocationNames[zone] = text;
                 }
+                row.Cells[1].Value = DistanceText(zone);   // a new name can be one the distance table knows
                 break;
-            case 4:
+            case 5:
                 GetRow(zone).Notes = text;
                 break;
         }
