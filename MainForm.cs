@@ -451,7 +451,7 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(Col("Worker", 190, true));   // as wide as Pickup Location above
         _tripGrid.Columns.Add(Col("Run", 60, true));
         _tripGrid.Columns.Add(Col("Started", 80, true));
-        _tripGrid.Columns.Add(Col("Pickups (location, missions, time)", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
+        _tripGrid.Columns.Add(Col("Pickups: location (missions) time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
         // the columns after Pickups add up to the width of the right panel, so Pickups ends where the boards above end
         _tripGrid.Columns.Add(Col("Handed in", 90, true));
         _tripGrid.Columns.Add(Col("Missions", 80, true));
@@ -559,7 +559,7 @@ public sealed partial class MainForm : Form
 
             foreach (var t in _trips)
             {
-                var pickups = string.Join(",  ", t.Pickups.Select(p => LocationName(p.Zone) + " " + p.Missions + " (" + FormatTime(p.Time) + ")"));
+                var pickups = string.Join(",  ", t.Pickups.Select(p => LocationName(p.Zone) + " (" + p.Missions + ") " + FormatTime(p.Time)));
                 var dur = t.End.HasValue ? (t.End.Value - t.Start) : TimeSpan.Zero;
                 var level = LostLevel(t.Key);
                 var idx = _tripGrid.Rows.Add(
