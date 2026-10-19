@@ -88,7 +88,7 @@ public sealed partial class MainForm
             var avgMissions = "";
             if (l.S.Runs > 0)
             {
-                avgTime = ShortDuration(TimeSpan.FromSeconds(l.S.RunSeconds / l.S.Runs));
+                avgTime = LongDuration(TimeSpan.FromSeconds(l.S.RunSeconds / l.S.Runs));
                 avgMissions = ((double)l.S.RunMissions / l.S.Runs).ToString("0.0", CultureInfo.InvariantCulture);
             }
             var share = totalValue > 0 && l.RunValue > 0
