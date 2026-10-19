@@ -60,8 +60,8 @@ public sealed partial class MainForm : Form
         Text = "Hauling Session Tracker";
         Font = new Font("Segoe UI", 10f);
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(1100, 780);
-        MinimumSize = new Size(1000, 640);
+        ClientSize = new Size(1500, 860);
+        MinimumSize = new Size(1250, 700);
         BackColor = Color.White;
 
         BuildUi();
@@ -89,16 +89,13 @@ public sealed partial class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 6,
+            RowCount = 3,
             Padding = new Padding(12),
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 262));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 22));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 40));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 54));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 46));
         var tabs = new TabControl { Dock = DockStyle.Fill };
         var sessionPage = new TabPage("Session") { BackColor = Color.White };
         var debtsPage = new TabPage("Debts") { BackColor = Color.White };
@@ -115,15 +112,28 @@ public sealed partial class MainForm : Form
             if (tabs.SelectedIndex >= 1) RefreshDebts();
         };
 
-        root.Controls.Add(BuildToolbar(), 0, 0);
-        root.Controls.Add(BuildHeader(), 0, 1);
+        // top area: pickup board and stats board on the left, the session summary on the right
+        var main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
+        main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 450));
+        main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
+        left.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        left.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
+        left.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
         BuildLogGrid();
-        root.Controls.Add(_logGrid, 0, 2);
-        BuildTripGrid();
         BuildStatsGrid();
-        root.Controls.Add(_statsGrid, 0, 3);
-        root.Controls.Add(_tripGrid, 0, 4);
-        root.Controls.Add(BuildFooter(), 0, 5);
+        left.Controls.Add(_logGrid, 0, 0);
+        left.Controls.Add(_statsGrid, 0, 1);
+
+        main.Controls.Add(left, 0, 0);
+        main.Controls.Add(BuildHeader(), 1, 0);
+
+        BuildTripGrid();
+        root.Controls.Add(BuildToolbar(), 0, 0);
+        root.Controls.Add(main, 0, 1);
+        root.Controls.Add(_tripGrid, 0, 2);
     }
 
     Control BuildToolbar()
@@ -187,30 +197,22 @@ public sealed partial class MainForm : Form
         b.Padding = new Padding(8, 0, 8, 0);
     }
 
+    /// <summary>The session summary: times, missions, the reward table in the middle, revenue and hourly rate.</summary>
     Control BuildHeader()
     {
-        var p = new Panel { Dock = DockStyle.Fill };
+        var p = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 0, 0, 0) };
 
-        p.Controls.Add(new Label
-        {
-            Text = "Star Citizen Hauling Session",
-            Font = new Font("Segoe UI", 16f, FontStyle.Bold),
-            AutoSize = true,
-            Location = new Point(4, 6),
-        });
-
-        // ---- left block: start / end / duration / totals
         var t = new TableLayoutPanel
         {
-            Location = new Point(4, 56),
-            Size = new Size(348, 190),
+            Dock = DockStyle.Top,
+            Height = 250,
             ColumnCount = 2,
             RowCount = 7,
             CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
         };
-        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
-        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 192));
-        for (var i = 0; i < 7; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        for (var i = 0; i < 7; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, i == 4 ? 84 : 26));
 
         ConfigureTimeBox(_startBox);
         ConfigureTimeBox(_endBox);
@@ -222,23 +224,19 @@ public sealed partial class MainForm : Form
         AddSummaryRow(t, 0, "Start Time", WrapInput(_startBox));
         AddSummaryRow(t, 1, "End Time", WrapInput(_endBox));
         AddSummaryRow(t, 2, "Duration", _durationVal);
-        AddSummaryRow(t, 3, "", null);
-        AddSummaryRow(t, 4, "Total Missions", _missionsVal);
-        AddSummaryRow(t, 5, "Total Revenue", _revenueVal);
-        AddSummaryRow(t, 6, "Hourly Rate", _hourlyVal);
-        p.Controls.Add(t);
+        AddSummaryRow(t, 3, "Total Missions", _missionsVal);
 
-        // ---- right block: reward table
-        _rewards.Location = new Point(400, 56);
-        _rewards.Size = new Size(572, 90);
+        // the reward table sits between Total Missions and Total Revenue
         StyleGrid(_rewards);
+        _rewards.Dock = DockStyle.Fill;
+        _rewards.Margin = new Padding(0);
         _rewards.AllowUserToAddRows = false;
         _rewards.AllowUserToDeleteRows = false;
         _rewards.ScrollBars = ScrollBars.None;
-        _rewards.Columns.Add(Col("Contract", 100, true, DataGridViewContentAlignment.MiddleLeft));
+        _rewards.Columns.Add(Col("Contract", 90, true, DataGridViewContentAlignment.MiddleLeft));
         _rewards.Columns.Add(Col("Mission Reward", 120, false, DataGridViewContentAlignment.MiddleRight));
-        _rewards.Columns.Add(Col("# Missions", 110, true, DataGridViewContentAlignment.MiddleRight));
-        _rewards.Columns.Add(Col("Total", 242, true, DataGridViewContentAlignment.MiddleRight));
+        _rewards.Columns.Add(Col("# Missions", 90, true, DataGridViewContentAlignment.MiddleRight));
+        _rewards.Columns.Add(Col("Total", 100, true, DataGridViewContentAlignment.MiddleRight, true));
         _rewards.CellEndEdit += (_, _) =>
         {
             if (_inputs != null && _rewards.Rows.Count >= 2)
@@ -251,36 +249,12 @@ public sealed partial class MainForm : Form
             UpdateSnapshots();
             RefreshDebts();
         };
-        p.Controls.Add(_rewards);
+        t.Controls.Add(_rewards, 0, 4);
+        t.SetColumnSpan(_rewards, 2);
 
-        var totals = new TableLayoutPanel
-        {
-            Location = new Point(400, 150),
-            Size = new Size(572, 28),
-            ColumnCount = 3,
-            RowCount = 1,
-            CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
-        };
-        totals.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
-        totals.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
-        totals.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 240));
-        totals.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
-        totals.Controls.Add(new Label
-        {
-            Text = "Total",
-            Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            Margin = new Padding(0),
-        }, 0, 0);
-        StyleValue(_rewardsTotalMissions);
-        StyleValue(_rewardsTotalRevenue);
-        _rewardsTotalMissions.BackColor = Color.White;
-        _rewardsTotalRevenue.BackColor = Color.White;
-        totals.Controls.Add(_rewardsTotalMissions, 1, 0);
-        totals.Controls.Add(_rewardsTotalRevenue, 2, 0);
-        p.Controls.Add(totals);
-
+        AddSummaryRow(t, 5, "Total Revenue", _revenueVal);
+        AddSummaryRow(t, 6, "Hourly Rate", _hourlyVal);
+        p.Controls.Add(t);
         return p;
     }
 
@@ -335,8 +309,8 @@ public sealed partial class MainForm : Form
         _logGrid.AllowUserToDeleteRows = false;
 
         // Columns you type in are white. Columns filled in from the log are tinted.
-        _logGrid.Columns.Add(Col("Pickup Location", 210, false, DataGridViewContentAlignment.MiddleLeft));
-        _logGrid.Columns.Add(Col("Missions", 110, true));
+        _logGrid.Columns.Add(Col("Pickup Location", 190, false, DataGridViewContentAlignment.MiddleLeft));
+        _logGrid.Columns.Add(Col("Missions", 90, true));
         _logGrid.Columns.Add(new DataGridViewCheckBoxColumn
         {
             HeaderText = "Partial pickup",
@@ -346,13 +320,13 @@ public sealed partial class MainForm : Form
         var workerCol = new DataGridViewComboBoxColumn
         {
             HeaderText = "Assigned Worker",
-            Width = 180,
+            Width = 150,
             FlatStyle = FlatStyle.Flat,
             SortMode = DataGridViewColumnSortMode.NotSortable,
         };
         workerCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         _logGrid.Columns.Add(workerCol);
-        _logGrid.Columns.Add(Col("Value", 120, true, DataGridViewContentAlignment.MiddleRight));
+        _logGrid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
         _logGrid.Columns.Add(Col("Notes", 120, false, DataGridViewContentAlignment.MiddleLeft, true));
         _logGrid.CellEndEdit += LogGrid_CellEndEdit;
         _logGrid.DataError += (_, e) => e.ThrowException = false;
@@ -469,7 +443,7 @@ public sealed partial class MainForm : Form
             if (_current == null || _inputs == null || _log == null) return;
 
             _trips = WorkerTripBuilder.Build(_current, WorkerOfZone, _log, _inputs.ManualEnds)
-                .OrderBy(t => t.Start).ThenBy(t => t.Worker, StringComparer.OrdinalIgnoreCase).ToList();
+                .OrderByDescending(t => t.Start).ThenBy(t => t.Worker, StringComparer.OrdinalIgnoreCase).ToList();   // newest run on top
 
             foreach (var t in _trips)
             {
@@ -532,7 +506,11 @@ public sealed partial class MainForm : Form
         };
         c.DefaultCellStyle.Alignment = align;
         if (readOnly) c.DefaultCellStyle.BackColor = CalcBlue;
-        if (fill) c.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+        if (fill)
+        {
+            c.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            c.MinimumWidth = 90;
+        }
         return c;
     }
 

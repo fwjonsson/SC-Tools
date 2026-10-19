@@ -14,14 +14,14 @@ public sealed partial class MainForm
         _statsGrid.AllowUserToAddRows = false;
         _statsGrid.AllowUserToDeleteRows = false;
         _statsGrid.Columns.Add(Col("Worker", 140, true, DataGridViewContentAlignment.MiddleLeft));
-        _statsGrid.Columns.Add(Col("Avg run time", 110, true));
-        _statsGrid.Columns.Add(Col("Avg missions/run", 140, true));
-        _statsGrid.Columns.Add(Col("Completed runs", 130, true));
+        _statsGrid.Columns.Add(Col("Avg run time", 100, true));
+        _statsGrid.Columns.Add(Col("Avg missions/run", 130, true));
+        _statsGrid.Columns.Add(Col("Completed runs", 120, true));
         _statsGrid.Columns.Add(Col("Perfect runs", 110, true));
-        _statsGrid.Columns.Add(Col("Missions carried", 140, true));
-        _statsGrid.Columns.Add(Col("Earned aUEC", 140, true, DataGridViewContentAlignment.MiddleRight));
-        _statsGrid.Columns.Add(Col("Share of value", 120, true));
-        _statsGrid.Columns.Add(Col("aUEC/hour", 140, true, DataGridViewContentAlignment.MiddleRight, true));
+        _statsGrid.Columns.Add(Col("Missions carried", 130, true));
+        _statsGrid.Columns.Add(Col("Earned aUEC", 120, true, DataGridViewContentAlignment.MiddleRight));
+        _statsGrid.Columns.Add(Col("Share of value", 110, true));
+        _statsGrid.Columns.Add(Col("aUEC/hour", 120, true, DataGridViewContentAlignment.MiddleRight, true));
     }
 
     static string ShortDuration(TimeSpan d) => (int)d.TotalHours + ":" + d.Minutes.ToString("00");
