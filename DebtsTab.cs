@@ -243,7 +243,7 @@ public sealed partial class MainForm
         var carried = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         if (_log == null) return carried;
         var trips = WorkerTripBuilder.Build(g,
-            z => inp.Rows.TryGetValue(z, out var r) && !string.IsNullOrWhiteSpace(r.Worker) ? r.Worker.Trim() : "Unassigned",
+            (z, t) => WorkerTripBuilder.WorkerAt(inp, z, t),
             _log, inp.ManualEnds);
         foreach (var t in trips)
         {
@@ -266,6 +266,7 @@ public sealed partial class MainForm
         foreach (var g in _sessions)
         {
             _data.Sessions.TryGetValue(g.Key, out var stored);
+            if (stored != null && WorkerTripBuilder.ResetWorkersForNewBatch(g, stored)) changed = true;
             var carried = ComputeCarried(g, stored ?? new SessionInputs(), CarryMode.Confirmed);
             var runValues = ComputeCarried(g, stored ?? new SessionInputs());
             var failedValues = ComputeCarried(g, stored ?? new SessionInputs(), CarryMode.Failed);
@@ -307,7 +308,7 @@ public sealed partial class MainForm
             }
 
             var trips = WorkerTripBuilder.Build(g,
-                z => inp.Rows.TryGetValue(z, out var r) && !string.IsNullOrWhiteSpace(r.Worker) ? r.Worker : "Unassigned",
+                (z, t) => WorkerTripBuilder.WorkerAt(inp, z, t),
                 _log, inp.ManualEnds);
             var stats = ComputeStats(trips, inp, StationOf);   // a perfect run stays perfect, whatever the server does later
 

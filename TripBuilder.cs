@@ -137,8 +137,48 @@ public static class WorkerTripBuilder
         return best;
     }
 
+    /// <summary>
+    /// The Assigned Worker of a location at the time of a pickup. Pickups from before the last reset use the assignments
+    /// that were frozen then, so clearing the table for new missions does not take the workers off the old runs.
+    /// </summary>
+    public static string WorkerAt(SessionInputs inp, string zone, DateTime time)
+    {
+        foreach (var era in inp.PastWorkers.OrderBy(e => e.Until))
+        {
+            if (time < era.Until)
+                return era.Workers.TryGetValue(zone, out var old) && !string.IsNullOrWhiteSpace(old) ? old.Trim() : "Unassigned";
+        }
+        return inp.Rows.TryGetValue(zone, out var r) && !string.IsNullOrWhiteSpace(r.Worker) ? r.Worker.Trim() : "Unassigned";
+    }
+
+    /// <summary>
+    /// A clean slate for a new set of missions: when every mission of the earlier set is completed and new missions have been accepted,
+    /// the assigned workers are cleared (and frozen for the old runs). Returns true when something changed and has to be saved.
+    /// </summary>
+    public static bool ResetWorkersForNewBatch(SessionGroup g, SessionInputs inp)
+    {
+        var open = g.Missions.Where(m => !m.Completed).ToList();
+        var done = g.Missions.Where(m => m.Completed).ToList();
+        if (open.Count == 0 || done.Count == 0) return false;
+
+        var batchStart = open.Min(m => m.Accepted ?? m.FirstSeen ?? g.Start);
+        if (done.Any(m => (m.EndedAt ?? DateTime.MinValue) > batchStart)) return false;   // the old missions were still going when the new ones came
+        if (inp.WorkersResetAt.HasValue && inp.WorkersResetAt.Value >= batchStart) return false;   // already reset for this set
+
+        var era = new WorkerEra { Until = batchStart };
+        foreach (var kv in inp.Rows)
+        {
+            if (string.IsNullOrWhiteSpace(kv.Value.Worker)) continue;
+            era.Workers[kv.Key] = kv.Value.Worker.Trim();
+            kv.Value.Worker = "";
+        }
+        if (era.Workers.Count > 0) inp.PastWorkers.Add(era);
+        inp.WorkersResetAt = batchStart;
+        return true;
+    }
+
     /// <summary>Who the logs say did the first pickup at a location (null if no log shows it).</summary>
-    public static string? PickupActor(SessionGroup g, string zone, HaulingLog log)
+    public static string? PickupActor(SessionGroup g, string zone, HaulingLog log, DateTime? since = null)
     {
         DateTime? bestTime = null;
         string? who = null;
@@ -149,6 +189,7 @@ public static class WorkerTripBuilder
                 if (kv.Value != zone || !kv.Key.StartsWith("pickup_") || !StopId.IsMatch(kv.Key)) continue;
                 if (!m.Events.TryGetValue(kv.Key, out var ev) || ev.Count == 0) continue;
                 var first = ev.Min(e => e.Time);
+                if (since.HasValue && first < since.Value) continue;   // pickups of an earlier set of missions do not count
                 var actor = ActorAt(log, true, first);
                 if (actor != null && (bestTime == null || first < bestTime))
                 {
@@ -169,7 +210,7 @@ public static class WorkerTripBuilder
     /// </summary>
     const string ManualMission = "~manual";
 
-    public static List<WorkerTrip> Build(SessionGroup g, Func<string, string> workerOfZone, HaulingLog log,
+    public static List<WorkerTrip> Build(SessionGroup g, Func<string, DateTime, string> workerOfZone, HaulingLog log,
         IEnumerable<ManualEnd>? manualEnds = null)
     {
         var manual = (manualEnds ?? Enumerable.Empty<ManualEnd>()).ToList();
@@ -191,7 +232,7 @@ public static class WorkerTripBuilder
                 if (!m.Events.TryGetValue(kv.Key, out var ev) || ev.Count == 0) continue;
                 var first = ev.Min(e => e.Time);
                 // the Assigned Worker of the location comes first, the logs only fill in where nobody is assigned
-                var assigned = workerOfZone(kv.Value);
+                var assigned = workerOfZone(kv.Value, first);
                 var who = assigned != "Unassigned" ? assigned : (ActorAt(log, true, first) ?? "Unassigned");
                 pickups.Add((who, kv.Value, m.Id, first));
             }
