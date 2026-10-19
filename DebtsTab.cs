@@ -202,22 +202,47 @@ public sealed partial class MainForm
     static decimal CarriedBy(Dictionary<string, decimal> carried, string name) =>
         carried.Where(kv => SameName(kv.Key, name)).Sum(kv => kv.Value);
 
-    Dictionary<string, decimal> ComputeCarried(SessionGroup g, SessionInputs inp)
+    static decimal RewardOf(Mission m, SessionInputs inp) =>
+        m.Multi == 2 ? (inp.Reward2 == 0 ? DefaultReward2 : inp.Reward2)
+        : m.Multi == 3 ? (inp.Reward3 == 0 ? DefaultReward3 : inp.Reward3) : 0;
+
+    /// <summary>The value of the batches of a run (reward / stops of each mission), and the part whose mission is completed.</summary>
+    static (decimal Total, decimal Confirmed) RunValues(WorkerTrip t, SessionGroup g, SessionInputs inp)
+    {
+        decimal total = 0, confirmed = 0;
+        foreach (var p in t.Pickups)
+        {
+            foreach (var id in p.MissionIds)
+            {
+                var m = g.Missions.FirstOrDefault(x => x.Id == id);
+                if (m == null || m.Multi == 0) continue;
+                var v = RewardOf(m, inp) / m.Multi;
+                total += v;
+                if (m.Completed) confirmed += v;
+            }
+        }
+        return (total, confirmed);
+    }
+
+    /// <summary>
+    /// What every worker carried, from the finished runs. confirmedOnly: just the batches whose mission is completed
+    /// (this is what gets saved); otherwise the whole value of the finished runs (the queue included).
+    /// </summary>
+    Dictionary<string, decimal> ComputeCarried(SessionGroup g, SessionInputs inp, bool confirmedOnly = false)
     {
         var carried = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        var r2 = inp.Reward2 == 0 ? DefaultReward2 : inp.Reward2;
-        var r3 = inp.Reward3 == 0 ? DefaultReward3 : inp.Reward3;
-        foreach (var r in SessionBuilder.Locations(g))
+        if (_log == null) return carried;
+        var trips = WorkerTripBuilder.Build(g,
+            z => inp.Rows.TryGetValue(z, out var r) && !string.IsNullOrWhiteSpace(r.Worker) ? r.Worker.Trim() : "Unassigned",
+            _log, inp.ManualEnds);
+        foreach (var t in trips)
         {
-            string? who = null;
-            if (inp.Rows.TryGetValue(r.Zone, out var ri) && !string.IsNullOrWhiteSpace(ri.Worker)) who = ri.Worker.Trim();
-            else if (_log != null) who = WorkerTripBuilder.PickupActor(g, r.Zone, _log);
-            if (who == null) continue;
-
-            var value = r.Stops2 * r2 / 2m + r.Stops3 * r3 / 3m;
+            if (!t.End.HasValue || t.Manual || t.Worker == "Unassigned") continue;
+            var v = RunValues(t, g, inp);
+            var value = confirmedOnly ? v.Confirmed : v.Total;
             if (value <= 0) continue;
-            carried.TryGetValue(who, out var old);
-            carried[who] = old + value;
+            carried.TryGetValue(t.Worker, out var old);
+            carried[t.Worker] = old + value;
         }
         return carried;
     }
@@ -231,7 +256,7 @@ public sealed partial class MainForm
         foreach (var g in _sessions)
         {
             _data.Sessions.TryGetValue(g.Key, out var stored);
-            var carried = ComputeCarried(g, stored ?? new SessionInputs());
+            var carried = ComputeCarried(g, stored ?? new SessionInputs(), true);
             if (carried.Count == 0) continue;
 
             var inp = stored ?? GetInputs(g.Key);
@@ -270,7 +295,7 @@ public sealed partial class MainForm
             var trips = WorkerTripBuilder.Build(g,
                 z => inp.Rows.TryGetValue(z, out var r) && !string.IsNullOrWhiteSpace(r.Worker) ? r.Worker : "Unassigned",
                 _log, inp.ManualEnds);
-            var stats = ComputeStats(trips, inp);
+            var stats = ComputeStats(trips, inp, g.Missions.Where(m => m.Completed).Select(m => m.Id).ToHashSet());
 
             var same = SameStats(inp.Stats, stats)
                 && inp.Carried.Count == carried.Count

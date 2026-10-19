@@ -74,10 +74,11 @@ The **Dark Mode** button in the toolbar switches between the light and the dark 
 ## Leaderboards
 
 The **Session Leaderboard** has one row per worker who started a cargo run in the session, and a total row, the highest earner on top (marked with a star on each side of the name and a gold row; the other names are indented to line up):
-- **Avg Missions/Run** and **Avg Run Time**: averages over the completed runs (ended by a hand-in, not ended by hand). Missions/run counts the missions picked up at each location, like the Missions column of the run board.
+- **Avg Batches/Run** and **Avg Run Time**: averages over the completed runs (ended by a hand-in, not ended by hand). Batches/run counts the batches picked up at each location, like the Batches column of the run board.
 - **Completed Runs** and **Perfect Runs** (completed runs with lost cargo None).
-- **Missions Carried**: all pickups of the worker this session, also of the run still on the way.
-- **Earned aUEC**: the value of the locations assigned to him this session. **Share of value** is his part of the value carried by everyone this session. **aUEC/hour** is that divided by the session duration (Start Time to End Time).
+- **Batches Delivered**: the batches of the worker's finished runs. Nothing counts (also not the earned aUEC) until the run is done.
+- **Total Run Value** (session) is the value of the batches in the worker's finished runs (reward / stops of each mission). **Run Value/Hour** is that divided by the session duration. **Share of Value** is his part of the total. The History leaderboard (**Earned aUEC**, **aUEC/Hour**) only counts batches whose mission is completed, and runs whose missions are all completed.
+- **Total Revenue** in the start/end table is what completed missions actually paid, **Queued Run Value** is the value of finished runs that still waits for its missions to complete, and **Hourly Rate** is Total Revenue per hour.
 
 The **History** tab has the same table for **all saved sessions** (with an extra Sessions column). Under it a line shows the best session (most revenue) and the best aUEC/hour. It adds up what each session saved, so it keeps working after the logs are gone. Sessions saved by an older version have earnings but no run counts until their logs are opened once.
 
