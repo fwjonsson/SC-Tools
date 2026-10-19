@@ -62,11 +62,13 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 
 ## Layout
 
-Every board has a title. On the left: **Hauling Tracker** (the pickup board) and the **Session Leaderboard**. On the right: the contract table on top and below it the clean table with times, missions, revenue and hourly rate. **Cargo Runs** takes what is left of the window and scrolls, with the newest runs on top. The pickup board and the leaderboard are always shown in full.
+Every board has a title. At the top: **Hauling Tracker** (the pickup board) on the left, and on the right the contract table with the clean table (times, missions, revenue, hourly rate) below it. Under them the **Session Leaderboard** runs over the full width. **Cargo Runs** takes what is left of the window and scrolls, with the newest runs on top. The pickup board and the leaderboard are always shown in full.
+
+The program starts watching the logs by itself when it opens, and reads the backup logs of the last 24 hours first.
 
 ## Leaderboards
 
-The **Session Leaderboard** has one row per party member and a total row, the highest earner on top (marked with a star on each side of the name and a gold row; the other names are indented to line up):
+The **Session Leaderboard** has one row per worker who started a cargo run in the session, and a total row, the highest earner on top (marked with a star on each side of the name and a gold row; the other names are indented to line up):
 - **Avg run time** and **Avg missions/run**: averages over the completed runs (ended by a hand-in, not ended by hand). Missions/run counts the missions picked up at each location, like the Pickups column of the run board.
 - **Completed runs** and **Perfect runs** (completed runs with lost cargo None).
 - **Missions carried**: all pickups of the worker this session, also of the run still on the way.

@@ -120,20 +120,22 @@ public sealed partial class MainForm : Form
             if (tabs.SelectedIndex >= 1) RefreshDebts();
         };
 
-        // top area: pickup board and stats board on the left, the session summary on the right
-        var main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
+        // top area: the pickup board and the session summary side by side, the leaderboard under both
+        var main = _main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Margin = new Padding(0) };
         main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 450));
-        main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        main.RowStyles.Add(new RowStyle(SizeType.Absolute, 306));   // both rows are fitted to the boards by FitTopArea
+        main.RowStyles.Add(new RowStyle(SizeType.Absolute, 130));
 
-        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Margin = new Padding(0) };
+        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = new Padding(0) };
         left.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
-        left.RowStyles.Add(new RowStyle(SizeType.Absolute, 280));   // fitted to the rows by FitTopArea
-        left.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
+        left.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
         left.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         BuildLogGrid();
         BuildStatsGrid();
+        _logGrid.Margin = new Padding(0, 3, 3, 3);     // the right gap keeps it clear of the summary tables
+        _statsGrid.Margin = new Padding(0, 3, 0, 3);   // runs to the right edge, like the run board
         foreach (var grid in new[] { _logGrid, _statsGrid })
         {
             grid.RowsAdded += (_, _) => FitTopArea();
@@ -142,11 +144,18 @@ public sealed partial class MainForm : Form
         Shown += (_, _) => FitTopArea();
         left.Controls.Add(SectionTitle("Hauling Tracker"), 0, 0);
         left.Controls.Add(_logGrid, 0, 1);
-        left.Controls.Add(SectionTitle("Session Leaderboard"), 0, 2);
-        left.Controls.Add(_statsGrid, 0, 3);
+
+        var board = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
+        board.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        board.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
+        board.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        board.Controls.Add(SectionTitle("Session Leaderboard"), 0, 0);
+        board.Controls.Add(_statsGrid, 0, 1);
 
         main.Controls.Add(left, 0, 0);
         main.Controls.Add(BuildHeader(), 1, 0);
+        main.Controls.Add(board, 0, 1);
+        main.SetColumnSpan(board, 2);
 
         // the run board with its title
         var runs = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
@@ -164,7 +173,7 @@ public sealed partial class MainForm : Form
 
     const int TitleHeight = 30;
 
-    TableLayoutPanel? _root, _left;
+    TableLayoutPanel? _root, _left, _main;
     bool _fitPending;
 
     /// <summary>
@@ -173,17 +182,17 @@ public sealed partial class MainForm : Form
     /// </summary>
     void FitTopArea()
     {
-        if (_fitPending || !IsHandleCreated || _root == null || _left == null) return;
+        if (_fitPending || !IsHandleCreated || _root == null || _left == null || _main == null) return;
         _fitPending = true;
         BeginInvoke(new Action(() =>
         {
             _fitPending = false;
-            if (_root == null || _left == null) return;
+            if (_root == null || _left == null || _main == null) return;
             int Need(DataGridView g)
             {
                 var rows = 0;
                 foreach (DataGridViewRow r in g.Rows) rows += r.Height + r.DividerHeight;
-                return g.ColumnHeadersHeight + Math.Max(rows, g.RowTemplate.Height) + 4;
+                return g.ColumnHeadersHeight + Math.Max(rows, g.RowTemplate.Height) + 4 + g.Margin.Vertical;
             }
             var pickups = Need(_logGrid);
             var leaders = Need(_statsGrid);
@@ -191,11 +200,16 @@ public sealed partial class MainForm : Form
             // set the heights, then check that every row really is shown and add what is missing
             for (var pass = 0; pass < 4; pass++)
             {
-                var heights = _left.GetRowHeights();
-                var titles = heights.Length >= 3 ? heights[0] + heights[2] : TitleHeight * 2;   // as drawn, also on a scaled screen
+                var title = _left.GetRowHeights().FirstOrDefault();   // as drawn, also on a scaled screen
+                if (title <= 0) title = TitleHeight;
                 _left.RowStyles[1].Height = pickups;
-                _root.RowStyles[1].Height = Math.Max(titles + pickups + leaders + 8, TitleHeight + 86 + 14 + 170 + 6);   // the right side needs its own height too
+                var row0 = Math.Max(title + pickups, TitleHeight + 86 + 14 + 170 + 6);   // the summary on the right needs its own height too
+                var row1 = title + leaders;
+                _main.RowStyles[0].Height = row0;
+                _main.RowStyles[1].Height = row1;
+                _root.RowStyles[1].Height = row0 + row1;
                 _root.PerformLayout();
+                _main.PerformLayout();
                 _left.PerformLayout();
 
                 var missingPickups = _logGrid.Rows.Count - _logGrid.DisplayedRowCount(false);
@@ -1456,5 +1470,11 @@ public sealed partial class MainForm : Form
         _endBox.TextChanged += TimeBoxChanged;
         _startBox.Leave += (_, _) => Storage.Save(_data);
         _endBox.Leave += (_, _) => Storage.Save(_data);
+
+        // start watching by itself: this also reads the backup logs of the last 24 hours
+        Shown += (_, _) =>
+        {
+            if (!_live && (_data.WatchPaths.Count > 0 || Directory.Exists(DefaultLogPath))) ToggleLive();
+        };
     }
 }

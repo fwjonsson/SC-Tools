@@ -147,10 +147,11 @@ public sealed partial class MainForm
         }
 
         var stats = ComputeStats(_trips, _inputs);
-        var names = new List<string>(_data.Party);
-        foreach (var n in stats.Keys.Concat(carried.Keys))
+        // only workers who started a cargo run this session
+        var names = new List<string>();
+        foreach (var t in _trips)
         {
-            if (n != "Unassigned" && !names.Any(x => SameName(x, n))) names.Add(n);
+            if (t.Worker != "Unassigned" && !names.Any(x => SameName(x, t.Worker))) names.Add(t.Worker);
         }
 
         var lines = names.Select(n => new StatLine
