@@ -61,7 +61,7 @@ public sealed partial class MainForm
             if (t.Worker == "Unassigned") continue;
             if (!result.TryGetValue(t.Worker, out var s)) result[t.Worker] = s = new WorkerStat();
             var missions = t.Pickups.Sum(p => p.Missions);
-            if (!t.End.HasValue || t.Manual) continue;   // nothing counts until the run is done
+            if (!t.End.HasValue || RunFailed(t, inp)) continue;   // nothing counts until the run is done, and a failed run never counts
             if (completed != null && !t.Pickups.All(p => p.MissionIds.All(completed.Contains))) continue;   // saved stats: only when the missions are completed
             s.Missions += missions;
             s.Runs++;
@@ -71,6 +71,9 @@ public sealed partial class MainForm
         }
         return result;
     }
+
+    /// <summary>A run is failed when it was ended by hand or all of its cargo was lost.</summary>
+    static bool RunFailed(WorkerTrip t, SessionInputs inp) => t.Manual || LostLevelOf(inp, t.Key) == "All";
 
     static bool SameStats(Dictionary<string, WorkerStat> a, Dictionary<string, WorkerStat> b) =>
         a.Count == b.Count && a.All(kv => b.TryGetValue(kv.Key, out var o) && o == kv.Value);

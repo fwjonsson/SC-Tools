@@ -224,7 +224,7 @@ public sealed partial class MainForm
                 if (m == null || m.Multi == 0) continue;
                 var v = RewardOf(m, inp) / m.Multi;
                 total += v;
-                if (t.Manual || dead) failed += v;   // a run marked as failed lost all its cargo
+                if (t.Manual || dead || LostLevelOf(inp, t.Key) == "All") failed += v;   // a failed run lost all its cargo
                 else if (m.Completed) confirmed += v;
             }
         }

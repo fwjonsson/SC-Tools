@@ -49,16 +49,15 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 - The run board makes runs per worker. The Assigned Worker of a location always decides who did a pickup there. Only for locations with nobody assigned, the logs are used: only the player who takes cargo out of a freight elevator has those lines in his own log, a few seconds before the mission update (needs that account's log).
 - A run is leaving the base, collecting cargo from any number of missions and handing it in at Ruin. A hand-in ends only the run of the player who did it, never somebody else's run, whatever missions it was for. Who did it is read from the logs (the loading platform lines). If no log names anybody, it is credited to a worker without a log (like bildog123).
 - Any pickup signal counts a stop as picked up. If you had to leave cargo, write it in Notes.
-- **Lost Cargo** on a run is set by hand. It does not change the revenue.
 - The reward table counts every accepted 2 and 3 stop mission, payouts start at 1,268,250 and 1,691,000.
 
 - **Value** on the upper board is what the missions at that location are worth: every mission pays its reward split over its stops (reward / 2 for a 2 stop mission, reward / 3 for a 3 stop mission), times the stops at that location. It follows the payouts in the reward table.
 
 ## Runs, lost cargo and history
 
-- **Lost Cargo** on a run is a drop-down: None, Little or All. It is only for your own notes and never changes who owes what. A run row is yellow while the run is on the way, green when it is completed with everything delivered, orange for Little lost and red for All lost.
+- **Lost Cargo** on a run is a drop-down: None, Little or All (All also marks the run as failed, see below). A run row is yellow while the run is on the way, green when it is completed with everything delivered, orange for Little lost and red for All lost.
 - **Completed** is the time the run ended, at the hand-in at Ruin Station. It stays empty while the run is on the way. **Missions** is how many missions were handed in then. **Pickup Location & Time** lists where cargo was picked up and when. The time columns sit together after Missions: **Started**, **Completed** and **Run Time** (with seconds). For a run that is on the way, Run Time counts up from Started while you watch live.
-- **Failed** (last column) is a button that marks the run of that worker as failed, for example when all cargo was lost. You get an "are you sure" box. A failed run does not count as a run and its value is shown as lost. On a completed run the button is greyed out. A failed run shows **Undo Failed** to bring it back. Missions that failed or were abandoned in the game are not part of the session, but if their cargo was in a run, its value counts as lost.
+- **Lost Cargo** is a drop-down: None, Little or All. **All** marks the run as failed: a run still on the way ends there, it does not count as a run, and its value is shown as lost. Pick None or Little again to bring it back.
 - **History tab:** every session is saved with its date, missions, revenue and what each worker carried, so earlier sessions stay after their logs are gone.
 
 ## Layout
