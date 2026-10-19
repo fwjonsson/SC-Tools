@@ -34,7 +34,7 @@ public sealed partial class MainForm : Form
     // live watching of the running game's Game.log
     bool _live;
 
-    readonly ComboBox _sessionBox = new();
+    readonly ThemedCombo _sessionBox = new();
     readonly Button _openBtn = new();
     readonly Button _liveBtn = new();
     readonly Button _resetBtn = new();
@@ -104,7 +104,7 @@ public sealed partial class MainForm : Form
             Padding = new Padding(12),
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 420));   // fitted to the boards by FitTopArea
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // the run board takes what is left and scrolls
         var tabs = new ThemedTabControl { Dock = DockStyle.Fill };
@@ -238,9 +238,12 @@ public sealed partial class MainForm : Form
     {
         var bar = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
-            WrapContents = false,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = true,    // on a narrow window the rest of the buttons go to a second row
             FlowDirection = FlowDirection.LeftToRight,
+            Padding = new Padding(0, 3, 0, 3),
         };
 
         StyleButton(_openBtn, "Open Log File(s)…");
@@ -696,7 +699,7 @@ public sealed partial class MainForm : Form
         public string? Current;     // the Game.log file that is being read right now
     }
 
-    readonly ComboBox _channelBox = new();
+    readonly ThemedCombo _channelBox = new();
     readonly Button _sourcesBtn = new();
     readonly Button _partyBtn = new();
 
