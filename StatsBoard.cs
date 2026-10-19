@@ -27,14 +27,14 @@ public sealed partial class MainForm
         grid.AllowUserToDeleteRows = false;
         grid.Columns.Add(Col("Worker", 190, true, DataGridViewContentAlignment.MiddleLeft));   // as wide as Pickup Location above
         if (withSessions) grid.Columns.Add(Col("Sessions", 80, true));
-        grid.Columns.Add(Col("Avg run time", 100, true));
-        grid.Columns.Add(Col("Avg missions/run", 130, true));
-        grid.Columns.Add(Col("Completed runs", 120, true));
-        grid.Columns.Add(Col("Perfect runs", 110, true));
-        grid.Columns.Add(Col("Missions carried", 130, true));
+        grid.Columns.Add(Col("Avg Run Time", 100, true));
+        grid.Columns.Add(Col("Avg Missions/Run", 130, true));
+        grid.Columns.Add(Col("Completed Runs", 120, true));
+        grid.Columns.Add(Col("Perfect Runs", 110, true));
+        grid.Columns.Add(Col("Missions Carried", 130, true));
         grid.Columns.Add(Col("Earned aUEC", 120, true, DataGridViewContentAlignment.MiddleRight));
-        grid.Columns.Add(Col("Share of value", 110, true));
-        grid.Columns.Add(Col("aUEC/hour", 120, true, DataGridViewContentAlignment.MiddleRight, true));
+        grid.Columns.Add(Col("Share of Value", 110, true));
+        grid.Columns.Add(Col("aUEC/Hour", 120, true, DataGridViewContentAlignment.MiddleRight, true));
     }
 
     void BuildStatsGrid() => BuildStatColumns(_statsGrid, false);

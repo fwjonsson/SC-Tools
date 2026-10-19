@@ -16,14 +16,14 @@ To make a single exe: `dotnet publish -c Release -r win-x64 --self-contained fal
 ## Use
 
 1. **Open log file(s)** to read old logs (pick several at once, for example logs split by a crash).
-   Or **Watch live Game.log** while you play. The window updates every 1.5 seconds.
+   Or **Watch Live Game.log** while you play. The window updates every 1.5 seconds.
 2. Pick the session in the drop-down. Missions less than 30 minutes apart form one session.
 3. Start and End times are filled from the log. Type over them if you want. **Use log times** resets them.
 4. Rename each pickup location once (click the name). It is remembered for every future session.
 5. Pick the worker for each location, tick Partial pickup if needed, write notes. Payouts can be changed in the reward table.
 6. **Copy table for Google Sheets** copies the pickup table, ready to paste into the sheet.
 
-Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **Data file…** moves it to another folder, for example in OneDrive, so it follows you between PCs. Run the tracker on only one PC at a time then, because it rewrites the whole file on every change.
+Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **Data File…** moves it to another folder, for example in OneDrive, so it follows you between PCs. Run the tracker on only one PC at a time then, because it rewrites the whole file on every change.
 
 ## What the log can and cannot tell
 
@@ -48,16 +48,17 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 - A location nobody is assigned to is assigned automatically to the player the logs show picking up there. You can change it, and bildog123 (no log) has to be assigned by hand.
 - The run board makes runs per worker. The Assigned Worker of a location always decides who did a pickup there. Only for locations with nobody assigned, the logs are used: only the player who takes cargo out of a freight elevator has those lines in his own log, a few seconds before the mission update (needs that account's log).
 - A run is leaving the base, collecting cargo from any number of missions and handing it in at Ruin. A hand-in ends only the run of the player who did it, never somebody else's run, whatever missions it was for. Who did it is read from the logs (the loading platform lines). If no log names anybody, it is credited to a worker without a log (like bildog123).
-- Any pickup signal counts a stop as picked up. Tick **Partial pickup** yourself if you had to leave cargo (the cell turns yellow) and write what you left in Notes.
-- **Lost cargo** on a run is ticked by hand. It does not change the revenue.
+- Any pickup signal counts a stop as picked up. Tick **Partial Pickup** yourself if you had to leave cargo (the cell turns yellow) and write what you left in Notes.
+- **Lost Cargo** on a run is set by hand. It does not change the revenue.
 - The reward table counts every accepted 2 and 3 stop mission, payouts start at 1,268,250 and 1,691,000.
 
 - **Value** on the upper board is what the missions at that location are worth: every mission pays its reward split over its stops (reward / 2 for a 2 stop mission, reward / 3 for a 3 stop mission), times the stops at that location. It follows the payouts in the reward table.
 
 ## Runs, lost cargo and history
 
-- **Lost cargo** on a run is a drop-down: None, Little or All. It is only for your own notes and never changes who owes what. A row turns red for All, yellow for Little, and green when the run ended with everything delivered.
-- **End run** (last column) ends the run of that worker by hand, for example when all cargo was lost. You get an "are you sure" box. A run ended by hand shows **Undo end** to bring it back.
+- **Lost Cargo** on a run is a drop-down: None, Little or All. It is only for your own notes and never changes who owes what. A run row is yellow while the run is on the way, green when it is completed with everything delivered, orange for Little lost and red for All lost.
+- **Completed** is the time the run ended, at the hand-in at Ruin Station. It stays empty while the run is on the way. **Missions** is how many missions were handed in then. **Pickup Location & Time** lists where cargo was picked up and when.
+- **End Run** (last column) is a button that ends the run of that worker by hand, for example when all cargo was lost. You get an "are you sure" box. On a completed run the button is greyed out. A run ended by hand shows **Undo End** to bring it back.
 - **History tab:** every session is saved with its date, missions, revenue and what each worker carried, so earlier sessions stay after their logs are gone.
 
 ## Layout
@@ -69,9 +70,9 @@ The program starts watching the logs by itself when it opens, and reads the back
 ## Leaderboards
 
 The **Session Leaderboard** has one row per worker who started a cargo run in the session, and a total row, the highest earner on top (marked with a star on each side of the name and a gold row; the other names are indented to line up):
-- **Avg run time** and **Avg missions/run**: averages over the completed runs (ended by a hand-in, not ended by hand). Missions/run counts the missions picked up at each location, like the Pickups column of the run board.
-- **Completed runs** and **Perfect runs** (completed runs with lost cargo None).
-- **Missions carried**: all pickups of the worker this session, also of the run still on the way.
+- **Avg Run Time** and **Avg Missions/Run**: averages over the completed runs (ended by a hand-in, not ended by hand). Missions/run counts the missions picked up at each location, like the Missions column of the run board.
+- **Completed Runs** and **Perfect Runs** (completed runs with lost cargo None).
+- **Missions Carried**: all pickups of the worker this session, also of the run still on the way.
 - **Earned aUEC**: the value of the locations assigned to him this session. **Share of value** is his part of the value carried by everyone this session. **aUEC/hour** is that divided by the session duration (Start Time to End Time).
 
 The **History** tab has the same table for **all saved sessions** (with an extra Sessions column). Under it a line shows the best session (most revenue) and the best aUEC/hour. It adds up what each session saved, so it keeps working after the logs are gone. Sessions saved by an older version have earnings but no run counts until their logs are opened once.
@@ -80,7 +81,7 @@ The **History** tab has the same table for **all saved sessions** (with an extra
 
 - **Earnings:** every session saves how much each worker carried (the Value of the locations assigned to him). The table shows this session, all sessions and the net balance per worker.
 - **Split:** the reward of a session is split equally between everybody in the party, but each one is owed the value he carried. So somebody who carried nothing owes his whole share to the others, and somebody who carried more than his share is owed the difference. Lost cargo changes nothing.
-- **Session party…:** by default the party of a session is everyone who carried something. Use this button to add someone who was in the party but carried nothing (or to remove someone).
+- **Session Party…:** by default the party of a session is everyone who carried something. Use this button to add someone who was in the party but carried nothing (or to remove someone).
 - **Balance:** pick a party member and see the balance with each other member. + means they owe the selected member, − means the selected member owes them. Type over a number to correct it, your correction is kept.
 - **Money transfers:** `You sent <name>: <amount> aUEC` and `<name> has sent you: <amount> aUEC` are read from the logs (a transfer seen in both accounts' logs counts once). The list shows the transfers of the selected member. Tick **Payment** on the ones that pay off a debt, other transfers (like buying a ship) are ignored.
 - Balances add up over all saved sessions, so earlier money you settled by hand can be fixed with the typed corrections.
