@@ -8,6 +8,7 @@ public sealed partial class MainForm
     readonly DataGridView _statsGrid = new();
     readonly DataGridView _allTimeGrid = new();
     static Color TopGold => Theme.Gold;
+    static readonly TimeSpan SettleTime = TimeSpan.FromMinutes(30);   // after this long without activity the unpaid part of a session counts as lost
 
     /// <summary>One row of a leaderboard before it is turned into text.</summary>
     sealed class StatLine
@@ -15,7 +16,9 @@ public sealed partial class MainForm
         public string Name = "";
         public int Sessions;
         public WorkerStat S = new();
-        public decimal Earned;
+        public decimal RunValue;    // value of the finished runs
+        public decimal Confirmed;   // the part whose missions are completed (earned)
+        public decimal Lost;        // run value that was never paid, once the session is over
         public double Seconds;      // hours worked, for aUEC/hour
     }
 
@@ -27,14 +30,16 @@ public sealed partial class MainForm
         grid.AllowUserToDeleteRows = false;
         grid.Columns.Add(Col("Worker", 190, true));   // as wide as Pickup Location above
         if (withSessions) grid.Columns.Add(Col("Sessions", 80, true));
-        grid.Columns.Add(Col("Completed Runs", 120, true));
-        grid.Columns.Add(Col("Perfect Runs", 110, true));
-        grid.Columns.Add(Col("Batches Delivered", 130, true));
-        grid.Columns.Add(Col("Avg Batches/Run", 130, true));
-        grid.Columns.Add(Col("Avg Run Time", 100, true));
-        grid.Columns.Add(Col(withSessions ? "Earned aUEC" : "Total Run Value", 120, true, DataGridViewContentAlignment.MiddleRight));
-        grid.Columns.Add(Col("Share of Value", 110, true));
-        grid.Columns.Add(Col(withSessions ? "aUEC/Hour" : "Run Value/Hour", 120, true, DataGridViewContentAlignment.MiddleRight, true));
+        grid.Columns.Add(Col("Completed Runs", 110, true));
+        grid.Columns.Add(Col("Perfect Runs", 100, true));
+        grid.Columns.Add(Col("Batches Delivered", 120, true));
+        grid.Columns.Add(Col("Avg Batches/Run", 120, true));
+        grid.Columns.Add(Col("Avg Run Time", 95, true));
+        grid.Columns.Add(Col("Total Run Value", 115, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col("Total Earned aUEC", 130, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col("Lost Value", 95, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col("Share of Value", 100, true));
+        grid.Columns.Add(Col("Run Value/Hour", 120, true, DataGridViewContentAlignment.MiddleRight, true));
     }
 
     void BuildStatsGrid() => BuildStatColumns(_statsGrid, false);
@@ -73,10 +78,10 @@ public sealed partial class MainForm
     static void WriteBoard(DataGridView grid, List<StatLine> lines, bool withSessions, int totalSessions, double totalSeconds)
     {
         grid.Rows.Clear();
-        var totalValue = lines.Sum(l => l.Earned);
+        var totalValue = lines.Sum(l => l.RunValue);
         var sum = new StatLine();
         var first = true;
-        foreach (var l in lines.OrderByDescending(l => l.Earned).ThenBy(l => l.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (var l in lines.OrderByDescending(l => l.RunValue).ThenBy(l => l.Name, StringComparer.OrdinalIgnoreCase))
         {
             var avgTime = "";
             var avgMissions = "";
@@ -85,15 +90,15 @@ public sealed partial class MainForm
                 avgTime = ShortDuration(TimeSpan.FromSeconds(l.S.RunSeconds / l.S.Runs));
                 avgMissions = ((double)l.S.RunMissions / l.S.Runs).ToString("0.0", CultureInfo.InvariantCulture);
             }
-            var share = totalValue > 0 && l.Earned > 0
-                ? (l.Earned / totalValue * 100m).ToString("0", CultureInfo.InvariantCulture) + "%"
+            var share = totalValue > 0 && l.RunValue > 0
+                ? (l.RunValue / totalValue * 100m).ToString("0", CultureInfo.InvariantCulture) + "%"
                 : "";
 
             var cells = new List<object> { l.Name };
             if (withSessions) cells.Add(l.Sessions);
-            cells.AddRange(new object[] { l.S.Runs, l.S.Perfect, l.S.Missions, avgMissions, avgTime, Num(l.Earned), share, PerHour(l.Earned, l.Seconds) });
+            cells.AddRange(new object[] { l.S.Runs, l.S.Perfect, l.S.Missions, avgMissions, avgTime, Num(l.RunValue), Num(l.Confirmed), Num(l.Lost), share, PerHour(l.RunValue, l.Seconds) });
             var idx = grid.Rows.Add(cells.ToArray());
-            if (first && l.Earned > 0)
+            if (first && l.RunValue > 0)
             {
                 // the top earner: a star and a gold row
                 grid.Rows[idx].Cells[0].Value = "★ " + l.Name + " ★";
@@ -106,14 +111,16 @@ public sealed partial class MainForm
             sum.S.Missions += l.S.Missions;
             sum.S.RunMissions += l.S.RunMissions;
             sum.S.RunSeconds += l.S.RunSeconds;
-            sum.Earned += l.Earned;
+            sum.RunValue += l.RunValue;
+            sum.Confirmed += l.Confirmed;
+            sum.Lost += l.Lost;
         }
 
         var total = new List<object> { "Total" };
         if (withSessions) total.Add(totalSessions);
         total.AddRange(new object[]
         {
-            sum.S.Runs, sum.S.Perfect, sum.S.Missions, "", "", Num(sum.Earned), sum.Earned > 0 ? "100%" : "", PerHour(sum.Earned, totalSeconds),
+            sum.S.Runs, sum.S.Perfect, sum.S.Missions, "", "", Num(sum.RunValue), Num(sum.Confirmed), Num(sum.Lost), sum.RunValue > 0 ? "100%" : "", PerHour(sum.RunValue, totalSeconds),
         });
         var tr = grid.Rows.Add(total.ToArray());
         grid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
@@ -126,6 +133,8 @@ public sealed partial class MainForm
         if (_inputs == null || _current == null) return;
 
         var carried = ComputeCarried(_current, _inputs);
+        var confirmed = ComputeCarried(_current, _inputs, true);
+        var settled = _summary?.End is DateTime lastActivity && DateTime.UtcNow - lastActivity > SettleTime;   // still running: the rest is only queued
 
         double seconds = 0;
         if (TryTime(_startBox.Text, out var s) && TryTime(_endBox.Text, out var e))
@@ -148,9 +157,11 @@ public sealed partial class MainForm
             Name = n,
             Sessions = 1,
             S = stats.FirstOrDefault(kv => SameName(kv.Key, n)).Value ?? new WorkerStat(),
-            Earned = CarriedBy(carried, n),
+            RunValue = CarriedBy(carried, n),
+            Confirmed = CarriedBy(confirmed, n),
             Seconds = seconds,
         }).ToList();
+        foreach (var l in lines) l.Lost = settled ? Math.Max(0, l.RunValue - l.Confirmed) : 0;
         WriteBoard(_statsGrid, lines, false, 1, seconds);
     }
 
@@ -167,7 +178,7 @@ public sealed partial class MainForm
 
         var sessions = 0;
         double totalSeconds = 0;
-        foreach (var s in _data.Sessions.Values.Where(x => x.Carried.Count > 0))
+        foreach (var s in _data.Sessions.Values.Where(x => x.Carried.Count > 0 || x.RunValues.Count > 0))
         {
             sessions++;
             var seconds = s.StartUtc.HasValue && s.EndUtc.HasValue ? Math.Max(0, (s.EndUtc.Value - s.StartUtc.Value).TotalSeconds) : 0;
@@ -179,7 +190,16 @@ public sealed partial class MainForm
                 l.Sessions++;
                 l.Seconds += seconds;
             }
-            foreach (var kv in s.Carried) Line(kv.Key).Earned += kv.Value;
+            var settled = !s.EndUtc.HasValue || DateTime.UtcNow - s.EndUtc.Value > SettleTime;
+            foreach (var n in s.Carried.Keys.Concat(s.RunValues.Keys).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var earned = CarriedBy(s.Carried, n);
+                var run = s.RunValues.Count > 0 ? CarriedBy(s.RunValues, n) : earned;   // sessions saved by older versions only know the earned part
+                var l = Line(n);
+                l.RunValue += run;
+                l.Confirmed += earned;
+                if (settled) l.Lost += Math.Max(0, run - earned);
+            }
             foreach (var kv in s.Stats)
             {
                 var l = Line(kv.Key);

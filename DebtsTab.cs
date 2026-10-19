@@ -257,7 +257,8 @@ public sealed partial class MainForm
         {
             _data.Sessions.TryGetValue(g.Key, out var stored);
             var carried = ComputeCarried(g, stored ?? new SessionInputs(), true);
-            if (carried.Count == 0) continue;
+            var runValues = ComputeCarried(g, stored ?? new SessionInputs());
+            if (carried.Count == 0 && runValues.Count == 0) continue;
 
             var inp = stored ?? GetInputs(g.Key);
             var ids = g.Missions.Select(m => m.Id).ToList();
@@ -265,16 +266,17 @@ public sealed partial class MainForm
             // a session that grew and got a new key must not be counted twice
             foreach (var kv in _data.Sessions)
             {
-                if (kv.Key == g.Key || kv.Value.Carried.Count == 0) continue;
+                if (kv.Key == g.Key || (kv.Value.Carried.Count == 0 && kv.Value.RunValues.Count == 0)) continue;
                 if (kv.Value.MissionIds.Any(id => ids.Contains(id)))
                 {
                     kv.Value.Carried = new Dictionary<string, decimal>();
+                    kv.Value.RunValues = new Dictionary<string, decimal>();
                     changed = true;
                 }
             }
 
             var members = new List<string>(inp.Party ?? new List<string>());
-            foreach (var k in carried.Keys)
+            foreach (var k in carried.Keys.Concat(runValues.Keys))
             {
                 if (!members.Any(x => SameName(x, k))) members.Add(k);
             }
@@ -295,16 +297,19 @@ public sealed partial class MainForm
             var trips = WorkerTripBuilder.Build(g,
                 z => inp.Rows.TryGetValue(z, out var r) && !string.IsNullOrWhiteSpace(r.Worker) ? r.Worker : "Unassigned",
                 _log, inp.ManualEnds);
-            var stats = ComputeStats(trips, inp, g.Missions.Where(m => m.Completed).Select(m => m.Id).ToHashSet());
+            var stats = ComputeStats(trips, inp);   // a perfect run stays perfect, whatever the server does later
 
             var same = SameStats(inp.Stats, stats)
                 && inp.Carried.Count == carried.Count
+                && inp.RunValues.Count == runValues.Count
+                && runValues.All(kv => inp.RunValues.TryGetValue(kv.Key, out var rv) && rv == kv.Value)
                 && carried.All(kv => inp.Carried.TryGetValue(kv.Key, out var v) && v == kv.Value)
                 && inp.Members.Count == members.Count
                 && members.All(m => inp.Members.Any(x => SameName(x, m)));
             if (!same || inp.MissionIds.Count != ids.Count)
             {
                 inp.Carried = new Dictionary<string, decimal>(carried);
+                inp.RunValues = new Dictionary<string, decimal>(runValues);
                 inp.Stats = new Dictionary<string, WorkerStat>(stats);
                 inp.Members = members;
                 inp.MissionIds = ids;
