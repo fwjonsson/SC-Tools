@@ -173,11 +173,12 @@ public static class WorkerTripBuilder
         IEnumerable<ManualEnd>? manualEnds = null)
     {
         var manual = (manualEnds ?? Enumerable.Empty<ManualEnd>()).ToList();
+        var failedIds = g.Failed.Select(m => m.Id).ToHashSet();
         var sessionStart = g.Missions.Min(m => m.Accepted ?? m.FirstSeen ?? g.Start);
 
         var pickups = new List<(string Worker, string Zone, string Mission, DateTime Time)>();
         var drops = new List<(string Mission, DateTime Time, string? Actor)>();
-        foreach (var m in g.Missions)
+        foreach (var m in g.Missions.Concat(g.Failed))
         {
             foreach (var kv in m.Events)
             {
@@ -257,7 +258,7 @@ public static class WorkerTripBuilder
                 var ends = isManual ? carried.Count > 0 : (e.ActorKnown ? carried.Count > 0 : carried.Contains(e.Mission));
                 if (ends)
                 {
-                    var trip = NewTrip(worker, number++, runStart, e.Time, runPickups, isManual ? 0 : carried.Count);
+                    var trip = NewTrip(worker, number++, runStart, e.Time, runPickups, isManual ? 0 : carried.Count, failedIds);
                     trip.Manual = isManual;
                     result.Add(trip);
                     last = trip;
@@ -274,13 +275,13 @@ public static class WorkerTripBuilder
             }
 
             if (runPickups.Count > 0)
-                result.Add(NewTrip(worker, number, runStart, null, runPickups, 0));
+                result.Add(NewTrip(worker, number, runStart, null, runPickups, 0, failedIds));
         }
         return result;
     }
 
     static WorkerTrip NewTrip(string worker, int number, DateTime start, DateTime? end,
-        List<(string Zone, string Mission, DateTime Time)> pickups, int handedIn)
+        List<(string Zone, string Mission, DateTime Time)> pickups, int handedIn, HashSet<string> failedIds)
     {
         var t = new WorkerTrip { Worker = worker, Number = number, Start = start, End = end, HandedIn = handedIn };
         foreach (var grp in pickups.GroupBy(p => p.Zone))
@@ -288,7 +289,7 @@ public static class WorkerTripBuilder
             t.Pickups.Add(new TripPickup
             {
                 Zone = grp.Key,
-                Missions = grp.Select(p => p.Mission).Distinct().Count(),
+                Missions = grp.Select(p => p.Mission).Distinct().Count(m => !failedIds.Contains(m)),   // failed missions are no batches
                 Time = grp.Max(p => p.Time),
                 MissionIds = grp.Select(p => p.Mission).Distinct().ToList(),
             });

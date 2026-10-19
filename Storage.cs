@@ -47,6 +47,7 @@ public sealed class SessionInputs
     public Dictionary<string, RowInputs> Rows { get; set; } = new();   // key = pickup location id
     public Dictionary<string, decimal> Carried { get; set; } = new();   // worker -> value of the locations he carried (saved for the Debts tab)
     public Dictionary<string, decimal> RunValues { get; set; } = new();   // worker -> value of his finished runs (Carried = the part whose missions are completed)
+    public Dictionary<string, decimal> FailedValues { get; set; } = new();   // worker -> part of the run value that is known to be lost (failed missions, runs marked as failed)
     public List<string> MissionIds { get; set; } = new();
     public List<string>? Party { get; set; }   // who was in the party this session (null = everyone who carried something), set with "Session party…"
     public DateTime? StartUtc { get; set; }   // saved with the session so the History tab works without the logs

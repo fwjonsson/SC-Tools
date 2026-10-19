@@ -207,28 +207,37 @@ public sealed partial class MainForm
         : m.Multi == 3 ? (inp.Reward3 == 0 ? DefaultReward3 : inp.Reward3) : 0;
 
     /// <summary>The value of the batches of a run (reward / stops of each mission), and the part whose mission is completed.</summary>
-    static (decimal Total, decimal Confirmed) RunValues(WorkerTrip t, SessionGroup g, SessionInputs inp)
+    static (decimal Total, decimal Confirmed, decimal Failed) RunValues(WorkerTrip t, SessionGroup g, SessionInputs inp)
     {
-        decimal total = 0, confirmed = 0;
+        decimal total = 0, confirmed = 0, failed = 0;
         foreach (var p in t.Pickups)
         {
             foreach (var id in p.MissionIds)
             {
                 var m = g.Missions.FirstOrDefault(x => x.Id == id);
+                var dead = false;
+                if (m == null)
+                {
+                    m = g.Failed.FirstOrDefault(x => x.Id == id);
+                    dead = true;
+                }
                 if (m == null || m.Multi == 0) continue;
                 var v = RewardOf(m, inp) / m.Multi;
                 total += v;
-                if (m.Completed) confirmed += v;
+                if (t.Manual || dead) failed += v;   // a run marked as failed lost all its cargo
+                else if (m.Completed) confirmed += v;
             }
         }
-        return (total, confirmed);
+        return (total, confirmed, failed);
     }
+
+    enum CarryMode { Run, Confirmed, Failed }
 
     /// <summary>
     /// What every worker carried, from the finished runs. confirmedOnly: just the batches whose mission is completed
     /// (this is what gets saved); otherwise the whole value of the finished runs (the queue included).
     /// </summary>
-    Dictionary<string, decimal> ComputeCarried(SessionGroup g, SessionInputs inp, bool confirmedOnly = false)
+    Dictionary<string, decimal> ComputeCarried(SessionGroup g, SessionInputs inp, CarryMode mode = CarryMode.Run)
     {
         var carried = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         if (_log == null) return carried;
@@ -237,9 +246,9 @@ public sealed partial class MainForm
             _log, inp.ManualEnds);
         foreach (var t in trips)
         {
-            if (!t.End.HasValue || t.Manual || t.Worker == "Unassigned") continue;
+            if (!t.End.HasValue || t.Worker == "Unassigned") continue;
             var v = RunValues(t, g, inp);
-            var value = confirmedOnly ? v.Confirmed : v.Total;
+            var value = mode == CarryMode.Confirmed ? v.Confirmed : mode == CarryMode.Failed ? v.Failed : v.Total;
             if (value <= 0) continue;
             carried.TryGetValue(t.Worker, out var old);
             carried[t.Worker] = old + value;
@@ -256,8 +265,9 @@ public sealed partial class MainForm
         foreach (var g in _sessions)
         {
             _data.Sessions.TryGetValue(g.Key, out var stored);
-            var carried = ComputeCarried(g, stored ?? new SessionInputs(), true);
+            var carried = ComputeCarried(g, stored ?? new SessionInputs(), CarryMode.Confirmed);
             var runValues = ComputeCarried(g, stored ?? new SessionInputs());
+            var failedValues = ComputeCarried(g, stored ?? new SessionInputs(), CarryMode.Failed);
             if (carried.Count == 0 && runValues.Count == 0) continue;
 
             var inp = stored ?? GetInputs(g.Key);
@@ -271,6 +281,7 @@ public sealed partial class MainForm
                 {
                     kv.Value.Carried = new Dictionary<string, decimal>();
                     kv.Value.RunValues = new Dictionary<string, decimal>();
+                    kv.Value.FailedValues = new Dictionary<string, decimal>();
                     changed = true;
                 }
             }
@@ -302,6 +313,8 @@ public sealed partial class MainForm
             var same = SameStats(inp.Stats, stats)
                 && inp.Carried.Count == carried.Count
                 && inp.RunValues.Count == runValues.Count
+                && inp.FailedValues.Count == failedValues.Count
+                && failedValues.All(kv => inp.FailedValues.TryGetValue(kv.Key, out var fv) && fv == kv.Value)
                 && runValues.All(kv => inp.RunValues.TryGetValue(kv.Key, out var rv) && rv == kv.Value)
                 && carried.All(kv => inp.Carried.TryGetValue(kv.Key, out var v) && v == kv.Value)
                 && inp.Members.Count == members.Count
@@ -310,6 +323,7 @@ public sealed partial class MainForm
             {
                 inp.Carried = new Dictionary<string, decimal>(carried);
                 inp.RunValues = new Dictionary<string, decimal>(runValues);
+                inp.FailedValues = new Dictionary<string, decimal>(failedValues);
                 inp.Stats = new Dictionary<string, WorkerStat>(stats);
                 inp.Members = members;
                 inp.MissionIds = ids;
