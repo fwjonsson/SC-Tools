@@ -773,6 +773,9 @@ public sealed partial class MainForm : Form
 
     readonly List<LiveSource> _sources = new();
 
+    /// <summary>The sources that are switched on. A disabled source keeps its address but is not read.</summary>
+    List<string> ActivePaths() => _data.WatchPaths.Where(p => !_data.DisabledWatchPaths.Contains(p)).ToList();
+
     void OpenLogs()
     {
         using var dlg = new OpenFileDialog
@@ -832,50 +835,88 @@ public sealed partial class MainForm : Form
         };
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
         if (!_data.WatchPaths.Contains(dlg.SelectedPath)) _data.WatchPaths.Add(dlg.SelectedPath);
+        _data.DisabledWatchPaths.Remove(dlg.SelectedPath);
         Storage.Save(_data);
         SetStatus("Added " + dlg.SelectedPath);
         if (_live) StartLive();
     }
 
-    /// <summary>Shows every added live source, whether it can be reached right now, and lets you remove one.</summary>
+    /// <summary>Shows every added live source with a tick to switch it on or off, and lets you remove one for good.</summary>
     void ShowSources()
     {
         using var f = new Form
         {
             Text = "Live Sources",
-            ClientSize = new Size(760, 320),
+            ClientSize = new Size(820, 320),
             StartPosition = FormStartPosition.CenterParent,
             MinimizeBox = false,
             MaximizeBox = false,
             ShowInTaskbar = false,
             Font = Font,
         };
-        var list = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false, HorizontalScrollbar = true };
+        var label = new Label { Text = "Untick Enabled to stop reading a source without losing its address.", Dock = DockStyle.Top, Height = 28, Padding = new Padding(6, 6, 6, 0) };
+        var grid = new DataGridView();
+        StyleGrid(grid);
+        grid.Dock = DockStyle.Fill;
+        grid.AllowUserToAddRows = false;
+        grid.AllowUserToDeleteRows = false;
+        grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        grid.MultiSelect = false;
+        grid.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = "Enabled", Width = 70, SortMode = DataGridViewColumnSortMode.NotSortable });
+        grid.Columns.Add(Col("Source", 330, true, DataGridViewContentAlignment.MiddleLeft));
+        grid.Columns.Add(Col("Reads", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
+
         var bar = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 44, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(6) };
         var close = new Button { Text = "Close", AutoSize = true, DialogResult = DialogResult.OK };
         var remove = new Button { Text = "Remove Selected", AutoSize = true };
         bar.Controls.Add(close);
         bar.Controls.Add(remove);
-        f.Controls.Add(list);
+        f.Controls.Add(grid);
+        f.Controls.Add(label);
         f.Controls.Add(bar);
         f.AcceptButton = close;
 
         var changed = false;
         void Fill()
         {
-            list.Items.Clear();
-            if (_data.WatchPaths.Count == 0) list.Items.Add("(no live sources added yet, use \"Add Live Source…\")");
+            grid.Rows.Clear();
             foreach (var path in _data.WatchPaths)
             {
-                var file = ResolveLog(path);
-                list.Items.Add(path + "    →    " + (file ?? "cannot be reached right now"));
+                var on = !_data.DisabledWatchPaths.Contains(path);
+                var row = grid.Rows[grid.Rows.Add(on, path, "")];
+                row.Tag = path;
+                RefreshStatus(row);
             }
         }
+        void RefreshStatus(DataGridViewRow row)
+        {
+            var path = (string)row.Tag!;
+            if (row.Cells[0].Value is false) { row.Cells[2].Value = "switched off"; return; }
+            row.Cells[2].Value = ResolveLog(path) ?? "cannot be reached right now";
+        }
+        grid.CurrentCellDirtyStateChanged += (_, _) =>
+        {
+            if (grid.IsCurrentCellDirty) grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
+        };
+        grid.CellValueChanged += (_, e) =>
+        {
+            if (e.ColumnIndex != 0 || e.RowIndex < 0) return;
+            var row = grid.Rows[e.RowIndex];
+            var path = (string)row.Tag!;
+            if (row.Cells[0].Value is false)
+            {
+                if (!_data.DisabledWatchPaths.Contains(path)) _data.DisabledWatchPaths.Add(path);
+            }
+            else _data.DisabledWatchPaths.Remove(path);
+            Storage.Save(_data);
+            changed = true;
+            RefreshStatus(row);
+        };
         remove.Click += (_, _) =>
         {
-            var i = list.SelectedIndex;
-            if (i < 0 || i >= _data.WatchPaths.Count) return;
-            _data.WatchPaths.RemoveAt(i);
+            if (grid.CurrentRow?.Tag is not string path) return;
+            _data.WatchPaths.Remove(path);
+            _data.DisabledWatchPaths.Remove(path);
             Storage.Save(_data);
             changed = true;
             Fill();
@@ -884,7 +925,17 @@ public sealed partial class MainForm : Form
         ApplyTheme(f);
         f.ShowDialog(this);
 
-        if (changed && _live) StartLive();
+        if (!changed || !_live) return;
+        if (ActivePaths().Count > 0) StartLive();
+        else
+        {
+            StopLive();
+            _logs.Clear();
+            _sources.Clear();
+            _renderedVersion = -1;
+            RefreshFromLog();
+            SetStatus("All sources are switched off. Tick one in Sources to watch again.");
+        }
     }
 
     void ToggleLive()
@@ -905,6 +956,11 @@ public sealed partial class MainForm : Form
                 if (_data.WatchPaths.Count == 0) return;
             }
         }
+        if (ActivePaths().Count == 0)
+        {
+            SetStatus("All sources are switched off. Tick one in Sources to watch.");
+            return;
+        }
         StartLive();
     }
 
@@ -912,7 +968,8 @@ public sealed partial class MainForm : Form
     {
         _sources.Clear();
         _logs.Clear();
-        foreach (var path in _data.WatchPaths)
+        var active = ActivePaths();
+        foreach (var path in active)
         {
             var src = new LiveSource { Path = path };
             _sources.Add(src);
@@ -925,7 +982,7 @@ public sealed partial class MainForm : Form
         _liveBtn.Text = "Stop Watching";
         _timer.Start();
         PollLive();
-        SetStatus("Watching " + string.Join(", ", _data.WatchPaths));
+        SetStatus("Watching " + string.Join(", ", active));
     }
 
     void StopLive()
@@ -1605,7 +1662,7 @@ public sealed partial class MainForm : Form
         // start watching by itself: this also reads the backup logs of the last 24 hours
         Shown += (_, _) =>
         {
-            if (!_live && (_data.WatchPaths.Count > 0 || Directory.Exists(DefaultLogPath))) ToggleLive();
+            if (!_live && (ActivePaths().Count > 0 || (_data.WatchPaths.Count == 0 && Directory.Exists(DefaultLogPath)))) ToggleLive();
         };
     }
 }
