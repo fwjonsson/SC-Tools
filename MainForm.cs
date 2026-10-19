@@ -443,7 +443,7 @@ public sealed partial class MainForm : Form
             if (_current == null || _inputs == null || _log == null) return;
 
             _trips = WorkerTripBuilder.Build(_current, WorkerOfZone, _log, _inputs.ManualEnds)
-                .OrderBy(t => t.Start).ThenBy(t => t.Worker, StringComparer.OrdinalIgnoreCase).ToList();
+                .OrderByDescending(t => t.Start).ThenBy(t => t.Worker, StringComparer.OrdinalIgnoreCase).ToList();   // newest run on top
 
             foreach (var t in _trips)
             {

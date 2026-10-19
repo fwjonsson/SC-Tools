@@ -62,7 +62,7 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 
 ## Layout
 
-The pickup board and the stats board are on the left, the session summary (times, missions, rewards, revenue, hourly rate) on the right, and the run board takes the whole lower part of the window.
+The pickup board and the stats board are on the left, the session summary (times, missions, rewards, revenue, hourly rate) on the right, and the run board takes the whole lower part of the window. The newest runs are on top, older ones move down.
 
 ## Stats board
 
