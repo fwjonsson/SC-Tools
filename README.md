@@ -66,7 +66,7 @@ Every board has a title. On the left: **Hauling Tracker** (the pickup board) and
 
 ## Leaderboards
 
-The **Session Leaderboard** has one row per party member and a total row, the highest earner on top (marked with a star and a gold row):
+The **Session Leaderboard** has one row per party member and a total row, the highest earner on top (marked with a star on each side of the name and a gold row):
 - **Avg run time** and **Avg missions/run**: averages over the completed runs (ended by a hand-in, not ended by hand). Missions/run counts the missions picked up at each location, like the Pickups column of the run board.
 - **Completed runs** and **Perfect runs** (completed runs with lost cargo None).
 - **Missions carried**: all pickups of the worker this session, also of the run still on the way.

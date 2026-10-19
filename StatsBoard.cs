@@ -95,7 +95,7 @@ public sealed partial class MainForm
             if (first && l.Earned > 0)
             {
                 // the top earner: a star and a gold row
-                grid.Rows[idx].Cells[0].Value = l.Name + "  ★";
+                grid.Rows[idx].Cells[0].Value = "★ " + l.Name + " ★";
                 grid.Rows[idx].DefaultCellStyle.BackColor = TopGold;
                 first = false;
             }
