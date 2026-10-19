@@ -73,6 +73,13 @@ The program starts watching the logs by itself when it opens, and reads the back
 
 **Options → Dark Mode** switches between the light and the dark look. The choice is saved in the data file and used the next time the program starts. The dark look covers all tabs, tables, buttons, dialogs and the title bar (Windows 10 or later).
 
+## Trip Planner
+
+The **Trip Planner** tab suggests how to pick up the open batches with a ship that holds a limited number of batches, flying as little as possible. Pick who you plan for (**Everyone**, or a worker: then it uses the locations assigned to him and the ones nobody is assigned to) and how many batches the ship holds (saved per worker, so the C2 can be 3 and a smaller ship 2). Press **Plan Trips**, or just watch it update while you pick up cargo.
+- Every trip starts and ends at Ruin Station. A location can be split over several trips: take what fits, and fill the last seats with a small pickup that is close by, or come back for the rest. The planner tries many ways of dividing the batches and keeps the one with the fewest Gm in total, so the suggestion is always the same for the same situation.
+- **Batches** is what the trip carries out of the ship's size (green = full ship). **Gm / Batch** shows how efficient the trip is. The line above the table compares the plan with flying to every location on its own.
+- It uses the Pyro distance table, so a location that is not in it is left out and named under the summary. Only batches that are not picked up yet are planned.
+
 ## Leaderboards
 
 The **Session Leaderboard** has one row per worker who started a cargo run in the session, and a total row, the highest earner on top (marked with a star on each side of the name and a gold row; the other names are indented to line up):

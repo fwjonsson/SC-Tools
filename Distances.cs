@@ -28,6 +28,8 @@ static class PyroDistances
         ("70273", "Endgame",                  2703.5, 1735.5, 136.50),
     };
 
+    public static string NameOf(string id) => Stations.First(s => s.Id == id).Name;
+
     /// <summary>The station for the last 5 digits of a location id, or null when it is not in the table.</summary>
     public static string? IdOfTail(string tail) =>
         Stations.Any(s => s.Id == tail && s.Id != Ruin) ? tail : null;

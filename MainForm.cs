@@ -131,9 +131,13 @@ public sealed partial class MainForm : Form
         var historyPage = new TabPage("History") { BackColor = Color.White };
         tabs.TabPages.Add(historyPage);
         historyPage.Controls.Add(BuildHistoryPage());
+        var plannerPage = new TabPage("Trip Planner") { BackColor = Color.White };
+        tabs.TabPages.Add(plannerPage);
+        plannerPage.Controls.Add(BuildPlannerPage());
         tabs.SelectedIndexChanged += (_, _) =>
         {
-            if (tabs.SelectedIndex >= 1) RefreshDebts();
+            if (tabs.SelectedTab == plannerPage) RefreshPlanner();
+            else if (tabs.SelectedIndex >= 1) RefreshDebts();
         };
 
         // top area: the pickup board and the session summary side by side, the leaderboard under both
@@ -1358,6 +1362,8 @@ public sealed partial class MainForm : Form
             row.Tag = r.Zone;
             ColorMissionsCell(row, r);
         }
+
+        if (_planGrid.Visible && _planGrid.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
     }
 
     /// <summary>
