@@ -15,7 +15,7 @@ To make a single exe: `dotnet publish -c Release -r win-x64 --self-contained fal
 
 ## Use
 
-1. **Open log file(s)** to read old logs (pick several at once, for example logs split by a crash).
+1. **Options → Open Log File(s)…** to read old logs (pick several at once, for example logs split by a crash).
    Or **Options → Watch Live Game.log** while you play. The window updates every 1.5 seconds.
 2. Pick the session in the drop-down on the front page. Missions less than 30 minutes apart form one session.
 3. Start and End times are filled from the log. Type over them if you want. **Use log times** resets them.
