@@ -89,14 +89,15 @@ public sealed partial class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 5,
+            RowCount = 6,
             Padding = new Padding(12),
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 262));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 22));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 40));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         var tabs = new TabControl { Dock = DockStyle.Fill };
         var sessionPage = new TabPage("Session") { BackColor = Color.White };
@@ -119,8 +120,10 @@ public sealed partial class MainForm : Form
         BuildLogGrid();
         root.Controls.Add(_logGrid, 0, 2);
         BuildTripGrid();
-        root.Controls.Add(_tripGrid, 0, 3);
-        root.Controls.Add(BuildFooter(), 0, 4);
+        BuildStatsGrid();
+        root.Controls.Add(_statsGrid, 0, 3);
+        root.Controls.Add(_tripGrid, 0, 4);
+        root.Controls.Add(BuildFooter(), 0, 5);
     }
 
     Control BuildToolbar()
@@ -407,6 +410,7 @@ public sealed partial class MainForm : Form
             else _inputs.LostCargo[trip.Key] = level;
             row.DefaultCellStyle.BackColor = RunColor(level, trip.End.HasValue);
             Storage.Save(_data);
+            FillStats();
         };
     }
 
@@ -491,6 +495,7 @@ public sealed partial class MainForm : Form
         finally
         {
             _updating = wasUpdating;
+            FillStats();
         }
     }
 
@@ -1027,6 +1032,7 @@ public sealed partial class MainForm : Form
             _rewards.Rows.Clear();
             _logGrid.Rows.Clear();
             _tripGrid.Rows.Clear();
+            _statsGrid.Rows.Clear();
         }
         finally
         {
@@ -1295,6 +1301,8 @@ public sealed partial class MainForm : Form
         _hourlyVal.Text = duration.HasValue && duration.Value.TotalHours > 0 && _revenue > 0
             ? (_revenue / (decimal)duration.Value.TotalHours).ToString("N0")
             : "";
+
+        FillStats();
 
         if (_summary == null)
             _missionsVal.Text = "";

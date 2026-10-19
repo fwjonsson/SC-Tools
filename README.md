@@ -60,6 +60,14 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 - **End run** (last column) ends the run of that worker by hand, for example when all cargo was lost. You get an "are you sure" box. A run ended by hand shows **Undo end** to bring it back.
 - **History tab:** every session is saved with its date, missions, revenue and what each worker carried, so earlier sessions stay after their logs are gone.
 
+## Stats board
+
+Between the pickup board and the run board there is a table with one row per party member (and a total row):
+- **Avg run time** and **Avg missions/run**: averages over the completed runs (ended by a hand-in, not ended by hand). Missions/run counts the missions picked up at each location, like the Pickups column of the run board.
+- **Completed runs** and **Perfect runs** (completed runs with lost cargo None).
+- **Missions carried**: all pickups of the worker this session, also of the run still on the way.
+- **Earned aUEC**: the value of the locations assigned to him this session. **Share of value** is his part of the value carried by everyone this session. **aUEC/hour** is that divided by the session duration (Start Time to End Time).
+
 ## Debts tab
 
 - **Earnings:** every session saves how much each worker carried (the Value of the locations assigned to him). The table shows this session, all sessions and the net balance per worker.
