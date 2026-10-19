@@ -72,6 +72,7 @@ public sealed class AppData
 {
     public string? GameLogPath { get; set; }
     public List<string> Party { get; set; } = new() { "zzoega", "zzatvo", "bildog123" };
+    public List<string> InactiveParty { get; set; } = new();   // party members that are not shown in the party list of the Session tab
     public bool DarkMode { get; set; }   // the dark look
     public string? Channel { get; set; }   // Auto, LIVE, HOTFIX...
     public List<string> WatchPaths { get; set; } = new();   // Game.log files to watch live, also on other computers

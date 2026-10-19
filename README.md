@@ -44,7 +44,7 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 - When watching starts (and when the game starts a new Game.log) the logs in the `logbackups` folder that are less than 24 hours old are read first, so a session that was already going on, for example before a crash, continues.
 - **Sources…** lists every added live source, shows if it can be reached right now, and lets you remove one.
 - Mission updates reach the whole party, so the logs of all accounts are merged and a shared mission counts once.
-- **Party…** is the list of names in the Assigned Worker dropdown.
+- **Party…** is the list of names in the Assigned Worker dropdown. Type a name in the empty row to add it. Untick **Active** to hide someone from the **Party Members** table at the top right (next to the buttons); the name stays available in the dropdown.
 - A location nobody is assigned to is assigned automatically to the player the logs show picking up there. You can change it, and bildog123 (no log) has to be assigned by hand.
 - The run board makes runs per worker. The Assigned Worker of a location always decides who did a pickup there. Only for locations with nobody assigned, the logs are used: only the player who takes cargo out of a freight elevator has those lines in his own log, a few seconds before the mission update (needs that account's log).
 - A run is leaving the base, collecting cargo from any number of missions and handing it in at Ruin. A hand-in ends only the run of the player who did it, never somebody else's run, whatever missions it was for. Who did it is read from the logs (the loading platform lines). If no log names anybody, it is credited to a worker without a log (like bildog123).

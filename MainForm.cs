@@ -48,6 +48,8 @@ public sealed partial class MainForm : Form
     readonly Label _revenueVal = new();
     readonly Label _hourlyVal = new();
     readonly Label _missionsDoneVal = new();
+    readonly DataGridView _partyGrid = new();
+    int _partyHeight = 54;
 
     readonly DataGridView _rewards = new();
     readonly Label _rewardsTotalMissions = new();
@@ -135,7 +137,7 @@ public sealed partial class MainForm : Form
         // top area: the pickup board and the session summary side by side, the leaderboard under both
         var main = _main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Margin = new Padding(0) };
         main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 530));
+        main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 580));
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 306));   // both rows are fitted to the boards by FitTopArea
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 130));
 
@@ -177,7 +179,7 @@ public sealed partial class MainForm : Form
         runs.Controls.Add(SectionTitle("Cargo Runs"), 0, 0);
 
         BuildTripGrid();
-        root.Controls.Add(BuildToolbar(), 0, 0);
+        root.Controls.Add(BuildTopBar(), 0, 0);
         root.Controls.Add(main, 0, 1);
         runs.Controls.Add(_tripGrid, 0, 1);
         root.Controls.Add(runs, 0, 2);
@@ -242,6 +244,38 @@ public sealed partial class MainForm : Form
         Margin = new Padding(0),
         Padding = new Padding(2, 0, 0, 3),
     };
+
+    /// <summary>The buttons on the left, the list of active party members on the right.</summary>
+    Control BuildTopBar()
+    {
+        var top = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0),
+        };
+        top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
+        top.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        StyleGrid(_partyGrid);
+        _partyGrid.Dock = DockStyle.Top;
+        _partyGrid.Margin = new Padding(6, 4, 0, 4);
+        _partyGrid.AllowUserToAddRows = false;
+        _partyGrid.AllowUserToDeleteRows = false;
+        _partyGrid.ReadOnly = true;
+        _partyGrid.ScrollBars = ScrollBars.None;
+        _partyGrid.Columns.Add(Col("Party Members", 180, true));
+        _partyGrid.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+
+        top.Controls.Add(BuildToolbar(), 0, 0);
+        top.Controls.Add(_partyGrid, 1, 0);
+        RefreshPartyTable();
+        return top;
+    }
 
     Control BuildToolbar()
     {
@@ -336,7 +370,7 @@ public sealed partial class MainForm : Form
             RowCount = 6,
             CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
         };
-        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 175));
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         for (var i = 0; i < 6; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
 
@@ -468,15 +502,15 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(Col("Run", 60, true));
         _tripGrid.Columns.Add(Col("Pickup Location & Time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
         // the columns after Pickups add up to the width of the right panel, so Pickups ends where the boards above end
-        _tripGrid.Columns.Add(Col("Batches", 62, true));
-        _tripGrid.Columns.Add(Col("Value", 88, true, DataGridViewContentAlignment.MiddleRight));
+        _tripGrid.Columns.Add(Col("Batches", 80, true));
+        _tripGrid.Columns.Add(Col("Value", 86, true, DataGridViewContentAlignment.MiddleRight));
         _tripGrid.Columns.Add(Col("Started", 66, true));
-        _tripGrid.Columns.Add(Col("Completed", 84, true));
-        _tripGrid.Columns.Add(Col("Run Time", 78, true));
+        _tripGrid.Columns.Add(Col("Completed", 98, true));
+        _tripGrid.Columns.Add(Col("Run Time", 76, true));
         var lostCol = new DataGridViewComboBoxColumn
         {
             HeaderText = "Lost Cargo",
-            Width = 82,
+            Width = 98,
             FlatStyle = FlatStyle.Flat,
             SortMode = DataGridViewColumnSortMode.NotSortable,
         };
@@ -486,7 +520,7 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(new DataGridViewButtonColumn
         {
             HeaderText = "Failed",
-            Width = 70,
+            Width = 76,
             FlatStyle = FlatStyle.Standard,   // a real button
             SortMode = DataGridViewColumnSortMode.NotSortable,
         });
@@ -1199,8 +1233,19 @@ public sealed partial class MainForm : Form
         return "";
     }
 
+    /// <summary>The names of the active party members, in the small table on the top right.</summary>
+    void RefreshPartyTable()
+    {
+        _partyGrid.Rows.Clear();
+        foreach (var name in _data.Party.Where(n => !_data.InactiveParty.Any(x => SameName(x, n))))
+            _partyGrid.Rows.Add(name);
+        _partyHeight = _partyGrid.ColumnHeadersHeight + Math.Max(1, _partyGrid.Rows.Count) * _partyGrid.RowTemplate.Height + 3;
+        _partyGrid.Height = _partyHeight;
+    }
+
     void RefreshWorkerChoices()
     {
+        RefreshPartyTable();
         var col = (DataGridViewComboBoxColumn)_logGrid.Columns[2];
         col.Items.Clear();
         col.Items.Add("");
@@ -1308,35 +1353,53 @@ public sealed partial class MainForm : Form
         using var f = new Form
         {
             Text = "Party",
-            ClientSize = new Size(360, 300),
+            ClientSize = new Size(380, 360),
             StartPosition = FormStartPosition.CenterParent,
             MinimizeBox = false,
             MaximizeBox = false,
             ShowInTaskbar = false,
             Font = Font,
         };
-        var label = new Label { Text = "One name per line. These are the choices in Assigned Worker.", Dock = DockStyle.Top, Height = 30, Padding = new Padding(6, 6, 6, 0) };
-        var box = new TextBox { Multiline = true, Dock = DockStyle.Fill, AcceptsReturn = true, ScrollBars = ScrollBars.Vertical, Text = string.Join(Environment.NewLine, _data.Party) };
+        var label = new Label { Text = "Type a name in the empty row to add it. These are the choices in Assigned Worker. Untick Active to hide someone from the party list.", Dock = DockStyle.Top, Height = 48, Padding = new Padding(6, 6, 6, 0) };
+        var grid = new DataGridView();
+        StyleGrid(grid);
+        grid.Dock = DockStyle.Fill;
+        grid.AllowUserToAddRows = true;
+        grid.AllowUserToDeleteRows = true;
+        grid.Columns.Add(Col("Name", 240, false, DataGridViewContentAlignment.MiddleLeft, true));
+        grid.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = "Active", Width = 80, SortMode = DataGridViewColumnSortMode.NotSortable });
+        foreach (var name in _data.Party)
+            grid.Rows.Add(name, !_data.InactiveParty.Any(x => SameName(x, name)));
+        grid.DefaultValuesNeeded += (_, e) => e.Row.Cells[1].Value = true;
+
         var ok = new Button { Text = "Save", AutoSize = true, DialogResult = DialogResult.OK };
+        ok.Click += (_, _) => grid.EndEdit();
         var bar = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 44, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(6) };
         bar.Controls.Add(ok);
-        f.Controls.Add(box);
+        f.Controls.Add(grid);
         f.Controls.Add(label);
         f.Controls.Add(bar);
         f.AcceptButton = ok;
         ApplyTheme(f);
         if (f.ShowDialog(this) != DialogResult.OK) return;
 
-        _data.Party = box.Text
-            .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(x => x.Trim())
-            .Where(x => x.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var party = new List<string>();
+        var inactive = new List<string>();
+        foreach (DataGridViewRow row in grid.Rows)
+        {
+            if (row.IsNewRow) continue;
+            var name = (Convert.ToString(row.Cells[0].Value) ?? "").Trim();
+            if (name.Length == 0 || party.Any(x => SameName(x, name))) continue;
+            party.Add(name);
+            if (row.Cells[1].Value is false) inactive.Add(name);
+        }
+        _data.Party = party;
+        _data.InactiveParty = inactive;
         Storage.Save(_data);
 
         _renderedVersion = -1;
         RefreshFromLog();
+        RefreshPartyTable();
     }
 
     // ------------------------------------------------------------------ editing
