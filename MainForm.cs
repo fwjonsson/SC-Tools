@@ -47,7 +47,7 @@ public sealed partial class MainForm : Form
     readonly Label _missionsVal = new();
     readonly Label _revenueVal = new();
     readonly Label _hourlyVal = new();
-    readonly Label _queuedVal = new();
+    readonly Label _missionsDoneVal = new();
 
     readonly DataGridView _rewards = new();
     readonly Label _rewardsTotalMissions = new();
@@ -56,6 +56,7 @@ public sealed partial class MainForm : Form
     readonly DataGridView _logGrid = new();
 
     readonly System.Windows.Forms.Timer _timer = new();
+    readonly System.Windows.Forms.Timer _clock = new();
 
     public MainForm()
     {
@@ -78,6 +79,13 @@ public sealed partial class MainForm : Form
         BuildUi();
         ApplyTheme(this);
 
+        _clock.Interval = 1000;
+        _clock.Tick += (_, _) =>
+        {
+            UpdateSessionClock();
+            UpdateLiveDurations();
+        };
+        _clock.Start();
         _timer.Interval = 1500;
         _timer.Tick += (_, _) => PollLive();
         FormClosing += (_, _) =>
@@ -127,7 +135,7 @@ public sealed partial class MainForm : Form
         // top area: the pickup board and the session summary side by side, the leaderboard under both
         var main = _main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Margin = new Padding(0) };
         main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 450));
+        main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 530));
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 306));   // both rows are fitted to the boards by FitTopArea
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 130));
 
@@ -207,7 +215,7 @@ public sealed partial class MainForm : Form
                 var title = _left.GetRowHeights().FirstOrDefault();   // as drawn, also on a scaled screen
                 if (title <= 0) title = TitleHeight;
                 _left.RowStyles[1].Height = pickups;
-                var row0 = Math.Max(title + pickups, TitleHeight + 112 + 14 + 196 + 6);   // the summary on the right needs its own height too
+                var row0 = Math.Max(title + pickups, TitleHeight + 112 + 14 + 170 + 6);   // the summary on the right needs its own height too
                 var row1 = title + leaders;
                 _main.RowStyles[0].Height = row0;
                 _main.RowStyles[1].Height = row1;
@@ -316,7 +324,7 @@ public sealed partial class MainForm : Form
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 196));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
         p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // empty, so the clean table keeps its small rows
 
         // start / end / duration / totals, neutral and clean
@@ -325,12 +333,12 @@ public sealed partial class MainForm : Form
             Dock = DockStyle.Fill,
             Margin = new Padding(0),
             ColumnCount = 2,
-            RowCount = 7,
+            RowCount = 6,
             CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
         };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        for (var i = 0; i < 7; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        for (var i = 0; i < 6; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
 
         ConfigureTimeBox(_startBox);
         ConfigureTimeBox(_endBox);
@@ -338,15 +346,14 @@ public sealed partial class MainForm : Form
         StyleValue(_missionsVal);
         StyleValue(_revenueVal);
         StyleValue(_hourlyVal);
-        StyleValue(_queuedVal);
+        StyleValue(_missionsDoneVal);
 
         AddSummaryRow(t, 0, "Start Time", WrapInput(_startBox));
-        AddSummaryRow(t, 1, "End Time", WrapInput(_endBox));
-        AddSummaryRow(t, 2, "Duration", _durationVal);
-        AddSummaryRow(t, 3, "Total Batches", _missionsVal);
-        AddSummaryRow(t, 4, "Total Revenue", _revenueVal);
-        AddSummaryRow(t, 5, "Queued Run Value", _queuedVal);
-        AddSummaryRow(t, 6, "Hourly Rate", _hourlyVal);
+        AddSummaryRow(t, 1, "Session Time", _durationVal);
+        AddSummaryRow(t, 2, "Batches Delivered", _missionsVal);
+        AddSummaryRow(t, 3, "Missions Completed", _missionsDoneVal);
+        AddSummaryRow(t, 4, "Total aUEC Earned", _revenueVal);
+        AddSummaryRow(t, 5, "aUEC/Hour", _hourlyVal);
         p.Controls.Add(t, 0, 2);
 
         // the contract table on top, in the blue style of the other boards
@@ -430,12 +437,6 @@ public sealed partial class MainForm : Form
         // Columns you type in are white. Columns filled in from the log are tinted.
         _logGrid.Columns.Add(Col("Pickup Location", 190, false, DataGridViewContentAlignment.MiddleLeft));
         _logGrid.Columns.Add(Col("Batches", 90, true));
-        _logGrid.Columns.Add(new DataGridViewCheckBoxColumn
-        {
-            HeaderText = "Partial Pickup",
-            Width = 110,
-            SortMode = DataGridViewColumnSortMode.NotSortable,
-        });
         var workerCol = new DataGridViewComboBoxColumn
         {
             HeaderText = "Assigned Worker",
@@ -467,15 +468,15 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(Col("Run", 60, true));
         _tripGrid.Columns.Add(Col("Pickup Location & Time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
         // the columns after Pickups add up to the width of the right panel, so Pickups ends where the boards above end
-        _tripGrid.Columns.Add(Col("Batches", 56, true));
-        _tripGrid.Columns.Add(Col("Value", 66, true, DataGridViewContentAlignment.MiddleRight));
-        _tripGrid.Columns.Add(Col("Started", 52, true));
-        _tripGrid.Columns.Add(Col("Completed", 66, true));
-        _tripGrid.Columns.Add(Col("Duration", 56, true));
+        _tripGrid.Columns.Add(Col("Batches", 62, true));
+        _tripGrid.Columns.Add(Col("Value", 88, true, DataGridViewContentAlignment.MiddleRight));
+        _tripGrid.Columns.Add(Col("Started", 66, true));
+        _tripGrid.Columns.Add(Col("Completed", 84, true));
+        _tripGrid.Columns.Add(Col("Run Time", 78, true));
         var lostCol = new DataGridViewComboBoxColumn
         {
             HeaderText = "Lost Cargo",
-            Width = 84,
+            Width = 82,
             FlatStyle = FlatStyle.Flat,
             SortMode = DataGridViewColumnSortMode.NotSortable,
         };
@@ -485,7 +486,7 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(new DataGridViewButtonColumn
         {
             HeaderText = "Failed",
-            Width = 73,
+            Width = 70,
             FlatStyle = FlatStyle.Standard,   // a real button
             SortMode = DataGridViewColumnSortMode.NotSortable,
         });
@@ -556,11 +557,11 @@ public sealed partial class MainForm : Form
     /// <summary>Time from the start of the run to its end, or to now while the run is still on the way (when watching live).</summary>
     string RunDuration(WorkerTrip t)
     {
-        if (t.End.HasValue) return ShortDuration(t.End.Value - t.Start);
+        if (t.End.HasValue) return LongDuration(t.End.Value - t.Start);
         var latest = _sessions.Count > 0 && _current != null && _current.Key == _sessions[^1].Key;
         if (!_live || !latest) return "";
         var d = DateTime.UtcNow - t.Start;
-        return d > TimeSpan.Zero ? ShortDuration(d) : "";
+        return d > TimeSpan.Zero ? LongDuration(d) : "";
     }
 
     /// <summary>Keeps the duration of runs that are on the way ticking between log updates.</summary>
@@ -682,7 +683,9 @@ public sealed partial class MainForm : Form
         g.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
         g.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         g.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-        g.ColumnHeadersHeight = 28;
+        var wrap = g.Name == "wrapheader";   // the leaderboards have long column names that wrap onto two lines
+        g.ColumnHeadersHeight = wrap ? 46 : 28;
+        g.ColumnHeadersDefaultCellStyle.WrapMode = wrap ? DataGridViewTriState.True : DataGridViewTriState.NotSet;
         g.RowHeadersVisible = false;
         g.RowTemplate.Height = 26;
         g.AllowUserToResizeRows = false;
@@ -1181,7 +1184,7 @@ public sealed partial class MainForm : Form
         _missionsVal.Text = "";
         _revenueVal.Text = "";
         _hourlyVal.Text = "";
-        _queuedVal.Text = "";
+        _missionsDoneVal.Text = "";
         _rewardsTotalMissions.Text = "";
         _rewardsTotalRevenue.Text = "";
     }
@@ -1198,7 +1201,7 @@ public sealed partial class MainForm : Form
 
     void RefreshWorkerChoices()
     {
-        var col = (DataGridViewComboBoxColumn)_logGrid.Columns[3];
+        var col = (DataGridViewComboBoxColumn)_logGrid.Columns[2];
         col.Items.Clear();
         col.Items.Add("");
         foreach (var name in _data.Party) col.Items.Add(name);
@@ -1239,7 +1242,6 @@ public sealed partial class MainForm : Form
             var idx = _logGrid.Rows.Add(
                 LocationName(r.Zone),
                 MissionsText(r),
-                inp?.PartialPickup ?? false,
                 inp?.Worker ?? "",
                 StopValueText(r),
                 inp?.Notes ?? "");
@@ -1272,7 +1274,7 @@ public sealed partial class MainForm : Form
         {
             if (row.Tag is not string zone) continue;
             var info = _rows.FirstOrDefault(x => x.Zone == zone);
-            if (info != null) row.Cells[4].Value = StopValueText(info);
+            if (info != null) row.Cells[3].Value = StopValueText(info);
         }
         foreach (DataGridViewRow row in _tripGrid.Rows)
         {
@@ -1282,8 +1284,7 @@ public sealed partial class MainForm : Form
 
     void ColorMissionsCell(DataGridViewRow row, LocationRow r)
     {
-        var partial = row.Cells[2].Value is true;
-        row.Cells[1].Style.BackColor = partial ? PartialYellow : r.Loaded >= r.Missions ? DoneGreen : CalcBlue;
+        row.Cells[1].Style.BackColor = r.Loaded >= r.Missions ? DoneGreen : CalcBlue;
     }
 
     void LogGrid_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
@@ -1294,14 +1295,7 @@ public sealed partial class MainForm : Form
 
         if (e.ColumnIndex == 2)
         {
-            GetRow(zone).PartialPickup = row.Cells[2].Value is true;
-            var info = _rows.FirstOrDefault(x => x.Zone == zone);
-            if (info != null) ColorMissionsCell(row, info);
-            Storage.Save(_data);
-        }
-        else if (e.ColumnIndex == 3)
-        {
-            GetRow(zone).Worker = (Convert.ToString(row.Cells[3].Value) ?? "").Trim();
+            GetRow(zone).Worker = (Convert.ToString(row.Cells[2].Value) ?? "").Trim();
             Storage.Save(_data);
             FillTrips();   // the run board follows the assigned workers
             UpdateSnapshots();
@@ -1367,7 +1361,7 @@ public sealed partial class MainForm : Form
                     _data.LocationNames[zone] = text;
                 }
                 break;
-            case 5:
+            case 4:
                 GetRow(zone).Notes = text;
                 break;
         }
@@ -1441,49 +1435,55 @@ public sealed partial class MainForm : Form
         return v == 0 ? "" : v.ToString("N0");
     }
 
+    /// <summary>How long the session lasts: until now while you are watching it live, otherwise until its last activity.</summary>
+    TimeSpan? SessionElapsed()
+    {
+        if (_current == null || _summary == null) return null;
+        DateTime start = _summary.Start;
+        if (_inputs?.Start is { Length: > 0 } typed && TryTime(typed, out var st))
+        {
+            var local = DateTime.Now.Date + st;
+            if (local > DateTime.Now) local = local.AddDays(-1);
+            start = local.ToUniversalTime();
+        }
+        var latest = _sessions.Count > 0 && _current.Key == _sessions[^1].Key;
+        var active = _live && latest && (!_summary.End.HasValue || DateTime.UtcNow - _summary.End.Value < TimeSpan.FromMinutes(30));
+        var end = active ? DateTime.UtcNow : _summary.End ?? start;
+        var d = end - start;
+        return d > TimeSpan.Zero ? d : TimeSpan.Zero;
+    }
+
+    static string LongDuration(TimeSpan d) => (int)d.TotalHours + ":" + d.Minutes.ToString("00") + ":" + d.Seconds.ToString("00");
+
+    decimal _incomeNow;
+
+    /// <summary>Ticks the session time and the hourly rate every second.</summary>
+    void UpdateSessionClock()
+    {
+        var d = SessionElapsed();
+        _durationVal.Text = d.HasValue ? LongDuration(d.Value) : "";
+        _hourlyVal.Text = d.HasValue && d.Value.TotalHours > 0 && _incomeNow > 0
+            ? (_incomeNow / (decimal)d.Value.TotalHours).ToString("N0")
+            : "";
+    }
+
     void RecomputeTimes()
     {
-        TimeSpan? duration = null;
-        if (TryTime(_startBox.Text, out var s) && TryTime(_endBox.Text, out var e))
-        {
-            var d = e - s;
-            if (d < TimeSpan.Zero) d += TimeSpan.FromDays(1);
-            duration = d;
-        }
-
-        _durationVal.Text = duration.HasValue
-            ? (int)duration.Value.TotalHours + ":" + duration.Value.Minutes.ToString("00")
-            : "";
-
-        // revenue = what completed missions really paid; finished runs wait in the queue until their missions are completed
-        decimal income = 0, queued = 0;
+        // total earned = what completed missions really paid
+        decimal income = 0;
         if (_current != null && _inputs != null)
-        {
             income = _current.Missions.Where(m => m.Completed).Sum(m => RewardOf(m, _inputs));
-            foreach (var t in _trips.Where(t => t.End.HasValue && !t.Manual))
-            {
-                var v = RunValues(t, _current, _inputs);
-                queued += v.Total - v.Confirmed - v.Failed;
-            }
-        }
+        _incomeNow = income;
         _revenueVal.Text = income == 0 ? "" : income.ToString("N0");
-        _queuedVal.Text = queued == 0 ? "" : queued.ToString("N0");
-
-        _hourlyVal.Text = duration.HasValue && duration.Value.TotalHours > 0 && income > 0
-            ? (income / (decimal)duration.Value.TotalHours).ToString("N0")
-            : "";
+        UpdateSessionClock();
 
         FillStats();
 
-        // batches = pickup stops; done = the ones in finished runs
+        // batches = pickup stops; delivered = the ones in finished runs
         var totalBatches = _rows.Sum(r => r.Missions);
         var doneBatches = _trips.Where(t => t.End.HasValue && !t.Manual).Sum(t => t.Pickups.Sum(p => p.Missions));
-        if (_summary == null || totalBatches == 0)
-            _missionsVal.Text = "";
-        else if (doneBatches >= totalBatches)
-            _missionsVal.Text = totalBatches.ToString();
-        else
-            _missionsVal.Text = doneBatches + " of " + totalBatches + " done";
+        _missionsVal.Text = _summary == null || totalBatches == 0 ? "" : Math.Min(doneBatches, totalBatches) + "/" + totalBatches;
+        _missionsDoneVal.Text = _summary == null ? "" : _summary.Completed + "/" + _summary.Total;
     }
 
     static bool TryTime(string text, out TimeSpan value) =>
@@ -1510,7 +1510,7 @@ public sealed partial class MainForm : Form
             string C(int i) =>
                 (Convert.ToString(row.Cells[i].Value) ?? "").Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ');
 
-            var notes = C(5);
+            var notes = C(4);
             var info = _rows.FirstOrDefault(x => x.Zone == (row.Tag as string));
             var loaded = "";
             var delivered = "";
@@ -1522,12 +1522,10 @@ public sealed partial class MainForm : Form
                 delivered = DeliveredText(info);
                 if (info.Loaded < info.Missions)
                     notes = (notes + " (" + (info.Missions - info.Loaded) + " of " + info.Missions + " still waiting)").Trim();
-                if (row.Cells[2].Value is true)
-                    notes = (notes + " (partial pickup)").Trim();
             }
 
             // Same order as the spreadsheet: Pickup Location, Missions, Assigned Worker, Loaded Time, Delivered Time, Notes
-            sb.Append(string.Join("\t", C(0), total, C(3), loaded, delivered, notes)).Append('\n');
+            sb.Append(string.Join("\t", C(0), total, C(2), loaded, delivered, notes)).Append('\n');
         }
 
         if (sb.Length == 0)
