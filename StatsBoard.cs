@@ -29,8 +29,8 @@ public sealed partial class MainForm
         if (withSessions) grid.Columns.Add(Col("Sessions", 80, true));
         grid.Columns.Add(Col("Completed Runs", 120, true));
         grid.Columns.Add(Col("Perfect Runs", 110, true));
-        grid.Columns.Add(Col("Missions Carried", 130, true));
-        grid.Columns.Add(Col("Avg Missions/Run", 130, true));
+        grid.Columns.Add(Col("Batches Delivered", 130, true));
+        grid.Columns.Add(Col("Avg Batches/Run", 130, true));
         grid.Columns.Add(Col("Avg Run Time", 100, true));
         grid.Columns.Add(Col("Earned aUEC", 120, true, DataGridViewContentAlignment.MiddleRight));
         grid.Columns.Add(Col("Share of Value", 110, true));
@@ -55,8 +55,8 @@ public sealed partial class MainForm
             if (t.Worker == "Unassigned") continue;
             if (!result.TryGetValue(t.Worker, out var s)) result[t.Worker] = s = new WorkerStat();
             var missions = t.Pickups.Sum(p => p.Missions);
+            if (!t.End.HasValue || t.Manual) continue;   // nothing counts until the run is done
             s.Missions += missions;
-            if (!t.End.HasValue || t.Manual) continue;
             s.Runs++;
             if (LostLevelOf(inp, t.Key) == "None") s.Perfect++;
             s.RunMissions += missions;

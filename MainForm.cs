@@ -338,7 +338,7 @@ public sealed partial class MainForm : Form
         AddSummaryRow(t, 0, "Start Time", WrapInput(_startBox));
         AddSummaryRow(t, 1, "End Time", WrapInput(_endBox));
         AddSummaryRow(t, 2, "Duration", _durationVal);
-        AddSummaryRow(t, 3, "Total Missions", _missionsVal);
+        AddSummaryRow(t, 3, "Total Batches", _missionsVal);
         AddSummaryRow(t, 4, "Total Revenue", _revenueVal);
         AddSummaryRow(t, 5, "Hourly Rate", _hourlyVal);
         p.Controls.Add(t, 0, 2);
@@ -423,7 +423,7 @@ public sealed partial class MainForm : Form
 
         // Columns you type in are white. Columns filled in from the log are tinted.
         _logGrid.Columns.Add(Col("Pickup Location", 190, false, DataGridViewContentAlignment.MiddleLeft));
-        _logGrid.Columns.Add(Col("Missions", 90, true));
+        _logGrid.Columns.Add(Col("Batches", 90, true));
         _logGrid.Columns.Add(new DataGridViewCheckBoxColumn
         {
             HeaderText = "Partial Pickup",
@@ -461,7 +461,7 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(Col("Run", 60, true));
         _tripGrid.Columns.Add(Col("Pickup Location & Time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
         // the columns after Pickups add up to the width of the right panel, so Pickups ends where the boards above end
-        _tripGrid.Columns.Add(Col("Missions", 56, true));
+        _tripGrid.Columns.Add(Col("Batches", 56, true));
         _tripGrid.Columns.Add(Col("Value", 66, true, DataGridViewContentAlignment.MiddleRight));
         _tripGrid.Columns.Add(Col("Started", 52, true));
         _tripGrid.Columns.Add(Col("Completed", 66, true));
@@ -1472,12 +1472,15 @@ public sealed partial class MainForm : Form
 
         FillStats();
 
-        if (_summary == null)
+        // batches = pickup stops; done = the ones in finished runs
+        var totalBatches = _rows.Sum(r => r.Missions);
+        var doneBatches = _trips.Where(t => t.End.HasValue && !t.Manual).Sum(t => t.Pickups.Sum(p => p.Missions));
+        if (_summary == null || totalBatches == 0)
             _missionsVal.Text = "";
-        else if (_summary.Completed == _summary.Total)
-            _missionsVal.Text = _summary.Total.ToString();
+        else if (doneBatches >= totalBatches)
+            _missionsVal.Text = totalBatches.ToString();
         else
-            _missionsVal.Text = _summary.Completed + " of " + _summary.Total + " done";
+            _missionsVal.Text = doneBatches + " of " + totalBatches + " done";
     }
 
     static bool TryTime(string text, out TimeSpan value) =>

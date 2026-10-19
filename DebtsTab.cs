@@ -202,22 +202,30 @@ public sealed partial class MainForm
     static decimal CarriedBy(Dictionary<string, decimal> carried, string name) =>
         carried.Where(kv => SameName(kv.Key, name)).Sum(kv => kv.Value);
 
+    /// <summary>What every worker carried: the value of the pickups of his finished runs (nothing counts until the run is done).</summary>
     Dictionary<string, decimal> ComputeCarried(SessionGroup g, SessionInputs inp)
     {
         var carried = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        if (_log == null) return carried;
         var r2 = inp.Reward2 == 0 ? DefaultReward2 : inp.Reward2;
         var r3 = inp.Reward3 == 0 ? DefaultReward3 : inp.Reward3;
-        foreach (var r in SessionBuilder.Locations(g))
+        var rows = SessionBuilder.Locations(g);
+        var trips = WorkerTripBuilder.Build(g,
+            z => inp.Rows.TryGetValue(z, out var r) && !string.IsNullOrWhiteSpace(r.Worker) ? r.Worker.Trim() : "Unassigned",
+            _log, inp.ManualEnds);
+        foreach (var t in trips)
         {
-            string? who = null;
-            if (inp.Rows.TryGetValue(r.Zone, out var ri) && !string.IsNullOrWhiteSpace(ri.Worker)) who = ri.Worker.Trim();
-            else if (_log != null) who = WorkerTripBuilder.PickupActor(g, r.Zone, _log);
-            if (who == null) continue;
-
-            var value = r.Stops2 * r2 / 2m + r.Stops3 * r3 / 3m;
-            if (value <= 0) continue;
-            carried.TryGetValue(who, out var old);
-            carried[who] = old + value;
+            if (!t.End.HasValue || t.Manual || t.Worker == "Unassigned") continue;
+            foreach (var p in t.Pickups)
+            {
+                var loc = rows.FirstOrDefault(x => x.Zone == p.Zone);
+                if (loc == null || loc.Missions <= 0) continue;
+                var zoneValue = loc.Stops2 * r2 / 2m + loc.Stops3 * r3 / 3m;
+                var value = zoneValue * Math.Min(p.Missions, loc.Missions) / loc.Missions;
+                if (value <= 0) continue;
+                carried.TryGetValue(t.Worker, out var old);
+                carried[t.Worker] = old + value;
+            }
         }
         return carried;
     }
