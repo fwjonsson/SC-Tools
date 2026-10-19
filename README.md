@@ -15,9 +15,9 @@ To make a single exe: `dotnet publish -c Release -r win-x64 --self-contained fal
 
 ## Use
 
-1. **Open log file(s)** to read old logs (pick several at once, for example logs split by a crash).
-   Or **Watch Live Game.log** while you play. The window updates every 1.5 seconds.
-2. Pick the session in the drop-down. Missions less than 30 minutes apart form one session.
+1. **Options → Open Log File(s)…** to read old logs (pick several at once, for example logs split by a crash).
+   Or **Options → Watch Live Game.log** while you play. The window updates every 1.5 seconds.
+2. Pick the session in the drop-down on the front page. Missions less than 30 minutes apart form one session.
 3. Start and End times are filled from the log. Type over them if you want. **Use log times** resets them.
 4. Rename each pickup location once (click the name). It is remembered for every future session.
 5. Pick the worker for each location, write notes. Payouts can be changed in the reward table.
@@ -40,11 +40,11 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 - Rewards: completed 2 stop and 3 stop contracts are counted from the log. Type the payout of each type and the totals, revenue and hourly rate calculate.
   Hand-ins less than 3 minutes apart count as one hand-in. Run #1 starts at the first accepted contract.
 - Each Game.log belongs to one player (the character name in the log). The run board shows the runs of all loaded players side by side, the top table follows the player picked in the drop-down.
-- **Add live source…** adds the StarCitizen folder (the one holding LIVE and HOTFIX), also on another computer through a shared folder (UNC path). The drop-down next to it picks LIVE, HOTFIX or Auto (the log written most recently). All added sources are watched at once.
+- **Options → Add Live Source…** adds the StarCitizen folder (the one holding LIVE and HOTFIX), also on another computer through a shared folder (UNC path). **Log Channel** in the same menu picks LIVE, HOTFIX or Auto (the log written most recently). All added sources are watched at once.
 - When watching starts (and when the game starts a new Game.log) the logs in the `logbackups` folder that are less than 24 hours old are read first, so a session that was already going on, for example before a crash, continues.
-- **Sources…** lists every added live source, shows if it can be reached right now, and lets you remove one.
+- **Options → Sources…** lists every added live source, shows if it can be reached right now, and lets you remove one.
 - Mission updates reach the whole party, so the logs of all accounts are merged and a shared mission counts once.
-- **Party…** is the list of names in the Assigned Worker dropdown. Type a name in the empty row to add it. Untick **Active** to hide someone from the **Party Members** table at the top right (next to the buttons); the name stays available in the dropdown.
+- **Options → Party…** opens a table where you type names and tick **Active**. Only active names show up in the Assigned Worker dropdown (someone already assigned to a location stays visible there).
 - A location nobody is assigned to is assigned automatically to the player the logs show picking up there. You can change it, and bildog123 (no log) has to be assigned by hand.
 - The run board makes runs per worker. The Assigned Worker of a location always decides who did a pickup there. Only for locations with nobody assigned, the logs are used: only the player who takes cargo out of a freight elevator has those lines in his own log, a few seconds before the mission update (needs that account's log).
 - A run is leaving the base, collecting cargo from any number of missions and handing it in at Ruin. A hand-in ends only the run of the player who did it, never somebody else's run, whatever missions it was for. Who did it is read from the logs (the loading platform lines). If no log names anybody, it is credited to a worker without a log (like bildog123).
@@ -69,7 +69,7 @@ The program starts watching the logs by itself when it opens, and reads the back
 
 ## Dark mode
 
-The **Dark Mode** button in the toolbar switches between the light and the dark look. The choice is saved in the data file and used the next time the program starts. The dark look covers all tabs, tables, buttons, dialogs and the title bar (Windows 10 or later).
+**Options → Dark Mode** switches between the light and the dark look. The choice is saved in the data file and used the next time the program starts. The dark look covers all tabs, tables, buttons, dialogs and the title bar (Windows 10 or later).
 
 ## Leaderboards
 

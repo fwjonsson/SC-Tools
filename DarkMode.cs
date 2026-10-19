@@ -3,7 +3,7 @@ namespace HaulingTracker;
 // The dark mode switch: every colour comes from Theme, ApplyTheme walks all controls.
 public sealed partial class MainForm
 {
-    readonly Button _themeBtn = new();
+    readonly ToolStripMenuItem _themeBtn = new();
 
     static string ThemeButtonText() => Theme.Dark ? "Dark Mode: On" : "Dark Mode: Off";
 
@@ -68,6 +68,9 @@ public sealed partial class MainForm
                     b.ForeColor = SystemColors.ControlText;
                 }
                 break;
+            case MenuStrip ms:
+                ThemeMenu(ms);
+                return;
             case ComboBox cb:
                 cb.FlatStyle = Theme.Dark ? FlatStyle.Flat : FlatStyle.Standard;
                 cb.BackColor = Theme.Dark ? (cb is ThemedCombo ? Theme.Button : Theme.Input) : SystemColors.Window;
@@ -104,6 +107,38 @@ public sealed partial class MainForm
         foreach (Control child in c.Controls) ApplyTheme(child);
     }
 
+    /// <summary>The Options menu: dark bar and drop-downs in dark mode, the normal Windows look otherwise.</summary>
+    static void ThemeMenu(MenuStrip ms)
+    {
+        if (Theme.Dark)
+        {
+            ms.Renderer = new ToolStripProfessionalRenderer(new DarkMenuColors()) { RoundedEdges = false };
+            ms.BackColor = Theme.Window;
+            ms.ForeColor = Theme.Text;
+        }
+        else
+        {
+            ms.RenderMode = ToolStripRenderMode.ManagerRenderMode;
+            ms.BackColor = SystemColors.Control;
+            ms.ForeColor = SystemColors.ControlText;
+        }
+        foreach (ToolStripItem item in ms.Items) ThemeMenuItem(item);
+    }
+
+    static void ThemeMenuItem(ToolStripItem item)
+    {
+        item.ForeColor = Theme.Dark ? Theme.Text : SystemColors.ControlText;
+        item.BackColor = Theme.Dark ? Theme.Window : SystemColors.Control;
+        if (item is ToolStripMenuItem mi)
+        {
+            if (mi.HasDropDownItems)
+            {
+                mi.DropDown.BackColor = Theme.Dark ? Theme.Window : SystemColors.Control;
+                foreach (ToolStripItem sub in mi.DropDownItems) ThemeMenuItem(sub);
+            }
+        }
+    }
+
     void ThemeGrid(DataGridView g)
     {
         StyleGrid(g);
@@ -115,4 +150,31 @@ public sealed partial class MainForm
         Theme.Native(g);
         g.Invalidate();
     }
+}
+
+/// <summary>Colours of the Options menu in dark mode.</summary>
+sealed class DarkMenuColors : ProfessionalColorTable
+{
+    static Color Back => Theme.Window;
+    static Color Hot => Color.FromArgb(78, 78, 86);
+    public override Color ToolStripDropDownBackground => Back;
+    public override Color ImageMarginGradientBegin => Back;
+    public override Color ImageMarginGradientMiddle => Back;
+    public override Color ImageMarginGradientEnd => Back;
+    public override Color MenuBorder => Theme.Lines;
+    public override Color MenuItemBorder => Theme.Lines;
+    public override Color MenuItemSelected => Hot;
+    public override Color MenuItemSelectedGradientBegin => Hot;
+    public override Color MenuItemSelectedGradientEnd => Hot;
+    public override Color MenuItemPressedGradientBegin => Hot;
+    public override Color MenuItemPressedGradientMiddle => Hot;
+    public override Color MenuItemPressedGradientEnd => Hot;
+    public override Color MenuStripGradientBegin => Back;
+    public override Color MenuStripGradientEnd => Back;
+    public override Color SeparatorDark => Theme.Lines;
+    public override Color SeparatorLight => Theme.Lines;
+    public override Color CheckBackground => Hot;
+    public override Color CheckSelectedBackground => Hot;
+    public override Color CheckPressedBackground => Hot;
+    public override Color ButtonSelectedHighlight => Hot;
 }
