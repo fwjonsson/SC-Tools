@@ -352,7 +352,7 @@ public sealed partial class MainForm : Form
         p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // empty, so the clean table keeps its small rows
 
         // start / end / duration / totals, neutral and clean
-        var t = new TableLayoutPanel
+        var t = new BufferedTable
         {
             Dock = DockStyle.Fill,
             Margin = new Padding(0),
@@ -690,8 +690,30 @@ public sealed partial class MainForm : Form
         return c;
     }
 
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<DataGridView, object> HookedGrids = new();
+
+    /// <summary>A grid only shows a selected cell while you are working in it, so no first cell lights up blue by itself.</summary>
+    static void HideIdleSelection(DataGridView g)
+    {
+        if (HookedGrids.TryGetValue(g, out _)) return;
+        HookedGrids.Add(g, new object());
+        var busy = false;
+        void Clear()
+        {
+            if (busy || g.ContainsFocus || g.SelectedCells.Count == 0) return;
+            busy = true;
+            try { g.ClearSelection(); }
+            finally { busy = false; }
+        }
+        g.SelectionChanged += (_, _) => Clear();
+        g.RowsAdded += (_, _) => { if (g.IsHandleCreated) g.BeginInvoke(new Action(Clear)); };
+        g.HandleCreated += (_, _) => g.BeginInvoke(new Action(Clear));
+        g.Leave += (_, _) => Clear();
+    }
+
     static void StyleGrid(DataGridView g)
     {
+        HideIdleSelection(g);
         g.BackgroundColor = Theme.Window;
         g.BorderStyle = BorderStyle.None;
         g.CellBorderStyle = DataGridViewCellBorderStyle.Single;
@@ -1269,7 +1291,8 @@ public sealed partial class MainForm : Form
         }
         RefreshWorkerChoices();
 
-        foreach (var r in _rows)
+        // the most valuable location on top
+        foreach (var r in _rows.OrderByDescending(StopValue))
         {
             _inputs!.Rows.TryGetValue(r.Zone, out var inp);
             var idx = _logGrid.Rows.Add(
@@ -1511,10 +1534,12 @@ public sealed partial class MainForm : Form
     void UpdateSessionClock()
     {
         var d = SessionElapsed();
-        _durationVal.Text = d.HasValue ? LongDuration(d.Value) : "";
-        _hourlyVal.Text = d.HasValue && d.Value.TotalHours > 0 && _incomeNow > 0
+        var time = d.HasValue ? LongDuration(d.Value) : "";
+        var hourly = d.HasValue && d.Value.TotalHours > 0 && _incomeNow > 0
             ? (_incomeNow / (decimal)d.Value.TotalHours).ToString("N0")
             : "";
+        if (_durationVal.Text != time) _durationVal.Text = time;   // only repaint what changed
+        if (_hourlyVal.Text != hourly) _hourlyVal.Text = hourly;
     }
 
     void RecomputeTimes()
@@ -1643,5 +1668,15 @@ sealed class RunButtonCell : DataGridViewButtonCell
                 System.Windows.Forms.VisualStyles.PushButtonState.Disabled);
         }
         PaintBorder(graphics, clipBounds, cellBounds, cellStyle, advancedBorderStyle);
+    }
+}
+
+/// <summary>A table that paints without flicker (the session clock changes every second).</summary>
+sealed class BufferedTable : TableLayoutPanel
+{
+    public BufferedTable()
+    {
+        DoubleBuffered = true;
+        ResizeRedraw = true;
     }
 }
