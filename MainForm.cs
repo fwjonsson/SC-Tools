@@ -18,7 +18,7 @@ public sealed partial class MainForm : Form
 
     readonly List<HaulingLog> _logs = new();
     HaulingLog? _log;
-    readonly Button _addBtn = new();
+    readonly ToolStripMenuItem _addBtn = new();
     readonly DataGridView _tripGrid = new();
     List<WorkerTrip> _trips = new();
     readonly AppData _data = Storage.Load();
@@ -35,10 +35,10 @@ public sealed partial class MainForm : Form
     bool _live;
 
     readonly ThemedCombo _sessionBox = new();
-    readonly Button _openBtn = new();
-    readonly Button _liveBtn = new();
-    readonly Button _resetBtn = new();
-    readonly Button _copyBtn = new();
+    readonly ToolStripMenuItem _openBtn = new();
+    readonly ToolStripMenuItem _liveBtn = new();
+    readonly ToolStripMenuItem _resetBtn = new();
+    readonly ToolStripMenuItem _copyBtn = new();
     readonly Label _status = new();
 
     readonly TextBox _startBox = new();
@@ -48,8 +48,6 @@ public sealed partial class MainForm : Form
     readonly Label _revenueVal = new();
     readonly Label _hourlyVal = new();
     readonly Label _missionsDoneVal = new();
-    readonly DataGridView _partyGrid = new();
-    int _partyHeight = 54;
 
     readonly DataGridView _rewards = new();
     readonly Label _rewardsTotalMissions = new();
@@ -124,6 +122,9 @@ public sealed partial class MainForm : Form
         tabs.TabPages.Add(sessionPage);
         tabs.TabPages.Add(debtsPage);
         Controls.Add(tabs);
+        BuildMenu();
+        Controls.Add(_menu);
+        MainMenuStrip = _menu;
         sessionPage.Controls.Add(root);
         debtsPage.Controls.Add(BuildDebtsPage());
         var historyPage = new TabPage("History") { BackColor = Color.White };
@@ -245,95 +246,84 @@ public sealed partial class MainForm : Form
         Padding = new Padding(2, 0, 0, 3),
     };
 
-    /// <summary>The buttons on the left, the list of active party members on the right.</summary>
+    /// <summary>The slim bar on the front page: the session picker and the status. Everything else is in the Options menu.</summary>
     Control BuildTopBar()
-    {
-        var top = new TableLayoutPanel
-        {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            ColumnCount = 2,
-            RowCount = 1,
-            Margin = new Padding(0),
-        };
-        top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
-        top.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-
-        StyleGrid(_partyGrid);
-        _partyGrid.Dock = DockStyle.Top;
-        _partyGrid.Margin = new Padding(6, 4, 0, 4);
-        _partyGrid.AllowUserToAddRows = false;
-        _partyGrid.AllowUserToDeleteRows = false;
-        _partyGrid.ReadOnly = true;
-        _partyGrid.ScrollBars = ScrollBars.None;
-        _partyGrid.Columns.Add(Col("Party Members", 180, true));
-        _partyGrid.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-
-        top.Controls.Add(BuildToolbar(), 0, 0);
-        top.Controls.Add(_partyGrid, 1, 0);
-        RefreshPartyTable();
-        return top;
-    }
-
-    Control BuildToolbar()
     {
         var bar = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            WrapContents = true,    // on a narrow window the rest of the buttons go to a second row
+            WrapContents = true,
             FlowDirection = FlowDirection.LeftToRight,
             Padding = new Padding(0, 3, 0, 3),
         };
 
-        StyleButton(_openBtn, "Open Log File(s)…");
-        _openBtn.Click += (_, _) => OpenLogs();
-
-        StyleButton(_liveBtn, "Watch Live Game.log");
-        _liveBtn.Click += (_, _) => ToggleLive();
-
-        StyleButton(_addBtn, "Add Live Source…");
-        _addBtn.Click += (_, _) => AddSource();
-
-        StyleButton(_partyBtn, "Party…");
-        _partyBtn.Click += (_, _) => EditParty();
-
-        StyleButton(_sourcesBtn, "Sources…");
-        _sourcesBtn.Click += (_, _) => ShowSources();
-
-        _channelBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        _channelBox.Width = 90;
-        _channelBox.Margin = new Padding(0, 6, 10, 4);
-        _channelBox.Items.AddRange(new object[] { "Auto", "LIVE", "HOTFIX", "PTU", "EPTU" });
-        _channelBox.SelectedItem = _data.Channel is { Length: > 0 } ch && _channelBox.Items.Contains(ch) ? ch : "Auto";
-        _channelBox.SelectedIndexChanged += ChannelChanged;
-
-
         _sessionBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        _sessionBox.Width = 280;
-        _sessionBox.Margin = new Padding(0, 6, 10, 4);
+        _sessionBox.Width = 300;
+        _sessionBox.Margin = new Padding(0, 4, 10, 4);
         _sessionBox.SelectedIndexChanged += SessionChanged;
-
-        StyleButton(_resetBtn, "Use Log Times");
-        _resetBtn.Click += (_, _) => ResetTimes();
-
-        StyleButton(_copyBtn, "Copy Table for Google Sheets");
-        _copyBtn.Click += (_, _) => CopyTable();
 
         _status.AutoSize = true;
         _status.ForeColor = Color.DimGray;
         _status.Tag = "muted";
-        _status.Margin = new Padding(6, 10, 0, 0);
+        _status.Margin = new Padding(6, 8, 0, 0);
 
-        StyleButton(_themeBtn, ThemeButtonText());
-        _themeBtn.Click += (_, _) => ToggleDark();
-
-        bar.Controls.AddRange(new Control[] { _openBtn, _liveBtn, _addBtn, _sourcesBtn, _partyBtn, _channelBox, _sessionBox, _resetBtn, _copyBtn, _themeBtn, _status });
+        bar.Controls.AddRange(new Control[] { _sessionBox, _status });
         return bar;
     }
+
+    readonly MenuStrip _menu = new();
+    readonly List<ToolStripMenuItem> _channelItems = new();
+
+    /// <summary>The Options menu in the top left of the window.</summary>
+    void BuildMenu()
+    {
+        var options = new ToolStripMenuItem("Options");
+
+        _openBtn.Text = "Open Log File(s)…";
+        _openBtn.Click += (_, _) => OpenLogs();
+        _liveBtn.Text = "Watch Live Game.log";
+        _liveBtn.Click += (_, _) => ToggleLive();
+        _addBtn.Text = "Add Live Source…";
+        _addBtn.Click += (_, _) => AddSource();
+        _sourcesBtn.Text = "Sources…";
+        _sourcesBtn.Click += (_, _) => ShowSources();
+
+        var channel = new ToolStripMenuItem("Log Channel");
+        var current = _data.Channel is { Length: > 0 } ch && Channels.Contains(ch) ? ch : "Auto";
+        foreach (var name in Channels)
+        {
+            var item = new ToolStripMenuItem(name) { Checked = name == current };
+            item.Click += (_, _) => SetChannel(name);
+            _channelItems.Add(item);
+            channel.DropDownItems.Add(item);
+        }
+
+        _partyBtn.Text = "Party…";
+        _partyBtn.Click += (_, _) => EditParty();
+        _resetBtn.Text = "Use Log Times";
+        _resetBtn.Click += (_, _) => ResetTimes();
+        _copyBtn.Text = "Copy Table for Google Sheets";
+        _copyBtn.Click += (_, _) => CopyTable();
+        _themeBtn.Text = ThemeButtonText();
+        _themeBtn.Click += (_, _) => ToggleDark();
+
+        options.DropDownItems.AddRange(new ToolStripItem[]
+        {
+            _openBtn, _liveBtn, _addBtn, _sourcesBtn, channel,
+            new ToolStripSeparator(),
+            _partyBtn,
+            new ToolStripSeparator(),
+            _resetBtn, _copyBtn,
+            new ToolStripSeparator(),
+            _themeBtn,
+        });
+        _menu.Items.Add(options);
+        _menu.Dock = DockStyle.Top;
+    }
+
+    static readonly string[] Channels = { "Auto", "LIVE", "HOTFIX", "PTU", "EPTU" };
 
     static void StyleButton(Button b, string text)
     {
@@ -741,9 +731,8 @@ public sealed partial class MainForm : Form
         public string? Current;     // the Game.log file that is being read right now
     }
 
-    readonly ThemedCombo _channelBox = new();
-    readonly Button _sourcesBtn = new();
-    readonly Button _partyBtn = new();
+    readonly ToolStripMenuItem _sourcesBtn = new();
+    readonly ToolStripMenuItem _partyBtn = new();
 
     /// <summary>A watch path is a Game.log file, a folder with Game.log, or the StarCitizen folder with LIVE, HOTFIX... inside.</summary>
     string? ResolveLog(string path)
@@ -773,10 +762,10 @@ public sealed partial class MainForm : Form
         catch (UnauthorizedAccessException) { return null; }
     }
 
-    void ChannelChanged(object? sender, EventArgs e)
+    void SetChannel(string name)
     {
-        if (_updating) return;
-        _data.Channel = _channelBox.SelectedItem as string ?? "Auto";
+        foreach (var item in _channelItems) item.Checked = item.Text == name;
+        _data.Channel = name;
         Storage.Save(_data);
         if (_live) PollLive();
     }
@@ -1233,23 +1222,22 @@ public sealed partial class MainForm : Form
         return "";
     }
 
-    /// <summary>The names of the active party members, in the small table on the top right.</summary>
-    void RefreshPartyTable()
-    {
-        _partyGrid.Rows.Clear();
-        foreach (var name in _data.Party.Where(n => !_data.InactiveParty.Any(x => SameName(x, n))))
-            _partyGrid.Rows.Add(name);
-        _partyHeight = _partyGrid.ColumnHeadersHeight + Math.Max(1, _partyGrid.Rows.Count) * _partyGrid.RowTemplate.Height + 3;
-        _partyGrid.Height = _partyHeight;
-    }
-
     void RefreshWorkerChoices()
     {
-        RefreshPartyTable();
         var col = (DataGridViewComboBoxColumn)_logGrid.Columns[2];
         col.Items.Clear();
         col.Items.Add("");
-        foreach (var name in _data.Party) col.Items.Add(name);
+        // only the active party members can be picked; someone already assigned stays in the list so the cell can show him
+        var choices = _data.Party.Where(n => !_data.InactiveParty.Any(x => SameName(x, n))).ToList();
+        if (_inputs != null)
+        {
+            foreach (var r in _inputs.Rows.Values)
+            {
+                var w = r.Worker?.Trim() ?? "";
+                if (w.Length > 0 && !choices.Any(x => SameName(x, w))) choices.Add(w);
+            }
+        }
+        foreach (var name in choices) col.Items.Add(name);
     }
 
     void FillLog()
@@ -1399,7 +1387,6 @@ public sealed partial class MainForm : Form
 
         _renderedVersion = -1;
         RefreshFromLog();
-        RefreshPartyTable();
     }
 
     // ------------------------------------------------------------------ editing
