@@ -14,13 +14,23 @@ public sealed partial class MainForm
     string _debtSelected = "";
     bool _debtUpdating;
 
-    static Label Caption(string text) => new()
+    /// <summary>A title in bold, with an optional short explanation after it in grey.</summary>
+    static Control Caption(string title, string? hint = null)
     {
-        Text = text,
-        Dock = DockStyle.Fill,
-        TextAlign = ContentAlignment.BottomLeft,
-        Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-    };
+        var p = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0) };
+        p.Controls.Add(new Label
+        {
+            Text = title,
+            AutoSize = true,
+            Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+            Margin = new Padding(0, 8, 10, 0),
+        });
+        if (!string.IsNullOrEmpty(hint))
+        {
+            p.Controls.Add(new Label { Text = hint, AutoSize = true, ForeColor = Color.DimGray, Margin = new Padding(0, 11, 0, 0) });
+        }
+        return p;
+    }
 
     Control BuildDebtsPage()
     {
@@ -36,7 +46,7 @@ public sealed partial class MainForm
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
 
         var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight };
-        bar.Controls.Add(new Label { Text = "Party member:", AutoSize = true, Margin = new Padding(0, 10, 6, 0) });
+        bar.Controls.Add(new Label { Text = "Party Member:", AutoSize = true, Margin = new Padding(0, 10, 6, 0) });
         _debtMember.DropDownStyle = ComboBoxStyle.DropDownList;
         _debtMember.Width = 170;
         _debtMember.Margin = new Padding(0, 6, 24, 4);
@@ -48,38 +58,38 @@ public sealed partial class MainForm
         };
         bar.Controls.Add(_debtMember);
         var partyBtn = new Button();
-        StyleButton(partyBtn, "Session party…");
+        StyleButton(partyBtn, "Session Party…");
         partyBtn.Click += (_, _) => EditSessionParty();
         bar.Controls.Add(partyBtn);
         var fileBtn = new Button();
-        StyleButton(fileBtn, "Data file…");
+        StyleButton(fileBtn, "Data File…");
         fileBtn.Click += (_, _) => ChooseDataFile();
         bar.Controls.Add(fileBtn);
         t.Controls.Add(bar, 0, 0);
 
-        t.Controls.Add(Caption("Balance with the other members   (+ they owe the selected member, − the selected member owes them; type over a number to correct it)"), 0, 1);
+        t.Controls.Add(Caption("Balances", "+ they owe the selected member, − the selected member owes them. Type over a number to correct it."), 0, 1);
         StyleGrid(_balanceGrid);
         _balanceGrid.Dock = DockStyle.Fill;
         _balanceGrid.AllowUserToAddRows = false;
         _balanceGrid.AllowUserToDeleteRows = false;
-        _balanceGrid.Columns.Add(Col("Party member", 200, true, DataGridViewContentAlignment.MiddleLeft));
+        _balanceGrid.Columns.Add(Col("Party Member", 200, true, DataGridViewContentAlignment.MiddleLeft));
         _balanceGrid.Columns.Add(Col("Balance", 160, false, DataGridViewContentAlignment.MiddleRight));
         _balanceGrid.Columns.Add(Col("Meaning", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
         _balanceGrid.CellEndEdit += BalanceEdited;
         t.Controls.Add(_balanceGrid, 0, 2);
 
-        t.Controls.Add(Caption("Earnings (value of the pickup locations each worker carried)"), 0, 3);
+        t.Controls.Add(Caption("Earnings", "Value of the pickup locations each worker carried"), 0, 3);
         StyleGrid(_earnGrid);
         _earnGrid.Dock = DockStyle.Fill;
         _earnGrid.AllowUserToAddRows = false;
         _earnGrid.AllowUserToDeleteRows = false;
         _earnGrid.Columns.Add(Col("Worker", 200, true, DataGridViewContentAlignment.MiddleLeft));
-        _earnGrid.Columns.Add(Col("This session", 160, true, DataGridViewContentAlignment.MiddleRight));
-        _earnGrid.Columns.Add(Col("All sessions", 160, true, DataGridViewContentAlignment.MiddleRight));
-        _earnGrid.Columns.Add(Col("Net balance (+ owed to them)", 240, true, DataGridViewContentAlignment.MiddleRight, true));
+        _earnGrid.Columns.Add(Col("This Session", 160, true, DataGridViewContentAlignment.MiddleRight));
+        _earnGrid.Columns.Add(Col("All Sessions", 160, true, DataGridViewContentAlignment.MiddleRight));
+        _earnGrid.Columns.Add(Col("Net Balance (+ Owed to Them)", 240, true, DataGridViewContentAlignment.MiddleRight, true));
         t.Controls.Add(_earnGrid, 0, 4);
 
-        t.Controls.Add(Caption("Money transfers of the selected member   (tick Payment when it pays off a debt)"), 0, 5);
+        t.Controls.Add(Caption("Money Transfers", "Of the selected member. Tick Payment when a transfer pays off a debt."), 0, 5);
         StyleGrid(_txGrid);
         _txGrid.Dock = DockStyle.Fill;
         _txGrid.AllowUserToAddRows = false;
@@ -103,7 +113,7 @@ public sealed partial class MainForm
 
         t.Controls.Add(new Label
         {
-            Text = "Mission rewards are split equally between the party of each session, but everybody is owed the value he carried. Use Session party… if someone was in the party without carrying. Ticked payments reduce the debts.",
+            Text = "Mission rewards are split equally between the party of each session, but everybody is owed the value he carried. Use Session Party… if someone was in the party without carrying. Ticked payments reduce the debts.",
             Dock = DockStyle.Fill,
             ForeColor = Color.DimGray,
             AutoEllipsis = true,
@@ -121,7 +131,7 @@ public sealed partial class MainForm
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
 
-        t.Controls.Add(Caption("All-time leaderboard (every saved session)"), 0, 0);
+        t.Controls.Add(Caption("All-Time Leaderboard", "Every saved session"), 0, 0);
         BuildStatColumns(_allTimeGrid, true);
         t.Controls.Add(_allTimeGrid, 0, 1);
 
@@ -130,7 +140,7 @@ public sealed partial class MainForm
         _bestLine.ForeColor = Color.DimGray;
         t.Controls.Add(_bestLine, 0, 2);
 
-        t.Controls.Add(Caption("Saved sessions (they stay here also when their logs are gone)"), 0, 3);
+        t.Controls.Add(Caption("Saved Sessions", "They stay here also when their logs are gone"), 0, 3);
         StyleGrid(_historyGrid);
         _historyGrid.Dock = DockStyle.Fill;
         _historyGrid.AllowUserToAddRows = false;
@@ -139,7 +149,7 @@ public sealed partial class MainForm
         _historyGrid.Columns.Add(Col("Time", 130, true));
         _historyGrid.Columns.Add(Col("Missions", 90, true, DataGridViewContentAlignment.MiddleRight));
         _historyGrid.Columns.Add(Col("Revenue", 140, true, DataGridViewContentAlignment.MiddleRight));
-        _historyGrid.Columns.Add(Col("Carried per worker", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
+        _historyGrid.Columns.Add(Col("Carried by Worker", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
         t.Controls.Add(_historyGrid, 0, 4);
         return t;
     }
@@ -420,7 +430,7 @@ public sealed partial class MainForm
                     "Yes = use that file (the tracker restarts, the data on this PC stays in its old file)\n" +
                     "No = replace it with the data from this PC\n" +
                     "Cancel = do nothing",
-                    "Data file", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                    "Data File", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (answer == DialogResult.Cancel) return;
                 if (answer == DialogResult.Yes)
                 {
@@ -456,7 +466,7 @@ public sealed partial class MainForm
         var now = _inputs.Party ?? _inputs.Members;
         using var f = new Form
         {
-            Text = "Session party",
+            Text = "Session Party",
             ClientSize = new Size(360, 320),
             StartPosition = FormStartPosition.CenterParent,
             MinimizeBox = false,

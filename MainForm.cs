@@ -11,6 +11,7 @@ public sealed partial class MainForm : Form
     const decimal DefaultReward3 = 1691000m;   // payout of a 3 stop mission
     static readonly Color LostRed = Color.FromArgb(253, 224, 224);
     static readonly Color DoneGreen = Color.FromArgb(226, 244, 226);
+    static readonly Color LostOrange = Color.FromArgb(255, 222, 178);
     static readonly Color PartialYellow = Color.FromArgb(255, 244, 204);
 
     const string DefaultLogPath = @"C:\Program Files\Roberts Space Industries\StarCitizen";
@@ -240,13 +241,13 @@ public sealed partial class MainForm : Form
             FlowDirection = FlowDirection.LeftToRight,
         };
 
-        StyleButton(_openBtn, "Open log file(s)…");
+        StyleButton(_openBtn, "Open Log File(s)…");
         _openBtn.Click += (_, _) => OpenLogs();
 
-        StyleButton(_liveBtn, "Watch live Game.log");
+        StyleButton(_liveBtn, "Watch Live Game.log");
         _liveBtn.Click += (_, _) => ToggleLive();
 
-        StyleButton(_addBtn, "Add live source…");
+        StyleButton(_addBtn, "Add Live Source…");
         _addBtn.Click += (_, _) => AddSource();
 
         StyleButton(_partyBtn, "Party…");
@@ -268,10 +269,10 @@ public sealed partial class MainForm : Form
         _sessionBox.Margin = new Padding(0, 6, 10, 4);
         _sessionBox.SelectedIndexChanged += SessionChanged;
 
-        StyleButton(_resetBtn, "Use log times");
+        StyleButton(_resetBtn, "Use Log Times");
         _resetBtn.Click += (_, _) => ResetTimes();
 
-        StyleButton(_copyBtn, "Copy table for Google Sheets");
+        StyleButton(_copyBtn, "Copy Table for Google Sheets");
         _copyBtn.Click += (_, _) => CopyTable();
 
         _status.AutoSize = true;
@@ -418,7 +419,7 @@ public sealed partial class MainForm : Form
         _logGrid.Columns.Add(Col("Missions", 90, true));
         _logGrid.Columns.Add(new DataGridViewCheckBoxColumn
         {
-            HeaderText = "Partial pickup",
+            HeaderText = "Partial Pickup",
             Width = 110,
             SortMode = DataGridViewColumnSortMode.NotSortable,
         });
@@ -451,14 +452,14 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(Col("Worker", 190, true));   // as wide as Pickup Location above
         _tripGrid.Columns.Add(Col("Run", 60, true));
         _tripGrid.Columns.Add(Col("Started", 80, true));
-        _tripGrid.Columns.Add(Col("Pickups: location (missions) time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
+        _tripGrid.Columns.Add(Col("Pickup Location & Time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
         // the columns after Pickups add up to the width of the right panel, so Pickups ends where the boards above end
-        _tripGrid.Columns.Add(Col("Handed in", 90, true));
+        _tripGrid.Columns.Add(Col("Completed", 90, true));
         _tripGrid.Columns.Add(Col("Missions", 80, true));
         _tripGrid.Columns.Add(Col("Duration", 80, true));
         var lostCol = new DataGridViewComboBoxColumn
         {
-            HeaderText = "Lost cargo",
+            HeaderText = "Lost Cargo",
             Width = 100,
             FlatStyle = FlatStyle.Flat,
             SortMode = DataGridViewColumnSortMode.NotSortable,
@@ -468,9 +469,9 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(lostCol);
         _tripGrid.Columns.Add(new DataGridViewButtonColumn
         {
-            HeaderText = "Status",
+            HeaderText = "End Run",
             Width = 103,
-            FlatStyle = FlatStyle.Flat,
+            FlatStyle = FlatStyle.Standard,   // a real button
             SortMode = DataGridViewColumnSortMode.NotSortable,
         });
         _tripGrid.DataError += (_, e) => e.ThrowException = false;
@@ -495,9 +496,9 @@ public sealed partial class MainForm : Form
         };
     }
 
-    /// <summary>Red = all cargo lost, yellow = some lost, green = the run ended with everything delivered.</summary>
+    /// <summary>Red = all cargo lost, orange = some lost, green = completed with everything delivered, yellow = still on the way.</summary>
     static Color RunColor(string level, bool ended) =>
-        level == "All" ? LostRed : level == "Little" ? PartialYellow : ended ? DoneGreen : Color.White;
+        level == "All" ? LostRed : level == "Little" ? LostOrange : ended ? DoneGreen : PartialYellow;   // yellow = on the way
 
     string LostLevel(string key) => _inputs == null ? "None" : LostLevelOf(_inputs, key);
 
@@ -516,7 +517,7 @@ public sealed partial class MainForm : Form
         {
             var answer = MessageBox.Show(this,
                 "End the run of " + trip.Worker + " now?\n\nUse this when the cargo was lost and never handed in. You can undo it afterwards.",
-                "End run", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                "End Run", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (answer != DialogResult.Yes) return;
             _inputs.ManualEnds.Add(new ManualEnd { Worker = trip.Worker, Time = DateTime.UtcNow });
         }
@@ -559,7 +560,7 @@ public sealed partial class MainForm : Form
 
             foreach (var t in _trips)
             {
-                var pickups = string.Join(",  ", t.Pickups.Select(p => LocationName(p.Zone) + " (" + p.Missions + ") " + FormatTime(p.Time)));
+                var pickups = string.Join(",  ", t.Pickups.Select(p => LocationName(p.Zone) + " " + FormatTime(p.Time)));
                 var dur = t.End.HasValue ? (t.End.Value - t.Start) : TimeSpan.Zero;
                 var level = LostLevel(t.Key);
                 var idx = _tripGrid.Rows.Add(
@@ -567,21 +568,19 @@ public sealed partial class MainForm : Form
                     "#" + t.Number,
                     FormatTime(t.Start),
                     pickups,
-                    t.End.HasValue ? FormatTime(t.End.Value) : "on the way",
+                    t.End.HasValue ? FormatTime(t.End.Value) : "",
                     t.Manual ? "ended by hand" : t.End.HasValue ? t.HandedIn.ToString() : "",
                     t.End.HasValue ? (int)dur.TotalHours + ":" + dur.Minutes.ToString("00") : "",
                     level,
-                    t.Manual ? "Undo end" : t.End.HasValue ? "" : "End run");
+                    t.Manual ? "Undo End" : "End Run");
                 var row = _tripGrid.Rows[idx];
                 if (t.End.HasValue && !t.Manual)
                 {
-                    // a finished run has nothing to press: show the status as text
-                    row.Cells[8] = new DataGridViewTextBoxCell { Value = "Completed" };
-                    row.Cells[8].Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    // a finished run cannot be ended any more: a greyed-out button
+                    row.Cells[8] = new DisabledButtonCell { Value = "End Run" };
                 }
                 row.Tag = t;
                 row.DefaultCellStyle.BackColor = RunColor(level, t.End.HasValue);
-                if (!t.End.HasValue) row.Cells[4].Style.BackColor = PartialYellow;
             }
         }
         finally
@@ -780,7 +779,7 @@ public sealed partial class MainForm : Form
     {
         using var f = new Form
         {
-            Text = "Live sources",
+            Text = "Live Sources",
             ClientSize = new Size(760, 320),
             StartPosition = FormStartPosition.CenterParent,
             MinimizeBox = false,
@@ -791,7 +790,7 @@ public sealed partial class MainForm : Form
         var list = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false, HorizontalScrollbar = true };
         var bar = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 44, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(6) };
         var close = new Button { Text = "Close", AutoSize = true, DialogResult = DialogResult.OK };
-        var remove = new Button { Text = "Remove selected", AutoSize = true };
+        var remove = new Button { Text = "Remove Selected", AutoSize = true };
         bar.Controls.Add(close);
         bar.Controls.Add(remove);
         f.Controls.Add(list);
@@ -802,7 +801,7 @@ public sealed partial class MainForm : Form
         void Fill()
         {
             list.Items.Clear();
-            if (_data.WatchPaths.Count == 0) list.Items.Add("(no live sources added yet, use \"Add live source…\")");
+            if (_data.WatchPaths.Count == 0) list.Items.Add("(no live sources added yet, use \"Add Live Source…\")");
             foreach (var path in _data.WatchPaths)
             {
                 var file = ResolveLog(path);
@@ -859,7 +858,7 @@ public sealed partial class MainForm : Form
         _current = null;
         _log = null;
         _live = true;
-        _liveBtn.Text = "Stop watching";
+        _liveBtn.Text = "Stop Watching";
         _timer.Start();
         PollLive();
         SetStatus("Watching " + string.Join(", ", _data.WatchPaths));
@@ -869,7 +868,7 @@ public sealed partial class MainForm : Form
     {
         _timer.Stop();
         _live = false;
-        _liveBtn.Text = "Watch live Game.log";
+        _liveBtn.Text = "Watch Live Game.log";
     }
 
     void PollLive()
@@ -1478,5 +1477,20 @@ public sealed partial class MainForm : Form
         {
             if (!_live && (_data.WatchPaths.Count > 0 || Directory.Exists(DefaultLogPath))) ToggleLive();
         };
+    }
+}
+
+/// <summary>A button that cannot be pressed: drawn greyed out, used for runs that are already completed.</summary>
+sealed class DisabledButtonCell : DataGridViewButtonCell
+{
+    protected override void Paint(Graphics graphics, Rectangle clipBounds, Rectangle cellBounds, int rowIndex,
+        DataGridViewElementStates cellState, object? value, object? formattedValue, string? errorText,
+        DataGridViewCellStyle cellStyle, DataGridViewAdvancedBorderStyle advancedBorderStyle, DataGridViewPaintParts paintParts)
+    {
+        using (var back = new SolidBrush(cellStyle.BackColor)) graphics.FillRectangle(back, cellBounds);
+        var button = Rectangle.Inflate(cellBounds, -5, -3);
+        System.Windows.Forms.ButtonRenderer.DrawButton(graphics, button, formattedValue?.ToString() ?? "", cellStyle.Font,
+            false, System.Windows.Forms.VisualStyles.PushButtonState.Disabled);
+        PaintBorder(graphics, clipBounds, cellBounds, cellStyle, advancedBorderStyle);
     }
 }
