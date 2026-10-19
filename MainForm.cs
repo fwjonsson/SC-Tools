@@ -451,16 +451,16 @@ public sealed partial class MainForm : Form
         _tripGrid.AllowUserToDeleteRows = false;
         _tripGrid.Columns.Add(Col("Worker", 190, true));   // as wide as Pickup Location above
         _tripGrid.Columns.Add(Col("Run", 60, true));
-        _tripGrid.Columns.Add(Col("Started", 80, true));
         _tripGrid.Columns.Add(Col("Pickup Location & Time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
         // the columns after Pickups add up to the width of the right panel, so Pickups ends where the boards above end
-        _tripGrid.Columns.Add(Col("Completed", 90, true));
-        _tripGrid.Columns.Add(Col("Missions", 80, true));
-        _tripGrid.Columns.Add(Col("Duration", 80, true));
+        _tripGrid.Columns.Add(Col("Missions", 62, true));
+        _tripGrid.Columns.Add(Col("Started", 62, true));
+        _tripGrid.Columns.Add(Col("Completed", 78, true));
+        _tripGrid.Columns.Add(Col("Duration", 72, true));
         var lostCol = new DataGridViewComboBoxColumn
         {
             HeaderText = "Lost Cargo",
-            Width = 100,
+            Width = 96,
             FlatStyle = FlatStyle.Flat,
             SortMode = DataGridViewColumnSortMode.NotSortable,
         };
@@ -470,7 +470,7 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(new DataGridViewButtonColumn
         {
             HeaderText = "End Run",
-            Width = 103,
+            Width = 83,
             FlatStyle = FlatStyle.Standard,   // a real button
             SortMode = DataGridViewColumnSortMode.NotSortable,
         });
@@ -538,6 +538,27 @@ public sealed partial class MainForm : Form
         }));
     }
 
+    /// <summary>Time from the start of the run to its end, or to now while the run is still on the way (when watching live).</summary>
+    string RunDuration(WorkerTrip t)
+    {
+        if (t.End.HasValue) return ShortDuration(t.End.Value - t.Start);
+        var latest = _sessions.Count > 0 && _current != null && _current.Key == _sessions[^1].Key;
+        if (!_live || !latest) return "";
+        var d = DateTime.UtcNow - t.Start;
+        return d > TimeSpan.Zero ? ShortDuration(d) : "";
+    }
+
+    /// <summary>Keeps the duration of runs that are on the way ticking between log updates.</summary>
+    void UpdateLiveDurations()
+    {
+        foreach (DataGridViewRow row in _tripGrid.Rows)
+        {
+            if (row.Tag is not WorkerTrip t || t.End.HasValue) continue;
+            var text = RunDuration(t);
+            if (!Equals(row.Cells[6].Value, text)) row.Cells[6].Value = text;
+        }
+    }
+
     string WorkerOfZone(string zone)
     {
         if (_inputs != null && _inputs.Rows.TryGetValue(zone, out var r) && !string.IsNullOrWhiteSpace(r.Worker))
@@ -561,16 +582,15 @@ public sealed partial class MainForm : Form
             foreach (var t in _trips)
             {
                 var pickups = string.Join(",  ", t.Pickups.Select(p => LocationName(p.Zone) + " " + FormatTime(p.Time)));
-                var dur = t.End.HasValue ? (t.End.Value - t.Start) : TimeSpan.Zero;
                 var level = LostLevel(t.Key);
                 var idx = _tripGrid.Rows.Add(
                     t.Worker,
                     "#" + t.Number,
-                    FormatTime(t.Start),
                     pickups,
-                    t.End.HasValue ? FormatTime(t.End.Value) : "",
                     t.Manual ? "ended by hand" : t.End.HasValue ? t.HandedIn.ToString() : "",
-                    t.End.HasValue ? (int)dur.TotalHours + ":" + dur.Minutes.ToString("00") : "",
+                    FormatTime(t.Start),
+                    t.End.HasValue ? FormatTime(t.End.Value) : "",
+                    RunDuration(t),
                     level,
                     t.Manual ? "Undo End" : "End Run");
                 var row = _tripGrid.Rows[idx];
@@ -922,6 +942,7 @@ public sealed partial class MainForm : Form
             }
         }
         RefreshFromLog();
+        UpdateLiveDurations();
     }
 
     static readonly TimeSpan BackupAge = TimeSpan.FromHours(24);
