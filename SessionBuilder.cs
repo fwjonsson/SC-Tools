@@ -174,10 +174,11 @@ public static class SessionBuilder
         return (state, last, delivered);
     }
 
-    public static List<LocationRow> Locations(SessionGroup g)
+    /// <summary>The pickup locations of the session. openOnly leaves out the missions that are already completed.</summary>
+    public static List<LocationRow> Locations(SessionGroup g, bool openOnly = false)
     {
         var zones = new Dictionary<string, List<(Mission Mission, string Objective)>>();
-        foreach (var m in g.Missions)
+        foreach (var m in g.Missions.Where(m => !openOnly || !m.Completed))
         {
             foreach (var kv in m.ObjZone)
             {

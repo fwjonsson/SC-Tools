@@ -26,7 +26,8 @@ public sealed partial class MainForm : Form
     SessionGroup? _current;
     SessionInputs? _inputs;
     SessionSummary? _summary;
-    List<LocationRow> _rows = new();
+    List<LocationRow> _rows = new();       // every pickup location of the session (the totals and the saved numbers use these)
+    List<LocationRow> _openRows = new();   // only the locations of missions that are not completed yet (the pickup table shows these)
     decimal _revenue;
     int _renderedVersion = -1;
     bool _updating;
@@ -1215,6 +1216,7 @@ public sealed partial class MainForm : Form
             _inputs = GetInputs(_current.Key);
             _summary = SessionBuilder.Summarize(_current);
             _rows = SessionBuilder.Locations(_current);
+            _openRows = SessionBuilder.Locations(_current, true);
 
             _startBox.Text = _inputs.Start ?? FormatTime(_summary.Start);
             _endBox.Text = _inputs.End ?? (_summary.End.HasValue ? FormatTime(_summary.End.Value) : "");
@@ -1250,6 +1252,7 @@ public sealed partial class MainForm : Form
             _inputs = null;
             _summary = null;
             _rows = new List<LocationRow>();
+            _openRows = new List<LocationRow>();
             _startBox.Text = "";
             _endBox.Text = "";
             _rewards.Rows.Clear();
@@ -1328,8 +1331,9 @@ public sealed partial class MainForm : Form
         }
         RefreshWorkerChoices();
 
-        // the most valuable location on top
-        foreach (var r in _rows.OrderByDescending(StopValue))
+        // the most valuable location on top. Locations whose missions are all completed are gone from here
+        // (everything else, runs, leaderboards and totals, keeps counting them)
+        foreach (var r in _openRows.OrderByDescending(StopValue))
         {
             _inputs!.Rows.TryGetValue(r.Zone, out var inp);
             var idx = _logGrid.Rows.Add(
@@ -1366,7 +1370,7 @@ public sealed partial class MainForm : Form
         foreach (DataGridViewRow row in _logGrid.Rows)
         {
             if (row.Tag is not string zone) continue;
-            var info = _rows.FirstOrDefault(x => x.Zone == zone);
+            var info = _openRows.FirstOrDefault(x => x.Zone == zone);
             if (info != null) row.Cells[3].Value = StopValueText(info);
         }
         foreach (DataGridViewRow row in _tripGrid.Rows)
@@ -1617,27 +1621,21 @@ public sealed partial class MainForm : Form
     void CopyTable()
     {
         var sb = new StringBuilder();
-        foreach (DataGridViewRow row in _logGrid.Rows)
+        // the whole session, also the locations that are gone from the pickup table because their missions are completed
+        foreach (var info in _inputs == null ? new List<LocationRow>() : _rows.OrderByDescending(StopValue).ToList())
         {
-            string C(int i) =>
-                (Convert.ToString(row.Cells[i].Value) ?? "").Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ');
+            static string C(string? v) =>
+                (v ?? "").Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ');
 
-            var notes = C(4);
-            var info = _rows.FirstOrDefault(x => x.Zone == (row.Tag as string));
-            var loaded = "";
-            var delivered = "";
-            var total = C(1);
-            if (info != null)
-            {
-                total = info.Missions.ToString();
-                loaded = info.LoadedTime.HasValue ? FormatTime(info.LoadedTime.Value) : "";
-                delivered = DeliveredText(info);
-                if (info.Loaded < info.Missions)
-                    notes = (notes + " (" + (info.Missions - info.Loaded) + " of " + info.Missions + " still waiting)").Trim();
-            }
+            _inputs!.Rows.TryGetValue(info.Zone, out var inp);
+            var notes = C(inp?.Notes);
+            var loaded = info.LoadedTime.HasValue ? FormatTime(info.LoadedTime.Value) : "";
+            var delivered = DeliveredText(info);
+            if (info.Loaded < info.Missions)
+                notes = (notes + " (" + (info.Missions - info.Loaded) + " of " + info.Missions + " still waiting)").Trim();
 
             // Same order as the spreadsheet: Pickup Location, Missions, Assigned Worker, Loaded Time, Delivered Time, Notes
-            sb.Append(string.Join("\t", C(0), total, C(2), loaded, delivered, notes)).Append('\n');
+            sb.Append(string.Join("\t", C(LocationName(info.Zone)), info.Missions.ToString(), C(inp?.Worker), loaded, delivered, notes)).Append('\n');
         }
 
         if (sb.Length == 0)
