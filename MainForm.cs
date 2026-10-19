@@ -583,6 +583,14 @@ public sealed partial class MainForm : Form
         }
     }
 
+    /// <summary>The latest thing that happened in a run: its hand-in when it is completed, otherwise the last pickup. A run that gets completed jumps to the top.</summary>
+    static DateTime RunLastActivity(WorkerTrip t)
+    {
+        var last = t.End ?? t.Start;
+        if (t.Pickups.Count > 0) last = last > t.Pickups.Max(p => p.Time) ? last : t.Pickups.Max(p => p.Time);
+        return last;
+    }
+
     /// <summary>When a run really started: the first pickup. A run begins at the previous hand-in, but the cargo run itself starts when cargo is picked up. Runs without a pickup use their start time.</summary>
     static DateTime RunStartedAt(WorkerTrip t) => t.Pickups.Count > 0 ? t.Pickups.Min(p => p.Time) : t.Start;
 
@@ -598,7 +606,7 @@ public sealed partial class MainForm : Form
 
             var inputs = _inputs;
             _trips = WorkerTripBuilder.Build(_current, (z, t) => WorkerTripBuilder.WorkerAt(inputs, z, t), _log, inputs.ManualEnds)
-                .OrderByDescending(RunStartedAt).ThenByDescending(t => t.Start).ThenBy(t => t.Worker, StringComparer.OrdinalIgnoreCase).ToList();   // run that started last on top
+                .OrderByDescending(RunLastActivity).ThenByDescending(RunStartedAt).ThenByDescending(t => t.Start).ThenBy(t => t.Worker, StringComparer.OrdinalIgnoreCase).ToList();   // latest activity on top
 
             foreach (var t in _trips)
             {
