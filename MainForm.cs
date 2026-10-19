@@ -484,7 +484,7 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(lostCol);
         _tripGrid.Columns.Add(new DataGridViewButtonColumn
         {
-            HeaderText = "End Run",
+            HeaderText = "Failed",
             Width = 73,
             FlatStyle = FlatStyle.Standard,   // a real button
             SortMode = DataGridViewColumnSortMode.NotSortable,
@@ -531,8 +531,8 @@ public sealed partial class MainForm : Form
         if (!trip.End.HasValue)
         {
             var answer = MessageBox.Show(this,
-                "End the run of " + trip.Worker + " now?\n\nUse this when the cargo was lost and never handed in. You can undo it afterwards.",
-                "End Run", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                "Mark the run of " + trip.Worker + " as failed?\n\nUse this when the cargo was lost and never handed in. The run does not count and its value is shown as lost. You can undo it afterwards.",
+                "Failed Run", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (answer != DialogResult.Yes) return;
             _inputs.ManualEnds.Add(new ManualEnd { Worker = trip.Worker, Time = DateTime.UtcNow });
         }
@@ -602,16 +602,16 @@ public sealed partial class MainForm : Form
                     t.Worker,
                     "#" + t.Number,
                     pickups,
-                    t.Manual ? "ended by hand" : t.End.HasValue ? t.HandedIn.ToString() : "",
+                    t.Manual ? "failed" : t.End.HasValue ? t.HandedIn.ToString() : "",
                     RunValueText(t),
                     FormatTime(t.Start),
                     t.End.HasValue ? FormatTime(t.End.Value) : "",
                     RunDuration(t),
                     level,
-                    t.Manual ? "Undo End" : "End Run");
+                    t.Manual ? "Undo Failed" : "Failed");
                 var row = _tripGrid.Rows[idx];
                 // a finished run cannot be ended any more: its button is greyed out
-                row.Cells[9] = new RunButtonCell { Value = t.Manual ? "Undo End" : "End Run", Disabled = t.End.HasValue && !t.Manual };
+                row.Cells[9] = new RunButtonCell { Value = t.Manual ? "Undo Failed" : "Failed", Disabled = t.End.HasValue && !t.Manual };
                 row.Tag = t;
                 row.DefaultCellStyle.BackColor = RunColor(level, t.End.HasValue);
             }
@@ -1463,7 +1463,7 @@ public sealed partial class MainForm : Form
             foreach (var t in _trips.Where(t => t.End.HasValue && !t.Manual))
             {
                 var v = RunValues(t, _current, _inputs);
-                queued += v.Total - v.Confirmed;
+                queued += v.Total - v.Confirmed - v.Failed;
             }
         }
         _revenueVal.Text = income == 0 ? "" : income.ToString("N0");

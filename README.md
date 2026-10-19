@@ -58,7 +58,7 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. On the Debts tab, **
 
 - **Lost Cargo** on a run is a drop-down: None, Little or All. It is only for your own notes and never changes who owes what. A run row is yellow while the run is on the way, green when it is completed with everything delivered, orange for Little lost and red for All lost.
 - **Completed** is the time the run ended, at the hand-in at Ruin Station. It stays empty while the run is on the way. **Missions** is how many missions were handed in then. **Pickup Location & Time** lists where cargo was picked up and when. The time columns sit together after Missions: **Started**, **Completed** and **Duration**. For a run that is on the way, Duration counts up from Started while you watch live.
-- **End Run** (last column) is a button that ends the run of that worker by hand, for example when all cargo was lost. You get an "are you sure" box. On a completed run the button is greyed out. A run ended by hand shows **Undo End** to bring it back.
+- **Failed** (last column) is a button that marks the run of that worker as failed, for example when all cargo was lost. You get an "are you sure" box. A failed run does not count as a run and its value is shown as lost. On a completed run the button is greyed out. A failed run shows **Undo Failed** to bring it back. Missions that failed or were abandoned in the game are not part of the session, but if their cargo was in a run, its value counts as lost.
 - **History tab:** every session is saved with its date, missions, revenue and what each worker carried, so earlier sessions stay after their logs are gone.
 
 ## Layout
@@ -74,11 +74,11 @@ The **Dark Mode** button in the toolbar switches between the light and the dark 
 ## Leaderboards
 
 The **Session Leaderboard** has one row per worker who started a cargo run in the session, and a total row, the highest earner on top (marked with a star on each side of the name and a gold row; the other names are indented to line up):
-- **Avg Batches/Run** and **Avg Run Time**: averages over the completed runs (ended by a hand-in, not ended by hand). Batches/run counts the batches picked up at each location, like the Batches column of the run board.
+- **Avg Batches/Run** and **Avg Run Time**: averages over the completed runs (ended by a hand-in, not marked as failed). Batches/run counts the batches picked up at each location, like the Batches column of the run board.
 - **Completed Runs** and **Perfect Runs** (completed runs with lost cargo None).
 - **Batches Delivered**: the batches of the worker's finished runs. Nothing counts (also not the earned aUEC) until the run is done.
 - **Total Run Value**: the value of the batches in the worker's finished runs (reward / stops of each mission), counted as soon as the run is done. Run counts (Completed, Perfect, Batches Delivered) also count at once; a perfect run stays perfect whatever happens to the server afterwards.
-- **Total Earned aUEC**: the part of the run value whose mission is completed. **Lost Value**: run value minus earned, shown once the session has been quiet for 30 minutes (until then the rest is just queued). Failed or abandoned missions never pay. **Run Value/Hour** is the run value divided by the session duration, **Share of Value** is his part of the total. The History leaderboard has the same columns over all saved sessions.
+- **Total Earned aUEC**: the part of the run value whose mission is completed. **Lost Value**: run value minus earned, shown once the session has been quiet for 6 hours (until then the rest is just queued). Failed or abandoned missions never pay. **Run Value/Hour** is the run value divided by the session duration, **Share of Value** is his part of the total. The History leaderboard has the same columns over all saved sessions.
 - **Total Revenue** in the start/end table is what completed missions actually paid, **Queued Run Value** is the value of finished runs that still waits for its missions to complete, and **Hourly Rate** is Total Revenue per hour.
 
 The **History** tab has the same table for **all saved sessions** (with an extra Sessions column). Under it a line shows the best session (most revenue) and the best aUEC/hour. It adds up what each session saved, so it keeps working after the logs are gone. Sessions saved by an older version have earnings but no run counts until their logs are opened once.

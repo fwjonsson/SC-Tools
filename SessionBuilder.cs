@@ -6,6 +6,7 @@ namespace HaulingTracker;
 public sealed class SessionGroup
 {
     public List<Mission> Missions = new();
+    public List<Mission> Failed = new();   // failed or abandoned hauling missions of the same time: not part of the session, but their cargo can be in a run
     public DateTime Start;      // UTC
     public DateTime End;        // UTC, used for grouping only
 
@@ -77,6 +78,13 @@ public static class SessionBuilder
                 g.Missions.Add(m);
                 groups.Add(g);
             }
+        }
+        // failed and abandoned missions: kept apart, so their cargo shows up as lost value
+        foreach (var m in log.Missions.Values.Where(m => m.IsHauling && m.Dead))
+        {
+            var start = MissionStart(m);
+            if (start == DateTime.MinValue) continue;
+            groups.FirstOrDefault(g => start >= g.Start - Gap && start <= g.End + Gap)?.Failed.Add(m);
         }
         return groups;
     }

@@ -8,7 +8,7 @@ public sealed partial class MainForm
     readonly DataGridView _statsGrid = new();
     readonly DataGridView _allTimeGrid = new();
     static Color TopGold => Theme.Gold;
-    static readonly TimeSpan SettleTime = TimeSpan.FromMinutes(30);   // after this long without activity the unpaid part of a session counts as lost
+    static readonly TimeSpan SettleTime = TimeSpan.FromHours(6);   // after this long without activity the unpaid part of a session counts as lost (missions can take hours)
 
     /// <summary>One row of a leaderboard before it is turned into text.</summary>
     sealed class StatLine
@@ -133,7 +133,8 @@ public sealed partial class MainForm
         if (_inputs == null || _current == null) return;
 
         var carried = ComputeCarried(_current, _inputs);
-        var confirmed = ComputeCarried(_current, _inputs, true);
+        var confirmed = ComputeCarried(_current, _inputs, CarryMode.Confirmed);
+        var failedNow = ComputeCarried(_current, _inputs, CarryMode.Failed);
         var settled = _summary?.End is DateTime lastActivity && DateTime.UtcNow - lastActivity > SettleTime;   // still running: the rest is only queued
 
         double seconds = 0;
@@ -161,7 +162,7 @@ public sealed partial class MainForm
             Confirmed = CarriedBy(confirmed, n),
             Seconds = seconds,
         }).ToList();
-        foreach (var l in lines) l.Lost = settled ? Math.Max(0, l.RunValue - l.Confirmed) : 0;
+        foreach (var l in lines) l.Lost = settled ? Math.Max(0, l.RunValue - l.Confirmed) : CarriedBy(failedNow, l.Name);
         WriteBoard(_statsGrid, lines, false, 1, seconds);
     }
 
@@ -198,7 +199,7 @@ public sealed partial class MainForm
                 var l = Line(n);
                 l.RunValue += run;
                 l.Confirmed += earned;
-                if (settled) l.Lost += Math.Max(0, run - earned);
+                l.Lost += settled ? Math.Max(0, run - earned) : CarriedBy(s.FailedValues, n);
             }
             foreach (var kv in s.Stats)
             {
