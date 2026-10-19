@@ -67,6 +67,10 @@ Every board has a title. At the top: **Hauling Tracker** (the pickup board) on t
 
 The program starts watching the logs by itself when it opens, and reads the backup logs of the last 24 hours first.
 
+## Dark mode
+
+The **Dark Mode** button in the toolbar switches between the light and the dark look. The choice is saved in the data file and used the next time the program starts. The dark look covers all tabs, tables, buttons, dialogs and the title bar (Windows 10 or later).
+
 ## Leaderboards
 
 The **Session Leaderboard** has one row per worker who started a cargo run in the session, and a total row, the highest earner on top (marked with a star on each side of the name and a gold row; the other names are indented to line up):

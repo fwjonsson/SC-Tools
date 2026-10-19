@@ -70,6 +70,7 @@ public sealed class AppData
 {
     public string? GameLogPath { get; set; }
     public List<string> Party { get; set; } = new() { "zzoega", "zzatvo", "bildog123" };
+    public bool DarkMode { get; set; }   // the dark look
     public string? Channel { get; set; }   // Auto, LIVE, HOTFIX...
     public List<string> WatchPaths { get; set; } = new();   // Game.log files to watch live, also on other computers
     public Dictionary<string, string> LocationNames { get; set; } = new();   // location id -> your name
