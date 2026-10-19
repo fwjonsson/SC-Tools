@@ -20,6 +20,7 @@ public sealed partial class MainForm
         _statsGrid.Columns.Add(Col("Perfect runs", 110, true));
         _statsGrid.Columns.Add(Col("Missions carried", 140, true));
         _statsGrid.Columns.Add(Col("Earned aUEC", 140, true, DataGridViewContentAlignment.MiddleRight));
+        _statsGrid.Columns.Add(Col("Share of value", 120, true));
         _statsGrid.Columns.Add(Col("aUEC/hour", 140, true, DataGridViewContentAlignment.MiddleRight, true));
     }
 
@@ -50,6 +51,7 @@ public sealed partial class MainForm
             if (t.Worker != "Unassigned" && !names.Any(n => SameName(n, t.Worker))) names.Add(t.Worker);
         }
 
+        var totalValue = carried.Values.Sum();
         var sumDone = 0;
         var sumPerfect = 0;
         var sumMissions = 0;
@@ -73,8 +75,12 @@ public sealed partial class MainForm
                 ? (earned / (decimal)session.Value.TotalHours).ToString("N0", CultureInfo.InvariantCulture)
                 : "";
 
+            var share = totalValue > 0 && earned > 0
+                ? (earned / totalValue * 100m).ToString("0", CultureInfo.InvariantCulture) + "%"
+                : "";
+
             _statsGrid.Rows.Add(name, avgTime, avgMissions, done.Count, perfect, missions,
-                earned > 0 ? earned.ToString("N0", CultureInfo.InvariantCulture) : "", perHour);
+                earned > 0 ? earned.ToString("N0", CultureInfo.InvariantCulture) : "", share, perHour);
             sumDone += done.Count;
             sumPerfect += perfect;
             sumMissions += missions;
@@ -85,7 +91,7 @@ public sealed partial class MainForm
             ? (sumEarned / (decimal)session.Value.TotalHours).ToString("N0", CultureInfo.InvariantCulture)
             : "";
         var tr = _statsGrid.Rows.Add("Total", "", "", sumDone, sumPerfect, sumMissions,
-            sumEarned > 0 ? sumEarned.ToString("N0", CultureInfo.InvariantCulture) : "", totalHour);
+            sumEarned > 0 ? sumEarned.ToString("N0", CultureInfo.InvariantCulture) : "", sumEarned > 0 ? "100%" : "", totalHour);
         _statsGrid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
     }
 }

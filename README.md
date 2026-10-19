@@ -66,7 +66,7 @@ Between the pickup board and the run board there is a table with one row per par
 - **Avg run time** and **Avg missions/run**: averages over the completed runs (ended by a hand-in, not ended by hand). Missions/run counts the missions picked up at each location, like the Pickups column of the run board.
 - **Completed runs** and **Perfect runs** (completed runs with lost cargo None).
 - **Missions carried**: all pickups of the worker this session, also of the run still on the way.
-- **Earned aUEC**: the value of the locations assigned to him this session. **aUEC/hour** is that divided by the session duration (Start Time to End Time).
+- **Earned aUEC**: the value of the locations assigned to him this session. **Share of value** is his part of the value carried by everyone this session. **aUEC/hour** is that divided by the session duration (Start Time to End Time).
 
 ## Debts tab
 
