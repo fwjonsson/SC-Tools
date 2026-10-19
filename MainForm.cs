@@ -154,6 +154,8 @@ public sealed partial class MainForm : Form
         left.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         BuildLogGrid();
         BuildStatsGrid();
+        FitColumns(_logGrid);     // these two never scroll: the columns share the width instead
+        FitColumns(_statsGrid);
         _logGrid.Margin = new Padding(0, 3, 3, 3);     // the right gap keeps it clear of the summary tables
         _statsGrid.Margin = new Padding(0, 3, 0, 3);   // runs to the right edge, like the run board
         foreach (var grid in new[] { _logGrid, _statsGrid })
@@ -192,6 +194,21 @@ public sealed partial class MainForm : Form
     }
 
     const int TitleHeight = 30;
+
+    /// <summary>
+    /// The grid never scrolls, neither sideways nor up and down (FitTopArea gives it the height of all its rows).
+    /// So the columns share the width in the proportion of their normal widths, and shrink a little on a narrow window.
+    /// </summary>
+    static void FitColumns(DataGridView g)
+    {
+        g.ScrollBars = ScrollBars.None;
+        foreach (DataGridViewColumn c in g.Columns)
+        {
+            c.FillWeight = c.Width;
+            c.MinimumWidth = 40;
+            c.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+        }
+    }
 
     TableLayoutPanel? _root, _left, _main;
     bool _fitPending;
