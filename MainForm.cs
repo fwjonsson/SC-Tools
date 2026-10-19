@@ -567,7 +567,7 @@ public sealed partial class MainForm : Form
     {
         if (t.End.HasValue) return LongDuration(t.End.Value - t.Start);
         var latest = _sessions.Count > 0 && _current != null && _current.Key == _sessions[^1].Key;
-        if (!_live || !latest) return "";
+        if (!_live || !latest || !HasOpenContracts()) return "";   // no active contract: nothing is counting
         var d = DateTime.UtcNow - t.Start;
         return d > TimeSpan.Zero ? LongDuration(d) : "";
     }
@@ -1561,6 +1561,9 @@ public sealed partial class MainForm : Form
     }
 
     /// <summary>How long the session lasts: until now while you are watching it live, otherwise until its last activity.</summary>
+    /// <summary>True while the session has a contract that is not completed (abandoned and failed ones are not part of the session). The live clocks only run then.</summary>
+    bool HasOpenContracts() => _current != null && _current.Missions.Any(m => !m.Completed);
+
     TimeSpan? SessionElapsed()
     {
         if (_current == null || _summary == null) return null;
@@ -1572,7 +1575,7 @@ public sealed partial class MainForm : Form
             start = local.ToUniversalTime();
         }
         var latest = _sessions.Count > 0 && _current.Key == _sessions[^1].Key;
-        var active = _live && latest && (!_summary.End.HasValue || DateTime.UtcNow - _summary.End.Value < TimeSpan.FromMinutes(30));
+        var active = _live && latest && HasOpenContracts() && (!_summary.End.HasValue || DateTime.UtcNow - _summary.End.Value < TimeSpan.FromMinutes(30));
         var end = active ? DateTime.UtcNow : _summary.End ?? start;
         var d = end - start;
         return d > TimeSpan.Zero ? d : TimeSpan.Zero;
