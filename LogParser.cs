@@ -143,6 +143,7 @@ public sealed class HaulingLog
     public static HaulingLog Merge(IEnumerable<HaulingLog> logs)
     {
         var res = new HaulingLog();
+        var ends = new Dictionary<string, MissionEnds>();
         foreach (var l in logs)
         {
             if (l.LastTime > res.LastTime) res.LastTime = l.LastTime;
@@ -176,11 +177,20 @@ public sealed class HaulingLog
                 if (t.Multi == 0) t.Multi = m.Multi;
                 if (m.Accepted.HasValue && (!t.Accepted.HasValue || m.Accepted < t.Accepted)) t.Accepted = m.Accepted;
                 if (m.FirstSeen.HasValue && (!t.FirstSeen.HasValue || m.FirstSeen < t.FirstSeen)) t.FirstSeen = m.FirstSeen;
-                if (m.EndedAt.HasValue && (!t.EndedAt.HasValue || m.EndedAt < t.EndedAt))
+                // how the mission ended is decided after all logs are read (see below)
+                var st = ends.TryGetValue(m.Id, out var old) ? old : default;
+                if (m.EndState == null) st.Active = true;
+                else if (m.EndState == "COMPLETED")
                 {
-                    t.EndedAt = m.EndedAt;
-                    t.EndState = m.EndState;
+                    if (!st.Completed || m.EndedAt < st.CompletedAt) st.CompletedAt = m.EndedAt;
+                    st.Completed = true;
                 }
+                else if (st.EndState == null || m.EndedAt < st.EndedAt)
+                {
+                    st.EndedAt = m.EndedAt;
+                    st.EndState = m.EndState;
+                }
+                ends[m.Id] = st;
                 foreach (var kv in m.ObjZone) t.ObjZone[kv.Key] = kv.Value;
                 foreach (var kv in m.Events)
                 {
@@ -198,7 +208,39 @@ public sealed class HaulingLog
                 t.Notes.AddRange(m.Notes);
             }
         }
+
+        // A mission shared in a party is only abandoned or failed when every log that knows it ended it that way.
+        // If one player abandons it while another still has it (or completes it), it lives on.
+        foreach (var kv in ends)
+        {
+            var st = kv.Value;
+            var t = res.Missions[kv.Key];
+            if (st.Completed)
+            {
+                t.EndedAt = st.CompletedAt;
+                t.EndState = "COMPLETED";
+            }
+            else if (st.Active || st.EndState == null)
+            {
+                t.EndedAt = null;
+                t.EndState = null;
+            }
+            else
+            {
+                t.EndedAt = st.EndedAt;
+                t.EndState = st.EndState;
+            }
+        }
         return res;
+    }
+
+    struct MissionEnds
+    {
+        public bool Active;            // some log still has the mission running
+        public bool Completed;         // some log completed it
+        public DateTime? CompletedAt;
+        public string? EndState;       // the earliest abandon / fail, when no log completed it
+        public DateTime? EndedAt;
     }
 
     Mission Get(string id)
