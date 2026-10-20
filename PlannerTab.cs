@@ -101,7 +101,7 @@ public sealed partial class MainForm
 
         var hint = new Label
         {
-            Text = "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log. A run shows the time it really took; a planned trip shows ~ the estimated flying time (spool time + distance / drive speed for every jump, no loading). Green = done, orange = some cargo lost, red = all lost. The run you are flying is your Current (locked) row, in your colour. Plan Trips locks the next stop of everybody: planning again (for example when someone joins) leaves those alone and plans the rest around them. Reset Trips takes the locks away. Both ask first.",
+            Text = "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log. A run shows the time it really took; a planned trip shows ~ the estimated flying time (spool time + distance / drive speed for every jump, no loading). Green = done, orange = some cargo lost, red = all lost. The run you are flying is your Current row, in your colour. Plan Trips locks the next stop of everybody: planning again (for example when someone joins) leaves those alone and plans the rest around them. Reset Trips takes the locks away. Both ask first.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Color.DimGray,
@@ -524,11 +524,11 @@ public sealed partial class MainForm
                 Color = WorkerColor(c.Name),
             };
             w.Rows.AddRange(RunRows(c.Name));
-            // the run in progress is his Current trip, locked because the cargo is on board
+            // the run in progress is his Current trip (a locked stop is marked in the Route cell of a planned trip)
             var runRow = w.Rows.LastOrDefault(r => r.Level == "active");
             if (runRow != null)
             {
-                runRow.Label = "Current (locked)";
+                runRow.Label = "Current";
                 runRow.First = true;
             }
             var mine = core.Trips.Where(t => t.Worker == c.Name).ToList();
