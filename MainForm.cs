@@ -20,6 +20,7 @@ public sealed partial class MainForm : Form
     HaulingLog? _log;
     readonly ToolStripMenuItem _addBtn = new();
     readonly DataGridView _tripGrid = new();
+    readonly DataGridView _planRunsGrid = new();   // a read-only copy of Cargo Runs under the Trip Planner
     List<WorkerTrip> _trips = new();
     readonly AppData _data = Storage.Load();
     List<SessionGroup> _sessions = new();
@@ -580,6 +581,7 @@ public sealed partial class MainForm : Form
             SortMode = DataGridViewColumnSortMode.NotSortable,
         };
         workerCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+        workerCol.Visible = false;   // the runs get their workers from the logs and the Trip Planner now (the column stays so older sessions keep what was assigned)
         _logGrid.Columns.Add(workerCol);
         _logGrid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
         _logGrid.Columns.Add(Col("Notes", 120, false, DataGridViewContentAlignment.MiddleLeft, true));
@@ -590,7 +592,6 @@ public sealed partial class MainForm : Form
         {
             if (_logGrid.IsCurrentCellDirty) _logGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
         };
-        _logGrid.CellValueChanged += LogGrid_CellValueChanged;
     }
 
     /// <summary>The finished stops: pickup locations whose missions are all completed. Nothing to type here.</summary>
@@ -702,11 +703,14 @@ public sealed partial class MainForm : Form
     /// <summary>Keeps the duration of runs that are on the way ticking between log updates.</summary>
     void UpdateLiveDurations()
     {
-        foreach (DataGridViewRow row in _tripGrid.Rows)
+        foreach (var grid in new[] { _tripGrid, _planRunsGrid })
         {
-            if (row.Tag is not WorkerTrip t || t.End.HasValue) continue;
-            var text = RunDuration(t);
-            if (!Equals(row.Cells[7].Value, text)) row.Cells[7].Value = text;
+            foreach (DataGridViewRow row in grid.Rows)
+            {
+                if (row.Tag is not WorkerTrip t || t.End.HasValue) continue;
+                var text = RunDuration(t);
+                if (!Equals(row.Cells[7].Value, text)) row.Cells[7].Value = text;
+            }
         }
     }
 
@@ -721,6 +725,13 @@ public sealed partial class MainForm : Form
     /// <summary>When a run really started: the first pickup. A run begins at the previous hand-in, but the cargo run itself starts when cargo is picked up. Runs without a pickup use their start time.</summary>
     static DateTime RunStartedAt(WorkerTrip t) => t.Pickups.Count > 0 ? t.Pickups.Min(p => p.Time) : t.Start;
 
+    /// <summary>The runs of a session: who did them comes from the logs and the Trip Planner (see WorkerTripBuilder.Build).</summary>
+    List<WorkerTrip> BuildRuns(SessionGroup g, SessionInputs inp)
+    {
+        _data.PlanCreditSince ??= DateTime.UtcNow;
+        return WorkerTripBuilder.Build(g, (z, t) => WorkerTripBuilder.WorkerAt(inp, z, t), _log!, inp.ManualEnds, (_data.PlanCreditSince.Value, inp.PickupClaims));
+    }
+
     void FillTrips()
     {
         var wasUpdating = _updating;
@@ -728,12 +739,13 @@ public sealed partial class MainForm : Form
         try
         {
             _tripGrid.Rows.Clear();
+            _planRunsGrid.Rows.Clear();
             _trips = new List<WorkerTrip>();
             if (_current == null || _inputs == null || _log == null) return;
 
             var inputs = _inputs;
             var sessionStart = _current.Start;
-            _trips = WorkerTripBuilder.Build(_current, (z, t) => WorkerTripBuilder.WorkerAt(inputs, z, t), _log, inputs.ManualEnds)
+            _trips = BuildRuns(_current, inputs)
                 .Where(t => !t.End.HasValue || t.End.Value >= sessionStart)   // runs that were handed in before the session started belong to an earlier session
                 .OrderByDescending(RunLastActivity).ThenByDescending(RunStartedAt).ThenByDescending(t => t.Start).ThenBy(t => t.Worker, StringComparer.OrdinalIgnoreCase).ToList();   // latest activity on top
 
@@ -741,7 +753,8 @@ public sealed partial class MainForm : Form
             {
                 var pickups = string.Join(",  ", t.Pickups.Select(p => LocationName(p.Zone) + " " + FormatTime(p.Time)));
                 var level = LostLevel(t.Key);
-                var idx = _tripGrid.Rows.Add(
+                var values = new object[]
+                {
                     t.Worker,
                     t.Number.ToString(CultureInfo.InvariantCulture),
                     pickups,
@@ -750,10 +763,21 @@ public sealed partial class MainForm : Form
                     FormatTime(t.Start),
                     t.End.HasValue ? FormatTime(t.End.Value) : "",
                     RunDuration(t),
-                    level);
-                var row = _tripGrid.Rows[idx];
-                row.Tag = t;
-                row.DefaultCellStyle.BackColor = RunColor(t.Manual ? "All" : level, t.End.HasValue);
+                    level,
+                };
+                foreach (var grid in new[] { _tripGrid, _planRunsGrid })
+                {
+                    var row = grid.Rows[grid.Rows.Add(values)];
+                    row.Tag = t;
+                    row.DefaultCellStyle.BackColor = RunColor(t.Manual ? "All" : level, t.End.HasValue);
+                }
+            }
+
+            // the finished stops show who carried from them
+            foreach (DataGridViewRow row in _doneGrid.Rows)
+            {
+                if (row.Tag is not string zone) continue;
+                row.Cells[3].Value = string.Join(", ", _trips.Where(t => t.Pickups.Any(p => p.Zone == zone)).Select(t => t.Worker).Distinct(StringComparer.OrdinalIgnoreCase));
             }
         }
         finally
@@ -1404,6 +1428,7 @@ public sealed partial class MainForm : Form
         {
             _inputs = GetInputs(_current.Key);
             if (WorkerTripBuilder.ResetWorkersForNewBatch(_current, _inputs)) Storage.Save(_data);   // new missions: a clean slate for the assigned workers
+            ClaimNewPickups();   // before the boards change: the plan still has the batches that were just picked up
             _summary = SessionBuilder.Summarize(_current);
             _rows = SessionBuilder.Locations(_current);
             // both boards only show the missions that are active (not completed). A location where every batch of those missions
@@ -1437,7 +1462,7 @@ public sealed partial class MainForm : Form
         }
 
         RecomputeRewards();
-        if (_inputs != null && _inputs.LockedTrips.Count > 0) GetPlan();   // keeps the locked Next trips rolling on while the planner tab is closed
+        if (_inputs != null) GetPlan();   // keeps the plan and the locked Next trips up to date while the planner tab is closed
     }
 
     void ClearView()
@@ -1457,6 +1482,7 @@ public sealed partial class MainForm : Form
             _rewards.Rows.Clear();
             _logGrid.Rows.Clear();
             _tripGrid.Rows.Clear();
+            _planRunsGrid.Rows.Clear();
             _statsGrid.Rows.Clear();
         }
         finally
@@ -1509,18 +1535,6 @@ public sealed partial class MainForm : Form
 
         // a location nobody is assigned to gets the player the logs show picking up there (you can change it afterwards)
         var assignedNow = false;
-        var crew = ActiveCrew();
-        if (crew.Count == 1 && _inputs != null)
-        {
-            // only one flies: he does every stop that is not finished
-            foreach (var r in _pickupRows)
-            {
-                var input = GetRow(r.Zone);
-                if (!string.IsNullOrWhiteSpace(input.Worker)) continue;
-                input.Worker = crew[0];
-                assignedNow = true;
-            }
-        }
         if (_log != null && _current != null)
         {
             foreach (var r in _rows)
@@ -1623,39 +1637,18 @@ public sealed partial class MainForm : Form
             var info = _doneRows.FirstOrDefault(x => x.Zone == zone);
             if (info != null) row.Cells[4].Value = StopValueText(info);
         }
-        foreach (DataGridViewRow row in _tripGrid.Rows)
+        foreach (var grid in new[] { _tripGrid, _planRunsGrid })
         {
-            if (row.Tag is WorkerTrip t) row.Cells[4].Value = RunValueText(t);
+            foreach (DataGridViewRow row in grid.Rows)
+            {
+                if (row.Tag is WorkerTrip t) row.Cells[4].Value = RunValueText(t);
+            }
         }
     }
 
     void ColorMissionsCell(DataGridViewRow row, LocationRow r)
     {
         row.Cells[2].Style.BackColor = r.Loaded >= r.Missions ? DoneGreen : CalcBlue;
-    }
-
-    void LogGrid_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
-    {
-        if (_updating || _inputs == null || e.RowIndex < 0) return;
-        var row = _logGrid.Rows[e.RowIndex];
-        if (row.Tag is not string zone) return;
-
-        if (e.ColumnIndex == 3)
-        {
-            var before = GetRow(zone).Worker ?? "";
-            var after = (Convert.ToString(row.Cells[3].Value) ?? "").Trim();
-            GetRow(zone).Worker = after;
-            if (!SameName(before, after))
-            {
-                // what you do by hand wins over the plan: the locked trips of both workers follow the stops they have now
-                RebuildLock(before, false);
-                RebuildLock(after, true);
-            }
-            Storage.Save(_data);
-            FillTrips();   // the run board follows the assigned workers
-            UpdateSnapshots();
-            RefreshDebts();
-        }
     }
 
     // ------------------------------------------------------------------ editing

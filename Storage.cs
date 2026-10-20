@@ -76,6 +76,7 @@ public sealed class SessionInputs
     public Dictionary<string, string> LostCargo { get; set; } = new();   // run key -> Little or All
     public List<ManualEnd> ManualEnds { get; set; } = new();
     public Dictionary<string, RowInputs> Rows { get; set; } = new();   // key = pickup location id
+    public Dictionary<string, string> PickupClaims { get; set; } = new();   // "mission|objective" -> the worker the Trip Planner credited a pickup to (only where no log names who did it)
     public Dictionary<string, List<LockedStop>> LockedTrips { get; set; } = new();   // worker -> his Next trip: the Trip Planner leaves it as it is (set by Assign Workers to Stops or by assigning stops by hand)
     public List<WorkerEra> PastWorkers { get; set; } = new();   // assigned workers of earlier sets of missions (frozen when the table was reset)
     public DateTime? WorkersResetAt { get; set; }               // when the last set of missions began: the assigned workers were cleared then
@@ -110,6 +111,7 @@ public sealed class AppData
     public List<PartyChange> PartyChanges { get; set; } = new();   // when each member joined or left (Active / inactive)
     public DateTime? PartyTrackingSince { get; set; }   // payouts of missions that ended before this time are split the old way (the whole session party)
     public List<string> InactiveParty { get; set; } = new();   // party members that are not shown in the party list of the Session tab
+    public DateTime? PlanCreditSince { get; set; }   // from this time on the runs get their workers from the logs and the Trip Planner, not from Assigned Worker (earlier pickups keep the old rule)
     public bool DarkMode { get; set; }   // the dark look
     public string? Channel { get; set; }   // Auto, LIVE, HOTFIX...
     public List<ManualSession> ManualSessions { get; set; } = new();   // started and stopped with the Start Session / Stop Session buttons

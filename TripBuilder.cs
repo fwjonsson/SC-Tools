@@ -212,8 +212,15 @@ public static class WorkerTripBuilder
     /// </summary>
     const string ManualMission = "~manual";
 
+    /// <summary>True for the objective of a pickup stop of a mission.</summary>
+    public static bool IsPickupStop(string objective) => objective.StartsWith("pickup_") && StopId.IsMatch(objective);
+
+    /// <param name="plan">
+    /// From plan.Since on there is no Assigned Worker. The worker of a pickup is the one the log shows unloading the cargo, else the one who handed
+    /// the mission in, else the one the Trip Planner credited it to (plan.Claims). Earlier pickups use the old rule.
+    /// </param>
     public static List<WorkerTrip> Build(SessionGroup g, Func<string, DateTime, string> workerOfZone, HaulingLog log,
-        IEnumerable<ManualEnd>? manualEnds = null)
+        IEnumerable<ManualEnd>? manualEnds = null, (DateTime Since, Dictionary<string, string> Claims)? plan = null)
     {
         var manual = (manualEnds ?? Enumerable.Empty<ManualEnd>()).ToList();
         var failedIds = g.Failed.Select(m => m.Id).ToHashSet();
@@ -224,19 +231,35 @@ public static class WorkerTripBuilder
         var drops = new List<(string Mission, DateTime Time, string? Actor)>();
         foreach (var m in g.Missions.Concat(g.Failed))
         {
+            string? handInActor = null;   // who the logs show handing this mission in
             foreach (var kv in m.Events)
             {
                 if (!kv.Key.StartsWith("dropoff_")) continue;
-                foreach (var e in kv.Value) drops.Add((m.Id, e.Time, ActorAt(log, false, e.Time)));
+                foreach (var e in kv.Value)
+                {
+                    var actor = ActorAt(log, false, e.Time);
+                    handInActor ??= actor;
+                    drops.Add((m.Id, e.Time, actor));
+                }
             }
             foreach (var kv in m.ObjZone)
             {
                 if (!kv.Key.StartsWith("pickup_") || !StopId.IsMatch(kv.Key)) continue;
                 if (!m.Events.TryGetValue(kv.Key, out var ev) || ev.Count == 0) continue;
                 var first = ev.Min(e => e.Time);
-                // the Assigned Worker of the location comes first, the logs only fill in where nobody is assigned
-                var assigned = workerOfZone(kv.Value, first);
-                var who = assigned != "Unassigned" ? assigned : (ActorAt(log, true, first) ?? "Unassigned");
+                string who;
+                if (plan.HasValue && first >= plan.Value.Since)
+                {
+                    // the log names who unloaded the cargo, else who handed the mission in, else the Trip Planner decides
+                    who = ActorAt(log, true, first) ?? handInActor
+                        ?? (plan.Value.Claims.TryGetValue(m.Id + "|" + kv.Key, out var claimed) ? claimed : "Unassigned");
+                }
+                else
+                {
+                    // the Assigned Worker of the location comes first, the logs only fill in where nobody is assigned
+                    var assigned = workerOfZone(kv.Value, first);
+                    who = assigned != "Unassigned" ? assigned : (ActorAt(log, true, first) ?? "Unassigned");
+                }
                 pickups.Add((who, kv.Value, m.Id, first));
             }
         }
