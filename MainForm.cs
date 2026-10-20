@@ -246,6 +246,14 @@ public sealed partial class MainForm : Form
         g.ScrollBars = ScrollBars.None;
         foreach (DataGridViewColumn c in g.Columns)
         {
+            if (c.Name == "num")
+            {
+                // the # column keeps its small width, the others share the rest
+                c.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                c.MinimumWidth = 30;
+                c.Width = 36;
+                continue;
+            }
             c.FillWeight = c.Width;
             c.MinimumWidth = 40;
             c.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
@@ -1367,11 +1375,20 @@ public sealed partial class MainForm : Form
         ["70273"] = "Endgame",
     };
 
+    /// <summary>The name the program knows for a location (from its position), or Unknown ...id.</summary>
+    string AutoName(string zone) =>
+        KnownNames.TryGetValue(StationKey(zone), out var known) ? known : "Unknown ..." + Tail(zone);
+
     string LocationName(string zone)
     {
-        if (_data.LocationNames.TryGetValue(zone, out var n) && !string.IsNullOrWhiteSpace(n)) return n;
-        if (KnownNames.TryGetValue(StationKey(zone), out var known)) return known;
-        return "Unknown ..." + Tail(zone);
+        var auto = AutoName(zone);
+        if (_data.LocationNames.TryGetValue(zone, out var n) && !string.IsNullOrWhiteSpace(n))
+        {
+            // a saved name that is only the name of another station, while this one is known now (it was saved by clicking into the cell), is not a name you chose
+            if (!auto.StartsWith("Unknown ...") && n != auto && KnownNames.ContainsValue(n)) return auto;
+            return n;
+        }
+        return auto;
     }
 
     void ShowSession()
@@ -1644,7 +1661,7 @@ public sealed partial class MainForm : Form
         switch (e.ColumnIndex)
         {
             case 0:
-                if (text.Length == 0 || text.StartsWith("Unknown ..."))
+                if (text.Length == 0 || text.StartsWith("Unknown ...") || text == AutoName(zone))
                 {
                     _data.LocationNames.Remove(zone);
                     row.Cells[0].Value = LocationName(zone);
