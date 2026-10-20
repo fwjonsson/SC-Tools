@@ -48,7 +48,7 @@ public sealed partial class MainForm
         public decimal Value;            // a run: what its batches are worth; a planned trip: the batches at each stop times the average value of a batch there
         public bool OnMap;               // a run in progress that is drawn on the map by itself (Ruin, its pickups, back to Ruin)
         public bool Hidden;              // a planned trip that is shown inside the Current row (the continuation of the run in progress), not as a row of its own
-        public bool Estimate;            // the time is an estimate (~) although this is a run
+        public double Flight;            // the estimated flying time of the whole route (Ruin, the stops, back to Ruin) with the drive of the worker
         public bool Solid;               // a planned trip that is flown first (solid line on the map); the later ones are dotted
         public string? From;             // a trip that continues a run in progress starts at this station
         public bool IsPlan => Level == "plan";
@@ -58,6 +58,7 @@ public sealed partial class MainForm
     {
         public string Name = "";
         public int Capacity;
+        public string DriveNote = "";    // only when no drive is set
         public string Drive = "";        // the quantum drive, or that none is set
         public Color Color;
         public List<PlanRow> Rows = new();
@@ -106,7 +107,7 @@ public sealed partial class MainForm
 
         var hint = new Label
         {
-            Text = "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log. A run shows the time it really took; a planned trip shows ~ the estimated flying time (spool time + distance / drive speed for every jump, no loading). Green = done, orange = some cargo lost, red = all lost. The run you are flying is your Current row, in your colour. Plan Trips locks the next stop of everybody: planning again (for example when someone joins) leaves those alone and plans the rest around them. Reset Trips takes the locks away. Both ask first.",
+            Text = "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log. Flight time is the estimated flying time of that whole route with the drive of the worker (~, no loading); Time is how long a run really took. Green = done, orange = some cargo lost, red = all lost. The run you are flying is your Current row, in your colour. Plan Trips locks the next stop of everybody: planning again (for example when someone joins) leaves those alone and plans the rest around them. Reset Trips takes the locks away. Both ask first.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Color.DimGray,
@@ -303,7 +304,7 @@ public sealed partial class MainForm
     {
         var planned = w.Planned;
         var done = w.Rows.Count - planned.Count;
-        var text = w.Name + "  –  ship holds " + w.Capacity + (w.Capacity == 1 ? " batch" : " batches") + "  –  " + w.Drive + "  –  "
+        var text = w.Name + "  –  ship holds " + w.Capacity + (w.Capacity == 1 ? " batch" : " batches") + "  –  " + (w.DriveNote.Length > 0 ? w.DriveNote + "  –  " : "")
             + done + (done == 1 ? " run so far" : " runs so far") + "  –  ";
         text += planned.Count == 0
             ? "nothing planned"
@@ -352,9 +353,24 @@ public sealed partial class MainForm
                 Level = level == "All" ? "all" : level == "Little" ? "little" : t.End.HasValue ? "done" : "active",
                 Stops = stops,
                 Value = RunValue(t),
+                Flight = FlightOf(name, stops),
             });
         }
         return rows;
+    }
+
+    /// <summary>The estimated flying time of Ruin, these stations and back to Ruin with the drive of the worker.</summary>
+    double FlightOf(string name, IEnumerable<string> stops)
+    {
+        var drive = QtOf(name);
+        var from = PyroDistances.Ruin;
+        double seconds = 0;
+        foreach (var id in stops)
+        {
+            seconds += drive.Seconds(PyroDistances.Between(from, id));
+            from = id;
+        }
+        return seconds + drive.Seconds(PyroDistances.Between(from, PyroDistances.Ruin));
     }
 
     /// <summary>The run the worker is flying (picked up, not handed in yet): the batches on board and the station of the last pickup, or null.</summary>
@@ -535,6 +551,7 @@ public sealed partial class MainForm
             {
                 Name = c.Name,
                 Capacity = c.Capacity,
+                DriveNote = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : "",
                 Drive = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : drive.Key + ", " + (drive.Speed / 1e6).ToString("0", CultureInfo.InvariantCulture) + " Mm/s",
                 Color = WorkerColor(c.Name),
             };
@@ -561,6 +578,7 @@ public sealed partial class MainForm
                     Value = mine[k].Stops.Sum(s => s.Batches * PerBatch(s.Id)),
                     Gm = mine[k].Distance,
                     Seconds = mine[k].Seconds,
+                    Flight = mine[k].Seconds,
                     Level = "plan",
                     Stops = mine[k].Stops.Select(s => s.Id).ToList(),
                     From = mine[k].From,
@@ -577,8 +595,7 @@ public sealed partial class MainForm
                 runRow.Batches = runRow.BatchCount + "/" + c.Capacity;
                 runRow.Stops = runRow.Stops.Concat(cont.Stops.Select(s => s.Id)).ToList();
                 runRow.Gm = PyroDistances.Run(runRow.Stops);
-                runRow.Seconds = cont.Seconds;   // what is left of the flight, from where he is
-                runRow.Estimate = true;
+                runRow.Flight = FlightOf(c.Name, runRow.Stops);   // the whole run, Ruin to Ruin
                 w.Rows.First(r => r.Trip == cont).Hidden = true;
             }
             else if (runRow != null && runRow.Stops.Count > 0)
@@ -606,7 +623,7 @@ public sealed partial class MainForm
         }
 
         plan.Signature = plan.Summary + "¦" + (Theme.Dark ? "dark" : "light") + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
-            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + w.Drive)));
+            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Flight.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + w.Drive)));
         return plan;
     }
 
@@ -750,6 +767,7 @@ public sealed partial class MainForm
             grid.Columns.Add(Col("Batches", 80, true));
             grid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Distance", 110, true, DataGridViewContentAlignment.MiddleRight));
+            grid.Columns.Add(Col("Flight time", 100, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Time", 90, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
             FitColumns(grid);   // the columns share the width, so nothing is cut off or has to scroll sideways
@@ -762,6 +780,7 @@ public sealed partial class MainForm
                     r.Batches,
                     ValueText(r.Value),
                     r.Gm > 0 ? Gm(r.Gm) : "",
+                    FlightText(r),
                     TimeText(r),
                     r.Gm > 0 && r.BatchCount > 0 ? (r.Gm / r.BatchCount).ToString("N1", CultureInfo.InvariantCulture) : "");
                 var row = grid.Rows[idx];
@@ -823,5 +842,9 @@ public sealed partial class MainForm
     /// <summary>A run: the time it really took. A planned trip: the estimated flight time, with a ~ in front.</summary>
     static string ValueText(decimal v) => v <= 0 ? "" : Math.Round(v).ToString("N0");
 
-    static string TimeText(PlanRow r) => r.Seconds <= 0 ? "" : (r.IsPlan || r.Estimate ? "~" : "") + FlightSpan(r.Seconds);
+    /// <summary>How long a run really took (a planned trip has not been flown yet).</summary>
+    static string TimeText(PlanRow r) => r.IsPlan || r.Seconds <= 0 ? "" : FlightSpan(r.Seconds);
+
+    /// <summary>The estimated flying time of the route, spool time and jumps with the drive of the worker, no loading.</summary>
+    static string FlightText(PlanRow r) => r.Flight <= 0 ? "" : "~" + FlightSpan(r.Flight);
 }

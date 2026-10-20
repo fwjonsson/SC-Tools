@@ -692,6 +692,7 @@ public sealed partial class MainForm
             new { text = "Batches", align = "center" },
             new { text = "Value", align = "right" },
             new { text = "Distance", align = "right" },
+            new { text = "Flight time", align = "right" },
             new { text = "Time", align = "right" },
             new { text = "Gm / Batch", align = "right" },
         };
@@ -708,8 +709,8 @@ public sealed partial class MainForm
                 rows = w.Rows.Where(r => !r.Hidden).Select(r =>
                 {
                     var back = RowColor(r) is { } c ? WebColor(c) : cell;
-                    var backs = new[] { back, back, back, back, back, back, back };
-                    var fores = new[] { text, text, text, text, text, text, text };
+                    var backs = new[] { back, back, back, back, back, back, back, back };
+                    var fores = new[] { text, text, text, text, text, text, text, text };
                     if (r.First)
                     {
                         for (var i = 0; i < backs.Length; i++)
@@ -733,6 +734,7 @@ public sealed partial class MainForm
                             r.Batches,
                             ValueText(r.Value),
                             r.Gm > 0 ? Gm(r.Gm) : "",
+                            FlightText(r),
                             TimeText(r),
                             r.Gm > 0 && r.BatchCount > 0 ? (r.Gm / r.BatchCount).ToString("N1", System.Globalization.CultureInfo.InvariantCulture) : "",
                         },
