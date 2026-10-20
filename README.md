@@ -105,6 +105,12 @@ The **History** tab has the same table for **all saved sessions** (with an extra
 - **Money transfers:** `You sent <name>: <amount> aUEC` and `<name> has sent you: <amount> aUEC` are read from the logs (a transfer seen in both accounts' logs counts once). The list shows the transfers of the selected member. Tick **Payment** on the ones that pay off a debt, other transfers (like buying a ship) are ignored.
 - Balances add up over all saved sessions, so earlier money you settled by hand can be fixed with the typed corrections.
 
+## Live Web View (let somebody watch)
+
+**Options → Live Web View** switches on a small read-only web server inside the program. It shows the Session tab (pickup board, contracts, summary, leaderboard and cargo runs, in the colours of your theme) and refreshes every few seconds. It only listens on your own computer (`http://localhost:8765`), and it can only show things: there is nothing to click or change, all changes are made in the program. The setting is remembered.
+- To let somebody else watch, install `cloudflared` (`winget install Cloudflare.cloudflared`) and run `cloudflared tunnel --url http://localhost:8765` in a terminal. It prints an `https://...trycloudflare.com` address (no account needed). Send that address to whoever should watch. It changes every time you start the tunnel, and anybody with the address can look, so share it only with people you trust.
+- The program and the tunnel have to be running on your computer for the page to work. Stop the tunnel (Ctrl+C) and the page is gone for everybody.
+
 ## ScApiTool (Star Citizen Wiki API)
 
 A separate small program, `ScApiTool.exe` (in the same Releases download, `ScApiTool.zip`). It asks the [Star Citizen Wiki API](https://api.star-citizen.wiki) for game data (locations, missions, commodities, ships, items, and the API's own list of addresses) and saves the raw answers as `.json` files in a `ScApiData` folder next to it, with a `summary.txt` and a zip of everything.
