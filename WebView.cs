@@ -473,11 +473,24 @@ public sealed partial class MainForm
         SetStatus("Live web view on http://localhost:" + port + " (read only).");
         if (announce)
         {
+            // the command for the tunnel goes to the clipboard, so it can be pasted in the terminal with Ctrl+V
+            var command = "cloudflared tunnel --url http://localhost:" + port;
+            var copied = false;
+            try
+            {
+                Clipboard.SetText(command);
+                copied = true;
+            }
+            catch (Exception)
+            {
+                // the clipboard can be busy; the command is in the message anyway
+            }
             MessageBox.Show(this,
                 "The live view now runs on this computer at:\n\nhttp://localhost:" + port + "\n\n"
                 + "It is read only: it only shows the tracker (Session, Trip Planner, Debts and History), nobody can change anything from it.\n\n"
                 + "To let somebody else watch, run this in a terminal and send them the https://...trycloudflare.com address it prints:\n\n"
-                + "cloudflared tunnel --url http://localhost:" + port,
+                + command + "\n\n"
+                + (copied ? "The command is copied: open a terminal and press Ctrl+V." : "(It could not be copied, type it in yourself.)"),
                 "Live Web View", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         return true;
