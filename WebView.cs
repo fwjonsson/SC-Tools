@@ -183,7 +183,8 @@ sealed class LiveWebServer : IDisposable
   .live { font-weight:600; }
   .ok { color:#5fd35f; } .bad { color:#ff6b6b; }
   .top { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
-  .top > div { min-width:300px; flex:1 1 360px; }
+  .top > div:first-child { min-width:0; flex:1 1 560px; }   /* the stops take the width ... */
+  .top > div:last-child { flex:0 0 420px; max-width:100%; }   /* ... the party, contracts and session are as narrow as in the program */
   .scroll { overflow-x:auto; }
   .bal table { table-layout:fixed; }
   .bal th:nth-child(1) { width:24%; }
