@@ -104,3 +104,9 @@ The **History** tab has the same table for **all saved sessions** (with an extra
 - **Balance:** pick a party member and see the balance with each other member. + means they owe the selected member, − means the selected member owes them. Type over a number to correct it, your correction is kept.
 - **Money transfers:** `You sent <name>: <amount> aUEC` and `<name> has sent you: <amount> aUEC` are read from the logs (a transfer seen in both accounts' logs counts once). The list shows the transfers of the selected member. Tick **Payment** on the ones that pay off a debt, other transfers (like buying a ship) are ignored.
 - Balances add up over all saved sessions, so earlier money you settled by hand can be fixed with the typed corrections.
+
+## ScApiTool (Star Citizen Wiki API)
+
+A separate small program, `ScApiTool.exe` (in the same Releases download, `ScApiTool.zip`). It asks the [Star Citizen Wiki API](https://api.star-citizen.wiki) for game data (locations, missions, commodities, ships, items, and the API's own list of addresses) and saves the raw answers as `.json` files in a `ScApiData` folder next to it, with a `summary.txt` and a zip of everything.
+- Double-click it with no arguments for the standard set. `--all` removes the page limit. Give it an address like `ScApiTool.exe /api/missions` to download anything else the API has.
+- The data comes from a fan site that is not affiliated with Cloud Imperium Games. Credit api.star-citizen.wiki if you publish anything made from it.

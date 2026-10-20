@@ -12,4 +12,8 @@
     <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="ScApiTool/**" />
+  </ItemGroup>
+
 </Project>
