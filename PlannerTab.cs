@@ -44,7 +44,8 @@ public sealed partial class MainForm
         public List<string> Stops = new();   // station ids in flying order
         public PlannedTrip? Trip;
         public bool Locked;              // a planned trip that is locked to its worker (his Current)
-        public bool First;               // the first planned trip of the worker
+        public bool First;               // the trip the worker is flying right now (his run in progress, or his first planned trip when he has none): the whole row has his colour
+        public bool Solid;               // a planned trip that is flown first (solid line on the map); the later ones are dotted
         public string? From;             // a trip that continues a run in progress starts at this station
         public bool IsPlan => Level == "plan";
     }
@@ -100,7 +101,7 @@ public sealed partial class MainForm
 
         var hint = new Label
         {
-            Text = "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log. A run shows the time it really took; a planned trip shows ~ the estimated flying time (spool time + distance / drive speed for every jump, no loading). Green = done, orange = some cargo lost, red = all lost, yellow = on the way. Plan Trips locks the Current trip of everybody who is not flying a run: planning again (for example when someone joins) leaves those alone and plans the rest around them. Reset Trips takes the locks away. Both ask first.",
+            Text = "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log. A run shows the time it really took; a planned trip shows ~ the estimated flying time (spool time + distance / drive speed for every jump, no loading). Green = done, orange = some cargo lost, red = all lost. The run you are flying is your Current row, in your colour. Plan Trips locks the next stop of everybody: planning again (for example when someone joins) leaves those alone and plans the rest around them. Reset Trips takes the locks away. Both ask first.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Color.DimGray,
@@ -150,7 +151,7 @@ public sealed partial class MainForm
             return;
         }
         var answer = MessageBox.Show(this,
-            "Plan the trips now?\n\nThe Current trip of everyone who is not out flying a run is locked to him from now on. Planning again later only changes the other trips, so someone who joins gets his share of the rest.",
+            "Plan the trips now?\n\nThe next stop of everyone is locked to him from now on. Planning again later only changes the other trips, so someone who joins gets his share of the rest.",
             "Plan Trips", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
         if (answer != DialogResult.Yes) return;
 
@@ -171,7 +172,7 @@ public sealed partial class MainForm
             if (!seen.Add(trip.Worker)) continue;   // the first trip of a worker is his Current
             if (HasActiveRun(trip.Worker))
             {
-                // he is flying a run now: his plan stays free, and his next trip is locked once that run is handed in
+                // he is flying a run now: the next stop of its continuation gets locked as soon as the plan is shown (see CoreFor)
                 if (LockKey(trip.Worker) == null) _inputs.LockedTrips[trip.Worker] = new List<LockedStop>();
                 continue;
             }
@@ -289,7 +290,7 @@ public sealed partial class MainForm
 
     static string RouteText(PlannedTrip trip) =>
         (trip.From != null ? "From " + PyroDistances.NameOf(trip.From) + "  →  " : "")
-        + string.Join("  →  ", trip.Stops.Select(s => PyroDistances.NameOf(s.Id) + " ×" + s.Batches));
+        + string.Join("  →  ", trip.Stops.Select((s, i) => PyroDistances.NameOf(s.Id) + " ×" + s.Batches + (i == 0 && trip.Locked ? " (locked)" : "")));   // the locked stop says so
 
     static string PlanTitle(PlanWorkerView w)
     {
@@ -349,7 +350,7 @@ public sealed partial class MainForm
     }
 
     /// <summary>The run the worker is flying (picked up, not handed in yet): the batches on board and the station of the last pickup, or null.</summary>
-    (int Loaded, string? From)? ActiveRunOf(string name)
+    (int Loaded, string? From, DateTime Last)? ActiveRunOf(string name)
     {
         var loaded = 0;
         string? from = null;
@@ -368,27 +369,33 @@ public sealed partial class MainForm
                 }
             }
         }
-        return any ? (loaded, from) : null;
+        return any ? (loaded, from, latest ?? DateTime.MinValue) : null;
     }
 
     /// <summary>True when the worker has a run that has pickups but is not handed in yet.</summary>
     bool HasActiveRun(string name) => ActiveRunOf(name) != null;
 
-    /// <summary>True when the run he is flying has picked up at his locked stop (he went where the lock said, so he keeps it).</summary>
-    bool FollowsLock(string name, string lockedId)
+    /// <summary>False when he has picked up somewhere else since the lock was set (he did not go where the lock said); true while he is still on his way, or after he picked up at the locked stop.</summary>
+    bool FollowsLock(string name, string lockedId, DateTime? since)
     {
+        // only the pickups after the lock was set count: a lock made while he was already flying a run is for the next pickup
+        var picked = false;
         foreach (var t in _trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue))
         {
-            if (t.Pickups.Any(p => StationOf(p.Zone) == lockedId)) return true;
+            foreach (var p in t.Pickups.Where(p => since == null || p.Time > since))
+            {
+                picked = true;
+                if (StationOf(p.Zone) == lockedId) return true;
+            }
         }
-        return false;
+        return !picked;   // no pickup since the lock: he is still on his way
     }
 
     /// <summary>
     /// The trips for the open batches. Only the next stop of a worker is locked, and only while he is on his way to it: its batches are taken
     /// out first and his first trip goes there first, but the rest of that trip is planned freely, so a better stop can still be put after it.
-    /// A worker who is flying a run is not locked: his run counts in his ship (room left, and the trip continues from where he is) and the
-    /// plan adds to it. A lock ends when he picks up somewhere else, when its batches are picked up, and when he leaves the party; when his run
+    /// A worker who is flying a run has it counted in his ship (room left, and the trip continues from where he is) and the plan adds to it;
+    /// while there is room, the next stop of that continuation is locked too (it is where he is heading). A lock ends when he picks up somewhere else, when its batches are picked up, and when he leaves the party; when his run
     /// is handed in, the first stop of his next planned trip is locked. Only worked out again when the batches, the crew or the locks change.
     /// </summary>
     PlanCore CoreFor(List<(string Name, int Capacity, QtDrive Drive)> crew, Dictionary<string, int> open, List<string> unknown)
@@ -415,7 +422,7 @@ public sealed partial class MainForm
                     if (lockKey != null)
                     {
                         var stored = _inputs.LockedTrips[lockKey];
-                        if (stored.Count > 0 && run != null && !FollowsLock(c.Name, stored[0].Id))
+                        if (stored.Count > 0 && run != null && !FollowsLock(c.Name, stored[0].Id, stored[0].Since))
                         {
                             _inputs.LockedTrips[lockKey] = stored = new List<LockedStop>();   // he picked up somewhere else: his trips are free again
                             changed = true;
@@ -435,7 +442,7 @@ public sealed partial class MainForm
                                 changed = true;
                             }
                         }
-                        if (start.FirstId == null && run == null) waiting.Add(c.Name);
+                        if (start.FirstId == null && (run == null || run.Value.Loaded < c.Capacity)) waiting.Add(c.Name);   // a run with room left locks the next stop of its continuation too
                     }
                     if (start.FirstId != null || start.Loaded > 0) starts.Add(start);
                 }
@@ -468,8 +475,12 @@ public sealed partial class MainForm
                 var lockKey = LockKey(name);
                 if (lockKey == null) continue;
                 var next = core.Trips.FirstOrDefault(t => t.Worker == name);
-                if (next == null || next.Stops.Count == 0) _inputs.LockedTrips.Remove(lockKey);
-                else _inputs.LockedTrips[lockKey] = new List<LockedStop> { new() { Id = next.Stops[0].Id, Batches = next.Stops[0].Batches } };
+                var flying = ActiveRunOf(name);
+                if (next == null || next.Stops.Count == 0)
+                {
+                    if (flying == null) _inputs.LockedTrips.Remove(lockKey);   // with a run in progress the marker stays: his next trip is locked once the run is handed in
+                }
+                else _inputs.LockedTrips[lockKey] = new List<LockedStop> { new() { Id = next.Stops[0].Id, Batches = next.Stops[0].Batches, Since = flying?.Last } };
             }
             Storage.Save(_data);
         }
@@ -513,13 +524,21 @@ public sealed partial class MainForm
                 Color = WorkerColor(c.Name),
             };
             w.Rows.AddRange(RunRows(c.Name));
+            // the run in progress is his Current trip (a locked stop is marked in the Route cell of a planned trip)
+            var runRow = w.Rows.LastOrDefault(r => r.Level == "active");
+            if (runRow != null)
+            {
+                runRow.Label = "Current";
+                runRow.First = true;
+            }
             var mine = core.Trips.Where(t => t.Worker == c.Name).ToList();
             for (var k = 0; k < mine.Count; k++)
             {
                 w.Rows.Add(new PlanRow
                 {
-                    Label = k == 0 ? "Current" : "Plan " + (k + 1),
-                    First = k == 0,
+                    Label = k > 0 ? "Plan " + (k + 1) : runRow == null ? "Current" : mine[k].Special ? "Continue" : "Next",
+                    First = k == 0 && runRow == null,
+                    Solid = k == 0 && (runRow == null || mine[k].Special),
                     Locked = mine[k].Locked,
                     Route = RouteText(mine[k]),
                     Batches = mine[k].Batches + "/" + (mine[k].Room > 0 ? mine[k].Room : c.Capacity),
@@ -552,7 +571,7 @@ public sealed partial class MainForm
         }
 
         plan.Signature = plan.Summary + "¦" + (Theme.Dark ? "dark" : "light") + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
-            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Locked + "|" + r.Route + "|" + r.Batches + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + w.Drive)));
+            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + w.Drive)));
         return plan;
     }
 
@@ -603,7 +622,7 @@ public sealed partial class MainForm
                 var k = 0;
                 foreach (var r in w.Planned)
                 {
-                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, From = r.From, Bold = k == 0, Dashed = k > 0, Tag = r });
+                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, From = r.From, Bold = r.Solid, Dashed = !r.Solid, Tag = r });
                     k++;
                 }
             }
@@ -614,7 +633,7 @@ public sealed partial class MainForm
             var k = 0;
             foreach (var r in only.Planned)
             {
-                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = only.Color, Stops = r.Stops, From = r.From, Bold = k == 0, Dashed = k > 0, Tag = r });
+                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = only.Color, Stops = r.Stops, From = r.From, Bold = r.Solid, Dashed = !r.Solid, Tag = r });
                 k++;
             }
         }
@@ -684,7 +703,6 @@ public sealed partial class MainForm
             grid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
             FitColumns(grid);   // the columns share the width, so nothing is cut off or has to scroll sideways
             var boldFont = new Font("Segoe UI", 10f, FontStyle.Bold);
-            var plannedIndex = 0;
             foreach (var r in w.Rows)
             {
                 var idx = grid.Rows.Add(
@@ -698,19 +716,19 @@ public sealed partial class MainForm
                 row.Tag = r;
                 if (RowColor(r) is { } color) row.DefaultCellStyle.BackColor = color;
                 if (r.First) row.DefaultCellStyle.Font = boldFont;
-                if (r.First && onSelect == null)
+                if (r.First)
                 {
-                    // the Overview: the whole Current row of a worker has his colour
+                    // the whole Current row of a worker has his colour (his run in progress, or his first planned trip), on the Overview and on his own page
                     var st = row.DefaultCellStyle;
                     st.BackColor = w.Color;
                     st.ForeColor = TextOn(w.Color);
                     st.SelectionBackColor = w.Color;
                     st.SelectionForeColor = TextOn(w.Color);
                 }
-                if (r.IsPlan && onSelect != null)   // a worker's own page (the Overview keeps one colour per worker)
+                else if (r.IsPlan && onSelect != null)   // a worker's own page (the Overview keeps one colour per worker)
                 {
                     // the Trip cell has the colour of the worker, the later trips faded like their dotted line on the map
-                    var c = plannedIndex++ == 0 ? w.Color : Faded(w.Color);
+                    var c = r.Solid ? w.Color : Faded(w.Color);
                     var cell = row.Cells[0].Style;
                     cell.BackColor = c;
                     cell.ForeColor = TextOn(c);
@@ -735,8 +753,8 @@ public sealed partial class MainForm
         return block;
     }
 
-    /// <summary>The text of the Trip cell: a locked Current says so.</summary>
-    static string RowLabel(PlanRow r) => r.Locked ? r.Label + " (stop locked)" : r.Label;
+    /// <summary>The text of the Trip cell (a locked stop is marked in the Route cell, next to the stop).</summary>
+    static string RowLabel(PlanRow r) => r.Label;
 
     /// <summary>Black or white, whichever reads better on this colour.</summary>
     static Color TextOn(Color c) => (c.R * 299 + c.G * 587 + c.B * 114) / 1000 > 140 ? Color.Black : Color.White;
