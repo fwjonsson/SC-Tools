@@ -45,6 +45,7 @@ public sealed partial class MainForm
         public PlannedTrip? Trip;
         public bool Locked;              // a planned trip that is locked to its worker (his Current)
         public bool First;               // the trip the worker is flying right now (his run in progress, or his first planned trip when he has none): the whole row has his colour
+        public bool OnMap;               // a run in progress that is drawn on the map by itself (Ruin, its pickups, back to Ruin)
         public bool Hidden;              // a planned trip that is shown inside the Current row (the continuation of the run in progress), not as a row of its own
         public bool Estimate;            // the time is an estimate (~) although this is a run
         public bool Solid;               // a planned trip that is flown first (solid line on the map); the later ones are dotted
@@ -60,6 +61,7 @@ public sealed partial class MainForm
         public Color Color;
         public List<PlanRow> Rows = new();
         public List<PlanRow> Planned => Rows.Where(r => r.IsPlan).ToList();
+        public List<PlanRow> MapRows => Rows.Where(r => r.IsPlan || r.OnMap).ToList();   // the lines on the map: the planned trips, and the run in progress when the plan adds nothing to it
     }
 
     sealed class PlanView
@@ -341,7 +343,7 @@ public sealed partial class MainForm
             rows.Add(new PlanRow
             {
                 Label = "Run #" + t.Number,
-                Route = string.Join("  →  ", parts.Select(x => x.Name + " ×" + x.N)),
+                Route = string.Join("  →  ", parts.Select(x => x.Name + " ×" + x.N + (t.End.HasValue ? "" : " (picked up)"))),   // the run in progress: what is already on board says so
                 Batches = level == "All" ? "failed" : t.End.HasValue ? t.HandedIn.ToString(CultureInfo.InvariantCulture) : picked.ToString(CultureInfo.InvariantCulture),
                 BatchCount = picked,
                 Gm = stops.Count > 0 ? PyroDistances.Run(stops) : 0,
@@ -568,6 +570,11 @@ public sealed partial class MainForm
                 runRow.Estimate = true;
                 w.Rows.First(r => r.Trip == cont).Hidden = true;
             }
+            else if (runRow != null && runRow.Stops.Count > 0)
+            {
+                runRow.OnMap = true;   // nothing is added to it (full ship): the run itself is his solid line
+                runRow.Solid = true;
+            }
             plan.Workers.Add(w);
         }
 
@@ -627,7 +634,7 @@ public sealed partial class MainForm
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var map = new PyroMapView { Dock = DockStyle.Top, Margin = new Padding(0, 0, 12, 0) };
-        var host = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
+        var host = new PlanHost { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
         host.Resize += (_, _) => FitPlanBlocks(host);
 
         var workers = only == null ? plan.Workers : new List<PlanWorkerView> { only };
@@ -637,7 +644,7 @@ public sealed partial class MainForm
             foreach (var w in workers)
             {
                 var k = 0;
-                foreach (var r in w.Planned)
+                foreach (var r in w.MapRows)
                 {
                     map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, From = r.From, Bold = r.Solid, Dashed = !r.Solid, Tag = r });
                     k++;
@@ -648,7 +655,7 @@ public sealed partial class MainForm
         {
             // one worker: his colour, the next trip solid and bold, the later ones dotted (click a planned trip in the table to bold that one)
             var k = 0;
-            foreach (var r in only.Planned)
+            foreach (var r in only.MapRows)
             {
                 map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = only.Color, Stops = r.Stops, From = r.From, Bold = r.Solid, Dashed = !r.Solid, Tag = r });
                 k++;
@@ -687,6 +694,21 @@ public sealed partial class MainForm
     {
         var width = Math.Max(200, host.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 6);
         foreach (Control c in host.Controls) c.Width = width;
+        // after the window got bigger again nothing may stay scrolled to the side
+        if (host.AutoScrollPosition.X != 0) host.AutoScrollPosition = new Point(0, -host.AutoScrollPosition.Y);
+    }
+
+    /// <summary>The panel that holds the tables of the Trip Planner: it scrolls up and down only, never sideways (the tables fit its width).</summary>
+    sealed class PlanHost : FlowLayoutPanel
+    {
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern bool ShowScrollBar(IntPtr hWnd, int bar, bool show);
+
+        protected override void WndProc(ref Message m)
+        {
+            if (IsHandleCreated) ShowScrollBar(Handle, 0, false);   // 0 = the horizontal bar
+            base.WndProc(ref m);
+        }
     }
 
     /// <summary>A title and the table of one crew member: the runs so far, then the planned trips.</summary>
