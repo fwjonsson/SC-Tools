@@ -7,6 +7,7 @@ public sealed class PlannedTrip
     public List<(string Id, int Batches)> Stops = new();
     public int Batches => Stops.Sum(s => s.Batches);
     public double Distance;   // Gm: Ruin, the stops in order, back to Ruin
+    public double Seconds;    // estimated flight time with this worker's quantum drive (spool + distance / speed for every jump)
 }
 
 /// <summary>
@@ -21,8 +22,8 @@ public static class TripPlanner
     const double TotalWeight = 0.25;   // how much the combined Gm counts next to the longest worker total
 
     /// <param name="remaining">station id (see PyroDistances) to the batches still to pick up there</param>
-    /// <param name="crew">every worker with the batches his ship holds (0 = not flying)</param>
-    public static List<PlannedTrip> Plan(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity)> crew)
+    /// <param name="crew">every worker with the batches his ship holds (0 = not flying) and the speed (Mm/s) and spool time (s) of his quantum drive</param>
+    public static List<PlannedTrip> Plan(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity, double SpeedMm, double Spool)> crew)
     {
         var workers = crew.Where(c => c.Capacity > 0).ToList();
         var ids = remaining.Where(kv => kv.Value > 0).Select(kv => kv.Key).OrderBy(k => k, StringComparer.Ordinal).ToList();
@@ -118,13 +119,16 @@ public static class TripPlanner
             return mask;
         }
 
-        double SlotCost(int[] row)
+        // the flight time of a trip for one worker: his drive spools and flies every jump (Ruin, the stops, back to Ruin)
+        double SlotCost(int[] row, int worker)
         {
             var mask = MaskOf(row);
-            return mask == 0 ? 0 : Tour(mask).Cost;
+            if (mask == 0) return 0;
+            var c = workers[worker];
+            return Tour(mask).Cost * 1000.0 / c.SpeedMm + (System.Numerics.BitOperations.PopCount((uint)mask) + 1) * c.Spool;
         }
 
-        // the number to beat: the longest worker total, plus a part of the combined Gm
+        // the number to beat: the longest worker total, plus a part of the combined time (all in seconds)
         static double Objective(double[] totals) => totals.Max() + TotalWeight * totals.Sum();
 
         // Every worker gets a few trip slots (an unused slot costs nothing). A slot has the ship size of its worker.
@@ -155,8 +159,8 @@ public static class TripPlanner
                         {
                             assign[a][i]--;
                             assign[b][i]++;
-                            var newA = SlotCost(assign[a]);
-                            var newB = SlotCost(assign[b]);
+                            var newA = SlotCost(assign[a], slotWorker[a]);
+                            var newB = SlotCost(assign[b], slotWorker[b]);
                             var dA = newA - slotCost[a];
                             var dB = newB - slotCost[b];
                             totals[slotWorker[a]] += dA;
@@ -183,8 +187,8 @@ public static class TripPlanner
                             assign[b][i]++;
                             assign[b][j]--;
                             assign[a][j]++;
-                            var newA = SlotCost(assign[a]);
-                            var newB = SlotCost(assign[b]);
+                            var newA = SlotCost(assign[a], slotWorker[a]);
+                            var newB = SlotCost(assign[b], slotWorker[b]);
                             var dA = newA - slotCost[a];
                             var dB = newB - slotCost[b];
                             totals[slotWorker[a]] += dA;
@@ -238,7 +242,7 @@ public static class TripPlanner
                 loads[slot]++;
             }
 
-            var slotCost = assign.Select(SlotCost).ToArray();
+            var slotCost = assign.Select((row, t) => SlotCost(row, slotWorker[t])).ToArray();
             var totals = new double[w];
             for (var t = 0; t < slots; t++) totals[slotWorker[t]] += slotCost[t];
             var current = Objective(totals);
@@ -256,7 +260,7 @@ public static class TripPlanner
             var mask = MaskOf(row);
             if (mask == 0) continue;
             var tour = Tour(mask);
-            var trip = new PlannedTrip { Worker = workers[slotWorker[t]].Name, Distance = tour.Cost };
+            var trip = new PlannedTrip { Worker = workers[slotWorker[t]].Name, Distance = tour.Cost, Seconds = SlotCost(row, slotWorker[t]) };
             foreach (var idx in tour.Order) trip.Stops.Add((ids[idx], row[idx]));
             trips.Add(trip);
         }

@@ -25,6 +25,7 @@ public sealed partial class MainForm
         public string Batches = "";
         public int BatchCount;           // batches picked up or planned, for Gm per batch
         public double Gm;
+        public double Seconds;           // a run: the time it really took; a planned trip: the estimated flight time
         public string Level = "plan";    // done, little, all, active, plan
         public List<string> Stops = new();   // station ids in flying order
         public PlannedTrip? Trip;
@@ -35,6 +36,7 @@ public sealed partial class MainForm
     {
         public string Name = "";
         public int Capacity;
+        public string Drive = "";        // the quantum drive, or that none is set
         public Color Color;
         public List<PlanRow> Rows = new();
         public List<PlanRow> Planned => Rows.Where(r => r.IsPlan).ToList();
@@ -78,7 +80,7 @@ public sealed partial class MainForm
 
         var hint = new Label
         {
-            Text = "Who flies and how many batches each ship holds is set in Options → Party…  (Active and Batch Capacity). Green = done, orange = some cargo lost, red = all lost, yellow = on the way.",
+            Text = "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. A run shows the time it really took; a planned trip shows ~ the estimated flying time (spool time + distance / drive speed for every jump, no loading). Green = done, orange = some cargo lost, red = all lost, yellow = on the way.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Color.DimGray,
@@ -126,11 +128,11 @@ public sealed partial class MainForm
     {
         var planned = w.Planned;
         var done = w.Rows.Count - planned.Count;
-        var text = w.Name + "  –  ship holds " + w.Capacity + (w.Capacity == 1 ? " batch" : " batches") + "  –  "
+        var text = w.Name + "  –  ship holds " + w.Capacity + (w.Capacity == 1 ? " batch" : " batches") + "  –  " + w.Drive + "  –  "
             + done + (done == 1 ? " run so far" : " runs so far") + "  –  ";
         text += planned.Count == 0
             ? "nothing planned"
-            : planned.Count + (planned.Count == 1 ? " trip planned (" : " trips planned (") + planned.Sum(r => r.BatchCount) + " batches, " + Gm(planned.Sum(r => r.Gm)) + ")";
+            : planned.Count + (planned.Count == 1 ? " trip planned (" : " trips planned (") + planned.Sum(r => r.BatchCount) + " batches, " + Gm(planned.Sum(r => r.Gm)) + ", about " + FlightSpan(planned.Sum(r => r.Seconds)) + " of flying)";
         return text;
     }
 
@@ -171,6 +173,7 @@ public sealed partial class MainForm
                 Batches = level == "All" ? "failed" : t.End.HasValue ? t.HandedIn.ToString(CultureInfo.InvariantCulture) : picked.ToString(CultureInfo.InvariantCulture),
                 BatchCount = picked,
                 Gm = stops.Count > 0 ? PyroDistances.Run(stops) : 0,
+                Seconds = t.End.HasValue ? Math.Max(0, (t.End.Value - t.Start).TotalSeconds) : 0,
                 Level = level == "All" ? "all" : level == "Little" ? "little" : t.End.HasValue ? "done" : "active",
                 Stops = stops,
             });
@@ -181,7 +184,7 @@ public sealed partial class MainForm
     /// <summary>The plan for the open batches of the selected session, with the runs so far. The trips are only worked out again when the batches or the crew change.</summary>
     PlanView GetPlan()
     {
-        var crew = ActiveCrew().Select(n => (Name: n, Capacity: ShipCapacityOf(n))).ToList();
+        var crew = ActiveCrew().Select(n => (Name: n, Capacity: ShipCapacityOf(n), SpeedMm: QtOf(n).Speed, Spool: QtOf(n).Spool)).ToList();
         var remaining = new Dictionary<string, int>();
         var unknown = new List<string>();
         if (_inputs != null)
@@ -200,7 +203,7 @@ public sealed partial class MainForm
             }
         }
 
-        var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity))
+        var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity + ":" + c.SpeedMm.ToString("F1", CultureInfo.InvariantCulture) + ":" + c.Spool.ToString("F1", CultureInfo.InvariantCulture)))
             + "#" + string.Join("|", remaining.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + ":" + kv.Value))
             + "#" + string.Join("|", unknown);
         if (_planCore == null || _planCore.Key != key)
@@ -216,7 +219,14 @@ public sealed partial class MainForm
         for (var i = 0; i < flying.Count; i++)
         {
             var c = flying[i];
-            var w = new PlanWorkerView { Name = c.Name, Capacity = c.Capacity, Color = MapPalette[i % MapPalette.Length] };
+            var drive = DriveOf(c.Name);
+            var w = new PlanWorkerView
+            {
+                Name = c.Name,
+                Capacity = c.Capacity,
+                Drive = drive == null ? "no QT drive set (assuming " + QuantumDrives.AssumedSpeedMm.ToString("0", CultureInfo.InvariantCulture) + " Mm/s)" : drive.Key + " " + drive.SpeedMm.ToString("0", CultureInfo.InvariantCulture) + " Mm/s",
+                Color = MapPalette[i % MapPalette.Length],
+            };
             w.Rows.AddRange(RunRows(c.Name));
             var mine = core.Trips.Where(t => t.Worker == c.Name).ToList();
             for (var k = 0; k < mine.Count; k++)
@@ -228,6 +238,7 @@ public sealed partial class MainForm
                     Batches = mine[k].Batches + "/" + c.Capacity,
                     BatchCount = mine[k].Batches,
                     Gm = mine[k].Distance,
+                    Seconds = mine[k].Seconds,
                     Level = "plan",
                     Stops = mine[k].Stops.Select(s => s.Id).ToList(),
                     Trip = mine[k],
@@ -247,13 +258,13 @@ public sealed partial class MainForm
         }
         else
         {
-            var longest = plan.Workers.OrderByDescending(w => w.Planned.Sum(r => r.Gm)).First();
+            var longest = plan.Workers.OrderByDescending(w => w.Planned.Sum(r => r.Seconds)).First();
             plan.Summary = planned.Count + " trips planned, " + Gm(planned.Sum(r => r.Gm)) + " in total for " + core.Batches + " batches. Longest: "
-                + longest.Name + " with " + Gm(longest.Planned.Sum(r => r.Gm)) + ".";
+                + longest.Name + " with " + Gm(longest.Planned.Sum(r => r.Gm)) + ", about " + FlightSpan(longest.Planned.Sum(r => r.Seconds)) + " of flying.";
         }
 
         plan.Signature = plan.Summary + "¦" + (Theme.Dark ? "dark" : "light") + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
-            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Route + "|" + r.Batches + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture))));
+            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Route + "|" + r.Batches + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + w.Drive)));
         return plan;
     }
 
@@ -370,6 +381,7 @@ public sealed partial class MainForm
             grid.Columns.Add(Col("Route (Ruin, then these, then back to Ruin)", 460, true, DataGridViewContentAlignment.MiddleLeft, true));
             grid.Columns.Add(Col("Batches", 80, true));
             grid.Columns.Add(Col("Distance", 110, true, DataGridViewContentAlignment.MiddleRight));
+            grid.Columns.Add(Col("Time", 90, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
             var boldFont = new Font("Segoe UI", 10f, FontStyle.Bold);
             foreach (var r in w.Rows)
@@ -379,6 +391,7 @@ public sealed partial class MainForm
                     r.Route,
                     r.Batches,
                     r.Gm > 0 ? Gm(r.Gm) : "",
+                    TimeText(r),
                     r.Gm > 0 && r.BatchCount > 0 ? (r.Gm / r.BatchCount).ToString("N1", CultureInfo.InvariantCulture) : "");
                 var row = grid.Rows[idx];
                 row.Tag = r;
@@ -403,4 +416,14 @@ public sealed partial class MainForm
     }
 
     static string Gm(double v) => v.ToString("N1", CultureInfo.InvariantCulture) + " Gm";
+
+    /// <summary>m:ss or h:mm:ss.</summary>
+    static string FlightSpan(double seconds)
+    {
+        var t = TimeSpan.FromSeconds(Math.Max(0, Math.Round(seconds)));
+        return t.TotalHours >= 1 ? (int)t.TotalHours + ":" + t.Minutes.ToString("00") + ":" + t.Seconds.ToString("00") : t.Minutes + ":" + t.Seconds.ToString("00");
+    }
+
+    /// <summary>A run: the time it really took. A planned trip: the estimated flight time, with a ~ in front.</summary>
+    static string TimeText(PlanRow r) => r.Seconds <= 0 ? "" : (r.IsPlan ? "~" : "") + FlightSpan(r.Seconds);
 }

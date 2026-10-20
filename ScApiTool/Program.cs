@@ -62,6 +62,7 @@ else if (!uexOnly)
     await Safe("commodities", "/api/commodities", all ? int.MaxValue : DefaultPageLimit);
     await Safe("vehicles", "/api/vehicles", all ? int.MaxValue : DefaultPageLimit);
     await Safe("vehicles-filters", "/api/vehicles/filters", 1);
+    await Safe("items-quantumdrive", "/api/items?filter[type]=QuantumDrive", DefaultPageLimit);   // acceleration and braking of the quantum drives
     await Safe("items", "/api/items", all ? int.MaxValue : 20);   // thousands of records, so only the first pages unless --all
 }
 

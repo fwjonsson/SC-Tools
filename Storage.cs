@@ -107,6 +107,7 @@ public sealed class AppData
     public List<ManualSession> ManualSessions { get; set; } = new();   // started and stopped with the Start Session / Stop Session buttons
     public bool WebView { get; set; }      // the read-only live web view is switched on
     public int WebViewPort { get; set; } = 8765;   // the port of the live web view (on this computer only)
+    public Dictionary<string, string> QuantumDrive { get; set; } = new();   // worker -> the quantum drive in his ship (QuantumDrives key, like "Eos S1"), for the travel time estimates
     public Dictionary<string, int> ShipCapacity { get; set; } = new();   // worker -> batches his ship holds (the Trip Planner), 0 = not flying
     public List<string> WatchPaths { get; set; } = new();   // Game.log files to watch live, also on other computers
     public List<string> DisabledWatchPaths { get; set; } = new();   // sources that are saved but switched off (unticked in Sources)

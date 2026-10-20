@@ -1,8 +1,8 @@
 namespace HaulingTracker;
 
 /// <summary>
-/// Distances between the Pyro stations in gigameters (Gm). Positions come from a top-down map of Pyro that was checked
-/// against the in-game star map; the distances from Ruin are the ones read in the game. Planets do not move in the game,
+/// Distances between the Pyro stations in gigameters (Gm). They are calculated from the real positions of the stations
+/// (Star Citizen Wiki API); the distances from Ruin are the ones read in the game. The top-down map positions are only for drawing the map. Planets do not move in the game,
 /// so the numbers stay valid. Ruin Station and Orbituary orbit a planet closely, so the planet centre is used for them.
 /// </summary>
 static class PyroDistances
@@ -26,6 +26,25 @@ static class PyroDistances
         ("74320", "Nyx Gateway",              1394.5, 1621.5,  85.52),
         ("74325", "Stanton Gateway",          2431.5,  470.5,  82.67),
         ("70273", "Endgame",                  2703.5, 1735.5, 136.50),
+    };
+
+    // Real positions in the Pyro system in Gm (x, y, z), from the Star Citizen Wiki API (locations/positions). The distances from Ruin
+    // calculated from them match the ones read in the game within 0.1 Gm, so every other leg is calculated from them too.
+    static readonly Dictionary<string, (double X, double Y, double Z)> Real = new()
+    {
+        ["Ruin"] = (-52.3368, -43.9179, -0.0001),
+        ["73791"] = (3.7326, -42.7669, 0.0185),
+        ["70269"] = (-59.1456, 34.1455, 0.0127),
+        ["70120"] = (11.4453, 13.6223, 0.0028),
+        ["69936"] = (46.4944, -8.1909, 0.0177),
+        ["72785"] = (23.3426, -64.2260, -0.0108),
+        ["73041"] = (-8.9004, -15.4178, 0.0002),
+        ["72645"] = (14.6643, 40.3386, -0.0095),
+        ["70053"] = (-7.7566, -14.0089, 0.0014),
+        ["72952"] = (1.8334, 10.4345, 0.0026),
+        ["74320"] = (32.9940, -38.1517, 0.0000),
+        ["74325"] = (-37.6092, 37.4357, 0.0000),
+        ["70273"] = (48.2968, 48.2920, 0.0027),
     };
 
     public static string NameOf(string id) => Stations.First(s => s.Id == id).Name;
@@ -58,6 +77,8 @@ static class PyroDistances
         var sb = Stations.First(s => s.Id == b);
         if (a == Ruin) return sb.FromRuin;
         if (b == Ruin) return sa.FromRuin;
+        if (Real.TryGetValue(a, out var ra) && Real.TryGetValue(b, out var rb))
+            return Math.Sqrt((ra.X - rb.X) * (ra.X - rb.X) + (ra.Y - rb.Y) * (ra.Y - rb.Y) + (ra.Z - rb.Z) * (ra.Z - rb.Z));
         return Math.Sqrt((sa.X - sb.X) * (sa.X - sb.X) + (sa.Y - sb.Y) * (sa.Y - sb.Y)) / PxPerGm;
     }
 

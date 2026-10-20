@@ -64,6 +64,22 @@ public sealed partial class MainForm
         if (!active) _data.InactiveParty.Add(name);
     }
 
+    // ------------------------------------------------------------------ quantum drives
+
+    /// <summary>The quantum drive set for this worker, or null.</summary>
+    QtDrive? DriveOf(string name)
+    {
+        var key = _data.QuantumDrive.FirstOrDefault(kv => SameName(kv.Key, name)).Value;
+        return QuantumDrives.Find(key);
+    }
+
+    /// <summary>Speed (Mm/s) and spool time (s) for the travel time estimates. Without a drive set, an average one is assumed.</summary>
+    (double Speed, double Spool) QtOf(string name)
+    {
+        var d = DriveOf(name);
+        return d == null ? (QuantumDrives.AssumedSpeedMm, QuantumDrives.AssumedSpool) : (d.SpeedMm, d.Spool);
+    }
+
     // ------------------------------------------------------------------ the panel
 
     Control BuildPartyPanel()
@@ -91,8 +107,12 @@ public sealed partial class MainForm
         _partyGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         _partyGrid.Columns.Add(Col("Member", 100, true, DataGridViewContentAlignment.MiddleLeft));
         _partyGrid.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = "Active", Width = 52, SortMode = DataGridViewColumnSortMode.NotSortable });
-        _partyGrid.Columns.Add(Col("Batches", 56, false));
-        _partyGrid.Columns.Add(Col("Since", 100, false));
+        _partyGrid.Columns.Add(Col("Batches", 52, false));
+        var driveCol = new DataGridViewComboBoxColumn { HeaderText = "QT Drive", Width = 100, SortMode = DataGridViewColumnSortMode.NotSortable, FlatStyle = FlatStyle.Flat, DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing };
+        driveCol.Items.Add("");
+        foreach (var d in QuantumDrives.All.OrderBy(x => x.Size).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)) driveCol.Items.Add(d.Label);
+        _partyGrid.Columns.Add(driveCol);
+        _partyGrid.Columns.Add(Col("Since", 90, false));
         foreach (DataGridViewColumn c in _partyGrid.Columns)
         {
             c.FillWeight = c.Width;
@@ -102,7 +122,7 @@ public sealed partial class MainForm
         _partyGrid.ScrollBars = ScrollBars.Vertical;
         _partyGrid.CurrentCellDirtyStateChanged += (_, _) =>
         {
-            if (_partyGrid.IsCurrentCellDirty && _partyGrid.CurrentCell is DataGridViewCheckBoxCell)
+            if (_partyGrid.IsCurrentCellDirty && _partyGrid.CurrentCell is DataGridViewCheckBoxCell or DataGridViewComboBoxCell)
                 _partyGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
         };
         _partyGrid.CellValueChanged += PartyGrid_CellValueChanged;
@@ -147,7 +167,7 @@ public sealed partial class MainForm
                 var active = IsActiveAt(name, DateTime.UtcNow);
                 var last = _data.PartyChanges.Where(c => SameName(c.Name, name)).OrderBy(c => c.TimeUtc).LastOrDefault();
                 var since = last == null ? "" : last.TimeUtc.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture);
-                var idx = _partyGrid.Rows.Add(name, active, Math.Max(1, ShipCapacityOf(name)), since);
+                var idx = _partyGrid.Rows.Add(name, active, Math.Max(1, ShipCapacityOf(name)), DriveOf(name)?.Label ?? "", since);
                 if (!active) _partyGrid.Rows[idx].DefaultCellStyle.ForeColor = Theme.Muted;
             }
             if (selected != null)
@@ -201,7 +221,13 @@ public sealed partial class MainForm
         }
         else if (e.ColumnIndex == 3)
         {
-            var typed = (Convert.ToString(row.Cells[3].Value) ?? "").Trim();
+            var picked = QuantumDrives.Find(Convert.ToString(row.Cells[3].Value));
+            foreach (var k in _data.QuantumDrive.Keys.Where(k => SameName(k, name)).ToList()) _data.QuantumDrive.Remove(k);
+            if (picked != null) _data.QuantumDrive[name] = picked.Key;
+        }
+        else if (e.ColumnIndex == 4)
+        {
+            var typed = (Convert.ToString(row.Cells[4].Value) ?? "").Trim();
             var when = default(DateTime);
             var ok = typed.Length > 0 && TryParseSince(typed, out when);
             if (typed.Length > 0 && !ok)

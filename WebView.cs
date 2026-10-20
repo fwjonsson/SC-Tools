@@ -532,7 +532,7 @@ public sealed partial class MainForm
                 new { k = "aUEC/Hour", v = _hourlyVal.Text },
             },
             rewards = WebGrid(_rewards),
-            party = WebSimple(new[] { ("Member", "left"), ("Active", "center"), ("Batches", "center"), ("Since", "center") },
+            party = WebSimple(new[] { ("Member", "left"), ("Active", "center"), ("Batches", "center"), ("QT Drive", "left"), ("Since", "center") },
                 _data.Party.Select(n =>
                 {
                     var last = _data.PartyChanges.Where(c => SameName(c.Name, n)).OrderBy(c => c.TimeUtc).LastOrDefault();
@@ -541,6 +541,7 @@ public sealed partial class MainForm
                         n,
                         IsActiveAt(n, DateTime.UtcNow) ? "Yes" : "No",
                         Math.Max(1, ShipCapacityOf(n)).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        DriveOf(n)?.Label ?? "",
                         last == null ? "" : last.TimeUtc.ToLocalTime().ToString("d MMM HH:mm", System.Globalization.CultureInfo.CurrentCulture),
                     };
                 })),
@@ -611,6 +612,7 @@ public sealed partial class MainForm
             new { text = "Route (Ruin, then these, then back to Ruin)", align = "left" },
             new { text = "Batches", align = "center" },
             new { text = "Distance", align = "right" },
+            new { text = "Time", align = "right" },
             new { text = "Gm / Batch", align = "right" },
         };
         var cell = WebColor(Theme.Cell);
@@ -634,10 +636,11 @@ public sealed partial class MainForm
                             r.Route,
                             r.Batches,
                             r.Gm > 0 ? Gm(r.Gm) : "",
+                            TimeText(r),
                             r.Gm > 0 && r.BatchCount > 0 ? (r.Gm / r.BatchCount).ToString("N1", System.Globalization.CultureInfo.InvariantCulture) : "",
                         },
-                        back = new[] { back, back, back, back, back },
-                        fore = new[] { text, text, text, text, text },
+                        back = new[] { back, back, back, back, back, back },
+                        fore = new[] { text, text, text, text, text, text },
                         bold = r.Label == "Next",
                     };
                 }).ToList(),
