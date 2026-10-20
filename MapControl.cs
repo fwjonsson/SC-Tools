@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing.Drawing2D;
 
 namespace HaulingTracker;
@@ -15,6 +16,7 @@ sealed class MapRoute
 /// <summary>A top-down map of Pyro with the routes of trips drawn as lines with arrows.</summary>
 sealed class PyroMapView : Control
 {
+    [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public List<MapRoute> Routes { get; set; } = new();
 
     const float LegendRow = 16f;
