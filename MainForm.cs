@@ -150,8 +150,8 @@ public sealed partial class MainForm : Form
         // top area: the pickup board and the session summary side by side, the leaderboard under both
         var main = _main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2, Margin = new Padding(0) };
         main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 490));   // the tables with the times and the contracts
-        main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 290));   // the party
+        main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 470));   // the tables with the times and the contracts
+        main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 350));   // the party
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 306));   // both rows are fitted to the boards by FitTopArea
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 130));
 
