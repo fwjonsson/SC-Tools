@@ -711,7 +711,7 @@ public sealed partial class MainForm
 
     static object WebGrid(DataGridView g)
     {
-        var columns = g.Columns.Cast<DataGridViewColumn>().Where(c => c.Visible).ToList();
+        var columns = g.Columns.Cast<DataGridViewColumn>().Where(c => c.Visible).OrderBy(c => c.DisplayIndex).ToList();   // as on screen: the # column is first
         var headers = columns.Select(c => new { text = c.HeaderText, align = WebAlign(c.DefaultCellStyle.Alignment) }).ToList();
         var rows = new List<object>();
         foreach (DataGridViewRow r in g.Rows)

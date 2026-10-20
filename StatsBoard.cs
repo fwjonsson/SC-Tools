@@ -45,7 +45,11 @@ public sealed partial class MainForm
         grid.Columns.Add(Col("Run Value / Hour", 110, true, DataGridViewContentAlignment.MiddleRight, true));
     }
 
-    void BuildStatsGrid() => BuildStatColumns(_statsGrid, false);
+    void BuildStatsGrid()
+    {
+        BuildStatColumns(_statsGrid, false);
+        AddNumberColumn(_statsGrid);   // the session leaderboard counts its workers: 1, 2, 3...
+    }
 
     static string ShortDuration(TimeSpan d) => (int)d.TotalHours + ":" + d.Minutes.ToString("00");
 
@@ -178,6 +182,7 @@ public sealed partial class MainForm
         }).ToList();
         foreach (var l in lines) l.Lost = settled ? Math.Max(0, l.RunValue - l.Confirmed) : CarriedBy(failedNow, l.Name);
         WriteBoard(_statsGrid, lines, false, 1, seconds);
+        NumberRows(_statsGrid, lines.Count);   // not the Total row
     }
 
     /// <summary>The leaderboard over every saved session (History tab).</summary>
