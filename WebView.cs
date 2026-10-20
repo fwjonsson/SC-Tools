@@ -191,7 +191,10 @@ sealed class LiveWebServer : IDisposable
   table { border-collapse:collapse; width:100%; }
   th, td { border:1px solid var(--line); padding:4px 8px; white-space:nowrap; }
   th { background:var(--header); color:#fff; font-weight:600; text-align:center; white-space:normal; }
-  .kv td:first-child { font-weight:600; width:48%; }
+  .kv td:first-child { font-weight:600; width:50%; }
+  /* party, contracts and session: four equal columns, and the session's two columns are two of those, so the middle line is straight */
+  #party table, #rewards table, #summary table { table-layout:fixed; }
+  #party th, #rewards th { width:25%; }
   .empty { opacity:.6; padding:6px 0; }
   .nav, .sub { display:flex; gap:8px; margin:8px 0 4px; flex-wrap:wrap; }
   .nav button, .sub button { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 16px; font:inherit; font-weight:600; cursor:pointer; border-radius:4px; }
@@ -270,6 +273,22 @@ setInterval(function () {
   const dt = Math.floor((Date.now() - fetchedAt) / 1000);
   tickers.forEach(function (t) { t.td.textContent = fmtHms(t.base + dt); });
 }, 1000);
+
+// The first columns of Stops, Finished stops and Cargo runs are as wide as the same columns of the Session leaderboard, so they line up (like in the program).
+function alignColumns() {
+  const lead = document.querySelector('#leaders table');
+  if (!lead || !lead.tHead) return;
+  const w = Array.prototype.map.call(lead.tHead.rows[0].cells, function (c) { return c.getBoundingClientRect().width; });
+  function fix(id, n) {
+    const t = document.querySelector('#' + id + ' table');
+    if (!t || !t.tHead) return;
+    const cells = t.tHead.rows[0].cells;
+    t.style.tableLayout = 'fixed';
+    for (let i = 0; i < cells.length; i++) cells[i].style.width = (i < n && i < cells.length - 1 && w[i]) ? w[i] + 'px' : '';   // the last column takes what is left
+  }
+  fix('pickups', 5); fix('finished', 6); fix('runs', 2);
+}
+window.addEventListener('resize', alignColumns);
 
 function summary(el, items) {
   el.textContent = '';
@@ -465,6 +484,7 @@ async function refresh() {
     table(document.getElementById('party'), d.party);
     table(document.getElementById('leaders'), d.leaders);
     table(document.getElementById('runs'), d.runs);
+    alignColumns();
     if (d.runsLive) {
       const runRows = document.querySelectorAll('#runs tbody tr');
       d.runsLive.forEach(function (live, i) { if (live && runRows[i] && runRows[i].cells[7]) addTicker(runRows[i].cells[7]); });
@@ -597,14 +617,7 @@ public sealed partial class MainForm
                 new { k = "aUEC/Hour", v = _hourlyVal.Text, live = false },
             },
             rewards = WebGrid(_rewards),
-            party = WebSimple(new[] { ("Member", "left"), ("Active", "center"), ("Batches", "center"), ("QT Drive", "left") },
-                _data.Party.Select(n => new[]
-                {
-                    n,
-                    IsActiveAt(n, DateTime.UtcNow) ? "Yes" : "No",
-                    Math.Max(1, ShipCapacityOf(n)).ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    DriveOf(n)?.Label ?? "",
-                })),
+            party = WebParty(),
             pickups = WebGrid(_logGrid),
             finished = WebGrid(_doneGrid),
             leaders = WebGrid(_statsGrid),
@@ -655,6 +668,36 @@ public sealed partial class MainForm
                 r.Each.ToString("N0", System.Globalization.CultureInfo.InvariantCulture),
             }));
         return new { earnings = WebGrid(_earnGrid), balances, transfers, payouts, pos = WebColor(DoneGreen), neg = WebColor(LostRed) };
+    }
+
+    /// <summary>The party: no colour column, the whole row of a member has his colour (a member who is not active, a faded one).</summary>
+    object WebParty()
+    {
+        var headers = new[] { ("Member", "left"), ("Active", "center"), ("Batches", "center"), ("QT Drive", "left") };
+        return new
+        {
+            headers = headers.Select(h => new { text = h.Item1, align = h.Item2 }).ToList(),
+            rows = _data.Party.Select(n =>
+            {
+                var active = IsActiveAt(n, DateTime.UtcNow);
+                var color = WorkerColor(n);
+                var back = active ? color : Faded(color);
+                var cells = new[]
+                {
+                    n,
+                    active ? "Yes" : "No",
+                    Math.Max(1, ShipCapacityOf(n)).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    DriveOf(n)?.Label ?? "",
+                };
+                return new
+                {
+                    cells,
+                    back = cells.Select(_ => WebColor(back)).ToArray(),
+                    fore = cells.Select(_ => WebColor(TextOn(back))).ToArray(),
+                    bold = false,
+                };
+            }).ToList(),
+        };
     }
 
     /// <summary>A plain table made from text: no special colours.</summary>
