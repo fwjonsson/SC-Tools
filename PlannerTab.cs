@@ -290,7 +290,7 @@ public sealed partial class MainForm
 
     static string RouteText(PlannedTrip trip) =>
         (trip.From != null ? "From " + PyroDistances.NameOf(trip.From) + "  →  " : "")
-        + string.Join("  →  ", trip.Stops.Select(s => PyroDistances.NameOf(s.Id) + " ×" + s.Batches));
+        + string.Join("  →  ", trip.Stops.Select((s, i) => PyroDistances.NameOf(s.Id) + " ×" + s.Batches + (i == 0 && trip.Locked ? " (locked)" : "")));   // the locked stop says so
 
     static string PlanTitle(PlanWorkerView w)
     {
@@ -753,8 +753,8 @@ public sealed partial class MainForm
         return block;
     }
 
-    /// <summary>The text of the Trip cell: a locked Current says so.</summary>
-    static string RowLabel(PlanRow r) => r.Locked ? r.Label + " (stop locked)" : r.Label;
+    /// <summary>The text of the Trip cell (a locked stop is marked in the Route cell, next to the stop).</summary>
+    static string RowLabel(PlanRow r) => r.Label;
 
     /// <summary>Black or white, whichever reads better on this colour.</summary>
     static Color TextOn(Color c) => (c.R * 299 + c.G * 587 + c.B * 114) / 1000 > 140 ? Color.Black : Color.White;
