@@ -9,9 +9,12 @@ public sealed class SessionGroup
     public List<Mission> Failed = new();   // failed or abandoned hauling missions of the same time: not part of the session, but their cargo can be in a run
     public DateTime Start;      // UTC
     public DateTime End;        // UTC, used for grouping only
+    public bool Manual;         // started with Start Session: one session from the start to the stop, however long
+    public DateTime? Stop;      // UTC, when a manual session was stopped
+    public string? CustomKey;   // the key of a manual session: its start time
 
-    /// <summary>Stable id for saving your own notes: the id of the earliest mission.</summary>
-    public string Key => Missions.Count > 0 ? Missions[0].Id : "";
+    /// <summary>Stable id for saving your own notes: the id of the earliest mission (a manual session: its start time).</summary>
+    public string Key => CustomKey ?? (Missions.Count > 0 ? Missions[0].Id : "");
 }
 
 public sealed class SessionSummary
@@ -19,6 +22,7 @@ public sealed class SessionSummary
     public DateTime Start;      // UTC
     public DateTime? End;       // UTC, time of the last completed mission
     public int Completed;
+    public int Active;          // missions accepted but not completed yet
     public int Total;
 }
 
@@ -54,12 +58,48 @@ public static class SessionBuilder
         return times.Count > 0 ? times.Max() : lastLogTime;
     }
 
-    /// <summary>Missions that overlap in time (with a 30 minute gap allowed) form one session.</summary>
-    public static List<SessionGroup> Build(HaulingLog log)
+    /// <summary>
+    /// Sessions you started by hand come first: a mission belongs to the one that was running when it ended
+    /// (a mission that is still going belongs to the one that is running now). Everything else forms sessions by itself.
+    /// </summary>
+    public static List<SessionGroup> Build(HaulingLog log, IReadOnlyList<ManualSession>? manual = null)
     {
+        var claimed = new HashSet<string>();
         var groups = new List<SessionGroup>();
+        foreach (var w in (manual ?? Array.Empty<ManualSession>()).OrderBy(x => x.StartUtc))
+        {
+            var stop = w.StopUtc ?? DateTime.MaxValue;
+            var g = new SessionGroup
+            {
+                Start = w.StartUtc,
+                End = w.StopUtc ?? (log.LastTime > w.StartUtc ? log.LastTime : w.StartUtc),
+                Manual = true,
+                Stop = w.StopUtc,
+                CustomKey = "manual-" + w.StartUtc.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture),
+            };
+            foreach (var m in log.Missions.Values.Where(x => x.IsHauling && !x.Dead).OrderBy(MissionStart))
+            {
+                if (claimed.Contains(m.Id)) continue;
+                var t = m.EndedAt ?? log.LastTime;
+                if (t < w.StartUtc || t > stop) continue;
+                g.Missions.Add(m);
+                claimed.Add(m.Id);
+            }
+            foreach (var m in log.Missions.Values.Where(x => x.IsHauling && x.Dead))
+            {
+                if (claimed.Contains(m.Id)) continue;
+                var t = m.EndedAt ?? MissionStart(m);
+                if (t == DateTime.MinValue || t < w.StartUtc || t > stop) continue;
+                g.Failed.Add(m);
+                claimed.Add(m.Id);
+            }
+            if (g.Missions.Count > 0 || !w.StopUtc.HasValue) groups.Add(g);   // a running session is shown from the start, before its first mission
+        }
+        var manualGroups = groups.ToList();
+        groups = new List<SessionGroup>();
+
         var missions = log.Missions.Values
-            .Where(m => m.IsHauling && !m.Dead)
+            .Where(m => m.IsHauling && !m.Dead && !claimed.Contains(m.Id))
             .OrderBy(MissionStart)
             .ToList();
 
@@ -81,13 +121,48 @@ public static class SessionBuilder
             }
         }
         // failed and abandoned missions: kept apart, so their cargo shows up as lost value
-        foreach (var m in log.Missions.Values.Where(m => m.IsHauling && m.Dead))
+        foreach (var m in log.Missions.Values.Where(m => m.IsHauling && m.Dead && !claimed.Contains(m.Id)))
         {
             var start = MissionStart(m);
             if (start == DateTime.MinValue) continue;
             groups.FirstOrDefault(g => start >= g.Start - Gap && start <= g.End + Gap)?.Failed.Add(m);
         }
-        return groups;
+        groups.AddRange(manualGroups);
+        return groups.OrderBy(g => g.Start).ToList();
+    }
+
+    /// <summary>
+    /// The time a session really took: the stretches between activity, but not the long breaks (more than 30 minutes with nothing happening).
+    /// So a manual session that goes on over several days does not count the nights. runningUntil = now while the session is running.
+    /// </summary>
+    public static TimeSpan ActiveTime(SessionGroup g, DateTime? runningUntil)
+    {
+        var points = new List<DateTime> { g.Start };
+        void See(DateTime? t)
+        {
+            if (t.HasValue && t.Value >= g.Start) points.Add(t.Value);
+        }
+        foreach (var m in g.Missions)
+        {
+            See(m.Accepted);
+            See(m.FirstSeen);
+            See(m.EndedAt);
+            foreach (var list in m.Events.Values)
+            {
+                foreach (var e in list) See(e.Time);
+            }
+        }
+        if (g.Stop.HasValue) points.Add(g.Stop.Value);
+        else if (runningUntil.HasValue) points.Add(runningUntil.Value);
+        points.Sort();
+
+        var total = TimeSpan.Zero;
+        for (var i = 1; i < points.Count; i++)
+        {
+            var gap = points[i] - points[i - 1];
+            if (gap <= Gap) total += gap;
+        }
+        return total;
     }
 
     /// <summary>
@@ -120,8 +195,9 @@ public static class SessionBuilder
         return new SessionSummary
         {
             Start = g.Start,
-            End = LastActivity(g),
+            End = g.Stop ?? LastActivity(g),
             Completed = done.Count,
+            Active = g.Missions.Count(m => !m.Completed),
             Total = g.Missions.Count,
         };
     }

@@ -41,6 +41,13 @@ public sealed record WorkerStat
     public double Distance { get; set; }     // distance travelled in the completed runs, in Gm (Ruin, the pickups, back to Ruin)
 }
 
+/// <summary>A session you started (and stopped) by hand: it reads the logs from the start to the stop, or to now while it runs. It can go on for days.</summary>
+public sealed class ManualSession
+{
+    public DateTime StartUtc { get; set; }
+    public DateTime? StopUtc { get; set; }   // null = still running
+}
+
 /// <summary>What you typed yourself for one session.</summary>
 public sealed class SessionInputs
 {
@@ -86,6 +93,7 @@ public sealed class AppData
     public List<string> InactiveParty { get; set; } = new();   // party members that are not shown in the party list of the Session tab
     public bool DarkMode { get; set; }   // the dark look
     public string? Channel { get; set; }   // Auto, LIVE, HOTFIX...
+    public List<ManualSession> ManualSessions { get; set; } = new();   // started and stopped with the Start Session / Stop Session buttons
     public bool WebView { get; set; }      // the read-only live web view is switched on
     public int WebViewPort { get; set; } = 8765;   // the port of the live web view (on this computer only)
     public Dictionary<string, int> ShipCapacity { get; set; } = new();   // worker -> batches his ship holds (the Trip Planner), 0 = not flying

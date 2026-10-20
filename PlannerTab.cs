@@ -2,37 +2,83 @@ using System.Globalization;
 
 namespace HaulingTracker;
 
-// The Trip Planner tab: divides the open batches over the whole crew, each with a ship that holds a few batches, so that
-// everybody flies as little as possible and the crew finishes at about the same time.
+// The Trip Planner tab. It divides the open batches over the crew (the active party, each with a Batch Capacity) and shows
+// the trips on two kinds of pages: an Overview with everybody, and a page for every crew member. A page has a map of Pyro with
+// the planned trips and a table: the runs so far (coloured like Cargo Runs) followed by the planned trips.
 public sealed partial class MainForm
 {
     const int DefaultShipCapacity = 3;
     const int MaxShipCapacity = 24;
 
-    readonly DataGridView _crewGrid = new();
+    // routes on the map: colours that cannot be mistaken for the run colours (green, orange, red, yellow)
+    static readonly Color[] MapPalette =
+    {
+        Color.FromArgb(70, 130, 255), Color.FromArgb(210, 70, 180), Color.FromArgb(0, 170, 160),
+        Color.FromArgb(140, 100, 220), Color.FromArgb(150, 110, 70), Color.FromArgb(90, 190, 230),
+    };
+
+    /// <summary>One line of a table: a run that is done (or on the way), or a planned trip.</summary>
+    sealed class PlanRow
+    {
+        public string Label = "";
+        public string Route = "";
+        public string Batches = "";
+        public int BatchCount;           // batches picked up or planned, for Gm per batch
+        public double Gm;
+        public string Level = "plan";    // done, little, all, active, plan
+        public List<string> Stops = new();   // station ids in flying order
+        public PlannedTrip? Trip;
+        public bool IsPlan => Level == "plan";
+    }
+
+    sealed class PlanWorkerView
+    {
+        public string Name = "";
+        public int Capacity;
+        public Color Color;
+        public List<PlanRow> Rows = new();
+        public List<PlanRow> Planned => Rows.Where(r => r.IsPlan).ToList();
+    }
+
+    sealed class PlanView
+    {
+        public string Signature = "";
+        public string Summary = "";
+        public string Note = "";
+        public List<PlanWorkerView> Workers = new();
+    }
+
+    sealed class PlanCore
+    {
+        public string Key = "";
+        public List<PlannedTrip> Trips = new();
+        public int Batches;
+        public string Note = "";
+    }
+
     readonly Button _planBtn = new();
     readonly Label _planSummary = new();
     readonly Label _planNote = new();
-    readonly DataGridView _planGrid = new();
-    bool _planFilling;   // the crew table is being filled by the program, not by you
+    readonly ThemedTabControl _planTabs = new();   // Overview and one page per crew member
+    string _planShown = "";                        // what the pages show now, so they are only rebuilt when it changes
+    PlanCore? _planCore;
 
     Control BuildPlannerPage()
     {
-        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 7, Padding = new Padding(12) };
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, Padding = new Padding(12) };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));    // title
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));    // hint
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 150));   // crew
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));    // button
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));    // summary
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));    // note
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // the plan
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // the pages
 
         t.Controls.Add(Caption("Trip Planner", "Divides the open batches over the crew, so everybody flies as little as possible and you finish together"), 0, 0);
 
         var hint = new Label
         {
-            Text = "The active party members (Options → Party) are the crew. Type how many batches each ship holds, 0 if somebody is not flying.",
+            Text = "Who flies and how many batches each ship holds is set in Options → Party…  (Active and Batch Capacity). Green = done, orange = some cargo lost, red = all lost, yellow = on the way.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Color.DimGray,
@@ -40,43 +86,31 @@ public sealed partial class MainForm
         };
         t.Controls.Add(hint, 0, 1);
 
-        StyleGrid(_crewGrid);
-        _crewGrid.Dock = DockStyle.Fill;
-        _crewGrid.AllowUserToAddRows = false;
-        _crewGrid.AllowUserToDeleteRows = false;
-        _crewGrid.Columns.Add(Col("Crew", 260, true, DataGridViewContentAlignment.MiddleLeft));
-        _crewGrid.Columns.Add(Col("Ship holds (batches)", 170, false, DataGridViewContentAlignment.MiddleCenter, true));
-        _crewGrid.CellEndEdit += CrewGrid_CellEndEdit;
-        t.Controls.Add(_crewGrid, 0, 2);
-
         StyleButton(_planBtn, "Plan Trips");
         _planBtn.Margin = new Padding(0, 5, 0, 5);
-        _planBtn.Click += (_, _) => RefreshPlanner();
+        _planBtn.Click += (_, _) =>
+        {
+            _planCore = null;
+            _planShown = "";
+            RefreshPlanner();
+        };
         var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0) };
         bar.Controls.Add(_planBtn);
-        t.Controls.Add(bar, 0, 3);
+        t.Controls.Add(bar, 0, 2);
 
         _planSummary.Dock = DockStyle.Fill;
         _planSummary.TextAlign = ContentAlignment.MiddleLeft;
         _planSummary.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
-        t.Controls.Add(_planSummary, 0, 4);
+        t.Controls.Add(_planSummary, 0, 3);
         _planNote.Dock = DockStyle.Fill;
         _planNote.TextAlign = ContentAlignment.MiddleLeft;
         _planNote.ForeColor = Color.DimGray;
         _planNote.Tag = "muted";
-        t.Controls.Add(_planNote, 0, 5);
+        t.Controls.Add(_planNote, 0, 4);
 
-        StyleGrid(_planGrid);
-        _planGrid.Dock = DockStyle.Fill;
-        _planGrid.AllowUserToAddRows = false;
-        _planGrid.AllowUserToDeleteRows = false;
-        _planGrid.Columns.Add(Col("Worker", 120, true));
-        _planGrid.Columns.Add(Col("Trip", 55, true));
-        _planGrid.Columns.Add(Col("Route (Ruin, then these, then back to Ruin)", 480, true, DataGridViewContentAlignment.MiddleLeft, true));
-        _planGrid.Columns.Add(Col("Batches", 90, true));
-        _planGrid.Columns.Add(Col("Distance", 110, true, DataGridViewContentAlignment.MiddleRight));
-        _planGrid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
-        t.Controls.Add(_planGrid, 0, 6);
+        _planTabs.Dock = DockStyle.Fill;
+        _planTabs.Margin = new Padding(0);
+        t.Controls.Add(_planTabs, 0, 5);
         return t;
     }
 
@@ -85,52 +119,68 @@ public sealed partial class MainForm
 
     List<string> ActiveCrew() => _data.Party.Where(n => !_data.InactiveParty.Any(x => SameName(x, n))).ToList();
 
-    void FillCrew()
-    {
-        var crew = ActiveCrew();
-        var same = _crewGrid.Rows.Count == crew.Count;
-        for (var i = 0; same && i < crew.Count; i++)
-        {
-            same = (string?)_crewGrid.Rows[i].Cells[0].Value == crew[i]
-                && Convert.ToString(_crewGrid.Rows[i].Cells[1].Value) == ShipCapacityOf(crew[i]).ToString(CultureInfo.InvariantCulture);
-        }
-        if (same || _crewGrid.IsCurrentCellInEditMode) return;   // nothing changed, or you are typing
+    static string RouteText(PlannedTrip trip) =>
+        string.Join("  →  ", trip.Stops.Select(s => PyroDistances.NameOf(s.Id) + " ×" + s.Batches));
 
-        _planFilling = true;
-        try
-        {
-            _crewGrid.Rows.Clear();
-            foreach (var name in crew) _crewGrid.Rows.Add(name, ShipCapacityOf(name));
-        }
-        finally
-        {
-            _planFilling = false;
-        }
+    static string PlanTitle(PlanWorkerView w)
+    {
+        var planned = w.Planned;
+        var done = w.Rows.Count - planned.Count;
+        var text = w.Name + "  –  ship holds " + w.Capacity + (w.Capacity == 1 ? " batch" : " batches") + "  –  "
+            + done + (done == 1 ? " run so far" : " runs so far") + "  –  ";
+        text += planned.Count == 0
+            ? "nothing planned"
+            : planned.Count + (planned.Count == 1 ? " trip planned (" : " trips planned (") + planned.Sum(r => r.BatchCount) + " batches, " + Gm(planned.Sum(r => r.Gm)) + ")";
+        return text;
     }
 
-    void CrewGrid_CellEndEdit(object? sender, DataGridViewCellEventArgs e)
+    /// <summary>Red = all cargo lost, orange = some lost, green = done, yellow = on the way. Planned trips have no colour.</summary>
+    static Color? RowColor(PlanRow r) => r.Level switch
     {
-        if (_planFilling || e.RowIndex < 0 || e.ColumnIndex != 1) return;
-        var row = _crewGrid.Rows[e.RowIndex];
-        var name = Convert.ToString(row.Cells[0].Value) ?? "";
-        if (name.Length == 0) return;
+        "all" => LostRed,
+        "little" => LostOrange,
+        "done" => DoneGreen,
+        "active" => PartialYellow,
+        _ => null,
+    };
 
-        var text = (Convert.ToString(row.Cells[1].Value) ?? "").Trim();
-        var capacity = int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var typed) ? Math.Clamp(typed, 0, MaxShipCapacity) : ShipCapacityOf(name);
-        _data.ShipCapacity[name] = capacity;
-        Storage.Save(_data);
-        row.Cells[1].Value = capacity;
-        RefreshPlanner();
+    /// <summary>The runs of one worker in the selected session, oldest first, as lines for his table.</summary>
+    List<PlanRow> RunRows(string name)
+    {
+        var rows = new List<PlanRow>();
+        foreach (var t in _trips.Where(x => SameName(x.Worker, name)).OrderBy(RunStartedAt))
+        {
+            var level = t.Manual ? "All" : LostLevel(t.Key);
+            var stops = new List<string>();
+            var parts = new List<(string Name, int N)>();
+            var picked = 0;
+            foreach (var p in t.Pickups.OrderBy(x => x.Time))
+            {
+                var n = p.MissionIds.Count > 0 ? p.MissionIds.Count : p.Missions;
+                picked += n;
+                var shown = LocationName(p.Zone);
+                if (parts.Count > 0 && parts[^1].Name == shown) parts[^1] = (shown, parts[^1].N + n);
+                else parts.Add((shown, n));
+                var id = StationOf(p.Zone);
+                if (id != null) stops.Add(id);
+            }
+            rows.Add(new PlanRow
+            {
+                Label = "Run #" + t.Number,
+                Route = string.Join("  →  ", parts.Select(x => x.Name + " ×" + x.N)),
+                Batches = level == "All" ? "failed" : t.End.HasValue ? t.HandedIn.ToString(CultureInfo.InvariantCulture) : picked.ToString(CultureInfo.InvariantCulture),
+                BatchCount = picked,
+                Gm = stops.Count > 0 ? PyroDistances.Run(stops) : 0,
+                Level = level == "All" ? "all" : level == "Little" ? "little" : t.End.HasValue ? "done" : "active",
+                Stops = stops,
+            });
+        }
+        return rows;
     }
 
-    /// <summary>Plans the trips for the open batches of the selected session. It only runs while the Trip Planner tab is on screen.</summary>
-    void RefreshPlanner()
+    /// <summary>The plan for the open batches of the selected session, with the runs so far. The trips are only worked out again when the batches or the crew change.</summary>
+    PlanView GetPlan()
     {
-        FillCrew();
-        _planGrid.Rows.Clear();
-        _planSummary.Text = "";
-        _planNote.Text = "";
-
         var crew = ActiveCrew().Select(n => (Name: n, Capacity: ShipCapacityOf(n))).ToList();
         var remaining = new Dictionary<string, int>();
         var unknown = new List<string>();
@@ -150,59 +200,206 @@ public sealed partial class MainForm
             }
         }
 
+        var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity))
+            + "#" + string.Join("|", remaining.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + ":" + kv.Value))
+            + "#" + string.Join("|", unknown);
+        if (_planCore == null || _planCore.Key != key)
+        {
+            var note = "Planning every open batch, whoever is assigned to the location now.";
+            if (unknown.Count > 0) note += " Not in the distance table, so left out: " + string.Join(", ", unknown) + ".";
+            _planCore = new PlanCore { Key = key, Trips = TripPlanner.Plan(remaining, crew), Batches = remaining.Values.Sum(), Note = note };
+        }
+        var core = _planCore;
+
+        var plan = new PlanView { Note = core.Note };
         var flying = crew.Where(c => c.Capacity > 0).ToList();
-        var batches = remaining.Values.Sum();
-        var trips = TripPlanner.Plan(remaining, crew);
+        for (var i = 0; i < flying.Count; i++)
+        {
+            var c = flying[i];
+            var w = new PlanWorkerView { Name = c.Name, Capacity = c.Capacity, Color = MapPalette[i % MapPalette.Length] };
+            w.Rows.AddRange(RunRows(c.Name));
+            var mine = core.Trips.Where(t => t.Worker == c.Name).ToList();
+            for (var k = 0; k < mine.Count; k++)
+            {
+                w.Rows.Add(new PlanRow
+                {
+                    Label = k == 0 ? "Next" : "Plan " + (k + 1),
+                    Route = RouteText(mine[k]),
+                    Batches = mine[k].Batches + "/" + c.Capacity,
+                    BatchCount = mine[k].Batches,
+                    Gm = mine[k].Distance,
+                    Level = "plan",
+                    Stops = mine[k].Stops.Select(s => s.Id).ToList(),
+                    Trip = mine[k],
+                });
+            }
+            plan.Workers.Add(w);
+        }
+
+        var planned = plan.Workers.SelectMany(w => w.Planned).ToList();
         if (flying.Count == 0)
         {
-            _planSummary.Text = "Nobody is flying. Type how many batches a ship holds for at least one crew member.";
+            plan.Summary = "Nobody is flying. Tick Active and set a Batch Capacity for the crew in Options → Party…";
         }
-        else if (trips.Count == 0)
+        else if (planned.Count == 0)
         {
-            _planSummary.Text = "No open batches to pick up.";
+            plan.Summary = "No open batches to pick up.";
         }
         else
         {
-            var totals = flying.Select(c => (c.Name, Gm: trips.Where(t => t.Worker == c.Name).Sum(t => t.Distance))).ToList();
-            var longest = totals.OrderByDescending(x => x.Gm).First();
-            _planSummary.Text = trips.Count + " trips, " + Gm(totals.Sum(x => x.Gm)) + " in total for " + batches + " batches. Longest: "
-                + longest.Name + " with " + Gm(longest.Gm) + ".";
+            var longest = plan.Workers.OrderByDescending(w => w.Planned.Sum(r => r.Gm)).First();
+            plan.Summary = planned.Count + " trips planned, " + Gm(planned.Sum(r => r.Gm)) + " in total for " + core.Batches + " batches. Longest: "
+                + longest.Name + " with " + Gm(longest.Planned.Sum(r => r.Gm)) + ".";
         }
 
-        var note = "Planning every open batch, whoever is assigned to the location now.";
-        if (unknown.Count > 0) note += " Not in the distance table, so left out: " + string.Join(", ", unknown) + ".";
-        _planNote.Text = note;
+        plan.Signature = plan.Summary + "¦" + (Theme.Dark ? "dark" : "light") + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
+            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Route + "|" + r.Batches + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture))));
+        return plan;
+    }
 
-        foreach (var c in flying)
+    /// <summary>Shows the plan on its pages. It only runs while the Trip Planner tab is on screen.</summary>
+    void RefreshPlanner()
+    {
+        var plan = GetPlan();
+        _planSummary.Text = plan.Summary;
+        _planNote.Text = plan.Note;
+        if (plan.Signature == _planShown) return;   // nothing changed, so nothing flickers
+        _planShown = plan.Signature;
+
+        var selected = _planTabs.SelectedTab?.Text ?? "Overview";
+        _planTabs.SuspendLayout();
+        foreach (var old in _planTabs.TabPages.Cast<TabPage>().ToList())
         {
-            var mine = trips.Where(t => t.Worker == c.Name).ToList();
-            var number = 1;
-            foreach (var trip in mine)
-            {
-                var route = string.Join("  →  ", trip.Stops.Select(s => PyroDistances.NameOf(s.Id) + " ×" + s.Batches));
-                var idx = _planGrid.Rows.Add(
-                    c.Name,
-                    number++,
-                    route,
-                    trip.Batches + "/" + c.Capacity,
-                    Gm(trip.Distance),
-                    (trip.Distance / trip.Batches).ToString("N1", CultureInfo.InvariantCulture));
-                _planGrid.Rows[idx].Cells[3].Style.BackColor = trip.Batches >= c.Capacity ? DoneGreen : PartialYellow;   // green = full ship
-            }
-
-            var sumBatches = mine.Sum(t => t.Batches);
-            var sumGm = mine.Sum(t => t.Distance);
-            var sub = _planGrid.Rows.Add(
-                c.Name,
-                "",
-                mine.Count == 0 ? "No trips" : "Total: " + mine.Count + " trips",
-                sumBatches == 0 ? "" : sumBatches.ToString(CultureInfo.InvariantCulture),
-                sumGm == 0 ? "" : Gm(sumGm),
-                sumBatches == 0 ? "" : (sumGm / sumBatches).ToString("N1", CultureInfo.InvariantCulture));
-            var subRow = _planGrid.Rows[sub];
-            subRow.DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
-            subRow.DefaultCellStyle.BackColor = CalcBlue;
+            _planTabs.TabPages.Remove(old);
+            old.Dispose();
         }
+        _planTabs.TabPages.Add(PlanPage("Overview", plan, null));
+        foreach (var w in plan.Workers) _planTabs.TabPages.Add(PlanPage(w.Name, plan, w));
+        var keep = _planTabs.TabPages.Cast<TabPage>().FirstOrDefault(p => p.Text == selected);
+        if (keep != null) _planTabs.SelectedTab = keep;
+        _planTabs.ResumeLayout(true);
+        _planTabs.RefreshStyle();
+    }
+
+    /// <summary>A page: the map on the left, the tables on the right. only = null is the overview with everybody.</summary>
+    TabPage PlanPage(string title, PlanView plan, PlanWorkerView? only)
+    {
+        var page = new TabPage(title) { BackColor = Theme.Window };
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Padding = new Padding(8) };
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 500));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var map = new PyroMapView { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 10, 0) };
+        var host = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
+        host.Resize += (_, _) => FitPlanBlocks(host);
+
+        var workers = only == null ? plan.Workers : new List<PlanWorkerView> { only };
+        if (only == null)
+        {
+            // everybody: one colour per worker, his next trip in bold
+            foreach (var w in workers)
+            {
+                var k = 0;
+                foreach (var r in w.Planned)
+                {
+                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, Bold = k == 0, Tag = r });
+                    k++;
+                }
+            }
+        }
+        else
+        {
+            // one worker: a colour per trip, the next one in bold (click a planned trip in the table to bold that one)
+            var k = 0;
+            foreach (var r in only.Planned)
+            {
+                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = MapPalette[k % MapPalette.Length], Stops = r.Stops, Bold = k == 0, Tag = r });
+                k++;
+            }
+        }
+
+        Action<PlanRow>? onSelect = null;
+        if (only != null)
+        {
+            onSelect = row =>
+            {
+                foreach (var route in map.Routes) route.Bold = ReferenceEquals(route.Tag, row);
+                map.Invalidate();
+            };
+        }
+        foreach (var w in workers) host.Controls.Add(PlanBlock(w, onSelect));
+        FitPlanBlocks(host);
+
+        t.Controls.Add(map, 0, 0);
+        t.Controls.Add(host, 1, 0);
+        page.Controls.Add(t);
+        return page;
+    }
+
+    static void FitPlanBlocks(FlowLayoutPanel host)
+    {
+        var width = Math.Max(400, host.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 6);
+        foreach (Control c in host.Controls) c.Width = width;
+    }
+
+    /// <summary>A title and the table of one crew member: the runs so far, then the planned trips.</summary>
+    Control PlanBlock(PlanWorkerView w, Action<PlanRow>? onSelect)
+    {
+        var block = new Panel { Margin = new Padding(0, 0, 0, 14) };
+        var label = new Label
+        {
+            Text = PlanTitle(w),
+            Dock = DockStyle.Top,
+            Height = 30,
+            Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+            ForeColor = Theme.Text,
+            TextAlign = ContentAlignment.BottomLeft,
+        };
+        var height = label.Height;
+
+        if (w.Rows.Count > 0)
+        {
+            var grid = new DataGridView();
+            StyleGrid(grid);
+            grid.Dock = DockStyle.Top;
+            grid.AllowUserToAddRows = false;
+            grid.AllowUserToDeleteRows = false;
+            grid.ScrollBars = ScrollBars.None;
+            grid.Columns.Add(Col("Trip", 80, true));
+            grid.Columns.Add(Col("Route (Ruin, then these, then back to Ruin)", 460, true, DataGridViewContentAlignment.MiddleLeft, true));
+            grid.Columns.Add(Col("Batches", 80, true));
+            grid.Columns.Add(Col("Distance", 110, true, DataGridViewContentAlignment.MiddleRight));
+            grid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
+            var boldFont = new Font("Segoe UI", 10f, FontStyle.Bold);
+            foreach (var r in w.Rows)
+            {
+                var idx = grid.Rows.Add(
+                    r.Label,
+                    r.Route,
+                    r.Batches,
+                    r.Gm > 0 ? Gm(r.Gm) : "",
+                    r.Gm > 0 && r.BatchCount > 0 ? (r.Gm / r.BatchCount).ToString("N1", CultureInfo.InvariantCulture) : "");
+                var row = grid.Rows[idx];
+                row.Tag = r;
+                if (RowColor(r) is { } color) row.DefaultCellStyle.BackColor = color;
+                if (r.Label == "Next") row.DefaultCellStyle.Font = boldFont;
+            }
+            if (onSelect != null)
+            {
+                grid.SelectionChanged += (_, _) =>
+                {
+                    if (grid.CurrentRow?.Tag is PlanRow picked && picked.IsPlan) onSelect(picked);
+                };
+            }
+            grid.Height = grid.ColumnHeadersHeight + w.Rows.Count * grid.RowTemplate.Height + 3;
+            height += grid.Height;
+            block.Controls.Add(grid);   // added first, so the title sits above it
+        }
+
+        block.Controls.Add(label);
+        block.Height = height;
+        return block;
     }
 
     static string Gm(double v) => v.ToString("N1", CultureInfo.InvariantCulture) + " Gm";

@@ -30,6 +30,9 @@ static class PyroDistances
 
     public static string NameOf(string id) => Stations.First(s => s.Id == id).Name;
 
+    /// <summary>Every station with its position on the top-down map (pixels of the 3840x2160 map), Ruin included.</summary>
+    public static IEnumerable<(string Id, string Name, double X, double Y)> Points => Stations.Select(s => (s.Id, s.Name, s.X, s.Y));
+
     /// <summary>The station for the last 5 digits of a location id, or null when it is not in the table.</summary>
     public static string? IdOfTail(string tail) =>
         Stations.Any(s => s.Id == tail && s.Id != Ruin) ? tail : null;

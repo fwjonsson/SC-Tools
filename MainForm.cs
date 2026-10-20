@@ -28,6 +28,9 @@ public sealed partial class MainForm : Form
     SessionSummary? _summary;
     List<LocationRow> _rows = new();       // every pickup location of the session (the totals and the saved numbers use these)
     List<LocationRow> _openRows = new();   // only the locations of missions that are not completed yet (the pickup table shows these)
+    List<LocationRow> _doneRows = new();   // locations whose missions are all completed, from the current set of missions (the finished stops table shows these)
+    readonly DataGridView _doneGrid = new();
+    Label? _doneTitle;
     decimal _revenue;
     int _renderedVersion = -1;
     bool _updating;
@@ -49,6 +52,7 @@ public sealed partial class MainForm : Form
     readonly Label _revenueVal = new();
     readonly Label _hourlyVal = new();
     readonly Label _missionsDoneVal = new();
+    readonly Label _missionsActiveVal = new();
 
     readonly DataGridView _rewards = new();
     readonly Label _rewardsTotalMissions = new();
@@ -98,6 +102,7 @@ public sealed partial class MainForm : Form
             if (IsHandleCreated && !IsDisposed) BeginInvoke(new Action(() => SetStatus("Could not save the data file: " + msg)));
         };
 
+        InitSessionButtons();
         ClearView();
         InitWebView();
         SetStatus("Open a log file, or press \"Watch live Game.log\" while you play.");
@@ -148,18 +153,23 @@ public sealed partial class MainForm : Form
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 306));   // both rows are fitted to the boards by FitTopArea
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 130));
 
-        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = new Padding(0) };
+        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Margin = new Padding(0) };
         left.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
+        left.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));    // the finished stops: shown when there are some
+        left.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
         left.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         BuildLogGrid();
+        BuildDoneGrid();
         BuildStatsGrid();
-        FitColumns(_logGrid);     // these two never scroll: the columns share the width instead
+        FitColumns(_logGrid);     // these never scroll: the columns share the width instead
+        FitColumns(_doneGrid);
         FitColumns(_statsGrid);
         _logGrid.Margin = new Padding(0, 3, 3, 3);     // the right gap keeps it clear of the summary tables
+        _doneGrid.Margin = new Padding(0, 3, 3, 3);
         _statsGrid.Margin = new Padding(0, 3, 0, 3);   // runs to the right edge, like the run board
-        foreach (var grid in new[] { _logGrid, _statsGrid })
+        foreach (var grid in new[] { _logGrid, _doneGrid, _statsGrid })
         {
             grid.RowsAdded += (_, _) => FitTopArea();
             grid.RowsRemoved += (_, _) => FitTopArea();
@@ -167,6 +177,11 @@ public sealed partial class MainForm : Form
         Shown += (_, _) => FitTopArea();
         left.Controls.Add(SectionTitle("Hauling Tracker"), 0, 0);
         left.Controls.Add(_logGrid, 0, 1);
+        _doneTitle = SectionTitle("Finished Stops");
+        _doneTitle.Visible = false;
+        _doneGrid.Visible = false;
+        left.Controls.Add(_doneTitle, 0, 2);
+        left.Controls.Add(_doneGrid, 0, 3);
 
         var board = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
         board.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -233,6 +248,8 @@ public sealed partial class MainForm : Form
                 return g.ColumnHeadersHeight + Math.Max(rows, g.RowTemplate.Height) + 4 + g.Margin.Vertical;
             }
             var pickups = Need(_logGrid);
+            var done = Need(_doneGrid);
+            var hasDone = _doneGrid.Rows.Count > 0;
             var leaders = Need(_statsGrid);
 
             // set the heights, then check that every row really is shown and add what is missing
@@ -241,7 +258,11 @@ public sealed partial class MainForm : Form
                 var title = _left.GetRowHeights().FirstOrDefault();   // as drawn, also on a scaled screen
                 if (title <= 0) title = TitleHeight;
                 _left.RowStyles[1].Height = pickups;
-                var row0 = Math.Max(title + pickups, TitleHeight + 138 + 14 + 170 + 6);   // the summary on the right needs its own height too
+                if (_doneTitle != null) _doneTitle.Visible = hasDone;
+                _doneGrid.Visible = hasDone;
+                _left.RowStyles[2].Height = hasDone ? title : 0;
+                _left.RowStyles[3].Height = hasDone ? done : 0;
+                var row0 = Math.Max(title + pickups + (hasDone ? title + done : 0), TitleHeight + 138 + 14 + 196 + 6);   // the summary on the right needs its own height too
                 var row1 = title + leaders;
                 _main.RowStyles[0].Height = row0;
                 _main.RowStyles[1].Height = row1;
@@ -252,7 +273,9 @@ public sealed partial class MainForm : Form
 
                 var missingPickups = _logGrid.Rows.Count - _logGrid.DisplayedRowCount(false);
                 var missingLeaders = _statsGrid.Rows.Count - _statsGrid.DisplayedRowCount(false);
-                if (missingPickups <= 0 && missingLeaders <= 0) break;
+                var missingDone = hasDone ? _doneGrid.Rows.Count - _doneGrid.DisplayedRowCount(false) : 0;
+                if (missingPickups <= 0 && missingLeaders <= 0 && missingDone <= 0) break;
+                if (missingDone > 0) done += missingDone * _doneGrid.RowTemplate.Height;
                 if (missingPickups > 0) pickups += missingPickups * _logGrid.RowTemplate.Height;
                 if (missingLeaders > 0) leaders += missingLeaders * _statsGrid.RowTemplate.Height;
             }
@@ -292,7 +315,7 @@ public sealed partial class MainForm : Form
         _status.Tag = "muted";
         _status.Margin = new Padding(6, 8, 0, 0);
 
-        bar.Controls.AddRange(new Control[] { _sessionBox, _status });
+        bar.Controls.AddRange(new Control[] { _sessionBox, _startSessionBtn, _stopSessionBtn, _status });
         return bar;
     }
 
@@ -389,7 +412,7 @@ public sealed partial class MainForm : Form
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 138));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 196));
         p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // empty, so the clean table keeps its small rows
 
         // start / end / duration / totals, neutral and clean
@@ -398,12 +421,12 @@ public sealed partial class MainForm : Form
             Dock = DockStyle.Fill,
             Margin = new Padding(0),
             ColumnCount = 2,
-            RowCount = 6,
+            RowCount = 7,
             CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
         };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 175));
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        for (var i = 0; i < 6; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        for (var i = 0; i < 7; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
 
         ConfigureTimeBox(_startBox);
         ConfigureTimeBox(_endBox);
@@ -412,13 +435,15 @@ public sealed partial class MainForm : Form
         StyleValue(_revenueVal);
         StyleValue(_hourlyVal);
         StyleValue(_missionsDoneVal);
+        StyleValue(_missionsActiveVal);
 
         AddSummaryRow(t, 0, "Start Time", WrapInput(_startBox));
         AddSummaryRow(t, 1, "Session Time", _durationVal);
         AddSummaryRow(t, 2, "Batches Delivered", _missionsVal);
-        AddSummaryRow(t, 3, "Missions Completed", _missionsDoneVal);
-        AddSummaryRow(t, 4, "Total aUEC Earned", _revenueVal);
-        AddSummaryRow(t, 5, "aUEC/Hour", _hourlyVal);
+        AddSummaryRow(t, 3, "Active Missions", _missionsActiveVal);
+        AddSummaryRow(t, 4, "Missions Completed", _missionsDoneVal);
+        AddSummaryRow(t, 5, "Total aUEC Earned", _revenueVal);
+        AddSummaryRow(t, 6, "aUEC/Hour", _hourlyVal);
         p.Controls.Add(t, 0, 2);
 
         // the contract table on top, in the blue style of the other boards
@@ -522,6 +547,21 @@ public sealed partial class MainForm : Form
             if (_logGrid.IsCurrentCellDirty) _logGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
         };
         _logGrid.CellValueChanged += LogGrid_CellValueChanged;
+    }
+
+    /// <summary>The finished stops: pickup locations whose missions are all completed. Nothing to type here.</summary>
+    void BuildDoneGrid()
+    {
+        _doneGrid.Dock = DockStyle.Fill;
+        StyleGrid(_doneGrid);
+        _doneGrid.AllowUserToAddRows = false;
+        _doneGrid.AllowUserToDeleteRows = false;
+        _doneGrid.Columns.Add(Col("Pickup Location", 190, true, DataGridViewContentAlignment.MiddleLeft));
+        _doneGrid.Columns.Add(Col("From Ruin", 90, true, DataGridViewContentAlignment.MiddleRight));
+        _doneGrid.Columns.Add(Col("Delivered", 90, true));
+        _doneGrid.Columns.Add(Col("Worker", 150, true));
+        _doneGrid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
+        _doneGrid.Columns.Add(Col("Handed In", 120, true, DataGridViewContentAlignment.MiddleCenter, true));
     }
 
     void BuildTripGrid()
@@ -1149,8 +1189,9 @@ public sealed partial class MainForm : Form
         // the logs of all accounts are merged, a mission shared in the party appears once
         _log = HaulingLog.Merge(_logs);
 
-        var keep = _current?.Key;
-        _sessions = SessionBuilder.Build(_log);
+        var keep = _forceKey ?? _current?.Key;
+        _forceKey = null;
+        _sessions = SessionBuilder.Build(_log, _data.ManualSessions);
 
         _updating = true;
         try
@@ -1185,6 +1226,11 @@ public sealed partial class MainForm : Form
     {
         var s = SessionBuilder.Summarize(g);
         var start = s.Start.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture);
+        if (g.Manual)
+        {
+            var until = g.Stop.HasValue ? g.Stop.Value.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture) : "now";
+            return "Session: " + start + " to " + until + (g.Stop.HasValue ? "" : " (running)") + "  (" + g.Missions.Count + " missions)";
+        }
         var end = s.End.HasValue ? s.End.Value.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture) : "ongoing";
         return start + " to " + end + "  (" + g.Missions.Count + " missions)";
     }
@@ -1263,10 +1309,14 @@ public sealed partial class MainForm : Form
             if (WorkerTripBuilder.ResetWorkersForNewBatch(_current, _inputs)) Storage.Save(_data);   // new missions: a clean slate for the assigned workers
             _summary = SessionBuilder.Summarize(_current);
             _rows = SessionBuilder.Locations(_current);
-            // only the missions that are not completed yet; when there are none (you finished everything and did
-            // not accept new contracts yet) the finished ones stay on the table until you start adding new missions
+            // the pickup table shows the missions that are not completed yet. A location whose missions are all completed
+            // moves to the finished stops table below it, where it stays until the next set of missions begins
             _openRows = SessionBuilder.Locations(_current, true);
-            if (_openRows.Count == 0) _openRows = _rows;
+            var openZones = _openRows.Select(r => r.Zone).ToHashSet();
+            var since = _inputs.WorkersResetAt;
+            _doneRows = _rows
+                .Where(r => !openZones.Contains(r.Zone) && (since == null || (r.DeliveredTime ?? r.LoadedTime ?? DateTime.MinValue) >= since.Value))
+                .ToList();
 
             _startBox.Text = _inputs.Start ?? FormatTime(_summary.Start);
             _endBox.Text = _inputs.End ?? (_summary.End.HasValue ? FormatTime(_summary.End.Value) : "");
@@ -1303,6 +1353,8 @@ public sealed partial class MainForm : Form
             _summary = null;
             _rows = new List<LocationRow>();
             _openRows = new List<LocationRow>();
+            _doneRows = new List<LocationRow>();
+            _doneGrid.Rows.Clear();
             _startBox.Text = "";
             _endBox.Text = "";
             _rewards.Rows.Clear();
@@ -1320,6 +1372,7 @@ public sealed partial class MainForm : Form
         _revenueVal.Text = "";
         _hourlyVal.Text = "";
         _missionsDoneVal.Text = "";
+        _missionsActiveVal.Text = "";
         _rewardsTotalMissions.Text = "";
         _rewardsTotalRevenue.Text = "";
     }
@@ -1399,7 +1452,25 @@ public sealed partial class MainForm : Form
             ColorMissionsCell(row, r);
         }
 
-        if (_planGrid.Visible && _planGrid.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
+        // the finished stops: latest hand-in on top
+        _doneGrid.Rows.Clear();
+        foreach (var r in _doneRows.OrderByDescending(x => x.DeliveredTime ?? x.LoadedTime ?? DateTime.MinValue))
+        {
+            _inputs!.Rows.TryGetValue(r.Zone, out var inp);
+            var idx = _doneGrid.Rows.Add(
+                LocationName(r.Zone),
+                DistanceText(r.Zone),
+                r.Delivered + "/" + r.Missions,
+                inp?.Worker ?? "",
+                StopValueText(r),
+                DeliveredText(r));
+            var row = _doneGrid.Rows[idx];
+            row.Tag = r.Zone;
+            row.Cells[2].Style.BackColor = DoneGreen;
+        }
+        FitTopArea();
+
+        if (_planTabs.Visible && _planTabs.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
     }
 
     /// <summary>
@@ -1431,6 +1502,12 @@ public sealed partial class MainForm : Form
         {
             if (row.Tag is not string zone) continue;
             var info = _openRows.FirstOrDefault(x => x.Zone == zone);
+            if (info != null) row.Cells[4].Value = StopValueText(info);
+        }
+        foreach (DataGridViewRow row in _doneGrid.Rows)
+        {
+            if (row.Tag is not string zone) continue;
+            var info = _doneRows.FirstOrDefault(x => x.Zone == zone);
             if (info != null) row.Cells[4].Value = StopValueText(info);
         }
         foreach (DataGridViewRow row in _tripGrid.Rows)
@@ -1465,14 +1542,14 @@ public sealed partial class MainForm : Form
         using var f = new Form
         {
             Text = "Party",
-            ClientSize = new Size(380, 360),
+            ClientSize = new Size(500, 380),
             StartPosition = FormStartPosition.CenterParent,
             MinimizeBox = false,
             MaximizeBox = false,
             ShowInTaskbar = false,
             Font = Font,
         };
-        var label = new Label { Text = "Type a name in the empty row to add it. These are the choices in Assigned Worker. Untick Active to hide someone from the party list.", Dock = DockStyle.Top, Height = 48, Padding = new Padding(6, 6, 6, 0) };
+        var label = new Label { Text = "Type a name in the empty row to add it. These are the choices in Assigned Worker. Untick Active to hide someone from the party list. Batch Capacity is how many batches the ship holds per trip (the Trip Planner uses it).", Dock = DockStyle.Top, Height = 64, Padding = new Padding(6, 6, 6, 0) };
         var grid = new DataGridView();
         StyleGrid(grid);
         grid.Dock = DockStyle.Fill;
@@ -1480,9 +1557,14 @@ public sealed partial class MainForm : Form
         grid.AllowUserToDeleteRows = true;
         grid.Columns.Add(Col("Name", 240, false, DataGridViewContentAlignment.MiddleLeft, true));
         grid.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = "Active", Width = 80, SortMode = DataGridViewColumnSortMode.NotSortable });
+        grid.Columns.Add(Col("Batch Capacity", 130, false, DataGridViewContentAlignment.MiddleCenter));
         foreach (var name in _data.Party)
-            grid.Rows.Add(name, !_data.InactiveParty.Any(x => SameName(x, name)));
-        grid.DefaultValuesNeeded += (_, e) => e.Row.Cells[1].Value = true;
+            grid.Rows.Add(name, !_data.InactiveParty.Any(x => SameName(x, name)), Math.Max(1, ShipCapacityOf(name)));
+        grid.DefaultValuesNeeded += (_, e) =>
+        {
+            e.Row.Cells[1].Value = true;
+            e.Row.Cells[2].Value = DefaultShipCapacity;
+        };
 
         var ok = new Button { Text = "Save", AutoSize = true, DialogResult = DialogResult.OK };
         ok.Click += (_, _) => grid.EndEdit();
@@ -1497,6 +1579,7 @@ public sealed partial class MainForm : Form
 
         var party = new List<string>();
         var inactive = new List<string>();
+        var capacities = new Dictionary<string, int>(_data.ShipCapacity);
         foreach (DataGridViewRow row in grid.Rows)
         {
             if (row.IsNewRow) continue;
@@ -1504,9 +1587,13 @@ public sealed partial class MainForm : Form
             if (name.Length == 0 || party.Any(x => SameName(x, name))) continue;
             party.Add(name);
             if (row.Cells[1].Value is false) inactive.Add(name);
+            capacities[name] = int.TryParse((Convert.ToString(row.Cells[2].Value) ?? "").Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var typed)
+                ? Math.Clamp(typed, 1, MaxShipCapacity)
+                : DefaultShipCapacity;
         }
         _data.Party = party;
         _data.InactiveParty = inactive;
+        _data.ShipCapacity = capacities;
         Storage.Save(_data);
 
         _renderedVersion = -1;
@@ -1625,6 +1712,12 @@ public sealed partial class MainForm : Form
             start = local.ToUniversalTime();
         }
         var latest = _sessions.Count > 0 && _current.Key == _sessions[^1].Key;
+        if (_current.Manual && _inputs?.Start is not { Length: > 0 })
+        {
+            // a session you started by hand can go on for days: the breaks are not counted
+            var running = !_current.Stop.HasValue && _live && latest && HasOpenContracts();
+            return SessionBuilder.ActiveTime(_current, running ? DateTime.UtcNow : null);
+        }
         var active = _live && latest && HasOpenContracts() && (!_summary.End.HasValue || DateTime.UtcNow - _summary.End.Value < TimeSpan.FromMinutes(30));
         var end = active ? DateTime.UtcNow : _summary.End ?? start;
         var d = end - start;
@@ -1663,7 +1756,8 @@ public sealed partial class MainForm : Form
         var totalBatches = _rows.Sum(r => r.Missions);
         var doneBatches = _trips.Where(t => t.End.HasValue && _inputs != null && !RunFailed(t, _inputs)).Sum(t => t.Pickups.Sum(p => p.Missions));
         _missionsVal.Text = _summary == null || totalBatches == 0 ? "" : Math.Min(doneBatches, totalBatches) + "/" + totalBatches;
-        _missionsDoneVal.Text = _summary == null ? "" : _summary.Completed + "/" + _summary.Total;
+        _missionsDoneVal.Text = _summary == null ? "" : _summary.Completed.ToString(CultureInfo.InvariantCulture);
+        _missionsActiveVal.Text = _summary == null ? "" : _summary.Active.ToString(CultureInfo.InvariantCulture);
     }
 
     static bool TryTime(string text, out TimeSpan value) =>
