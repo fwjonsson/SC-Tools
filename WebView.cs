@@ -176,12 +176,12 @@ sealed class LiveWebServer : IDisposable
 
 <div id="viewS">
 <div class="top">
-  <div><h2>Pickup locations</h2><div class="scroll" id="pickups"></div>
+  <div><div class="scroll" id="pickups"></div>
     <div id="finishedBox"><h2>Finished stops</h2><div class="scroll" id="finished"></div></div></div>
   <div>
-    <h2>Contracts</h2><div class="scroll" id="rewards"></div>
-    <h2>Session</h2><div class="scroll" id="summary"></div>
-    <h2>Party</h2><div class="scroll" id="party"></div>
+    <div class="scroll" id="party"></div>
+    <div class="scroll" id="rewards" style="margin-top:12px"></div>
+    <div class="scroll" id="summary" style="margin-top:12px"></div>
   </div>
 </div>
 <h2>Session leaderboard</h2><div class="scroll" id="leaders"></div>
