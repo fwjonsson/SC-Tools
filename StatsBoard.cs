@@ -54,7 +54,7 @@ public sealed partial class MainForm
     static string Dist(double gm) => gm > 0 ? gm.ToString("N1", CultureInfo.InvariantCulture) + " Gm" : "";
 
     /// <summary>The station of a pickup location: by its location id, or by the name you gave it. Null when the distance table does not know it.</summary>
-    string? StationOf(string zone) => PyroDistances.IdOfTail(Tail(zone)) ?? PyroDistances.IdOfName(LocationName(zone));
+    string? StationOf(string zone) => PyroDistances.IdOfTail(StationKey(zone)) ?? PyroDistances.IdOfName(LocationName(zone));
 
     /// <summary>Gm flown in one run: Ruin, the pickup stations in the order they were visited, and back to Ruin. Locations missing from the table are skipped.</summary>
     static double RunDistance(WorkerTrip t, Func<string, string?> stationOf) =>

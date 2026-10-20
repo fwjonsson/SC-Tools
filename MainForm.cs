@@ -220,8 +220,22 @@ public sealed partial class MainForm : Form
     const int TitleHeight = 30;
     const int SideWidth = 420;     // the column on the right: the party, the contracts and the times
     const int ContractsHeight = 132;   // the contracts table: header and four rows
-    const int SummaryHeight = 182;     // the times and totals table: seven rows
-    const int SideTables = 2 * TitleHeight + ContractsHeight + SummaryHeight;   // the contracts and the summary tables with their titles, under the party
+    const int SummaryHeight = 190;     // the times and totals table: seven rows of 25 with their borders
+    TableLayoutPanel? _header;
+
+    /// <summary>The height the right column needs: the party, then the contracts and the times with their titles (as drawn, also on a scaled screen).</summary>
+    int SideNeed()
+    {
+        var h = _partyPanel?.PreferredSize.Height ?? _partyHeight;
+        if (_header != null)
+        {
+            foreach (RowStyle rs in _header.RowStyles)
+            {
+                if (rs.SizeType == SizeType.Absolute) h += (int)Math.Ceiling(rs.Height);
+            }
+        }
+        return h;
+    }
 
     /// <summary>
     /// The grid never scrolls, neither sideways nor up and down (FitTopArea gives it the height of all its rows).
@@ -274,7 +288,7 @@ public sealed partial class MainForm : Form
                 _doneGrid.Visible = hasDone;
                 _left.RowStyles[2].Height = hasDone ? title : 0;
                 _left.RowStyles[3].Height = hasDone ? done : 0;
-                var row0 = Math.Max(title + pickups + (hasDone ? title + done : 0), _partyHeight + SideTables);   // the party and the small tables on the right need their own height too
+                var row0 = Math.Max(title + pickups + (hasDone ? title + done : 0), SideNeed());   // the party and the small tables on the right need their own height too
                 var row1 = title + leaders;
                 _main.RowStyles[0].Height = row0;
                 _main.RowStyles[1].Height = row1;
@@ -418,7 +432,7 @@ public sealed partial class MainForm : Form
     /// <summary>The session summary on the right: the blue contract table on top, the clean times and totals table below it.</summary>
     Control BuildHeader()
     {
-        var p = new TableLayoutPanel
+        var p = _header = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
@@ -1309,6 +1323,9 @@ public sealed partial class MainForm : Form
 
     static string Tail(string zone) => zone.Length > 5 ? zone.Substring(zone.Length - 5) : zone;
 
+    /// <summary>The id of the station in the tables: found by the position the log gave (the same on every server), else the last digits of the location id.</summary>
+    static string StationKey(string zone) => StationIds.Of(zone) ?? Tail(zone);
+
     // Names found so far, keyed by the last digits of the location id. Your own names in the grid win.
     static readonly Dictionary<string, string> KnownNames = new()
     {
@@ -1329,7 +1346,7 @@ public sealed partial class MainForm : Form
     string LocationName(string zone)
     {
         if (_data.LocationNames.TryGetValue(zone, out var n) && !string.IsNullOrWhiteSpace(n)) return n;
-        if (KnownNames.TryGetValue(Tail(zone), out var known)) return known;
+        if (KnownNames.TryGetValue(StationKey(zone), out var known)) return known;
         return "Unknown ..." + Tail(zone);
     }
 
@@ -1450,6 +1467,18 @@ public sealed partial class MainForm : Form
 
         // a location nobody is assigned to gets the player the logs show picking up there (you can change it afterwards)
         var assignedNow = false;
+        var crew = ActiveCrew();
+        if (crew.Count == 1 && _inputs != null)
+        {
+            // only one flies: he does every stop that is not finished
+            foreach (var r in _pickupRows)
+            {
+                var input = GetRow(r.Zone);
+                if (!string.IsNullOrWhiteSpace(input.Worker)) continue;
+                input.Worker = crew[0];
+                assignedNow = true;
+            }
+        }
         if (_log != null && _current != null)
         {
             foreach (var r in _rows)

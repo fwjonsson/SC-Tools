@@ -55,7 +55,7 @@ public sealed class HaulingLog
     static readonly Regex Ts = new(@"^<(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+)Z> ", RegexOptions.Compiled);
 
     static readonly Regex Marker = new(
-        @"Creating objective marker: missionId \[(?<m>[0-9a-f-]{36})\], generator name \[[^\]]*\], contract \[(?<c>[^\]]*)\], contractDefinitionId\[[^\]]*\], objectiveId \[(?<o>[^\]]*)\], markerEntityId \[\d+\], zoneHostId \[(?<z>\d+)\]",
+        @"Creating objective marker: missionId \[(?<m>[0-9a-f-]{36})\], generator name \[[^\]]*\], contract \[(?<c>[^\]]*)\], contractDefinitionId\[[^\]]*\], objectiveId \[(?<o>[^\]]*)\], markerEntityId \[\d+\], zoneHostId \[(?<z>\d+)\](?:, position \[x: (?<px>-?[\d.]+), y: (?<py>-?[\d.]+), z: (?<pz>-?[\d.]+)\])?",
         RegexOptions.Compiled);
 
     static readonly Regex Upsert = new(
@@ -351,6 +351,11 @@ public sealed class HaulingLog
                 m.Multi = int.Parse(c.Groups["n"].Value, CultureInfo.InvariantCulture);
             }
             m.ObjZone[x.Groups["o"].Value] = x.Groups["z"].Value;
+            if (x.Groups["px"].Success
+                && double.TryParse(x.Groups["px"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var px)
+                && double.TryParse(x.Groups["py"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var py)
+                && double.TryParse(x.Groups["pz"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var pz))
+                StationIds.Register(x.Groups["z"].Value, px, py, pz);   // the same station has another id on every server, but the same position
             m.FirstSeen ??= t;
             Touch(t);
             return;

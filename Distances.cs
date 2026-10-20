@@ -5,6 +5,47 @@ namespace HaulingTracker;
 /// (Star Citizen Wiki API); the distances from Ruin are the ones read in the game. The top-down map positions are only for drawing the map. Planets do not move in the game,
 /// so the numbers stay valid. Ruin Station and Orbituary orbit a planet closely, so the planet centre is used for them.
 /// </summary>
+/// <summary>
+/// Recognises a station by where it is. The location id in the log (zoneHostId) is different on every server shard, but the position
+/// that comes with the objective marker is the same everywhere, so the stations are found by their position.
+/// </summary>
+static class StationIds
+{
+    // id = the last 5 digits of the location id (same ids as PyroDistances), x, y, z as written in the log
+    static readonly (string Id, double X, double Y, double Z)[] Known =
+    {
+        ("73791", -9820981.55, 7015084.13, 18513515.24),    // Rat's Nest
+        ("70269", 23515490, -15603579, 12705743),           // Megumi Refueling
+        ("70120", 2281205, -14897444, 2752554),             // Patch City
+        ("69936", -19125581, 10432691, 17665446),           // Gaslight
+        ("72785", -25440591, -23932605, -10765064),         // Dudley & Daughters
+        ("73041", 379850, -718724, 226044),                 // Orbituary
+        ("72645", -21100600, -9275477, -9518769),           // Rod's Fuel 'N Supplies
+        ("70053", 10905194, 4250545, 1357701),              // Starlight Service Station
+        ("72952", -11023679, -25541091, 2570931),           // Checkmate
+        ("74320", -19162, -37842, 6728),                    // Nyx Gateway
+    };
+
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> ByZone = new();
+
+    /// <summary>Remembers which station a location id is, from the position in the log. A position that is not in the table is ignored.</summary>
+    public static void Register(string zone, double x, double y, double z)
+    {
+        foreach (var k in Known)
+        {
+            var dx = k.X - x;
+            var dy = k.Y - y;
+            var dz = k.Z - z;
+            if (dx * dx + dy * dy + dz * dz > 5000.0 * 5000.0) continue;
+            ByZone[zone] = k.Id;
+            return;
+        }
+    }
+
+    /// <summary>The station id (last 5 digits as in the table) for a location id the position of which has been seen, or null.</summary>
+    public static string? Of(string zone) => ByZone.TryGetValue(zone, out var id) ? id : null;
+}
+
 static class PyroDistances
 {
     public const string Ruin = "Ruin";
