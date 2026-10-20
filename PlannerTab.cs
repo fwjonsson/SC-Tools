@@ -43,7 +43,7 @@ public sealed partial class MainForm
         public string Level = "plan";    // done, little, all, active, plan
         public List<string> Stops = new();   // station ids in flying order
         public PlannedTrip? Trip;
-        public bool Locked;              // a planned trip that is locked to its worker (his Next)
+        public bool Locked;              // a planned trip that is locked to its worker (his Current)
         public bool IsPlan => Level == "plan";
     }
 
@@ -98,7 +98,7 @@ public sealed partial class MainForm
 
         var hint = new Label
         {
-            Text = "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log. A run shows the time it really took; a planned trip shows ~ the estimated flying time (spool time + distance / drive speed for every jump, no loading). Green = done, orange = some cargo lost, red = all lost, yellow = on the way. Plan Trips locks everybody's Next trip: planning again (for example when someone joins) leaves those alone and plans the rest around them. Reset Trips takes the locks away. Both ask first.",
+            Text = "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log. A run shows the time it really took; a planned trip shows ~ the estimated flying time (spool time + distance / drive speed for every jump, no loading). Green = done, orange = some cargo lost, red = all lost, yellow = on the way. Plan Trips locks everybody's Current trip: planning again (for example when someone joins) leaves those alone and plans the rest around them. Reset Trips takes the locks away. Both ask first.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Color.DimGray,
@@ -137,7 +137,7 @@ public sealed partial class MainForm
     }
 
     /// <summary>
-    /// Plan Trips: asks first, then works the plan out again and locks every worker's Next trip to him. Locked trips are never changed by
+    /// Plan Trips: asks first, then works the plan out again and locks every worker's Current trip to him. Locked trips are never changed by
     /// planning again (someone joining, more contracts), only the trips after them are.
     /// </summary>
     void PlanTrips()
@@ -148,7 +148,7 @@ public sealed partial class MainForm
             return;
         }
         var answer = MessageBox.Show(this,
-            "Plan the trips now?\n\nEveryone's Next trip is locked to him from now on. Planning again later only changes the trips after it, so someone who joins gets his share of the rest.",
+            "Plan the trips now?\n\nEveryone's Current trip is locked to him from now on. Planning again later only changes the trips after it, so someone who joins gets his share of the rest.",
             "Plan Trips", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
         if (answer != DialogResult.Yes) return;
 
@@ -166,12 +166,12 @@ public sealed partial class MainForm
         var seen = new HashSet<string>();
         foreach (var trip in core.Trips)
         {
-            if (!seen.Add(trip.Worker)) continue;   // the first trip of a worker is his Next
+            if (!seen.Add(trip.Worker)) continue;   // the first trip of a worker is his Current
             _inputs.LockedTrips[LockKey(trip.Worker) ?? trip.Worker] = trip.Stops.Select(s => new LockedStop { Id = s.Id, Batches = s.Batches }).ToList();
             locked++;
         }
         Storage.Save(_data);
-        SetStatus("Planned the trips and locked " + locked + (locked == 1 ? " Next trip." : " Next trips."));
+        SetStatus("Planned the trips and locked " + locked + (locked == 1 ? " Current trip." : " Current trips."));
         RefreshPlanner();
     }
 
@@ -231,17 +231,17 @@ public sealed partial class MainForm
         Storage.Save(_data);
     }
 
-    /// <summary>Clears all locked Next trips (asks first). The plan is free again until you press Plan Trips.</summary>
+    /// <summary>Clears all locked Current trips (asks first). The plan is free again until you press Plan Trips.</summary>
     void ResetTrips()
     {
         if (_inputs == null) return;
         var answer = MessageBox.Show(this,
-            "Reset the trips?\n\nThe locked Next trips are cleared, so nobody has a trip of his own until you press Plan Trips again. Runs that are done or on the way are not touched.",
+            "Reset the trips?\n\nThe locked Current trips are cleared, so nobody has a trip of his own until you press Plan Trips again. Runs that are done or on the way are not touched.",
             "Reset Trips", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
         if (answer != DialogResult.Yes) return;
         _inputs.LockedTrips.Clear();
         Storage.Save(_data);
-        SetStatus("Reset the trips: no Next trip is locked.");
+        SetStatus("Reset the trips: no Current trip is locked.");
         _planCore = null;
         _planShown = "";
         RefreshPlanner();
@@ -339,9 +339,9 @@ public sealed partial class MainForm
     }
 
     /// <summary>
-    /// The trips for the open batches. Locked trips (a worker's Next) are taken out first, clipped to what is still to pick up, and the rest is
+    /// The trips for the open batches. Locked trips (a worker's Current) are taken out first, clipped to what is still to pick up, and the rest is
     /// planned around them. When a locked trip has been picked up completely, the worker's next planned trip is locked in its place, so his
-    /// Next is always one that does not change. Only worked out again when the batches, the crew or the locks change.
+    /// Current is always one that does not change. Only worked out again when the batches, the crew or the locks change.
     /// </summary>
     PlanCore CoreFor(List<(string Name, int Capacity, QtDrive Drive)> crew, Dictionary<string, int> open, List<string> unknown)
     {
@@ -378,7 +378,7 @@ public sealed partial class MainForm
             if (emptied.Count == 0 && _planCore != null && _planCore.Key == key) return _planCore;
 
             var note = "Planning every open batch, whoever is assigned to the location now.";
-            if (locks.Count > 0) note += " Locked Next trips stay as they are.";
+            if (locks.Count > 0) note += " Locked Current trips stay as they are.";
             if (unknown.Count > 0) note += " Not in the distance table, so left out: " + string.Join(", ", unknown) + ".";
             var core = new PlanCore
             {
@@ -390,7 +390,7 @@ public sealed partial class MainForm
             _planCore = core;
             if (emptied.Count == 0 || pass > 0 || _inputs == null) return core;
 
-            // a locked trip is picked up completely: the worker's next planned trip takes its place as his locked Next (nothing planned = no lock)
+            // a locked trip is picked up completely: the worker's next planned trip takes its place as his locked Current (nothing planned = no lock)
             foreach (var name in emptied)
             {
                 var lockKey = LockKey(name);
@@ -446,7 +446,7 @@ public sealed partial class MainForm
             {
                 w.Rows.Add(new PlanRow
                 {
-                    Label = k == 0 ? "Next" : "Plan " + (k + 1),
+                    Label = k == 0 ? "Current" : "Plan " + (k + 1),
                     Locked = mine[k].Locked,
                     Route = RouteText(mine[k]),
                     Batches = mine[k].Batches + "/" + c.Capacity,
@@ -623,10 +623,10 @@ public sealed partial class MainForm
                 var row = grid.Rows[idx];
                 row.Tag = r;
                 if (RowColor(r) is { } color) row.DefaultCellStyle.BackColor = color;
-                if (r.Label == "Next") row.DefaultCellStyle.Font = boldFont;
-                if (r.Label == "Next" && onSelect == null)
+                if (r.Label == "Current") row.DefaultCellStyle.Font = boldFont;
+                if (r.Label == "Current" && onSelect == null)
                 {
-                    // the Overview: the whole Next row of a worker has his colour
+                    // the Overview: the whole Current row of a worker has his colour
                     var st = row.DefaultCellStyle;
                     st.BackColor = w.Color;
                     st.ForeColor = TextOn(w.Color);
@@ -661,7 +661,7 @@ public sealed partial class MainForm
         return block;
     }
 
-    /// <summary>The text of the Trip cell: a locked Next says so.</summary>
+    /// <summary>The text of the Trip cell: a locked Current says so.</summary>
     static string RowLabel(PlanRow r) => r.Locked ? r.Label + " (locked)" : r.Label;
 
     /// <summary>Black or white, whichever reads better on this colour.</summary>

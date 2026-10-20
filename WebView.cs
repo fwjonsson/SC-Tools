@@ -697,7 +697,7 @@ public sealed partial class MainForm
         var cell = WebColor(Theme.Cell);
         var text = WebColor(Theme.Text);
 
-        // the same table twice: on the Overview the whole Next row has the worker's colour, on his own page the Trip cell has the colour of its line on the map
+        // the same table twice: on the Overview the whole Current row has the worker's colour, on his own page the Trip cell has the colour of its line on the map
         object Grid(PlanWorkerView w, bool personal)
         {
             var planned = w.Planned;
@@ -715,7 +715,7 @@ public sealed partial class MainForm
                         backs[0] = WebColor(tint);
                         fores[0] = WebColor(TextOn(tint));
                     }
-                    else if (!personal && r.Label == "Next")
+                    else if (!personal && r.Label == "Current")
                     {
                         for (var i = 0; i < backs.Length; i++)
                         {
@@ -736,7 +736,7 @@ public sealed partial class MainForm
                         },
                         back = backs,
                         fore = fores,
-                        bold = r.Label == "Next",
+                        bold = r.Label == "Current",
                     };
                 }).ToList(),
             };
