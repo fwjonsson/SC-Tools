@@ -138,12 +138,12 @@ public sealed partial class MainForm : Form
         tabs.TabPages.Add(historyPage);
         historyPage.Controls.Add(BuildHistoryPage());
         var plannerPage = new TabPage("Trip Planner") { BackColor = Color.White };
-        tabs.TabPages.Add(plannerPage);
+        tabs.TabPages.Insert(1, plannerPage);   // Session, Trip Planner, Debts, History: the same order as the web view
         plannerPage.Controls.Add(BuildPlannerPage());
         tabs.SelectedIndexChanged += (_, _) =>
         {
             if (tabs.SelectedTab == plannerPage) RefreshPlanner();
-            else if (tabs.SelectedIndex >= 1) RefreshDebts();
+            else if (tabs.SelectedTab != sessionPage) RefreshDebts();
         };
 
         // top area: the session bar and the pickup boards on the left, the party with the small times and contracts tables on the right,
@@ -217,7 +217,10 @@ public sealed partial class MainForm : Form
 
     const int TitleHeight = 30;
     const int SideWidth = 420;     // the column on the right: the party, the contracts and the times
-    const int SideTables = 8 + 114 + 10 + 166;   // the contracts table and the summary table under the party
+    const int ContractsHeight = 132;   // the contracts table: header and four rows
+    const int SummaryHeight = 182;     // the times and totals table: seven rows
+    const int SideGap = 12;
+    const int SideTables = 8 + ContractsHeight + SideGap + SummaryHeight;   // the contracts table and the summary table under the party
 
     /// <summary>
     /// The grid never scrolls, neither sideways nor up and down (FitTopArea gives it the height of all its rows).
@@ -422,9 +425,9 @@ public sealed partial class MainForm : Form
             Padding = new Padding(0, 8, 0, 0),
         };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 114));   // the contracts: small, they are not the main thing
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 10));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 166));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, ContractsHeight));   // the contracts: small, they are not the main thing
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, SideGap));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, SummaryHeight));
         p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // empty, so the clean table keeps its small rows
 
         // start / end / duration / totals, neutral and clean
@@ -438,7 +441,7 @@ public sealed partial class MainForm : Form
         };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        for (var i = 0; i < 7; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+        for (var i = 0; i < 7; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
 
         ConfigureTimeBox(_startBox);
         ConfigureTimeBox(_endBox);
@@ -459,9 +462,8 @@ public sealed partial class MainForm : Form
         p.Controls.Add(t, 0, 2);
 
         // the contract table on top, in the blue style of the other boards
+        _rewards.Name = "compact";   // StyleGrid gives it smaller rows (also every time the theme is applied again)
         StyleGrid(_rewards);
-        _rewards.RowTemplate.Height = 22;
-        _rewards.ColumnHeadersHeight = 24;
         _rewards.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
         _rewards.Dock = DockStyle.Fill;
         _rewards.Margin = new Padding(0);
@@ -813,10 +815,11 @@ public sealed partial class MainForm : Form
         g.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         g.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
         var wrap = g.Name == "wrapheader";   // the leaderboards have long column names that wrap onto two lines
-        g.ColumnHeadersHeight = wrap ? 46 : 28;
+        var compact = g.Name == "compact";   // the small contracts table
+        g.ColumnHeadersHeight = wrap ? 46 : compact ? 26 : 28;
         g.ColumnHeadersDefaultCellStyle.WrapMode = wrap ? DataGridViewTriState.True : DataGridViewTriState.NotSet;
         g.RowHeadersVisible = false;
-        g.RowTemplate.Height = 26;
+        g.RowTemplate.Height = compact ? 24 : 26;
         g.AllowUserToResizeRows = false;
         g.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
         g.SelectionMode = DataGridViewSelectionMode.CellSelect;
