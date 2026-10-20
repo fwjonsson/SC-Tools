@@ -154,8 +154,9 @@ public sealed partial class MainForm : Form
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 306));   // both rows are fitted to the boards by FitTopArea
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 130));
 
-        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Margin = new Padding(0) };
+        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Margin = new Padding(0) };
         left.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        left.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));   // the title: Stops
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));    // the finished stops: shown when there are some
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
@@ -166,8 +167,8 @@ public sealed partial class MainForm : Form
         FitColumns(_logGrid);     // these never scroll: the columns share the width instead
         FitColumns(_doneGrid);
         FitColumns(_statsGrid);
-        _logGrid.Margin = new Padding(0, 3, 3, 3);     // the right gap keeps it clear of the summary tables
-        _doneGrid.Margin = new Padding(0, 3, 3, 3);
+        _logGrid.Margin = new Padding(0, 0, 3, 3);     // the right gap keeps it clear of the summary tables
+        _doneGrid.Margin = new Padding(0, 0, 3, 3);
         _statsGrid.Margin = new Padding(0, 3, 0, 3);   // runs to the right edge, like the run board
         foreach (var grid in new[] { _logGrid, _doneGrid, _statsGrid })
         {
@@ -175,12 +176,13 @@ public sealed partial class MainForm : Form
             grid.RowsRemoved += (_, _) => FitTopArea();
         }
         Shown += (_, _) => FitTopArea();
-        left.Controls.Add(_logGrid, 0, 0);
+        left.Controls.Add(SectionTitle("Stops"), 0, 0);
+        left.Controls.Add(_logGrid, 0, 1);
         _doneTitle = SectionTitle("Finished Stops");
         _doneTitle.Visible = false;
         _doneGrid.Visible = false;
-        left.Controls.Add(_doneTitle, 0, 1);
-        left.Controls.Add(_doneGrid, 0, 2);
+        left.Controls.Add(_doneTitle, 0, 2);
+        left.Controls.Add(_doneGrid, 0, 3);
 
         var board = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
         board.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -219,8 +221,7 @@ public sealed partial class MainForm : Form
     const int SideWidth = 420;     // the column on the right: the party, the contracts and the times
     const int ContractsHeight = 132;   // the contracts table: header and four rows
     const int SummaryHeight = 182;     // the times and totals table: seven rows
-    const int SideGap = 12;
-    const int SideTables = 8 + ContractsHeight + SideGap + SummaryHeight;   // the contracts table and the summary table under the party
+    const int SideTables = 2 * TitleHeight + ContractsHeight + SummaryHeight;   // the contracts and the summary tables with their titles, under the party
 
     /// <summary>
     /// The grid never scrolls, neither sideways nor up and down (FitTopArea gives it the height of all its rows).
@@ -267,12 +268,13 @@ public sealed partial class MainForm : Form
             for (var pass = 0; pass < 4; pass++)
             {
                 var title = LogicalToDeviceUnits(TitleHeight);   // as drawn, also on a scaled screen
-                _left.RowStyles[0].Height = pickups;
+                _left.RowStyles[0].Height = title;
+                _left.RowStyles[1].Height = pickups;
                 if (_doneTitle != null) _doneTitle.Visible = hasDone;
                 _doneGrid.Visible = hasDone;
-                _left.RowStyles[1].Height = hasDone ? title : 0;
-                _left.RowStyles[2].Height = hasDone ? done : 0;
-                var row0 = Math.Max(pickups + (hasDone ? title + done : 0), _partyHeight + SideTables);   // the party and the small tables on the right need their own height too
+                _left.RowStyles[2].Height = hasDone ? title : 0;
+                _left.RowStyles[3].Height = hasDone ? done : 0;
+                var row0 = Math.Max(title + pickups + (hasDone ? title + done : 0), _partyHeight + SideTables);   // the party and the small tables on the right need their own height too
                 var row1 = title + leaders;
                 _main.RowStyles[0].Height = row0;
                 _main.RowStyles[1].Height = row1;
@@ -420,13 +422,13 @@ public sealed partial class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 4,
+            RowCount = 5,
             Margin = new Padding(0),
-            Padding = new Padding(0, 8, 0, 0),
         };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));      // Contracts
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, ContractsHeight));   // the contracts: small, they are not the main thing
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, SideGap));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));      // Session
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, SummaryHeight));
         p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // empty, so the clean table keeps its small rows
 
@@ -459,7 +461,8 @@ public sealed partial class MainForm : Form
         AddSummaryRow(t, 4, "Missions Completed", _missionsDoneVal);
         AddSummaryRow(t, 5, "Total aUEC Earned", _revenueVal);
         AddSummaryRow(t, 6, "aUEC/Hour", _hourlyVal);
-        p.Controls.Add(t, 0, 2);
+        p.Controls.Add(SectionTitle("Session"), 0, 2);
+        p.Controls.Add(t, 0, 3);
 
         // the contract table on top, in the blue style of the other boards
         _rewards.Name = "compact";   // StyleGrid gives it smaller rows (also every time the theme is applied again)
@@ -487,7 +490,8 @@ public sealed partial class MainForm : Form
             UpdateSnapshots();
             RefreshDebts();
         };
-        p.Controls.Add(_rewards, 0, 0);
+        p.Controls.Add(SectionTitle("Contracts"), 0, 0);
+        p.Controls.Add(_rewards, 0, 1);
         return p;
     }
 
