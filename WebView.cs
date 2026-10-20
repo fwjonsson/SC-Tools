@@ -258,12 +258,14 @@ function section(parent, tag, title, g) {
 }
 
 // green when somebody owes the member (+), red when he owes them (-), like in the program
-function signColors(box, col, d) {
-  box.querySelectorAll('tbody tr').forEach(function (tr) {
+function signColors(box, col, d, rows) {
+  // the sign is read from the second column (balance) of every row, the colour goes to column col
+  (rows || box.querySelectorAll('tbody tr')).forEach(function (tr) {
     const td = tr.cells[col];
-    if (!td) return;
-    if (td.textContent.charAt(0) === '+') td.style.background = d.pos;
-    else if (td.textContent.charAt(0) === '-') td.style.background = d.neg;
+    const sign = (rows ? tr.cells[1] : td);
+    if (!td || !sign) return;
+    if (sign.textContent.charAt(0) === '+') td.style.background = d.pos;
+    else if (sign.textContent.charAt(0) === '-') td.style.background = d.neg;
   });
 }
 
@@ -395,6 +397,7 @@ function renderDebts() {
     section(el, 'h3', b.name, b.grid);
     el.lastChild.classList.add('bal');   // the same column widths in every table
     signColors(el.lastChild, 1, d);
+    signColors(el.lastChild, 2, d, el.lastChild.querySelectorAll('tbody tr'));   // the meaning has the colour of its balance
   });
   section(el, 'h2', 'Money transfers', d.transfers);
 }

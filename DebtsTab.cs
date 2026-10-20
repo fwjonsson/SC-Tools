@@ -75,7 +75,9 @@ public sealed partial class MainForm
         _balanceGrid.AllowUserToAddRows = false;
         _balanceGrid.AllowUserToDeleteRows = false;
         _balanceGrid.Columns.Add(Col("Party Member", 200, true, DataGridViewContentAlignment.MiddleLeft));
-        _balanceGrid.Columns.Add(Col("Balance", 160, false, DataGridViewContentAlignment.MiddleRight));
+        var balanceCol = Col("Balance", 160, false, DataGridViewContentAlignment.MiddleRight);
+        balanceCol.DefaultCellStyle.BackColor = CalcBlue;   // typed over like before, but the same colour as the rest of the table
+        _balanceGrid.Columns.Add(balanceCol);
         _balanceGrid.Columns.Add(Col("Meaning", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
         _balanceGrid.CellEndEdit += BalanceEdited;
         t.Controls.Add(_balanceGrid, 0, 2);
@@ -108,6 +110,7 @@ public sealed partial class MainForm
             HeaderText = "Payment",
             Width = 100,
             SortMode = DataGridViewColumnSortMode.NotSortable,
+            DefaultCellStyle = { BackColor = CalcBlue },   // the same colour as the rest of the table
         });
         _txGrid.CurrentCellDirtyStateChanged += (_, _) =>
         {
@@ -494,6 +497,7 @@ public sealed partial class MainForm
                     var i = _balanceGrid.Rows.Add(o, Signed(shown), Meaning(_debtSelected, o, shown));
                     _balanceGrid.Rows[i].Tag = calc;
                     SignColor(_balanceGrid.Rows[i].Cells[1], shown);
+                    SignColor(_balanceGrid.Rows[i].Cells[2], shown);   // the meaning has the colour of its balance
                 }
             }
 

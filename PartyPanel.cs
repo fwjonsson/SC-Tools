@@ -240,6 +240,9 @@ public sealed partial class MainForm
     /// With one active member he does all the stops: he is put on every stop that is not finished. With two or more nobody is on the
     /// stops any more, so the crew can hand them out again (the finished stops keep their worker, they are done). Called when the party changes.
     /// </summary>
+    /// <summary>True when anything is picked up at this stop already (or handed in): its worker is part of the runs, so it is left alone.</summary>
+    static bool PickupStarted(LocationRow r) => r.Loaded > 0 || r.Partial > 0 || r.Delivered > 0;
+
     void ApplyPartyAssignment()
     {
         if (_inputs == null) return;
@@ -249,6 +252,7 @@ public sealed partial class MainForm
         var changed = false;
         foreach (var r in _pickupRows)
         {
+            if (PickupStarted(r)) continue;   // somebody has started picking up here: his pickups stay his
             var inp = GetRow(r.Zone);
             if ((inp.Worker ?? "").Trim() == want) continue;
             inp.Worker = want;
