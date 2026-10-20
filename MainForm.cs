@@ -1397,17 +1397,28 @@ public sealed partial class MainForm : Form
     static readonly Dictionary<string, string> KnownNames = new()
     {
         ["73791"] = "Rat's Nest",
-        ["70269"] = "Megumi Refueling",
+        ["70269"] = "Megumi",
         ["70120"] = "Patch City",
         ["69936"] = "Gaslight",
-        ["72785"] = "Dudley & Daughters",
+        ["72785"] = "Dudley",
         ["73041"] = "Orbituary",
-        ["72645"] = "Rod's Fuel 'N Supplies",
-        ["70053"] = "Starlight Service Station",
+        ["72645"] = "Rod's Fuel",
+        ["70053"] = "Starlight",
         ["72952"] = "Checkmate",
-        ["74320"] = "Nyx Gateway",
-        ["74325"] = "Stanton Gateway",
+        ["74320"] = "Nyx GW",
+        ["74325"] = "Stanton GW",
         ["70273"] = "Endgame",
+    };
+
+    // the names the program used to give these stations, as they may be saved in the data file
+    static readonly Dictionary<string, string> LongToShort = new()
+    {
+        ["Megumi Refueling"] = "Megumi",
+        ["Dudley & Daughters"] = "Dudley",
+        ["Rod's Fuel 'N Supplies"] = "Rod's Fuel",
+        ["Starlight Service Station"] = "Starlight",
+        ["Nyx Gateway"] = "Nyx GW",
+        ["Stanton Gateway"] = "Stanton GW",
     };
 
     /// <summary>The name the program knows for a location (from its position), or Unknown ...id.</summary>
@@ -1420,7 +1431,8 @@ public sealed partial class MainForm : Form
         if (_data.LocationNames.TryGetValue(zone, out var n) && !string.IsNullOrWhiteSpace(n))
         {
             // a saved name that is only the name of another station, while this one is known now (it was saved by clicking into the cell), is not a name you chose
-            if (!auto.StartsWith("Unknown ...") && n != auto && KnownNames.ContainsValue(n)) return auto;
+            if (!auto.StartsWith("Unknown ...") && n != auto && (KnownNames.ContainsValue(n) || LongToShort.ContainsKey(n))) return auto;
+            if (LongToShort.TryGetValue(n, out var shortName)) return shortName;   // a long name saved by an earlier version: the short one now
             return n;
         }
         return auto;
