@@ -43,10 +43,6 @@ public sealed class LocationRow
 
 public static class SessionBuilder
 {
-    /// <summary>Missions this far apart (with nothing happening) are no longer one session. Only matters for sessions found automatically, not ones you started yourself.</summary>
-    public static readonly TimeSpan IdleLimit = TimeSpan.FromHours(3);
-    static readonly TimeSpan Gap = IdleLimit;
-
     /// <summary>The session clock stops while nothing has happened for this long. It never ends a session, the time is just not counted.</summary>
     public static readonly TimeSpan ClockIdleLimit = TimeSpan.FromHours(1);
     static readonly Regex StopId = new(@"_\d+$", RegexOptions.Compiled);
@@ -64,8 +60,8 @@ public static class SessionBuilder
     }
 
     /// <summary>
-    /// Sessions you started by hand come first: a mission belongs to the one that was running when it ended
-    /// (a mission that is still going belongs to the one that is running now). Everything else forms sessions by itself.
+    /// The sessions are the ones you start and stop with the button: a mission belongs to the one that was running when it ended
+    /// (a mission that is still going belongs to the one that is running now). Missions outside every session are not shown.
     /// </summary>
     public static List<SessionGroup> Build(HaulingLog log, IReadOnlyList<ManualSession>? manual = null)
     {
@@ -100,39 +96,6 @@ public static class SessionBuilder
             }
             if (g.Missions.Count > 0 || !w.StopUtc.HasValue) groups.Add(g);   // a running session is shown from the start, before its first mission
         }
-        var manualGroups = groups.ToList();
-        groups = new List<SessionGroup>();
-
-        var missions = log.Missions.Values
-            .Where(m => m.IsHauling && !m.Dead && !claimed.Contains(m.Id))
-            .OrderBy(MissionStart)
-            .ToList();
-
-        foreach (var m in missions)
-        {
-            var start = MissionStart(m);
-            var end = MissionEnd(m, log.LastTime);
-            if (groups.Count > 0 && start <= groups[^1].End + Gap)
-            {
-                var g = groups[^1];
-                g.Missions.Add(m);
-                if (end > g.End) g.End = end;
-            }
-            else
-            {
-                var g = new SessionGroup { Start = start, End = end };
-                g.Missions.Add(m);
-                groups.Add(g);
-            }
-        }
-        // failed and abandoned missions: kept apart, so their cargo shows up as lost value
-        foreach (var m in log.Missions.Values.Where(m => m.IsHauling && m.Dead && !claimed.Contains(m.Id)))
-        {
-            var start = MissionStart(m);
-            if (start == DateTime.MinValue) continue;
-            groups.FirstOrDefault(g => start >= g.Start - Gap && start <= g.End + Gap)?.Failed.Add(m);
-        }
-        groups.AddRange(manualGroups);
         return groups.OrderBy(g => g.Start).ToList();
     }
 
