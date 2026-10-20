@@ -43,9 +43,12 @@ public sealed class LocationRow
 
 public static class SessionBuilder
 {
-    /// <summary>Star Citizen is slow: only this long without any activity ends a session (or stops the clock of one you started yourself).</summary>
+    /// <summary>Missions this far apart (with nothing happening) are no longer one session. Only matters for sessions found automatically, not ones you started yourself.</summary>
     public static readonly TimeSpan IdleLimit = TimeSpan.FromHours(3);
     static readonly TimeSpan Gap = IdleLimit;
+
+    /// <summary>The session clock stops while nothing has happened for this long. It never ends a session, the time is just not counted.</summary>
+    public static readonly TimeSpan ClockIdleLimit = TimeSpan.FromHours(1);
     static readonly Regex StopId = new(@"_\d+$", RegexOptions.Compiled);
 
     static bool IsStop(string objective) => objective.StartsWith("pickup_") && StopId.IsMatch(objective);
@@ -134,7 +137,7 @@ public static class SessionBuilder
     }
 
     /// <summary>
-    /// The time a session really took: the stretches between activity, but not the long breaks (more than 30 minutes with nothing happening).
+    /// The time a session really took: the stretches between activity, but not the long breaks (more than an hour with nothing happening).
     /// So a manual session that goes on over several days does not count the nights. runningUntil = now while the session is running.
     /// </summary>
     public static TimeSpan ActiveTime(SessionGroup g, DateTime? runningUntil)
@@ -162,7 +165,7 @@ public static class SessionBuilder
         for (var i = 1; i < points.Count; i++)
         {
             var gap = points[i] - points[i - 1];
-            if (gap <= Gap) total += gap;
+            if (gap <= ClockIdleLimit) total += gap;
         }
         return total;
     }
