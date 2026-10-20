@@ -10,6 +10,7 @@ public sealed partial class MainForm
     const int DefaultShipCapacity = 3;
     const int MaxShipCapacity = 24;
 
+    static readonly Color NextRouteGreen = Color.FromArgb(60, 205, 95);   // the next trip of a worker, on his own page
     // routes on the map: colours that cannot be mistaken for the run colours (green, orange, red, yellow)
     static readonly Color[] MapPalette =
     {
@@ -325,7 +326,7 @@ public sealed partial class MainForm
             var k = 0;
             foreach (var r in only.Planned)
             {
-                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = MapPalette[k % MapPalette.Length], Stops = r.Stops, Bold = k == 0, Tag = r });
+                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = k == 0 ? NextRouteGreen : MapPalette[k % MapPalette.Length], Stops = r.Stops, Bold = k == 0, Tag = r });
                 k++;
             }
         }
@@ -396,7 +397,11 @@ public sealed partial class MainForm
                 var row = grid.Rows[idx];
                 row.Tag = r;
                 if (RowColor(r) is { } color) row.DefaultCellStyle.BackColor = color;
-                if (r.Label == "Next") row.DefaultCellStyle.Font = boldFont;
+                if (r.Label == "Next")
+                {
+                    row.DefaultCellStyle.Font = boldFont;
+                    row.DefaultCellStyle.BackColor = DoneGreen;   // the trip to fly now is green
+                }
             }
             if (onSelect != null)
             {
