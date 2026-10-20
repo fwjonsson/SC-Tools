@@ -1399,7 +1399,7 @@ public sealed partial class MainForm : Form
             ColorMissionsCell(row, r);
         }
 
-        if (_planGrid.Visible && _planGrid.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
+        if (_planHost.Visible && _planHost.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
     }
 
     /// <summary>
@@ -1465,14 +1465,14 @@ public sealed partial class MainForm : Form
         using var f = new Form
         {
             Text = "Party",
-            ClientSize = new Size(380, 360),
+            ClientSize = new Size(500, 380),
             StartPosition = FormStartPosition.CenterParent,
             MinimizeBox = false,
             MaximizeBox = false,
             ShowInTaskbar = false,
             Font = Font,
         };
-        var label = new Label { Text = "Type a name in the empty row to add it. These are the choices in Assigned Worker. Untick Active to hide someone from the party list.", Dock = DockStyle.Top, Height = 48, Padding = new Padding(6, 6, 6, 0) };
+        var label = new Label { Text = "Type a name in the empty row to add it. These are the choices in Assigned Worker. Untick Active to hide someone from the party list. Batch Capacity is how many batches the ship holds per trip (the Trip Planner uses it).", Dock = DockStyle.Top, Height = 64, Padding = new Padding(6, 6, 6, 0) };
         var grid = new DataGridView();
         StyleGrid(grid);
         grid.Dock = DockStyle.Fill;
@@ -1480,9 +1480,14 @@ public sealed partial class MainForm : Form
         grid.AllowUserToDeleteRows = true;
         grid.Columns.Add(Col("Name", 240, false, DataGridViewContentAlignment.MiddleLeft, true));
         grid.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = "Active", Width = 80, SortMode = DataGridViewColumnSortMode.NotSortable });
+        grid.Columns.Add(Col("Batch Capacity", 130, false, DataGridViewContentAlignment.MiddleCenter));
         foreach (var name in _data.Party)
-            grid.Rows.Add(name, !_data.InactiveParty.Any(x => SameName(x, name)));
-        grid.DefaultValuesNeeded += (_, e) => e.Row.Cells[1].Value = true;
+            grid.Rows.Add(name, !_data.InactiveParty.Any(x => SameName(x, name)), Math.Max(1, ShipCapacityOf(name)));
+        grid.DefaultValuesNeeded += (_, e) =>
+        {
+            e.Row.Cells[1].Value = true;
+            e.Row.Cells[2].Value = DefaultShipCapacity;
+        };
 
         var ok = new Button { Text = "Save", AutoSize = true, DialogResult = DialogResult.OK };
         ok.Click += (_, _) => grid.EndEdit();
@@ -1497,6 +1502,7 @@ public sealed partial class MainForm : Form
 
         var party = new List<string>();
         var inactive = new List<string>();
+        var capacities = new Dictionary<string, int>(_data.ShipCapacity);
         foreach (DataGridViewRow row in grid.Rows)
         {
             if (row.IsNewRow) continue;
@@ -1504,9 +1510,13 @@ public sealed partial class MainForm : Form
             if (name.Length == 0 || party.Any(x => SameName(x, name))) continue;
             party.Add(name);
             if (row.Cells[1].Value is false) inactive.Add(name);
+            capacities[name] = int.TryParse((Convert.ToString(row.Cells[2].Value) ?? "").Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var typed)
+                ? Math.Clamp(typed, 1, MaxShipCapacity)
+                : DefaultShipCapacity;
         }
         _data.Party = party;
         _data.InactiveParty = inactive;
+        _data.ShipCapacity = capacities;
         Storage.Save(_data);
 
         _renderedVersion = -1;

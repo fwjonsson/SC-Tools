@@ -76,10 +76,10 @@ The program starts watching the logs by itself when it opens, and reads the back
 ## Trip Planner
 
 The **Trip Planner** tab divides the open batches over the whole crew, so everybody flies as little as possible and you finish at about the same time.
-- The crew is the active party (**Options → Party**). In the table at the top type how many batches each member's ship holds (saved per worker; 0 = not flying this time). Press **Plan Trips**, or just watch it update while you pick up cargo.
-- It assigns trips to everyone, whoever is assigned to a location in the pickup table now. Every trip starts and ends at Ruin Station. A location can be split over several trips and several workers: take what fits and fill the last seats with a small pickup that is close by, or come back for the rest.
-- The plan is the one where the longest worker total is as short as possible, with a smaller weight on the combined Gm. It tries many ways of dividing the batches, and the suggestion is always the same for the same situation.
-- **Batches** is what the trip carries out of the ship's size (green = full ship). **Gm / Batch** shows how efficient a trip is. Each worker has a total row with his trips, batches and Gm.
+- The crew is the active party. In **Options → Party…** tick **Active** for who flies and type each member's **Batch Capacity**: how many batches his ship holds per trip (for example 3 for a C2 and 2 for a smaller ship). It is saved per member.
+- Every crew member gets his own table with all his planned trips: the route in flying order (Ruin, the stops, back to Ruin), the batches out of his capacity (green = full ship), the distance of the trip in Gm and Gm per batch. A title above each table adds up his trips, batches and Gm.
+- The plan ignores who is assigned to a location now. A location can be split over several trips and several workers: take what fits and fill the last seats with a small pickup that is close by, or come back for the rest.
+- The plan is the one where the longest worker total is as short as possible, with a smaller weight on the combined Gm. It tries many ways of dividing the batches, and the suggestion is always the same for the same situation. It follows the batches you pick up while the tab is open, or press **Plan Trips**.
 - It uses the Pyro distance table, so a location that is not in it is left out and named under the summary. Only batches that are not picked up yet are planned.
 
 ## Leaderboards
@@ -107,7 +107,7 @@ The **History** tab has the same table for **all saved sessions** (with an extra
 
 ## Live Web View (let somebody watch)
 
-**Options → Live Web View** switches on a small read-only web server inside the program. It shows the Session tab (pickup board, contracts, summary, leaderboard and cargo runs, in the colours of your theme) and refreshes every few seconds. It only listens on your own computer (`http://localhost:8765`), and it can only show things: there is nothing to click or change, all changes are made in the program. The setting is remembered.
+**Options → Live Web View** switches on a small read-only web server inside the program. It shows the Session tab (pickup board, contracts, summary, leaderboard and cargo runs, in the colours of your theme) and the Trip Planner tab, with two buttons on the page to switch between them, and refreshes every few seconds. It only listens on your own computer (`http://localhost:8765`), and it can only show things: there is nothing to click or change, all changes are made in the program. The setting is remembered.
 - To let somebody else watch, install `cloudflared` (`winget install Cloudflare.cloudflared`) and run `cloudflared tunnel --url http://localhost:8765` in a terminal. It prints an `https://...trycloudflare.com` address (no account needed). Send that address to whoever should watch. It changes every time you start the tunnel, and anybody with the address can look, so share it only with people you trust.
 - The program and the tunnel have to be running on your computer for the page to work. Stop the tunnel (Ctrl+C) and the page is gone for everybody.
 

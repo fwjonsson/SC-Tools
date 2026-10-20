@@ -157,11 +157,18 @@ sealed class LiveWebServer : IDisposable
   th { background:var(--header); color:#fff; font-weight:600; text-align:center; white-space:normal; }
   .kv td:first-child { font-weight:600; width:48%; }
   .empty { opacity:.6; padding:6px 0; }
+  .nav { display:flex; gap:8px; margin:8px 0 4px; }
+  .nav button { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 16px; font:inherit; font-weight:600; cursor:pointer; border-radius:4px; }
+  .nav button.on { background:var(--header); color:#fff; }
+  .hidden { display:none; }
+  #planSummary { font-weight:600; margin:8px 0 2px; }
 </style>
 </head>
 <body>
 <h1>Hauling Tracker</h1>
 <div class="bar"><span id="session"></span><span id="live" class="live"></span><span id="updated"></span></div>
+<div class="nav"><button id="tabS" class="on">Session</button><button id="tabP">Trip Planner</button></div>
+<div id="viewS">
 <div class="top">
   <div><h2>Pickup locations</h2><div class="scroll" id="pickups"></div></div>
   <div>
@@ -171,6 +178,11 @@ sealed class LiveWebServer : IDisposable
 </div>
 <h2>Session leaderboard</h2><div class="scroll" id="leaders"></div>
 <h2>Cargo runs</h2><div class="scroll" id="runs"></div>
+</div>
+<div id="viewP" class="hidden">
+  <div id="planSummary"></div><div id="planNote" class="empty"></div>
+  <div id="planner"></div>
+</div>
 <script>
 function table(el, g) {
   el.textContent = '';
@@ -205,6 +217,24 @@ function summary(el, items) {
   });
   el.appendChild(t);
 }
+function planner(el, p) {
+  el.textContent = '';
+  (p.workers || []).forEach(function (w) {
+    const h = document.createElement('h2'); h.textContent = w.title; el.appendChild(h);
+    const box = document.createElement('div'); box.className = 'scroll'; el.appendChild(box);
+    table(box, w.grid);
+  });
+}
+function show(which) {
+  document.getElementById('viewS').classList.toggle('hidden', which !== 'S');
+  document.getElementById('viewP').classList.toggle('hidden', which !== 'P');
+  document.getElementById('tabS').classList.toggle('on', which === 'S');
+  document.getElementById('tabP').classList.toggle('on', which === 'P');
+  try { history.replaceState(null, '', which === 'P' ? '#plan' : '#session'); } catch (e) { }
+}
+document.getElementById('tabS').onclick = function () { show('S'); };
+document.getElementById('tabP').onclick = function () { show('P'); };
+show(location.hash === '#plan' ? 'P' : 'S');
 async function refresh() {
   const live = document.getElementById('live');
   try {
@@ -221,6 +251,11 @@ async function refresh() {
     summary(document.getElementById('summary'), d.summary || []);
     table(document.getElementById('leaders'), d.leaders);
     table(document.getElementById('runs'), d.runs);
+    if (d.planner) {
+      document.getElementById('planSummary').textContent = d.planner.summary || '';
+      document.getElementById('planNote').textContent = d.planner.note || '';
+      planner(document.getElementById('planner'), d.planner);
+    }
   } catch (e) {
     live.textContent = '● connection lost, trying again'; live.className = 'live bad';
   }
@@ -347,8 +382,47 @@ public sealed partial class MainForm
             pickups = WebGrid(_logGrid),
             leaders = WebGrid(_statsGrid),
             runs = WebGrid(_tripGrid),
+            planner = WebPlan(GetPlan()),
         };
         return JsonSerializer.Serialize(snapshot);
+    }
+
+    /// <summary>The Trip Planner tab as data: a title and a table for every crew member.</summary>
+    static object WebPlan(PlanView plan)
+    {
+        var headers = new[]
+        {
+            new { text = "Trip", align = "center" },
+            new { text = "Route (Ruin, then these, then back to Ruin)", align = "left" },
+            new { text = "Batches", align = "center" },
+            new { text = "Distance", align = "right" },
+            new { text = "Gm / Batch", align = "right" },
+        };
+        var cell = WebColor(Theme.Cell);
+        var text = WebColor(Theme.Text);
+        var workers = plan.Workers.Select(w => new
+        {
+            title = PlanTitle(w),
+            grid = new
+            {
+                headers,
+                rows = w.Trips.Select((trip, i) => new
+                {
+                    cells = new[]
+                    {
+                        (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        RouteText(trip),
+                        trip.Batches + "/" + w.Capacity,
+                        Gm(trip.Distance),
+                        (trip.Distance / trip.Batches).ToString("N1", System.Globalization.CultureInfo.InvariantCulture),
+                    },
+                    back = new[] { cell, cell, WebColor(trip.Batches >= w.Capacity ? DoneGreen : PartialYellow), cell, cell },
+                    fore = new[] { text, text, text, text, text },
+                    bold = false,
+                }).ToList(),
+            },
+        }).ToList();
+        return new { summary = plan.Summary, note = plan.Note, workers };
     }
 
     static string WebColor(Color c) => "#" + c.R.ToString("x2") + c.G.ToString("x2") + c.B.ToString("x2");
