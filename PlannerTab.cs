@@ -45,6 +45,7 @@ public sealed partial class MainForm
         public PlannedTrip? Trip;
         public bool Locked;              // a planned trip that is locked to its worker (his Current)
         public bool First;               // the first planned trip of the worker
+        public string? From;             // a trip that continues a run in progress starts at this station
         public bool IsPlan => Level == "plan";
     }
 
@@ -174,11 +175,12 @@ public sealed partial class MainForm
                 if (LockKey(trip.Worker) == null) _inputs.LockedTrips[trip.Worker] = new List<LockedStop>();
                 continue;
             }
-            _inputs.LockedTrips[LockKey(trip.Worker) ?? trip.Worker] = trip.Stops.Select(s => new LockedStop { Id = s.Id, Batches = s.Batches }).ToList();
+            if (trip.Stops.Count == 0) continue;
+            _inputs.LockedTrips[LockKey(trip.Worker) ?? trip.Worker] = new List<LockedStop> { new() { Id = trip.Stops[0].Id, Batches = trip.Stops[0].Batches } };   // only his next stop
             locked++;
         }
         Storage.Save(_data);
-        SetStatus("Planned the trips and locked " + locked + (locked == 1 ? " Current trip." : " Current trips."));
+        SetStatus("Planned the trips and locked the next stop of " + locked + (locked == 1 ? " worker." : " workers."));
         RefreshPlanner();
     }
 
@@ -286,7 +288,8 @@ public sealed partial class MainForm
     List<string> ActiveCrew() => _data.Party.Where(n => !_data.InactiveParty.Any(x => SameName(x, n))).ToList();
 
     static string RouteText(PlannedTrip trip) =>
-        string.Join("  →  ", trip.Stops.Select(s => PyroDistances.NameOf(s.Id) + " ×" + s.Batches));
+        (trip.From != null ? "From " + PyroDistances.NameOf(trip.From) + "  →  " : "")
+        + string.Join("  →  ", trip.Stops.Select(s => PyroDistances.NameOf(s.Id) + " ×" + s.Batches));
 
     static string PlanTitle(PlanWorkerView w)
     {
@@ -345,41 +348,60 @@ public sealed partial class MainForm
         return rows;
     }
 
-    /// <summary>True while the worker has a run that has pickups but is not handed in yet.</summary>
-    bool HasActiveRun(string name) => _trips.Any(t => SameName(t.Worker, name) && !t.End.HasValue);
-
-    /// <summary>True when everything his run on the way has picked up is at a station of his locked trip (he is flying that trip, not another one).</summary>
-    bool FollowsLock(string name, List<LockedStop> stored)
+    /// <summary>The run the worker is flying (picked up, not handed in yet): the batches on board and the station of the last pickup, or null.</summary>
+    (int Loaded, string? From)? ActiveRunOf(string name)
     {
-        var ids = stored.Select(s => s.Id).ToHashSet();
+        var loaded = 0;
+        string? from = null;
+        DateTime? latest = null;
+        var any = false;
         foreach (var t in _trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue))
         {
+            any = true;
             foreach (var p in t.Pickups)
             {
-                var id = StationOf(p.Zone);
-                if (id != null && !ids.Contains(id)) return false;
+                loaded += p.Missions;
+                if (latest == null || p.Time > latest)
+                {
+                    latest = p.Time;
+                    from = StationOf(p.Zone);
+                }
             }
         }
-        return true;
+        return any ? (loaded, from) : null;
+    }
+
+    /// <summary>True when the worker has a run that has pickups but is not handed in yet.</summary>
+    bool HasActiveRun(string name) => ActiveRunOf(name) != null;
+
+    /// <summary>True when the run he is flying has picked up at his locked stop (he went where the lock said, so he keeps it).</summary>
+    bool FollowsLock(string name, string lockedId)
+    {
+        foreach (var t in _trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue))
+        {
+            if (t.Pickups.Any(p => StationOf(p.Zone) == lockedId)) return true;
+        }
+        return false;
     }
 
     /// <summary>
-    /// The trips for the open batches. A worker's Current trip is locked while he is on his way to it: it is taken out first, clipped to what is
-    /// still to pick up, and the rest is planned around it. It is not locked while he is flying another run (it is a plan then, free to change).
-    /// A lock ends when he flies somewhere else than the locked trip, when he is not in the crew any more, and when everything in it is picked up;
-    /// when his run is then handed in, his next planned trip is locked as his Current. Only worked out again when the batches, the crew or the locks change.
+    /// The trips for the open batches. Only the next stop of a worker is locked, and only while he is on his way to it: its batches are taken
+    /// out first and his first trip goes there first, but the rest of that trip is planned freely, so a better stop can still be put after it.
+    /// A worker who is flying a run is not locked: his run counts in his ship (room left, and the trip continues from where he is) and the
+    /// plan adds to it. A lock ends when he picks up somewhere else, when its batches are picked up, and when he leaves the party; when his run
+    /// is handed in, the first stop of his next planned trip is locked. Only worked out again when the batches, the crew or the locks change.
     /// </summary>
     PlanCore CoreFor(List<(string Name, int Capacity, QtDrive Drive)> crew, Dictionary<string, int> open, List<string> unknown)
     {
         for (var pass = 0; ; pass++)
         {
             var remaining = new Dictionary<string, int>(open);
-            var locks = new List<PlannedTrip>();
-            var waiting = new List<string>();   // on his way to nothing locked: his next planned trip gets locked once it is planned
+            var starts = new List<WorkerStart>();
+            var waiting = new List<string>();   // on his way to nothing locked: the first stop of his next planned trip gets locked once it is planned
             if (_inputs != null)
             {
                 var changed = false;
-                // somebody who left the party (or does not fly) has no locked trip: his batches go back to the others
+                // somebody who left the party (or does not fly) has no locked stop: his batches go back to the others
                 foreach (var gone in _inputs.LockedTrips.Keys.Where(k => !crew.Any(c => c.Capacity > 0 && SameName(c.Name, k))).ToList())
                 {
                     _inputs.LockedTrips.Remove(gone);
@@ -387,32 +409,35 @@ public sealed partial class MainForm
                 }
                 foreach (var c in crew.Where(x => x.Capacity > 0))
                 {
+                    var run = ActiveRunOf(c.Name);
+                    var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, From = run?.From };
                     var lockKey = LockKey(c.Name);
-                    if (lockKey == null) continue;
-                    var stored = _inputs.LockedTrips[lockKey];
-                    var active = HasActiveRun(c.Name);
-                    if (stored.Count > 0 && active && !FollowsLock(c.Name, stored))
+                    if (lockKey != null)
                     {
-                        _inputs.LockedTrips[lockKey] = stored = new List<LockedStop>();   // he went somewhere else: his trips are free again
-                        changed = true;
+                        var stored = _inputs.LockedTrips[lockKey];
+                        if (stored.Count > 0 && run != null && !FollowsLock(c.Name, stored[0].Id))
+                        {
+                            _inputs.LockedTrips[lockKey] = stored = new List<LockedStop>();   // he picked up somewhere else: his trips are free again
+                            changed = true;
+                        }
+                        if (stored.Count > 0)
+                        {
+                            var take = Math.Min(Math.Min(stored[0].Batches, remaining.GetValueOrDefault(stored[0].Id)), Math.Max(0, c.Capacity - start.Loaded));
+                            if (take > 0)
+                            {
+                                start.FirstId = stored[0].Id;
+                                start.FirstBatches = take;
+                                remaining[stored[0].Id] -= take;
+                            }
+                            else
+                            {
+                                _inputs.LockedTrips[lockKey] = new List<LockedStop>();   // picked up completely
+                                changed = true;
+                            }
+                        }
+                        if (start.FirstId == null && run == null) waiting.Add(c.Name);
                     }
-                    var kept = new List<(string Id, int Batches)>();
-                    var room = c.Capacity;
-                    foreach (var s in stored)
-                    {
-                        var take = Math.Min(Math.Min(s.Batches, remaining.GetValueOrDefault(s.Id)), room);
-                        if (take <= 0) continue;
-                        kept.Add((s.Id, take));
-                        room -= take;
-                        remaining[s.Id] -= take;
-                    }
-                    if (stored.Count > 0 && kept.Count == 0)
-                    {
-                        _inputs.LockedTrips[lockKey] = new List<LockedStop>();   // picked up completely
-                        changed = true;
-                    }
-                    if (kept.Count > 0) locks.Add(TripPlanner.Fixed(c.Name, kept, c.Drive));
-                    else if (!active) waiting.Add(c.Name);
+                    if (start.FirstId != null || start.Loaded > 0) starts.Add(start);
                 }
                 if (changed) Storage.Save(_data);
             }
@@ -420,30 +445,31 @@ public sealed partial class MainForm
             var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity + ":" + c.Drive.Key))
                 + "#" + string.Join("|", remaining.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + ":" + kv.Value))
                 + "#" + string.Join("|", unknown)
-                + "#" + string.Join("|", locks.Select(t => t.Worker + "=" + string.Join(",", t.Stops.Select(s => s.Id + "x" + s.Batches))));
+                + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "/" + t.Loaded + "@" + t.From));
             if (waiting.Count == 0 && _planCore != null && _planCore.Key == key) return _planCore;
 
             var note = "Planning every open batch, whoever is assigned to the location now.";
-            if (locks.Count > 0) note += " Locked Current trips stay as they are.";
+            if (starts.Any(t => t.FirstId != null)) note += " A locked stop is the next stop of its worker; the rest of his trip is planned.";
+            if (starts.Any(t => t.Loaded > 0)) note += " A run in progress counts in the ship: the plan continues it.";
             if (unknown.Count > 0) note += " Not in the distance table, so left out: " + string.Join(", ", unknown) + ".";
             var core = new PlanCore
             {
                 Key = key,
-                Trips = TripPlanner.Plan(remaining, crew, locks),
-                Batches = remaining.Where(kv => kv.Value > 0).Sum(kv => kv.Value) + locks.Sum(t => t.Batches),
+                Trips = TripPlanner.Plan(remaining, crew, starts),
+                Batches = remaining.Where(kv => kv.Value > 0).Sum(kv => kv.Value) + starts.Sum(t => t.FirstBatches),
                 Note = note,
             };
             _planCore = core;
             if (waiting.Count == 0 || pass > 0 || _inputs == null) return core;
 
-            // his run is handed in (or his lock was used up): the next trip planned for him is his Current, so lock it (nothing planned = nothing to lock)
+            // his run is handed in (or his lock was used up): the first stop of the trip planned for him is where he is going, so lock it (nothing planned = nothing to lock)
             foreach (var name in waiting)
             {
                 var lockKey = LockKey(name);
                 if (lockKey == null) continue;
-                var next = core.Trips.FirstOrDefault(t => t.Worker == name && !t.Locked);
-                if (next == null) _inputs.LockedTrips.Remove(lockKey);
-                else _inputs.LockedTrips[lockKey] = next.Stops.Select(s => new LockedStop { Id = s.Id, Batches = s.Batches }).ToList();
+                var next = core.Trips.FirstOrDefault(t => t.Worker == name);
+                if (next == null || next.Stops.Count == 0) _inputs.LockedTrips.Remove(lockKey);
+                else _inputs.LockedTrips[lockKey] = new List<LockedStop> { new() { Id = next.Stops[0].Id, Batches = next.Stops[0].Batches } };
             }
             Storage.Save(_data);
         }
@@ -492,16 +518,17 @@ public sealed partial class MainForm
             {
                 w.Rows.Add(new PlanRow
                 {
-                    Label = k == 0 ? (HasActiveRun(c.Name) && !mine[k].Locked ? "Next" : "Current") : "Plan " + (k + 1),   // while he flies a run, the first plan is what comes after it
+                    Label = k == 0 ? "Current" : "Plan " + (k + 1),
                     First = k == 0,
                     Locked = mine[k].Locked,
                     Route = RouteText(mine[k]),
-                    Batches = mine[k].Batches + "/" + c.Capacity,
+                    Batches = mine[k].Batches + "/" + (mine[k].Room > 0 ? mine[k].Room : c.Capacity),
                     BatchCount = mine[k].Batches,
                     Gm = mine[k].Distance,
                     Seconds = mine[k].Seconds,
                     Level = "plan",
                     Stops = mine[k].Stops.Select(s => s.Id).ToList(),
+                    From = mine[k].From,
                     Trip = mine[k],
                 });
             }
@@ -576,7 +603,7 @@ public sealed partial class MainForm
                 var k = 0;
                 foreach (var r in w.Planned)
                 {
-                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, Bold = k == 0, Dashed = k > 0, Tag = r });
+                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, From = r.From, Bold = k == 0, Dashed = k > 0, Tag = r });
                     k++;
                 }
             }
@@ -587,7 +614,7 @@ public sealed partial class MainForm
             var k = 0;
             foreach (var r in only.Planned)
             {
-                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = only.Color, Stops = r.Stops, Bold = k == 0, Dashed = k > 0, Tag = r });
+                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = only.Color, Stops = r.Stops, From = r.From, Bold = k == 0, Dashed = k > 0, Tag = r });
                 k++;
             }
         }
@@ -709,7 +736,7 @@ public sealed partial class MainForm
     }
 
     /// <summary>The text of the Trip cell: a locked Current says so.</summary>
-    static string RowLabel(PlanRow r) => r.Locked ? r.Label + " (locked)" : r.Label;
+    static string RowLabel(PlanRow r) => r.Locked ? r.Label + " (stop locked)" : r.Label;
 
     /// <summary>Black or white, whichever reads better on this colour.</summary>
     static Color TextOn(Color c) => (c.R * 299 + c.G * 587 + c.B * 114) / 1000 > 140 ? Color.Black : Color.White;
