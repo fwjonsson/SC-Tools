@@ -10,6 +10,36 @@ public sealed partial class MainForm
     const int DefaultShipCapacity = 3;
     const int MaxShipCapacity = 24;
 
+    /// <summary>The colour of a worker on the Overview: the one picked in the Party table, else zzoega orange, zzatvo green, the others one of the palette.</summary>
+    Color WorkerColor(string name)
+    {
+        var picked = _data.WorkerColors.FirstOrDefault(kv => SameName(kv.Key, name));
+        if (picked.Key != null) return Color.FromArgb(picked.Value);
+        if (SameName(name, "zzoega")) return Color.FromArgb(255, 150, 40);
+        if (SameName(name, "zzatvo")) return Color.FromArgb(60, 205, 95);
+        var index = Math.Max(0, _data.Party.FindIndex(x => SameName(x, name)));
+        return MapPalette[index % MapPalette.Length];
+    }
+
+    /// <summary>
+    /// The colour of the k-th planned trip of n (0 = the one to fly now): blue, like the rest of the program, then green for the one after it,
+    /// and the later ones go through yellow and orange towards red.
+    /// </summary>
+    static Color TripColor(int k, int n)
+    {
+        if (k <= 0) return MapPalette[0];
+        var hue = n <= 2 ? 125.0 : 125.0 * (1.0 - (k - 1) / (double)(n - 2));   // green (125) down to red (0)
+        return FromHsv(hue, 0.78, 0.92);
+    }
+
+    static Color FromHsv(double h, double s, double v)
+    {
+        var c = v * s;
+        var x = c * (1 - Math.Abs(h / 60.0 % 2 - 1));
+        var m = v - c;
+        var (r, g, b) = h < 60 ? (c, x, 0.0) : h < 120 ? (x, c, 0.0) : (0.0, c, x);
+        return Color.FromArgb((int)Math.Round((r + m) * 255), (int)Math.Round((g + m) * 255), (int)Math.Round((b + m) * 255));
+    }
     // routes on the map: colours that cannot be mistaken for the run colours (green, orange, red, yellow)
     static readonly Color[] MapPalette =
     {
@@ -59,6 +89,7 @@ public sealed partial class MainForm
     }
 
     readonly Button _planBtn = new();
+    readonly Button _assignBtn = new();
     readonly Label _planSummary = new();
     readonly Label _planNote = new();
     readonly ThemedTabControl _planTabs = new();   // Overview and one page per crew member
@@ -97,7 +128,11 @@ public sealed partial class MainForm
             RefreshPlanner();
         };
         var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0) };
+        StyleButton(_assignBtn, "Assign Workers to Stops");
+        _assignBtn.Margin = new Padding(0, 5, 0, 5);
+        _assignBtn.Click += (_, _) => AssignPlanToStops();
         bar.Controls.Add(_planBtn);
+        bar.Controls.Add(_assignBtn);
         t.Controls.Add(bar, 0, 2);
 
         _planSummary.Dock = DockStyle.Fill;
@@ -114,6 +149,58 @@ public sealed partial class MainForm
         _planTabs.Margin = new Padding(0);
         t.Controls.Add(_planTabs, 0, 5);
         return t;
+    }
+
+    /// <summary>
+    /// Puts the workers of the plan on the pickup board: every stop that is not finished goes to the worker who takes the most batches
+    /// there in the plan (the one who flies it first when it is a tie).
+    /// </summary>
+    void AssignPlanToStops()
+    {
+        GetPlan();
+        var core = _planCore;
+        if (core == null || core.Trips.Count == 0 || _inputs == null)
+        {
+            SetStatus("Nothing is planned, so there is nobody to assign.");
+            return;
+        }
+        var batches = new Dictionary<string, Dictionary<string, int>>();   // station id -> worker -> batches
+        var firstSeen = new Dictionary<string, List<string>>();            // station id -> the workers in the order of the plan
+        foreach (var trip in core.Trips)
+        {
+            foreach (var (id, n) in trip.Stops)
+            {
+                if (!batches.TryGetValue(id, out var per)) batches[id] = per = new Dictionary<string, int>();
+                per[trip.Worker] = per.GetValueOrDefault(trip.Worker) + n;
+                if (!firstSeen.TryGetValue(id, out var order)) firstSeen[id] = order = new List<string>();
+                if (!order.Contains(trip.Worker)) order.Add(trip.Worker);
+            }
+        }
+        var choice = new Dictionary<string, string>();
+        foreach (var (id, per) in batches)
+        {
+            var best = "";
+            var bestN = 0;
+            foreach (var worker in firstSeen[id])
+            {
+                if (per[worker] <= bestN) continue;
+                best = worker;
+                bestN = per[worker];
+            }
+            choice[id] = best;
+        }
+        var assigned = 0;
+        foreach (var r in _pickupRows)
+        {
+            var id = StationOf(r.Zone);
+            if (id == null || !choice.TryGetValue(id, out var worker)) continue;
+            GetRow(r.Zone).Worker = worker;
+            assigned++;
+        }
+        Storage.Save(_data);
+        SetStatus("Assigned the workers of the plan to " + assigned + (assigned == 1 ? " stop." : " stops."));
+        _renderedVersion = -1;
+        RefreshFromLog();
     }
 
     int ShipCapacityOf(string name) =>
@@ -225,7 +312,7 @@ public sealed partial class MainForm
                 Name = c.Name,
                 Capacity = c.Capacity,
                 Drive = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : drive.Key + ", " + (drive.Speed / 1e6).ToString("0", CultureInfo.InvariantCulture) + " Mm/s",
-                Color = MapPalette[i % MapPalette.Length],
+                Color = WorkerColor(c.Name),
             };
             w.Rows.AddRange(RunRows(c.Name));
             var mine = core.Trips.Where(t => t.Worker == c.Name).ToList();
@@ -296,12 +383,13 @@ public sealed partial class MainForm
     TabPage PlanPage(string title, PlanView plan, PlanWorkerView? only)
     {
         var page = new TabPage(title) { BackColor = Theme.Window };
+        // the map on the left, square and as large as the page allows, the tables on the right
         var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Padding = new Padding(8) };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 500));
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var map = new PyroMapView { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 10, 0) };
+        var map = new PyroMapView { Dock = DockStyle.Top, Margin = new Padding(0, 0, 12, 0) };
         var host = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
         host.Resize += (_, _) => FitPlanBlocks(host);
 
@@ -321,11 +409,12 @@ public sealed partial class MainForm
         }
         else
         {
-            // one worker: a colour per trip, the next one in bold (click a planned trip in the table to bold that one)
+            // one worker: the colours of TripColor, the next one in bold (click a planned trip in the table to bold that one)
             var k = 0;
+            var n = only.Planned.Count;
             foreach (var r in only.Planned)
             {
-                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = MapPalette[k % MapPalette.Length], Stops = r.Stops, Bold = k == 0, Tag = r });
+                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = TripColor(k, n), Stops = r.Stops, Bold = k == 0, Tag = r });
                 k++;
             }
         }
@@ -342,6 +431,16 @@ public sealed partial class MainForm
         foreach (var w in workers) host.Controls.Add(PlanBlock(w, onSelect));
         FitPlanBlocks(host);
 
+        // the map is a square: as high as the page, but at most 55% of its width (the tables keep the rest)
+        void FitMap()
+        {
+            var room = Math.Max(320, t.ClientSize.Height - t.Padding.Vertical);
+            var side = Math.Max(320, Math.Min(room, (int)((t.ClientSize.Width - t.Padding.Horizontal) * 0.55)));
+            t.ColumnStyles[0].Width = side + map.Margin.Horizontal;
+            map.Height = side;
+        }
+        t.Resize += (_, _) => FitMap();
+        FitMap();
         t.Controls.Add(map, 0, 0);
         t.Controls.Add(host, 1, 0);
         page.Controls.Add(t);
@@ -384,6 +483,8 @@ public sealed partial class MainForm
             grid.Columns.Add(Col("Time", 90, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
             var boldFont = new Font("Segoe UI", 10f, FontStyle.Bold);
+            var plannedCount = w.Planned.Count;
+            var plannedIndex = 0;
             foreach (var r in w.Rows)
             {
                 var idx = grid.Rows.Add(
@@ -397,6 +498,16 @@ public sealed partial class MainForm
                 row.Tag = r;
                 if (RowColor(r) is { } color) row.DefaultCellStyle.BackColor = color;
                 if (r.Label == "Next") row.DefaultCellStyle.Font = boldFont;
+                if (r.IsPlan && onSelect != null)   // a worker's own page (the Overview keeps one colour per worker)
+                {
+                    // the Trip cell has the colour of the trip's line on the map
+                    var c = TripColor(plannedIndex++, plannedCount);
+                    var cell = row.Cells[0].Style;
+                    cell.BackColor = c;
+                    cell.ForeColor = Color.Black;
+                    cell.SelectionBackColor = c;
+                    cell.SelectionForeColor = Color.Black;
+                }
             }
             if (onSelect != null)
             {
