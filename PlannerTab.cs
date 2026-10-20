@@ -152,8 +152,9 @@ public sealed partial class MainForm
     }
 
     /// <summary>
-    /// Puts the workers of the plan on the pickup board: every stop that is not finished goes to the worker who takes the most batches
-    /// there in the plan (the one who flies it first when it is a tie).
+    /// Puts the workers of the plan on the pickup board: every stop nobody has picked up from yet goes to the worker who takes the most
+    /// batches there in the plan (the one who flies it first when it is a tie). Stops that are finished, partly or fully picked up
+    /// keep their worker, so runs on the way and finished runs are never touched.
     /// </summary>
     void AssignPlanToStops()
     {
@@ -192,6 +193,7 @@ public sealed partial class MainForm
         var assigned = 0;
         foreach (var r in _pickupRows)
         {
+            if (PickupStarted(r)) continue;   // already picked up from: that worker stays, the runs and the debts keep their history
             var id = StationOf(r.Zone);
             if (id == null || !choice.TryGetValue(id, out var worker)) continue;
             GetRow(r.Zone).Worker = worker;
