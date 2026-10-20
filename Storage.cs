@@ -86,6 +86,8 @@ public sealed class AppData
     public List<string> InactiveParty { get; set; } = new();   // party members that are not shown in the party list of the Session tab
     public bool DarkMode { get; set; }   // the dark look
     public string? Channel { get; set; }   // Auto, LIVE, HOTFIX...
+    public bool WebView { get; set; }      // the read-only live web view is switched on
+    public int WebViewPort { get; set; } = 8765;   // the port of the live web view (on this computer only)
     public Dictionary<string, int> ShipCapacity { get; set; } = new();   // worker -> batches his ship holds (the Trip Planner), 0 = not flying
     public List<string> WatchPaths { get; set; } = new();   // Game.log files to watch live, also on other computers
     public List<string> DisabledWatchPaths { get; set; } = new();   // sources that are saved but switched off (unticked in Sources)
