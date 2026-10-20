@@ -715,7 +715,7 @@ public sealed partial class MainForm
                         backs[0] = WebColor(tint);
                         fores[0] = WebColor(TextOn(tint));
                     }
-                    else if (!personal && r.Label == "Current")
+                    else if (!personal && r.First)
                     {
                         for (var i = 0; i < backs.Length; i++)
                         {
@@ -736,7 +736,7 @@ public sealed partial class MainForm
                         },
                         back = backs,
                         fore = fores,
-                        bold = r.Label == "Current",
+                        bold = r.First,
                     };
                 }).ToList(),
             };
