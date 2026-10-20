@@ -61,6 +61,7 @@ public sealed partial class MainForm
         public string DriveNote = "";    // only when no drive is set
         public string Drive = "";        // the quantum drive, or that none is set
         public Color Color;
+        public int RunsSoFar;            // all his runs of the session, also the finished ones that are no longer listed in his table
         public List<PlanRow> Rows = new();
         public List<PlanRow> Planned => Rows.Where(r => r.IsPlan).ToList();
         public List<PlanRow> MapRows => Rows.Where(r => r.IsPlan || r.OnMap).ToList();   // the lines on the map: the planned trips, and the run in progress when the plan adds nothing to it
@@ -319,7 +320,7 @@ public sealed partial class MainForm
     static string PlanTitle(PlanWorkerView w)
     {
         var planned = w.Planned;
-        var done = w.Rows.Count - planned.Count;
+        var done = w.RunsSoFar;
         var text = w.Name + "  –  ship holds " + w.Capacity + (w.Capacity == 1 ? " batch" : " batches") + "  –  " + (w.DriveNote.Length > 0 ? w.DriveNote + "  –  " : "")
             + done + (done == 1 ? " run so far" : " runs so far") + "  –  ";
         text += planned.Count == 0
@@ -342,7 +343,7 @@ public sealed partial class MainForm
     List<PlanRow> RunRows(string name)
     {
         var rows = new List<PlanRow>();
-        foreach (var t in _trips.Where(x => SameName(x.Worker, name)).OrderBy(RunStartedAt))
+        foreach (var t in _trips.Where(x => SameName(x.Worker, name) && !x.End.HasValue).OrderBy(RunStartedAt))   // finished runs are only on Cargo Runs
         {
             var level = t.Manual ? "All" : LostLevel(t.Key);
             var stops = new List<string>();
@@ -576,6 +577,7 @@ public sealed partial class MainForm
                 Drive = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : drive.Key + ", " + (drive.Speed / 1e6).ToString("0", CultureInfo.InvariantCulture) + " Mm/s",
                 Color = WorkerColor(c.Name),
             };
+            w.RunsSoFar = _trips.Count(x => SameName(x.Worker, c.Name));
             w.Rows.AddRange(RunRows(c.Name));
             // the run in progress is his Current trip (a locked stop is marked in the Route cell of a planned trip)
             var runRow = w.Rows.LastOrDefault(r => r.Level == "active");
@@ -644,7 +646,7 @@ public sealed partial class MainForm
         }
 
         plan.Signature = plan.Summary + "¦" + (Theme.Dark ? "dark" : "light") + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
-            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Flight.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + w.Drive)));
+            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Flight.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + w.Drive + "|" + w.RunsSoFar)));
         return plan;
     }
 
