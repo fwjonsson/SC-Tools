@@ -34,15 +34,15 @@ public sealed partial class MainForm
 
     Control BuildDebtsPage()
     {
-        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 8, Padding = new Padding(12) };
-        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        // the balances and the earnings side by side, the money transfers under them over the full width
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 6, Padding = new Padding(12) };
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 28));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 28));
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 44));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
 
         var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight };
@@ -66,10 +66,12 @@ public sealed partial class MainForm
         fileBtn.Click += (_, _) => ChooseDataFile();
         bar.Controls.Add(fileBtn);
         t.Controls.Add(bar, 0, 0);
+        t.SetColumnSpan(bar, 2);
 
         t.Controls.Add(Caption("Balances", "+ they owe the selected member, − the selected member owes them. Type over a number to correct it."), 0, 1);
         StyleGrid(_balanceGrid);
         _balanceGrid.Dock = DockStyle.Fill;
+        _balanceGrid.Margin = new Padding(0, 3, 8, 3);
         _balanceGrid.AllowUserToAddRows = false;
         _balanceGrid.AllowUserToDeleteRows = false;
         _balanceGrid.Columns.Add(Col("Party Member", 200, true, DataGridViewContentAlignment.MiddleLeft));
@@ -78,18 +80,21 @@ public sealed partial class MainForm
         _balanceGrid.CellEndEdit += BalanceEdited;
         t.Controls.Add(_balanceGrid, 0, 2);
 
-        t.Controls.Add(Caption("Earnings", "Value of the pickup locations each worker carried"), 0, 3);
+        t.Controls.Add(Caption("Earnings", "Value of the pickup locations each worker carried"), 1, 1);
         StyleGrid(_earnGrid);
         _earnGrid.Dock = DockStyle.Fill;
+        _earnGrid.Margin = new Padding(8, 3, 0, 3);
         _earnGrid.AllowUserToAddRows = false;
         _earnGrid.AllowUserToDeleteRows = false;
         _earnGrid.Columns.Add(Col("Worker", 200, true, DataGridViewContentAlignment.MiddleLeft));
         _earnGrid.Columns.Add(Col("This Session", 160, true, DataGridViewContentAlignment.MiddleRight));
         _earnGrid.Columns.Add(Col("All Sessions", 160, true, DataGridViewContentAlignment.MiddleRight));
         _earnGrid.Columns.Add(Col("Net Balance (+ Owed to Them)", 240, true, DataGridViewContentAlignment.MiddleRight, true));
-        t.Controls.Add(_earnGrid, 0, 4);
+        t.Controls.Add(_earnGrid, 1, 2);
 
-        t.Controls.Add(Caption("Money Transfers", "Of the selected member. Tick Payment when a transfer pays off a debt."), 0, 5);
+        var txCaption = Caption("Money Transfers", "Of the selected member. Tick Payment when a transfer pays off a debt.");
+        t.Controls.Add(txCaption, 0, 3);
+        t.SetColumnSpan(txCaption, 2);
         StyleGrid(_txGrid);
         _txGrid.Dock = DockStyle.Fill;
         _txGrid.AllowUserToAddRows = false;
@@ -109,16 +114,19 @@ public sealed partial class MainForm
             if (_txGrid.IsCurrentCellDirty) _txGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
         };
         _txGrid.CellValueChanged += TxChanged;
-        t.Controls.Add(_txGrid, 0, 6);
+        t.Controls.Add(_txGrid, 0, 4);
+        t.SetColumnSpan(_txGrid, 2);
 
-        t.Controls.Add(new Label
+        var note = new Label
         {
             Text = "Every mission payout is split equally between the party members who were active when it paid out (see the Party table on the front page), but everybody is owed the value he carried. Ticked payments reduce the debts. Session Party… sets one fixed party for a whole session instead.",
             Dock = DockStyle.Fill,
             ForeColor = Color.DimGray,
             Tag = "muted",
             AutoEllipsis = true,
-        }, 0, 7);
+        };
+        t.Controls.Add(note, 0, 5);
+        t.SetColumnSpan(note, 2);
         return t;
     }
 
@@ -440,6 +448,15 @@ public sealed partial class MainForm
         foreach (var x in items) box.Items.Add(x);
     }
 
+    /// <summary>Green when somebody owes the selected member (positive), red when he owes them (negative), no colour when it is even.</summary>
+    static void SignColor(DataGridViewCell cell, decimal v)
+    {
+        if (Math.Abs(v) < 0.5m) return;
+        var c = v > 0 ? DoneGreen : LostRed;
+        cell.Style.BackColor = c;
+        cell.Style.SelectionBackColor = c;
+    }
+
     static string Signed(decimal v) => v.ToString("+#,##0;-#,##0;0", CultureInfo.InvariantCulture);
 
     static string Meaning(string me, string other, decimal v)
@@ -476,6 +493,7 @@ public sealed partial class MainForm
                     var shown = calc + GetAdj(_debtSelected, o);
                     var i = _balanceGrid.Rows.Add(o, Signed(shown), Meaning(_debtSelected, o, shown));
                     _balanceGrid.Rows[i].Tag = calc;
+                    SignColor(_balanceGrid.Rows[i].Cells[1], shown);
                 }
             }
 
@@ -489,7 +507,8 @@ public sealed partial class MainForm
                 nets.TryGetValue(p, out var net);
                 sumNow += now;
                 sumAll += all;
-                _earnGrid.Rows.Add(p, now.ToString("N0", CultureInfo.InvariantCulture), all.ToString("N0", CultureInfo.InvariantCulture), Signed(net));
+                var er = _earnGrid.Rows.Add(p, now.ToString("N0", CultureInfo.InvariantCulture), all.ToString("N0", CultureInfo.InvariantCulture), Signed(net));
+                SignColor(_earnGrid.Rows[er].Cells[3], net);
             }
             var tr = _earnGrid.Rows.Add("Total", sumNow.ToString("N0", CultureInfo.InvariantCulture), sumAll.ToString("N0", CultureInfo.InvariantCulture), "");
             _earnGrid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
