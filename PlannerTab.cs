@@ -91,7 +91,7 @@ public sealed partial class MainForm
 
     readonly Button _planBtn = new();
     readonly Button _assignBtn = new();
-    readonly Button _resetBtn = new();
+    readonly Button _resetTripsBtn = new();
     readonly Label _planSummary = new();
     readonly Label _planNote = new();
     readonly ThemedTabControl _planTabs = new();   // Overview and one page per crew member
@@ -133,12 +133,12 @@ public sealed partial class MainForm
         StyleButton(_assignBtn, "Assign Workers to Stops");
         _assignBtn.Margin = new Padding(0, 5, 0, 5);
         _assignBtn.Click += (_, _) => AssignPlanToStops();
-        StyleButton(_resetBtn, "Reset Trips");
-        _resetBtn.Margin = new Padding(8, 5, 0, 5);
-        _resetBtn.Click += (_, _) => ResetTrips();
+        StyleButton(_resetTripsBtn, "Reset Trips");
+        _resetTripsBtn.Margin = new Padding(8, 5, 0, 5);
+        _resetTripsBtn.Click += (_, _) => ResetTrips();
         bar.Controls.Add(_planBtn);
         bar.Controls.Add(_assignBtn);
-        bar.Controls.Add(_resetBtn);
+        bar.Controls.Add(_resetTripsBtn);
         t.Controls.Add(bar, 0, 2);
 
         _planSummary.Dock = DockStyle.Fill;
