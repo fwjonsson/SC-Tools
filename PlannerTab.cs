@@ -298,7 +298,7 @@ public sealed partial class MainForm
         g.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
         g.Columns.Add(Col("Started", 76, true));
         g.Columns.Add(Col("Completed", 108, true));
-        g.Columns.Add(Col("Run Time", 90, true));
+        g.Columns.Add(Col("Time", 90, true));
         g.Columns.Add(Col("Flight time", 90, true));
         g.Columns.Add(Col("Lost Cargo", 116, true));
         FitColumns(g);

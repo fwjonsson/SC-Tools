@@ -9,7 +9,7 @@ namespace HaulingTracker;
 public sealed record QtDrive(string Name, string Maker, int Size, string Grade, double Speed, double Accel1, double Accel2, double Engage)
 {
     public string Key => Name + " S" + Size;
-    public string Label => Key + " (" + (Speed / 1e6).ToString("0", CultureInfo.InvariantCulture) + ")";
+    public string Label => Key;   // the name only (the speed in Mm/s used to be shown after it)
 
     /// <summary>
     /// Seconds for one jump of this many Gm (the time it shows for a distance in the star map, without the spool time).
