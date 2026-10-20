@@ -10,6 +10,12 @@ public sealed partial class MainForm
     const int DefaultShipCapacity = 3;
     const int MaxShipCapacity = 24;
 
+    /// <summary>The colour of a worker on the Overview: zzoega orange, zzatvo green, the others one of the palette.</summary>
+    static Color WorkerColor(string name, int index) =>
+        SameName(name, "zzoega") ? Color.FromArgb(255, 150, 40)
+        : SameName(name, "zzatvo") ? Color.FromArgb(60, 205, 95)
+        : MapPalette[index % MapPalette.Length];
+
     /// <summary>
     /// The colour of the k-th planned trip of n (0 = the one to fly now): blue, like the rest of the program, then green for the one after it,
     /// and the later ones go through yellow and orange towards red.
@@ -78,6 +84,7 @@ public sealed partial class MainForm
     }
 
     readonly Button _planBtn = new();
+    readonly Button _assignBtn = new();
     readonly Label _planSummary = new();
     readonly Label _planNote = new();
     readonly ThemedTabControl _planTabs = new();   // Overview and one page per crew member
@@ -116,7 +123,11 @@ public sealed partial class MainForm
             RefreshPlanner();
         };
         var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0) };
+        StyleButton(_assignBtn, "Assign Workers to Stops");
+        _assignBtn.Margin = new Padding(0, 5, 0, 5);
+        _assignBtn.Click += (_, _) => AssignPlanToStops();
         bar.Controls.Add(_planBtn);
+        bar.Controls.Add(_assignBtn);
         t.Controls.Add(bar, 0, 2);
 
         _planSummary.Dock = DockStyle.Fill;
@@ -133,6 +144,58 @@ public sealed partial class MainForm
         _planTabs.Margin = new Padding(0);
         t.Controls.Add(_planTabs, 0, 5);
         return t;
+    }
+
+    /// <summary>
+    /// Puts the workers of the plan on the pickup board: every stop that is not finished goes to the worker who takes the most batches
+    /// there in the plan (the one who flies it first when it is a tie).
+    /// </summary>
+    void AssignPlanToStops()
+    {
+        GetPlan();
+        var core = _planCore;
+        if (core == null || core.Trips.Count == 0 || _inputs == null)
+        {
+            SetStatus("Nothing is planned, so there is nobody to assign.");
+            return;
+        }
+        var batches = new Dictionary<string, Dictionary<string, int>>();   // station id -> worker -> batches
+        var firstSeen = new Dictionary<string, List<string>>();            // station id -> the workers in the order of the plan
+        foreach (var trip in core.Trips)
+        {
+            foreach (var (id, n) in trip.Stops)
+            {
+                if (!batches.TryGetValue(id, out var per)) batches[id] = per = new Dictionary<string, int>();
+                per[trip.Worker] = per.GetValueOrDefault(trip.Worker) + n;
+                if (!firstSeen.TryGetValue(id, out var order)) firstSeen[id] = order = new List<string>();
+                if (!order.Contains(trip.Worker)) order.Add(trip.Worker);
+            }
+        }
+        var choice = new Dictionary<string, string>();
+        foreach (var (id, per) in batches)
+        {
+            var best = "";
+            var bestN = 0;
+            foreach (var worker in firstSeen[id])
+            {
+                if (per[worker] <= bestN) continue;
+                best = worker;
+                bestN = per[worker];
+            }
+            choice[id] = best;
+        }
+        var assigned = 0;
+        foreach (var r in _pickupRows)
+        {
+            var id = StationOf(r.Zone);
+            if (id == null || !choice.TryGetValue(id, out var worker)) continue;
+            GetRow(r.Zone).Worker = worker;
+            assigned++;
+        }
+        Storage.Save(_data);
+        SetStatus("Assigned the workers of the plan to " + assigned + (assigned == 1 ? " stop." : " stops."));
+        _renderedVersion = -1;
+        RefreshFromLog();
     }
 
     int ShipCapacityOf(string name) =>
@@ -244,7 +307,7 @@ public sealed partial class MainForm
                 Name = c.Name,
                 Capacity = c.Capacity,
                 Drive = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : drive.Key + ", " + (drive.Speed / 1e6).ToString("0", CultureInfo.InvariantCulture) + " Mm/s",
-                Color = MapPalette[i % MapPalette.Length],
+                Color = WorkerColor(c.Name, i),
             };
             w.Rows.AddRange(RunRows(c.Name));
             var mine = core.Trips.Where(t => t.Worker == c.Name).ToList();
