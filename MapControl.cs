@@ -10,6 +10,7 @@ sealed class MapRoute
     public Color Color;
     public List<string> Stops = new();   // station ids
     public bool Bold;
+    public string? From;   // a run in progress: the line starts at this station instead of at Ruin
     public bool Dashed;   // a trip that is not the next one: dotted line
     public object? Tag;
 }
@@ -89,7 +90,7 @@ sealed class PyroMapView : Control
             {
                 var route = Routes[i];
                 if (route.Bold != (pass == 1)) continue;
-                var ids = new List<string> { PyroDistances.Ruin };
+                var ids = new List<string> { route.From ?? PyroDistances.Ruin };
                 ids.AddRange(route.Stops);
                 ids.Add(PyroDistances.Ruin);
                 var shift = (i - (count - 1) / 2f) * 3.5f;

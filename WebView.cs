@@ -336,7 +336,7 @@ function mapSvg(el, stations, routes, bg) {
   [false, true].forEach(function (boldPass) {
     routes.forEach(function (r, i) {
       if (!!r.bold !== boldPass) return;
-      const ids = ['Ruin'].concat(r.stops, ['Ruin']);
+      const ids = [r.from || 'Ruin'].concat(r.stops, ['Ruin']);
       const shift = (i - (n - 1) / 2) * 3.5;
       for (let s = 0; s + 1 < ids.length; s++) {
         if (ids[s] === ids[s + 1]) continue;
@@ -407,12 +407,12 @@ function renderPlanner() {
   const routes = [];
   if (planSel === 'Overview') {
     p.workers.forEach(function (w) {
-      w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, bold: i === 0, dashed: i > 0 }); });
+      w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, bold: i === 0, dashed: i > 0 }); });
     });
   } else {
     shown = p.workers.filter(function (w) { return w.name === planSel; });
     shown.forEach(function (w) {
-      w.routes.forEach(function (r, i) { routes.push({ label: r.label, color: w.color, stops: r.stops, bold: i === 0, dashed: i > 0 }); });
+      w.routes.forEach(function (r, i) { routes.push({ label: r.label, color: w.color, stops: r.stops, from: r.from, bold: i === 0, dashed: i > 0 }); });
     });
   }
   mapSvg(mapBox, p.stations, routes, p.backdrop);
@@ -749,7 +749,7 @@ public sealed partial class MainForm
             title = PlanTitle(w),
             grid = Grid(w, false),
             personal = Grid(w, true),
-            routes = w.Planned.Select(r => new { label = r.Label + "  " + Gm(r.Gm), stops = r.Stops }).ToList(),
+            routes = w.Planned.Select(r => new { label = r.Label + "  " + Gm(r.Gm), stops = r.Stops, from = r.From }).ToList(),
         }).ToList();
         return new
         {
