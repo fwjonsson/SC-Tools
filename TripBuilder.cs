@@ -250,9 +250,10 @@ public static class WorkerTripBuilder
                 string who;
                 if (plan.HasValue && first >= plan.Value.Since)
                 {
-                    // the log names who unloaded the cargo, else who handed the mission in, else the Trip Planner decides
-                    who = ActorAt(log, true, first) ?? handInActor
-                        ?? (plan.Value.Claims.TryGetValue(m.Id + "|" + kv.Key, out var claimed) ? claimed : "Unassigned");
+                    // the log names who unloaded the cargo, else the Trip Planner decided (saved), else who handed the mission in
+                    who = ActorAt(log, true, first)
+                        ?? (plan.Value.Claims.TryGetValue(m.Id + "|" + kv.Key, out var claimed) ? claimed : null)   // once decided it stays
+                        ?? handInActor ?? "Unassigned";
                 }
                 else
                 {
