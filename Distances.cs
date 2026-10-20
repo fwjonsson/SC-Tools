@@ -23,14 +23,31 @@ static class StationIds
         ("72645", -21100600, -9275477, -9518769),           // Rod's Fuel 'N Supplies
         ("70053", 10905194, 4250545, 1357701),              // Starlight Service Station
         ("72952", -11023679, -25541091, 2570931),           // Checkmate
-        ("74320", -19162, -37842, 6728),                    // Nyx Gateway
+        ("70273", -14499257.01, -19323565.06, 2735552.17),  // Endgame
     };
+
+    // The two gateways (Nyx and Stanton) have exactly the same position in the log, so the position cannot tell them apart.
+    // On every server the ids of the stations come in the same order, and the Nyx Gateway has the lower id of the two.
+    const double GateX = -19162.107349, GateY = -37842.049299, GateZ = 6727.802807;
+    const string NyxId = "74320", StantonId = "74325";
+    static readonly List<string> Gates = new();
 
     static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> ByZone = new();
 
     /// <summary>Remembers which station a location id is, from the position in the log. A position that is not in the table is ignored.</summary>
     public static void Register(string zone, double x, double y, double z)
     {
+        var gx = GateX - x;
+        var gy = GateY - y;
+        var gz = GateZ - z;
+        if (gx * gx + gy * gy + gz * gz <= 5000.0 * 5000.0)
+        {
+            lock (Gates)
+            {
+                if (!Gates.Contains(zone)) Gates.Add(zone);
+            }
+            return;
+        }
         foreach (var k in Known)
         {
             var dx = k.X - x;
@@ -43,7 +60,20 @@ static class StationIds
     }
 
     /// <summary>The station id (last 5 digits as in the table) for a location id the position of which has been seen, or null.</summary>
-    public static string? Of(string zone) => ByZone.TryGetValue(zone, out var id) ? id : null;
+    public static string? Of(string zone)
+    {
+        if (ByZone.TryGetValue(zone, out var id)) return id;
+        lock (Gates)
+        {
+            if (!Gates.Contains(zone) || !long.TryParse(zone, out var me)) return null;
+            // the gateways of the same server (ids close together), lowest first: Nyx Gateway, then Stanton Gateway.
+            // With only one of them seen so far it cannot be told which it is, so it stays unknown (the last digits may still know it)
+            var group = Gates.Where(g => long.TryParse(g, out var n) && Math.Abs(n - me) < 1000).Select(g => long.Parse(g)).OrderBy(n => n).ToList();
+            var rank = group.IndexOf(me);
+            if (group.Count < 2) return null;
+            return rank == 0 ? NyxId : rank == 1 ? StantonId : null;
+        }
+    }
 }
 
 static class PyroDistances
