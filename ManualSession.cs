@@ -14,7 +14,9 @@ public sealed partial class MainForm
     void InitSessionButtons()
     {
         StyleButton(_sessionToggleBtn, "Start Session");
-        _sessionToggleBtn.AutoSize = true;
+        _sessionToggleBtn.AutoSize = false;          // as high as the menu bar it sits in
+        _sessionToggleBtn.Size = new Size(96, 24);
+        _sessionToggleBtn.Padding = new Padding(0);
         _sessionToggleBtn.Click += (_, _) => ToggleSession();
         UpdateSessionButtons();
     }
