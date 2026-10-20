@@ -416,6 +416,12 @@ function renderPlanner() {
   }
   mapSvg(mapBox, p.stations, routes, p.backdrop);
   shown.forEach(function (w) { section(tables, 'h2', w.title, planSel === 'Overview' ? w.grid : w.personal); });
+  // a copy of Cargo Runs under the planner
+  section(body, 'h2', 'Cargo Runs', last.runs);
+  if (last.runsLive) {
+    const rows = body.lastChild.querySelectorAll('tbody tr');
+    last.runsLive.forEach(function (live, i) { if (live && rows[i] && rows[i].cells[7]) addTicker(rows[i].cells[7]); });
+  }
 }
 
 function renderDebts() {

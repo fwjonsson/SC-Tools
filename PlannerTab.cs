@@ -90,7 +90,6 @@ public sealed partial class MainForm
     }
 
     readonly Button _planBtn = new();
-    readonly Button _assignBtn = new();
     readonly Button _resetTripsBtn = new();
     readonly Label _planSummary = new();
     readonly Label _planNote = new();
@@ -100,20 +99,22 @@ public sealed partial class MainForm
 
     Control BuildPlannerPage()
     {
-        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, Padding = new Padding(12) };
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 8, Padding = new Padding(12) };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));    // title
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));    // hint
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));    // button
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));    // summary
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));    // note
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // the pages
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 62));     // the pages
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));   // Cargo Runs
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 38));     // the copy of Cargo Runs
 
         t.Controls.Add(Caption("Trip Planner", "Divides the open batches over the crew, so everybody flies as little as possible and you finish together"), 0, 0);
 
         var hint = new Label
         {
-            Text = "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. A run shows the time it really took; a planned trip shows ~ the estimated flying time (spool time + distance / drive speed for every jump, no loading). Green = done, orange = some cargo lost, red = all lost, yellow = on the way. A worker's Next trip is locked once you press Assign Workers to Stops (or give him stops by hand on the front page): planning again leaves it alone and plans the rest around it. Reset Trips takes it all away.",
+            Text = "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log. A run shows the time it really took; a planned trip shows ~ the estimated flying time (spool time + distance / drive speed for every jump, no loading). Green = done, orange = some cargo lost, red = all lost, yellow = on the way. Plan Trips locks everybody's Next trip: planning again (for example when someone joins) leaves those alone and plans the rest around them. Reset Trips takes the locks away. Both ask first.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Color.DimGray,
@@ -123,21 +124,12 @@ public sealed partial class MainForm
 
         StyleButton(_planBtn, "Plan Trips");
         _planBtn.Margin = new Padding(0, 5, 0, 5);
-        _planBtn.Click += (_, _) =>
-        {
-            _planCore = null;
-            _planShown = "";
-            RefreshPlanner();
-        };
+        _planBtn.Click += (_, _) => PlanTrips();
         var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0) };
-        StyleButton(_assignBtn, "Assign Workers to Stops");
-        _assignBtn.Margin = new Padding(0, 5, 0, 5);
-        _assignBtn.Click += (_, _) => AssignPlanToStops();
         StyleButton(_resetTripsBtn, "Reset Trips");
         _resetTripsBtn.Margin = new Padding(8, 5, 0, 5);
         _resetTripsBtn.Click += (_, _) => ResetTrips();
         bar.Controls.Add(_planBtn);
-        bar.Controls.Add(_assignBtn);
         bar.Controls.Add(_resetTripsBtn);
         t.Controls.Add(bar, 0, 2);
 
@@ -154,164 +146,147 @@ public sealed partial class MainForm
         _planTabs.Dock = DockStyle.Fill;
         _planTabs.Margin = new Padding(0);
         t.Controls.Add(_planTabs, 0, 5);
+        t.Controls.Add(SectionTitle("Cargo Runs"), 0, 6);
+        BuildPlanRunsGrid();
+        t.Controls.Add(_planRunsGrid, 0, 7);
         return t;
     }
 
     /// <summary>
-    /// Puts the workers of the plan on the pickup board and locks every worker's Next trip to him. Every stop nobody has picked up from yet
-    /// goes to the worker who takes the most batches there in the plan; a stop of somebody's Next trip goes to him first (a tie goes to the
-    /// one who flies it first). Stops that are finished, partly or fully picked up keep their worker, so runs on the way and finished runs
-    /// are never touched.
+    /// Plan Trips: asks first, then works the plan out again and locks every worker's Next trip to him. Locked trips are never changed by
+    /// planning again (someone joining, more contracts), only the trips after them are.
     /// </summary>
-    void AssignPlanToStops()
+    void PlanTrips()
     {
-        GetPlan();
-        var core = _planCore;
-        if (core == null || core.Trips.Count == 0 || _inputs == null)
+        if (_inputs == null)
         {
-            SetStatus("Nothing is planned, so there is nobody to assign.");
+            SetStatus("There is no session to plan.");
             return;
         }
-        // the first trip of every worker is his Next: it is locked to him from now on
-        var next = new Dictionary<string, PlannedTrip>();
-        foreach (var trip in core.Trips)
-        {
-            if (!next.ContainsKey(trip.Worker)) next[trip.Worker] = trip;
-        }
-        foreach (var (worker, trip) in next)
-            _inputs.LockedTrips[LockKey(worker) ?? worker] = trip.Stops.Select(s => new LockedStop { Id = s.Id, Batches = s.Batches }).ToList();
+        var answer = MessageBox.Show(this,
+            "Plan the trips now?\n\nEveryone's Next trip is locked to him from now on. Planning again later only changes the trips after it, so someone who joins gets his share of the rest.",
+            "Plan Trips", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+        if (answer != DialogResult.Yes) return;
 
-        var batches = new Dictionary<string, Dictionary<string, int>>();   // station id -> worker -> weight
-        var firstSeen = new Dictionary<string, List<string>>();            // station id -> the workers in the order of the plan
+        _planCore = null;
+        _planShown = "";
+        GetPlan();
+        var core = _planCore;
+        if (core == null || core.Trips.Count == 0)
+        {
+            SetStatus("Nothing is planned: no open batches, or nobody is flying.");
+            RefreshPlanner();
+            return;
+        }
+        var locked = 0;
+        var seen = new HashSet<string>();
         foreach (var trip in core.Trips)
         {
-            var weight = ReferenceEquals(next[trip.Worker], trip) ? 1000 : 1;   // a Next trip wins its stations
-            foreach (var (id, n) in trip.Stops)
-            {
-                if (!batches.TryGetValue(id, out var per)) batches[id] = per = new Dictionary<string, int>();
-                per[trip.Worker] = per.GetValueOrDefault(trip.Worker) + n * weight;
-                if (!firstSeen.TryGetValue(id, out var order)) firstSeen[id] = order = new List<string>();
-                if (!order.Contains(trip.Worker)) order.Add(trip.Worker);
-            }
-        }
-        var choice = new Dictionary<string, string>();
-        foreach (var (id, per) in batches)
-        {
-            var best = "";
-            var bestN = 0;
-            foreach (var worker in firstSeen[id])
-            {
-                if (per[worker] <= bestN) continue;
-                best = worker;
-                bestN = per[worker];
-            }
-            choice[id] = best;
-        }
-        var assigned = 0;
-        foreach (var r in _pickupRows)
-        {
-            if (PickupStarted(r)) continue;   // already picked up from: that worker stays, the runs and the debts keep their history
-            var id = StationOf(r.Zone);
-            if (id == null || !choice.TryGetValue(id, out var worker)) continue;
-            GetRow(r.Zone).Worker = worker;
-            assigned++;
+            if (!seen.Add(trip.Worker)) continue;   // the first trip of a worker is his Next
+            _inputs.LockedTrips[LockKey(trip.Worker) ?? trip.Worker] = trip.Stops.Select(s => new LockedStop { Id = s.Id, Batches = s.Batches }).ToList();
+            locked++;
         }
         Storage.Save(_data);
-        SetStatus("Assigned the workers of the plan to " + assigned + (assigned == 1 ? " stop" : " stops") + " and locked " + next.Count + (next.Count == 1 ? " Next trip." : " Next trips."));
-        _renderedVersion = -1;
-        RefreshFromLog();
+        SetStatus("Planned the trips and locked " + locked + (locked == 1 ? " Next trip." : " Next trips."));
         RefreshPlanner();
     }
 
-    // ------------------------------------------------------------------ locked trips
+    // ------------------------------------------------------------------ locked trips and who gets the credit
 
     /// <summary>The name a worker has in the locked trips of this session, or null when he has none.</summary>
     string? LockKey(string name) => _inputs?.LockedTrips.Keys.FirstOrDefault(k => SameName(k, name));
 
-    /// <summary>The stations that are part of a locked trip of somebody who is flying now. Their workers are left alone when the party changes.</summary>
-    HashSet<string> LockedStations()
-    {
-        var ids = new HashSet<string>();
-        if (_inputs == null) return ids;
-        foreach (var name in ActiveCrew())
-        {
-            var key = LockKey(name);
-            if (key == null) continue;
-            foreach (var s in _inputs.LockedTrips[key]) ids.Add(s.Id);
-        }
-        return ids;
-    }
-
     /// <summary>
-    /// A worker was given a stop, or taken off one, on the front page: his locked trip follows the stops he has there now. The stops that
-    /// are still his stay in it, other stops of his are added while his ship has room, and with no stops left the lock is gone.
-    /// What you do by hand always wins over the plan.
+    /// A pickup that no log names (a member without a log) is credited to the worker whose planned trip needed a batch at that station, in the order
+    /// of the plan. It runs before the boards change, so the plan still holds the batches that were just picked up. What the logs show always wins.
     /// </summary>
-    void RebuildLock(string name, bool create)
+    void ClaimNewPickups()
     {
-        if (_inputs == null || string.IsNullOrWhiteSpace(name)) return;
-        if (!create && LockKey(name) == null) return;   // taking him off a stop never starts a lock
-        var left = new Dictionary<string, int>();   // station id -> batches not picked up yet at the stops of this worker
-        foreach (var r in _pickupRows)
+        if (_current == null || _inputs == null || _log == null) return;
+        var since = _data.PlanCreditSince ??= DateTime.UtcNow;
+        var core = _planCore;
+        if (core == null || core.Trips.Count == 0) return;
+
+        var fresh = new List<(string Key, string Station, DateTime Time)>();
+        foreach (var m in _current.Missions)
         {
-            if (!SameName(GetRow(r.Zone).Worker ?? "", name)) continue;
-            var id = StationOf(r.Zone);
-            var n = r.Missions - r.Loaded;
-            if (id == null || n <= 0) continue;
-            left[id] = left.GetValueOrDefault(id) + n;
-        }
-        var key = LockKey(name);
-        var room = ShipCapacityOf(_data.Party.FirstOrDefault(p => SameName(p, name)) ?? name);
-        var stops = new List<LockedStop>();
-        if (key != null)
-        {
-            foreach (var s in _inputs.LockedTrips[key])
+            foreach (var kv in m.ObjZone)
             {
-                var take = Math.Min(Math.Min(s.Batches, left.GetValueOrDefault(s.Id)), room);
-                if (take <= 0) continue;
-                stops.Add(new LockedStop { Id = s.Id, Batches = take });
-                room -= take;
+                if (!WorkerTripBuilder.IsPickupStop(kv.Key)) continue;
+                if (!m.Events.TryGetValue(kv.Key, out var ev) || ev.Count == 0) continue;
+                var first = ev.Min(e => e.Time);
+                if (first < since) continue;
+                var key = m.Id + "|" + kv.Key;
+                if (_inputs.PickupClaims.ContainsKey(key)) continue;
+                if (WorkerTripBuilder.ActorAt(_log, true, first) != null) continue;   // a log shows who it was
+                var station = StationOf(kv.Value);
+                if (station == null) continue;
+                fresh.Add((key, station, first));
             }
         }
-        foreach (var (id, n) in left)
+        if (fresh.Count == 0) return;
+
+        foreach (var group in fresh.GroupBy(f => f.Station))
         {
-            if (room <= 0) break;
-            if (stops.Any(s => s.Id == id)) continue;
-            var take = Math.Min(n, room);
-            stops.Add(new LockedStop { Id = id, Batches = take });
-            room -= take;
+            var queue = new List<string>();   // one entry for every batch the plan expects at this station
+            foreach (var trip in core.Trips)
+            {
+                foreach (var (id, n) in trip.Stops)
+                {
+                    if (id != group.Key) continue;
+                    for (var i = 0; i < n; i++) queue.Add(trip.Worker);
+                }
+            }
+            var next = 0;
+            foreach (var f in group.OrderBy(x => x.Time))
+            {
+                if (next >= queue.Count) break;
+                _inputs.PickupClaims[f.Key] = queue[next++];
+            }
         }
-        if (stops.Count == 0)
-        {
-            if (key != null) _inputs.LockedTrips.Remove(key);
-        }
-        else
-        {
-            _inputs.LockedTrips[key ?? name] = stops;
-        }
+        Storage.Save(_data);
     }
 
-    /// <summary>Takes everybody off the planned trips: no locked trips, and no worker on the stops nobody has picked up from yet. Asks first.</summary>
+    /// <summary>Clears all locked Next trips (asks first). The plan is free again until you press Plan Trips.</summary>
     void ResetTrips()
     {
         if (_inputs == null) return;
         var answer = MessageBox.Show(this,
-            "Take every worker off the planned trips?\n\nThe locked Next trips are cleared and the workers are removed from the stops nobody has picked up from yet. Stops that are picked up from, and finished runs, are not touched.",
+            "Reset the trips?\n\nThe locked Next trips are cleared, so nobody has a trip of his own until you press Plan Trips again. Runs that are done or on the way are not touched.",
             "Reset Trips", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
         if (answer != DialogResult.Yes) return;
         _inputs.LockedTrips.Clear();
-        foreach (var r in _pickupRows)
-        {
-            if (PickupStarted(r)) continue;
-            GetRow(r.Zone).Worker = "";
-        }
         Storage.Save(_data);
-        SetStatus("Reset the trips: nobody is locked or assigned to the open stops.");
+        SetStatus("Reset the trips: no Next trip is locked.");
         _planCore = null;
         _planShown = "";
-        _renderedVersion = -1;
-        RefreshFromLog();
         RefreshPlanner();
+    }
+
+    /// <summary>A copy of Cargo Runs for the Trip Planner tab, so the runs are in view while you plan. It cannot be edited (do that on the Session tab).</summary>
+    void BuildPlanRunsGrid()
+    {
+        var g = _planRunsGrid;
+        g.Dock = DockStyle.Fill;
+        g.Margin = new Padding(0, 3, 0, 0);
+        StyleGrid(g);
+        g.AllowUserToAddRows = false;
+        g.AllowUserToDeleteRows = false;
+        g.ReadOnly = true;
+        g.Columns.Add(Col("Worker", 190, true));
+        var run = Col("#", 36, true);
+        run.Name = "num";
+        g.Columns.Add(run);
+        run.DisplayIndex = 0;
+        g.Columns.Add(Col("Pickup Location & Time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
+        g.Columns.Add(Col("Batches", 90, true));
+        g.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
+        g.Columns.Add(Col("Started", 76, true));
+        g.Columns.Add(Col("Completed", 108, true));
+        g.Columns.Add(Col("Run Time", 90, true));
+        g.Columns.Add(Col("Lost Cargo", 116, true));
+        FitColumns(g);
+        g.ScrollBars = ScrollBars.Vertical;
     }
 
     int ShipCapacityOf(string name) =>

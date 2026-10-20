@@ -253,9 +253,7 @@ public sealed partial class MainForm
     {
         var carried = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         if (_log == null) return carried;
-        var trips = WorkerTripBuilder.Build(g,
-            (z, t) => WorkerTripBuilder.WorkerAt(inp, z, t),
-            _log, inp.ManualEnds);
+        var trips = BuildRuns(g, inp);
         foreach (var t in trips)
         {
             if (!t.End.HasValue || t.Worker == "Unassigned") continue;
@@ -280,9 +278,7 @@ public sealed partial class MainForm
         var received = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         if (_log == null) return (carried, received);
 
-        var trips = WorkerTripBuilder.Build(g,
-            (z, t) => WorkerTripBuilder.WorkerAt(inp, z, t),
-            _log, inp.ManualEnds);
+        var trips = BuildRuns(g, inp);
         var byMission = new Dictionary<string, Dictionary<string, decimal>>();
         foreach (var t in trips)
         {
@@ -387,9 +383,7 @@ public sealed partial class MainForm
                 changed = true;
             }
 
-            var trips = WorkerTripBuilder.Build(g,
-                (z, t) => WorkerTripBuilder.WorkerAt(inp, z, t),
-                _log, inp.ManualEnds);
+            var trips = BuildRuns(g, inp);
             var stats = ComputeStats(trips, inp, StationOf);   // a perfect run stays perfect, whatever the server does later
 
             var same = SameStats(inp.Stats, stats)
