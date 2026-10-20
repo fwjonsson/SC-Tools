@@ -4,17 +4,24 @@
 //   ScApiTool.exe                         the standard set (items is cut at 20 pages)
 //   ScApiTool.exe --all                   no page limit at all
 //   ScApiTool.exe /api/missions           any other address of the API, saved under custom-...
-// Data: api.star-citizen.wiki (unofficial fan site, not affiliated with Cloud Imperium Games). Credit them if you share anything.
+//   ScApiTool.exe --uex                   only the UEX data (needs the token, see below)
+//   ScApiTool.exe uex:/terminals          any other UEX address
+// UEX (uexcorp.space): put your access token (from your app on the UEX site) alone in a file called uex-token.txt next to the program,
+// or in the environment variable UEX_TOKEN. The token is only sent to the UEX site, it is never printed or saved in the results.
+// Data: api.star-citizen.wiki (unofficial fan site) and uexcorp.space. Neither is affiliated with Cloud Imperium Games. Credit them if you share anything.
 
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 
 const string BaseUrl = "https://api.star-citizen.wiki";
+const string UexBase = "https://api.uexcorp.space/2.0";
 const int DefaultPageLimit = 100;
 
 var all = args.Contains("--all");
+var uexOnly = args.Contains("--uex");
 var custom = args.Where(a => !a.StartsWith("--")).ToList();
+var uexToken = ReadUexToken();
 var stamp = DateTime.Now.ToString("yyyyMMdd-HHmm");
 var dataRoot = Path.Combine(AppContext.BaseDirectory, "ScApiData");
 var folder = Path.Combine(dataRoot, stamp);
@@ -33,10 +40,13 @@ if (custom.Count > 0)
 {
     foreach (var path in custom)
     {
-        await Safe("custom-" + Clean(path), path, all ? int.MaxValue : DefaultPageLimit);
+        if (path.StartsWith("uex:", StringComparison.OrdinalIgnoreCase))
+            await Safe("uex-" + Clean(path[4..]), UexBase + "/" + path[4..].TrimStart('/'), all ? int.MaxValue : DefaultPageLimit);
+        else
+            await Safe("custom-" + Clean(path), path, all ? int.MaxValue : DefaultPageLimit);
     }
 }
-else
+else if (!uexOnly)
 {
     await Safe("game-versions", "/api/game-versions/default", 1);
     await Safe("openapi", "/api/openapi", 1);   // the list of every address the API has, the most useful file of all
@@ -54,6 +64,8 @@ else
     await Safe("vehicles-filters", "/api/vehicles/filters", 1);
     await Safe("items", "/api/items", all ? int.MaxValue : 20);   // thousands of records, so only the first pages unless --all
 }
+
+if (custom.Count == 0) await DownloadUex();
 
 Say("");
 Say("Done.");
@@ -103,7 +115,47 @@ static string Fields(JsonElement record) =>
         ? string.Join(", ", record.EnumerateObject().Select(p => p.Name + ":" + Kind(p.Value)))
         : record.ValueKind.ToString();
 
-static string WithPage(string path, int page) => path + (path.Contains('?') ? "&" : "?") + "page=" + page;
+static string WithPage(string path, int page) => path + (path.Contains('?') ? "&" : "?") + "page[number]=" + page;
+
+/// <summary>The UEX access token: the file uex-token.txt next to the program (first line that is not a comment), or the UEX_TOKEN variable.</summary>
+static string? ReadUexToken()
+{
+    string? token = null;
+    try
+    {
+        var file = Path.Combine(AppContext.BaseDirectory, "uex-token.txt");
+        if (File.Exists(file))
+            token = File.ReadAllLines(file).Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0 && !l.StartsWith('#'));
+    }
+    catch (Exception)
+    {
+        // no token file
+    }
+    token ??= Environment.GetEnvironmentVariable("UEX_TOKEN");
+    token = token?.Trim().Trim('"');
+    if (token != null && token.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) token = token[7..].Trim();
+    return string.IsNullOrEmpty(token) ? null : token;
+}
+
+/// <summary>The reference data of UEX: the places, the terminals (where things are bought and sold), the commodities and their prices.</summary>
+async Task DownloadUex()
+{
+    if (uexToken == null)
+    {
+        Say("");
+        Say("== UEX skipped: no token. Put it alone in a file called uex-token.txt next to ScApiTool.exe.");
+        return;
+    }
+    foreach (var endpoint in new[]
+    {
+        "game_versions", "star_systems", "planets", "moons", "orbits", "space_stations", "outposts", "cities", "poi", "jump_points",
+        "terminals", "categories", "commodities", "commodities_prices_all", "commodities_status", "companies", "factions", "vehicles",
+    })
+    {
+        await Safe("uex-" + endpoint, UexBase + "/" + endpoint, DefaultPageLimit);
+        await Task.Delay(700);   // UEX allows 120 requests a minute
+    }
+}
 
 async Task Safe(string name, string path, int pageLimit)
 {
@@ -123,7 +175,10 @@ async Task<(int Status, string Body)> Get(string url)
     {
         try
         {
-            using var response = await http.GetAsync(url);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            if (url.StartsWith(UexBase, StringComparison.Ordinal) && uexToken != null)
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", uexToken);   // only ever sent to UEX
+            using var response = await http.SendAsync(request);
             var status = (int)response.StatusCode;
             if (status == 429 && attempt <= 6)
             {
@@ -155,6 +210,8 @@ async Task FetchAll(string name, string path, int pageLimit)
     Say("== " + name + "   " + path);
 
     string? url = path.StartsWith("http") ? path : BaseUrl + path;
+    var isUex = url.StartsWith(UexBase, StringComparison.Ordinal);
+    var firstUrl = url;
     var page = 1;
     var records = 0;
     string? fields = null;
@@ -166,11 +223,13 @@ async Task FetchAll(string name, string path, int pageLimit)
         if (status != 200)
         {
             Say("  Page " + page + ": HTTP " + status + "  " + Cut(body.Replace('\n', ' '), 200));
+            if (isUex && (status == 401 || status == 403)) Say("  UEX did not accept the token (or this address needs a user key). Check uex-token.txt.");
             break;
         }
         File.WriteAllText(Path.Combine(folder, Clean(name) + "-" + page.ToString("000") + ".json"), body);
 
         string? next = null;
+        var data0Count = 0;
         try
         {
             using var doc = JsonDocument.Parse(body);
@@ -181,6 +240,7 @@ async Task FetchAll(string name, string path, int pageLimit)
                 {
                     if (data.ValueKind == JsonValueKind.Array)
                     {
+                        data0Count = data.GetArrayLength();
                         records += data.GetArrayLength();
                         if (fields == null && data.GetArrayLength() > 0) fields = Fields(data[0]);
                     }
@@ -193,18 +253,21 @@ async Task FetchAll(string name, string path, int pageLimit)
 
                 if (page == 1 && top.TryGetProperty("meta", out var meta)) meta1 = Cut(meta.GetRawText(), 500);
 
-                if (top.TryGetProperty("links", out var links) && links.ValueKind == JsonValueKind.Object
-                    && links.TryGetProperty("next", out var n) && n.ValueKind == JsonValueKind.String)
-                {
-                    next = n.GetString();
-                    if (next != null && next.StartsWith('/')) next = BaseUrl + next;
-                }
-                else if (top.TryGetProperty("meta", out var m) && m.ValueKind == JsonValueKind.Object
+                // the next page is built from the page number in meta. The "next" link of the API can carry page[number] twice,
+                // and then the server keeps sending the same page again.
+                if (top.TryGetProperty("meta", out var m) && m.ValueKind == JsonValueKind.Object
                     && m.TryGetProperty("current_page", out var cur) && cur.TryGetInt32(out var curPage)
-                    && m.TryGetProperty("last_page", out var last) && last.TryGetInt32(out var lastPage)
-                    && curPage < lastPage)
+                    && m.TryGetProperty("last_page", out var last) && last.TryGetInt32(out var lastPage))
                 {
-                    next = BaseUrl + WithPage(path.StartsWith("http") ? path[BaseUrl.Length..] : path, curPage + 1);
+                    if (curPage != page)
+                    {
+                        Say("  Asked for page " + page + " but got page " + curPage + ", stopping so nothing is saved twice.");
+                        File.Delete(Path.Combine(folder, Clean(name) + "-" + page.ToString("000") + ".json"));
+                        records -= data0Count;
+                        url = null;
+                        break;
+                    }
+                    if (curPage < lastPage) next = WithPage(firstUrl, curPage + 1);
                 }
             }
         }
