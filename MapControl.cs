@@ -10,6 +10,7 @@ sealed class MapRoute
     public Color Color;
     public List<string> Stops = new();   // station ids
     public bool Bold;
+    public bool Dashed;   // a trip that is not the next one: dotted line
     public object? Tag;
 }
 
@@ -92,7 +93,9 @@ sealed class PyroMapView : Control
                 ids.AddRange(route.Stops);
                 ids.Add(PyroDistances.Ruin);
                 var shift = (i - (count - 1) / 2f) * 3.5f;
-                using var pen = new Pen(Color.FromArgb(route.Bold ? 255 : 170, route.Color), route.Bold ? 3.5f : 2f);
+                using var pen = route.Dashed
+                    ? new Pen(Color.FromArgb(235, route.Color), route.Bold ? 3.5f : 2.5f) { DashStyle = DashStyle.Dot }
+                    : new Pen(Color.FromArgb(route.Bold ? 255 : 170, route.Color), route.Bold ? 3.5f : 2f);
                 using var fill = new SolidBrush(route.Color);
                 for (var s = 0; s + 1 < ids.Count; s++)
                 {
@@ -153,6 +156,7 @@ sealed class PyroMapView : Control
             var x = 8f + (i % columns) * 170f;
             var y = 6f + (i / columns) * LegendRow;
             using var pen = new Pen(legend[i].Color, 3f);
+            if (legend[i].Dashed) pen.DashStyle = DashStyle.Dot;
             g.DrawLine(pen, x, y + 8, x + 16, y + 8);
             g.DrawString(legend[i].Label, font, textBrush, x + 20, y);
         }

@@ -21,25 +21,9 @@ public sealed partial class MainForm
         return MapPalette[index % MapPalette.Length];
     }
 
-    /// <summary>
-    /// The colour of the k-th planned trip of n (0 = the one to fly now): blue, like the rest of the program, then green for the one after it,
-    /// and the later ones go through yellow and orange towards red.
-    /// </summary>
-    static Color TripColor(int k, int n)
-    {
-        if (k <= 0) return MapPalette[0];
-        var hue = n <= 2 ? 125.0 : 125.0 * (1.0 - (k - 1) / (double)(n - 2));   // green (125) down to red (0)
-        return FromHsv(hue, 0.78, 0.92);
-    }
-
-    static Color FromHsv(double h, double s, double v)
-    {
-        var c = v * s;
-        var x = c * (1 - Math.Abs(h / 60.0 % 2 - 1));
-        var m = v - c;
-        var (r, g, b) = h < 60 ? (c, x, 0.0) : h < 120 ? (x, c, 0.0) : (0.0, c, x);
-        return Color.FromArgb((int)Math.Round((r + m) * 255), (int)Math.Round((g + m) * 255), (int)Math.Round((b + m) * 255));
-    }
+    /// <summary>A trip that is not the next one: the worker's colour, half faded into the table colour.</summary>
+    static Color Faded(Color c) => Color.FromArgb(
+        (c.R * 55 + Theme.Cell.R * 45) / 100, (c.G * 55 + Theme.Cell.G * 45) / 100, (c.B * 55 + Theme.Cell.B * 45) / 100);
     // routes on the map: colours that cannot be mistaken for the run colours (green, orange, red, yellow)
     static readonly Color[] MapPalette =
     {
@@ -545,19 +529,18 @@ public sealed partial class MainForm
                 var k = 0;
                 foreach (var r in w.Planned)
                 {
-                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, Bold = k == 0, Tag = r });
+                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, Bold = k == 0, Dashed = k > 0, Tag = r });
                     k++;
                 }
             }
         }
         else
         {
-            // one worker: the colours of TripColor, the next one in bold (click a planned trip in the table to bold that one)
+            // one worker: his colour, the next trip solid and bold, the later ones dotted (click a planned trip in the table to bold that one)
             var k = 0;
-            var n = only.Planned.Count;
             foreach (var r in only.Planned)
             {
-                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = TripColor(k, n), Stops = r.Stops, Bold = k == 0, Tag = r });
+                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = only.Color, Stops = r.Stops, Bold = k == 0, Dashed = k > 0, Tag = r });
                 k++;
             }
         }
@@ -627,7 +610,6 @@ public sealed partial class MainForm
             grid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
             FitColumns(grid);   // the columns share the width, so nothing is cut off or has to scroll sideways
             var boldFont = new Font("Segoe UI", 10f, FontStyle.Bold);
-            var plannedCount = w.Planned.Count;
             var plannedIndex = 0;
             foreach (var r in w.Rows)
             {
@@ -653,13 +635,13 @@ public sealed partial class MainForm
                 }
                 if (r.IsPlan && onSelect != null)   // a worker's own page (the Overview keeps one colour per worker)
                 {
-                    // the Trip cell has the colour of the trip's line on the map
-                    var c = TripColor(plannedIndex++, plannedCount);
+                    // the Trip cell has the colour of the worker, the later trips faded like their dotted line on the map
+                    var c = plannedIndex++ == 0 ? w.Color : Faded(w.Color);
                     var cell = row.Cells[0].Style;
                     cell.BackColor = c;
-                    cell.ForeColor = Color.Black;
+                    cell.ForeColor = TextOn(c);
                     cell.SelectionBackColor = c;
-                    cell.SelectionForeColor = Color.Black;
+                    cell.SelectionForeColor = TextOn(c);
                 }
             }
             if (onSelect != null)
