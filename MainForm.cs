@@ -575,6 +575,7 @@ public sealed partial class MainForm : Form
         _logGrid.Columns.Add(workerCol);
         _logGrid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
         _logGrid.Columns.Add(Col("Notes", 120, false, DataGridViewContentAlignment.MiddleLeft, true));
+        AddNumberColumn(_logGrid);
         _logGrid.CellEndEdit += LogGrid_CellEndEdit;
         _logGrid.DataError += (_, e) => e.ThrowException = false;
         _logGrid.CurrentCellDirtyStateChanged += (_, _) =>
@@ -597,6 +598,7 @@ public sealed partial class MainForm : Form
         _doneGrid.Columns.Add(Col("Worker", 150, true));
         _doneGrid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
         _doneGrid.Columns.Add(Col("Handed In", 120, true, DataGridViewContentAlignment.MiddleCenter, true));
+        AddNumberColumn(_doneGrid);
     }
 
     void BuildTripGrid()
@@ -791,6 +793,26 @@ public sealed partial class MainForm : Form
             c.MinimumWidth = 90;
         }
         return c;
+    }
+
+    /// <summary>
+    /// A "#" column at the far left that counts the rows 1, 2, 3... It is added last (so the other columns keep their numbers in the code)
+    /// and moved to the left on screen. NumberRows fills it.
+    /// </summary>
+    static void AddNumberColumn(DataGridView g)
+    {
+        var c = Col("#", 36, true);
+        c.Name = "num";
+        g.Columns.Add(c);
+        c.DisplayIndex = 0;
+    }
+
+    /// <summary>Numbers the first `count` rows 1, 2, 3... (the rest, like a Total row, stay empty).</summary>
+    static void NumberRows(DataGridView g, int? count = null)
+    {
+        if (!g.Columns.Contains("num")) return;
+        var n = count ?? g.Rows.Count;
+        for (var i = 0; i < g.Rows.Count; i++) g.Rows[i].Cells["num"].Value = i < n ? (i + 1).ToString(CultureInfo.InvariantCulture) : "";
     }
 
     static readonly System.Runtime.CompilerServices.ConditionalWeakTable<DataGridView, object> HookedGrids = new();
@@ -1519,6 +1541,7 @@ public sealed partial class MainForm : Form
             row.Tag = r.Zone;
             ColorMissionsCell(row, r);
         }
+        NumberRows(_logGrid);
 
         // the finished stops: latest hand-in on top
         _doneGrid.Rows.Clear();
@@ -1536,6 +1559,7 @@ public sealed partial class MainForm : Form
             row.Tag = r.Zone;
             row.Cells[2].Style.BackColor = DoneGreen;
         }
+        NumberRows(_doneGrid);
         FitTopArea();
         RefreshPartyPanel();
 
