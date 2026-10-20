@@ -361,7 +361,7 @@ public sealed partial class MainForm
             {
                 Label = "Run #" + t.Number,
                 Route = string.Join("  →  ", parts.Select(x => x.Name + " ×" + x.N + (t.End.HasValue ? "" : " \u2713"))),   // the run in progress: what is already on board says so
-                Batches = level == "All" ? "failed" : t.End.HasValue ? t.HandedIn.ToString(CultureInfo.InvariantCulture) : picked.ToString(CultureInfo.InvariantCulture),
+                Batches = level == "All" ? "failed" : t.Left ? "left" : t.End.HasValue ? t.HandedIn.ToString(CultureInfo.InvariantCulture) : picked.ToString(CultureInfo.InvariantCulture),
                 BatchCount = picked,
                 Gm = stops.Count > 0 ? PyroDistances.Run(stops) : 0,
                 Seconds = t.End.HasValue ? Math.Max(0, (t.End.Value - t.Start).TotalSeconds) : 0,

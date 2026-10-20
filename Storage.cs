@@ -23,11 +23,12 @@ public sealed class WorkerEra
     public Dictionary<string, string> Workers { get; set; } = new();   // location id -> worker
 }
 
-/// <summary>A run you ended by hand (for example when all cargo was lost).</summary>
+/// <summary>A run that was ended by hand (all cargo lost), or (Left) one that stopped because the worker left the party.</summary>
 public sealed class ManualEnd
 {
     public string Worker { get; set; } = "";
     public DateTime Time { get; set; }
+    public bool Left { get; set; }   // ended because he left the party: the run just stops, it is not a failed run
 }
 
 /// <summary>What one worker did in one session, saved so the all-time leaderboard works without the logs.</summary>

@@ -98,7 +98,8 @@ public sealed class WorkerTrip
     public DateTime? End;       // UTC, null = still on the way
     public List<TripPickup> Pickups = new();
     public int HandedIn;        // missions handed in at the end of this run
-    public bool Manual;         // the run was ended by hand
+    public bool Manual;         // the run was ended by hand (failed)
+    public bool Left;           // the run was ended because the worker left the party
 
     /// <summary>Stable key for saving things you tick on the run.</summary>
     public string Key => Worker + "|" + (KeyTime == default ? Start : KeyTime).ToString("yyyyMMddHHmmss");
@@ -211,6 +212,7 @@ public static class WorkerTripBuilder
     /// Who did it comes from the logs. If no log names anybody it is credited to a worker without a log.
     /// </summary>
     const string ManualMission = "~manual";
+    const string LeftMission = "~left";
 
     /// <summary>True for the objective of a pickup stop of a mission.</summary>
     public static bool IsPickupStop(string objective) => objective.StartsWith("pickup_") && StopId.IsMatch(objective);
@@ -303,7 +305,7 @@ public static class WorkerTripBuilder
             foreach (var me in manual)
             {
                 if (string.Equals(me.Worker, worker, StringComparison.OrdinalIgnoreCase))
-                    events.Add((me.Time, false, ManualMission, "", true));
+                    events.Add((me.Time, false, me.Left ? LeftMission : ManualMission, "", true));
             }
             events = events.OrderBy(e => e.Time).ThenBy(e => e.IsPickup ? 1 : 0).ToList();
 
@@ -322,19 +324,20 @@ public static class WorkerTripBuilder
                     continue;
                 }
 
-                var isManual = e.Mission == ManualMission;
+                var isManual = e.Mission == ManualMission || e.Mission == LeftMission;   // ended by hand, no hand-in
                 var ends = isManual ? carried.Count > 0 : (e.ActorKnown ? carried.Count > 0 : carried.Contains(e.Mission));
                 if (ends)
                 {
                     var trip = NewTrip(worker, number++, runStart, e.Time, runPickups, isManual ? 0 : carried.Count, failedIds, acceptedAt);
-                    trip.Manual = isManual;
+                    trip.Manual = e.Mission == ManualMission;
+                    trip.Left = e.Mission == LeftMission;
                     result.Add(trip);
                     last = trip;
                     runStart = e.Time;
                     carried.Clear();
                     runPickups = new List<(string, string, DateTime)>();
                 }
-                else if (!isManual && last != null && !last.Manual && last.End.HasValue && e.Time - last.End.Value <= HandInGap)
+                else if (!isManual && last != null && !last.Manual && !last.Left && last.End.HasValue && e.Time - last.End.Value <= HandInGap)
                 {
                     // the next mission of the same hand-in, not a new run
                     last.End = e.Time;

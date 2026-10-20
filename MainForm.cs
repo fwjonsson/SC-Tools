@@ -740,7 +740,9 @@ public sealed partial class MainForm : Form
     List<WorkerTrip> BuildRuns(SessionGroup g, SessionInputs inp)
     {
         _data.PlanCreditSince ??= DateTime.UtcNow;
-        return WorkerTripBuilder.Build(g, (z, t) => WorkerTripBuilder.WorkerAt(inp, z, t), _log!, inp.ManualEnds, (_data.PlanCreditSince.Value, inp.PickupClaims));
+        // someone who leaves the party stops flying: the run he has on the way ends then (not a failed run)
+        var ends = inp.ManualEnds.Concat(_data.PartyChanges.Where(c => !c.Active).Select(c => new ManualEnd { Worker = c.Name, Time = c.TimeUtc, Left = true })).ToList();
+        return WorkerTripBuilder.Build(g, (z, t) => WorkerTripBuilder.WorkerAt(inp, z, t), _log!, ends, (_data.PlanCreditSince.Value, inp.PickupClaims));
     }
 
     void FillTrips()
@@ -769,7 +771,7 @@ public sealed partial class MainForm : Form
                     t.Worker,
                     t.Number.ToString(CultureInfo.InvariantCulture),
                     pickups,
-                    t.Manual || level == "All" ? "failed" : t.End.HasValue ? t.HandedIn.ToString() : "",
+                    t.Manual || level == "All" ? "failed" : t.Left ? "left" : t.End.HasValue ? t.HandedIn.ToString() : "",
                     RunValueText(t),
                     FormatTime(t.Start),
                     t.End.HasValue ? FormatTime(t.End.Value) : "",
