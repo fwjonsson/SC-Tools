@@ -23,7 +23,7 @@ public sealed partial class MainForm
         if (_log != null) RefreshFromLog();
         RefreshDebts();
         RefreshPartyPanel();
-        if (_planTabs.Visible && _planTabs.IsHandleCreated) RefreshPlanner();
+        if (_planBody.Visible && _planBody.IsHandleCreated) RefreshPlanner();
         FitTopArea();
         Invalidate(true);
     }

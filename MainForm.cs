@@ -1597,7 +1597,7 @@ public sealed partial class MainForm : Form
         FitTopArea();
         RefreshPartyPanel();
 
-        if (_planTabs.Visible && _planTabs.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
+        if (_planBody.Visible && _planBody.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
     }
 
     /// <summary>

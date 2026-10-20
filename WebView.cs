@@ -198,7 +198,7 @@ sealed class LiveWebServer : IDisposable
   .nav button.on, .sub button.on { background:var(--header); color:#fff; }
   .hidden { display:none; }
   #planSummary { font-weight:600; margin:8px 0 2px; }
-  .plantables { margin-top:6px; }
+  .plantables { flex:1 1 520px; min-width:0; }
   .plantables h2:first-child { margin-top:0; }
   .plantables table { table-layout:fixed; }
   .plantables th:nth-child(1) { width:90px; } .plantables th:nth-child(3) { width:66px; } .plantables th:nth-child(4) { width:96px; }
@@ -206,8 +206,6 @@ sealed class LiveWebServer : IDisposable
   .plantables td:nth-child(2) { white-space:normal; }
   .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
   .mapbox { flex:0 0 520px; max-width:100%; background:var(--cell); border:1px solid var(--line); }
-  .runsbox { flex:1 1 520px; min-width:0; }
-  .runsbox h2:first-child { margin-top:0; }
 </style>
 </head>
 <body>
@@ -231,7 +229,6 @@ sealed class LiveWebServer : IDisposable
 
 <div id="viewP" class="hidden">
   <div id="planSummary"></div><div id="planNote" class="empty"></div>
-  <div class="sub" id="planNav"></div>
   <div id="planBody"></div>
 </div>
 
@@ -240,7 +237,6 @@ sealed class LiveWebServer : IDisposable
 
 <script>
 var last = null;
-var planSel = 'Overview';
 
 function table(el, g) {
   el.textContent = '';
@@ -392,44 +388,23 @@ function renderPlanner() {
   const p = last.planner;
   document.getElementById('planSummary').textContent = p.summary || '';
   document.getElementById('planNote').textContent = p.note || '';
-  const names = ['Overview'].concat(p.workers.map(function (w) { return w.name; }));
-  if (names.indexOf(planSel) < 0) planSel = 'Overview';
-  const nav = document.getElementById('planNav');
-  nav.textContent = '';
-  names.forEach(function (n) {
-    const b = document.createElement('button');
-    b.textContent = n;
-    if (n === planSel) b.className = 'on';
-    b.onclick = function () { planSel = n; renderPlanner(); };
-    nav.appendChild(b);
-  });
   const body = document.getElementById('planBody');
   body.textContent = '';
-  // the tables on top, under them the map with the copy of Cargo Runs beside it
-  const tables = document.createElement('div'); tables.className = 'plantables';
+  // the map on the left, the tables on the right, the copy of Cargo Runs under them
   const wrap = document.createElement('div'); wrap.className = 'planwrap';
   const mapBox = document.createElement('div'); mapBox.className = 'mapbox';
-  const runsBox = document.createElement('div'); runsBox.className = 'runsbox';
-  wrap.appendChild(mapBox); wrap.appendChild(runsBox);
-  body.appendChild(tables); body.appendChild(wrap);
-  let shown = p.workers;
+  const tables = document.createElement('div'); tables.className = 'plantables';
+  wrap.appendChild(mapBox); wrap.appendChild(tables); body.appendChild(wrap);
   const routes = [];
-  if (planSel === 'Overview') {
-    p.workers.forEach(function (w) {
-      w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, bold: !!r.solid, dashed: !r.solid }); });
-    });
-  } else {
-    shown = p.workers.filter(function (w) { return w.name === planSel; });
-    shown.forEach(function (w) {
-      w.routes.forEach(function (r, i) { routes.push({ label: r.label, color: w.color, stops: r.stops, from: r.from, bold: !!r.solid, dashed: !r.solid }); });
-    });
-  }
+  p.workers.forEach(function (w) {
+    w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, bold: !!r.solid, dashed: !r.solid }); });
+  });
   mapSvg(mapBox, p.stations, routes, p.backdrop);
-  shown.forEach(function (w) { section(tables, 'h2', w.title, planSel === 'Overview' ? w.grid : w.personal); });
-  // a copy of Cargo Runs beside the map
-  section(runsBox, 'h2', 'Cargo Runs', last.runs);
+  p.workers.forEach(function (w) { section(tables, 'h2', w.title, w.grid); });
+  // a copy of Cargo Runs under the planner
+  section(body, 'h2', 'Cargo Runs', last.runs);
   if (last.runsLive) {
-    const rows = runsBox.lastChild.querySelectorAll('tbody tr');
+    const rows = body.lastChild.querySelectorAll('tbody tr');
     last.runsLive.forEach(function (live, i) { if (live && rows[i] && rows[i].cells[7]) addTicker(rows[i].cells[7]); });
   }
 }
@@ -708,10 +683,9 @@ public sealed partial class MainForm
         var cell = WebColor(Theme.Cell);
         var text = WebColor(Theme.Text);
 
-        // the same table twice: on the Overview the whole Current row has the worker's colour, on his own page the Trip cell has the colour of its line on the map
-        object Grid(PlanWorkerView w, bool personal)
+        // the whole Current row of a worker has his colour
+        object Grid(PlanWorkerView w)
         {
-            var planned = w.Planned;
             return new
             {
                 headers,
@@ -727,12 +701,6 @@ public sealed partial class MainForm
                             backs[i] = WebColor(w.Color);
                             fores[i] = WebColor(TextOn(w.Color));
                         }
-                    }
-                    else if (personal && r.IsPlan)
-                    {
-                        var tint = r.Solid ? w.Color : Faded(w.Color);   // the later trips are faded, like their dotted line on the map
-                        backs[0] = WebColor(tint);
-                        fores[0] = WebColor(TextOn(tint));
                     }
                     return new
                     {
@@ -760,8 +728,7 @@ public sealed partial class MainForm
             name = w.Name,
             color = WebColor(w.Color),
             title = PlanTitle(w),
-            grid = Grid(w, false),
-            personal = Grid(w, true),
+            grid = Grid(w),
             routes = w.MapRows.Select(r => new { label = r.Label + "  " + Gm(r.Gm), stops = r.Stops, from = r.From, solid = r.Solid }).ToList(),
         }).ToList();
         return new
