@@ -113,7 +113,7 @@ The **History** tab has the same table for **all saved sessions** (with an extra
 ## Live Web View (let somebody watch)
 
 **Options → Live Web View** switches on a small read-only web server inside the program. It shows all the tabs (Session, Trip Planner with its map and pages, Debts and History) with buttons on the page to switch between them, in the colours of your theme, and refreshes every few seconds. It only listens on your own computer (`http://localhost:8765`), and it can only show things: there is nothing to click or change, all changes are made in the program. The setting is remembered.
-- To let somebody else watch, install `cloudflared` (`winget install Cloudflare.cloudflared`) and run `cloudflared tunnel --url http://localhost:8765` in a terminal. It prints an `https://...trycloudflare.com` address (no account needed). Send that address to whoever should watch. It changes every time you start the tunnel, and anybody with the address can look, so share it only with people you trust.
+- To let somebody else watch, install `cloudflared` (`winget install Cloudflare.cloudflared`) and run `cloudflared tunnel --url http://localhost:8765` in a terminal (the program copies this command when you switch the web view on, so you can paste it with Ctrl+V). It prints an `https://...trycloudflare.com` address (no account needed). Send that address to whoever should watch. It changes every time you start the tunnel, and anybody with the address can look, so share it only with people you trust.
 - The program and the tunnel have to be running on your computer for the page to work. Stop the tunnel (Ctrl+C) and the page is gone for everybody.
 
 ## ScApiTool (Star Citizen Wiki API)
