@@ -9,6 +9,7 @@ public sealed partial class MainForm
     readonly DataGridView _balanceGrid = new();
     readonly DataGridView _earnGrid = new();
     readonly DataGridView _txGrid = new();
+    readonly DataGridView _payoutGrid = new();   // Mission Payouts, right of the money transfers
     readonly DataGridView _historyGrid = new();
     readonly Label _bestLine = new();
     string _debtSelected = "";
@@ -94,11 +95,12 @@ public sealed partial class MainForm
         _earnGrid.Columns.Add(Col("Net Balance (+ Owed to Them)", 240, true, DataGridViewContentAlignment.MiddleRight, true));
         t.Controls.Add(_earnGrid, 1, 2);
 
-        var txCaption = Caption("Money Transfers", "Of the selected member. Tick Payment when a transfer pays off a debt.");
-        t.Controls.Add(txCaption, 0, 3);
-        t.SetColumnSpan(txCaption, 2);
+        // the money transfers on the left, the payout of every finished mission on the right
+        t.Controls.Add(Caption("Money Transfers", "Of the selected member. Tick Payment when a transfer pays off a debt."), 0, 3);
+        t.Controls.Add(Caption("Mission Payouts", "Every finished mission: its payout and the members who were active and shared it."), 1, 3);
         StyleGrid(_txGrid);
         _txGrid.Dock = DockStyle.Fill;
+        _txGrid.Margin = new Padding(0, 3, 8, 3);
         _txGrid.AllowUserToAddRows = false;
         _txGrid.AllowUserToDeleteRows = false;
         _txGrid.Columns.Add(Col("Time", 150, true));
@@ -117,8 +119,24 @@ public sealed partial class MainForm
             if (_txGrid.IsCurrentCellDirty) _txGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
         };
         _txGrid.CellValueChanged += TxChanged;
+        FitColumns(_txGrid);
+        _txGrid.ScrollBars = ScrollBars.Vertical;   // the columns share the width, the rows scroll
         t.Controls.Add(_txGrid, 0, 4);
-        t.SetColumnSpan(_txGrid, 2);
+
+        StyleGrid(_payoutGrid);
+        _payoutGrid.Dock = DockStyle.Fill;
+        _payoutGrid.Margin = new Padding(8, 3, 0, 3);
+        _payoutGrid.AllowUserToAddRows = false;
+        _payoutGrid.AllowUserToDeleteRows = false;
+        _payoutGrid.ReadOnly = true;
+        _payoutGrid.Columns.Add(Col("Time", 110, true));
+        _payoutGrid.Columns.Add(Col("Mission", 140, true, DataGridViewContentAlignment.MiddleLeft));
+        _payoutGrid.Columns.Add(Col("Payout", 110, true, DataGridViewContentAlignment.MiddleRight));
+        _payoutGrid.Columns.Add(Col("Shared Between", 220, true, DataGridViewContentAlignment.MiddleLeft, true));
+        _payoutGrid.Columns.Add(Col("Each", 110, true, DataGridViewContentAlignment.MiddleRight));
+        FitColumns(_payoutGrid);
+        _payoutGrid.ScrollBars = ScrollBars.Vertical;
+        t.Controls.Add(_payoutGrid, 1, 4);
 
         var note = new Label
         {
@@ -272,7 +290,7 @@ public sealed partial class MainForm
     /// paid out. Someone who joined after a mission paid out, or left before it, gets no share of it.
     /// Missions that paid out before the party table started to track times (or in a session with a typed Session Party) use the whole session party.
     /// </summary>
-    (Dictionary<string, decimal> Carried, Dictionary<string, decimal> Received) ComputePayouts(SessionGroup g, SessionInputs inp)
+    (Dictionary<string, decimal> Carried, Dictionary<string, decimal> Received) ComputePayouts(SessionGroup g, SessionInputs inp, List<PayoutRecord>? records = null)
     {
         var carried = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         var received = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
@@ -321,6 +339,18 @@ public sealed partial class MainForm
                 if (members.Count == 0) members = kv.Value.Keys.ToList();   // nobody was marked active: the ones who carried it share it
             }
             var share = pool / members.Count;
+            if (records != null && m.EndedAt.HasValue)
+            {
+                records.Add(new PayoutRecord
+                {
+                    MissionId = m.Id,
+                    Time = m.EndedAt.Value,
+                    Contract = (string.IsNullOrEmpty(m.Cargo) ? "Cargo" : m.Cargo) + ", " + m.Multi + " stops",
+                    Payout = RewardOf(m, inp),
+                    Members = new List<string>(members),
+                    Each = share,
+                });
+            }
             foreach (var name in members)
             {
                 received.TryGetValue(name, out var old);
@@ -343,7 +373,17 @@ public sealed partial class MainForm
         {
             _data.Sessions.TryGetValue(g.Key, out var stored);
             if (stored != null && WorkerTripBuilder.ResetWorkersForNewBatch(g, stored)) changed = true;
-            var (carried, received) = ComputePayouts(g, stored ?? new SessionInputs());
+            var payouts = new List<PayoutRecord>();
+            var (carried, received) = ComputePayouts(g, stored ?? new SessionInputs(), payouts);
+            foreach (var r in payouts)
+            {
+                var old = _data.Payouts.FirstOrDefault(x => x.MissionId == r.MissionId);
+                if (old != null && old.Time == r.Time && old.Contract == r.Contract && old.Payout == r.Payout && old.Each == r.Each
+                    && old.Members.SequenceEqual(r.Members, StringComparer.OrdinalIgnoreCase)) continue;
+                if (old != null) _data.Payouts.Remove(old);
+                _data.Payouts.Add(r);
+                changed = true;
+            }
             var runValues = ComputeCarried(g, stored ?? new SessionInputs());
             var failedValues = ComputeCarried(g, stored ?? new SessionInputs(), CarryMode.Failed);
             if (carried.Count == 0 && runValues.Count == 0) continue;
@@ -528,6 +568,17 @@ public sealed partial class MainForm
                         t.Payment);
                     _txGrid.Rows[i].Tag = t;
                 }
+            }
+
+            _payoutGrid.Rows.Clear();
+            foreach (var r in _data.Payouts.OrderByDescending(x => x.Time))
+            {
+                _payoutGrid.Rows.Add(
+                    r.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture),
+                    r.Contract,
+                    r.Payout.ToString("N0", CultureInfo.InvariantCulture),
+                    string.Join(", ", r.Members),
+                    r.Each.ToString("N0", CultureInfo.InvariantCulture));
             }
         }
         finally

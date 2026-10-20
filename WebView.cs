@@ -421,6 +421,7 @@ function renderDebts() {
     signColors(el.lastChild, 2, d, el.lastChild.querySelectorAll('tbody tr'));   // the meaning has the colour of its balance
   });
   section(el, 'h2', 'Money transfers', d.transfers);
+  section(el, 'h2', 'Mission payouts', d.payouts);
 }
 
 function renderHistory() {
@@ -643,7 +644,17 @@ public sealed partial class MainForm
                 t.Amount.ToString("N0", System.Globalization.CultureInfo.InvariantCulture),
                 t.Payment ? "yes" : "",
             }));
-        return new { earnings = WebGrid(_earnGrid), balances, transfers, pos = WebColor(DoneGreen), neg = WebColor(LostRed) };
+        var payouts = WebSimple(
+            new[] { ("Time", "center"), ("Mission", "left"), ("Payout", "right"), ("Shared Between", "left"), ("Each", "right") },
+            _data.Payouts.OrderByDescending(r => r.Time).Select(r => new[]
+            {
+                r.Time.ToLocalTime().ToString("d MMM HH:mm", System.Globalization.CultureInfo.CurrentCulture),
+                r.Contract,
+                r.Payout.ToString("N0", System.Globalization.CultureInfo.InvariantCulture),
+                string.Join(", ", r.Members),
+                r.Each.ToString("N0", System.Globalization.CultureInfo.InvariantCulture),
+            }));
+        return new { earnings = WebGrid(_earnGrid), balances, transfers, payouts, pos = WebColor(DoneGreen), neg = WebColor(LostRed) };
     }
 
     /// <summary>A plain table made from text: no special colours.</summary>
