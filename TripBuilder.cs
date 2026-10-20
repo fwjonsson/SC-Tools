@@ -63,7 +63,7 @@ public static class TripBuilder
         }
 
         var trips = new List<Trip>();
-        var start = g.Missions.Min(m => m.Accepted ?? m.FirstSeen ?? g.Start);
+        var start = g.Missions.Select(m => m.Accepted ?? m.FirstSeen ?? g.Start).DefaultIfEmpty(g.Start).Min();
         for (var i = 0; i <= ends.Count; i++)
         {
             DateTime? end = i < ends.Count ? ends[i].Time : (DateTime?)null;
@@ -216,7 +216,7 @@ public static class WorkerTripBuilder
     {
         var manual = (manualEnds ?? Enumerable.Empty<ManualEnd>()).ToList();
         var failedIds = g.Failed.Select(m => m.Id).ToHashSet();
-        var sessionStart = g.Missions.Min(m => m.Accepted ?? m.FirstSeen ?? g.Start);
+        var sessionStart = g.Missions.Select(m => m.Accepted ?? m.FirstSeen ?? g.Start).DefaultIfEmpty(g.Start).Min();
         var acceptedAt = g.Missions.Concat(g.Failed).GroupBy(m => m.Id).ToDictionary(x => x.Key, x => x.First().Accepted ?? x.First().FirstSeen ?? g.Start);
 
         var pickups = new List<(string Worker, string Zone, string Mission, DateTime Time)>();

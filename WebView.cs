@@ -176,7 +176,8 @@ sealed class LiveWebServer : IDisposable
 
 <div id="viewS">
 <div class="top">
-  <div><h2>Pickup locations</h2><div class="scroll" id="pickups"></div></div>
+  <div><h2>Pickup locations</h2><div class="scroll" id="pickups"></div>
+    <div id="finishedBox"><h2>Finished stops</h2><div class="scroll" id="finished"></div></div></div>
   <div>
     <h2>Contracts</h2><div class="scroll" id="rewards"></div>
     <h2>Session</h2><div class="scroll" id="summary"></div>
@@ -392,6 +393,8 @@ async function refresh() {
     document.getElementById('updated').textContent = 'updated ' + d.updated;
     live.textContent = '● live'; live.className = 'live ok';
     table(document.getElementById('pickups'), d.pickups);
+    document.getElementById('finishedBox').classList.toggle('hidden', !d.finished || !d.finished.rows || d.finished.rows.length === 0);
+    table(document.getElementById('finished'), d.finished);
     table(document.getElementById('rewards'), d.rewards);
     summary(document.getElementById('summary'), d.summary || []);
     table(document.getElementById('leaders'), d.leaders);
@@ -521,12 +524,14 @@ public sealed partial class MainForm
                 new { k = "Start Time", v = _startBox.Text },
                 new { k = "Session Time", v = _durationVal.Text },
                 new { k = "Batches Delivered", v = _missionsVal.Text },
+                new { k = "Active Missions", v = _missionsActiveVal.Text },
                 new { k = "Missions Completed", v = _missionsDoneVal.Text },
                 new { k = "Total aUEC Earned", v = _revenueVal.Text },
                 new { k = "aUEC/Hour", v = _hourlyVal.Text },
             },
             rewards = WebGrid(_rewards),
             pickups = WebGrid(_logGrid),
+            finished = WebGrid(_doneGrid),
             leaders = WebGrid(_statsGrid),
             runs = WebGrid(_tripGrid),
             planner = WebPlan(GetPlan()),
