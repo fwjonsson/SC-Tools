@@ -52,6 +52,22 @@ public static class SessionBuilder
 
     static DateTime MissionStart(Mission m) => m.Accepted ?? m.FirstSeen ?? DateTime.MinValue;
 
+    /// <summary>
+    /// A mission the log never saw end (the game crashed, the other account stopped playing) must not live for ever:
+    /// with no sign of life for this long before the reference time it is treated as old and left out of the sessions.
+    /// </summary>
+    public static readonly TimeSpan StaleMissionLimit = TimeSpan.FromHours(3);
+
+    static bool IsStale(Mission m, DateTime reference)
+    {
+        var last = MissionStart(m);
+        foreach (var list in m.Events.Values)
+        {
+            foreach (var e in list) if (e.Time > last) last = e.Time;
+        }
+        return last != DateTime.MinValue && last < reference - StaleMissionLimit;
+    }
+
     static DateTime MissionEnd(Mission m, DateTime lastLogTime)
     {
         if (m.EndedAt.HasValue) return m.EndedAt.Value;
@@ -87,9 +103,11 @@ public static class SessionBuilder
                 if (!m.EndedAt.HasValue && running != null)
                 {
                     if (!ReferenceEquals(w, running)) continue;   // a mission that is still going belongs to the running session
+                    if (IsStale(m, w.StartUtc)) continue;         // but one from long before the session that never ended is old
                 }
                 else
                 {
+                    if (!m.EndedAt.HasValue && IsStale(m, log.LastTime)) continue;
                     var t = m.EndedAt ?? log.LastTime;
                     if (t < w.StartUtc || t > stop) continue;
                 }
