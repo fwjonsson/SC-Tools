@@ -15,7 +15,7 @@ public sealed record QtDrive(string Name, string Maker, int Size, string Grade, 
     /// Seconds for one jump of this many Gm (the time it shows for a distance in the star map, without the spool time).
     /// The drive speeds up with the stage 1 acceleration until it reaches the engage speed, then with the stage 2 acceleration up to the
     /// top speed, flies at the top speed and slows down the same way. A jump that is too short to reach the top speed
-    /// speeds up and slows down halfway each. Checked against SPViewer with a TS-2 (S3): 12 jumps from 1 to 150 Gm, within 2 seconds.
+    /// speeds up and slows down halfway each. Checked against SPViewer with a TS-2 (S3, 12 jumps from 1 to 150 Gm, within 2 seconds) and an XL-1 (S2, 1, 15 and 100 Gm, within 1 second).
     /// </summary>
     public double Seconds(double gm)
     {
