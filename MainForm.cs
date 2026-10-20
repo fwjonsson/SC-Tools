@@ -179,6 +179,7 @@ public sealed partial class MainForm : Form
             grid.RowsRemoved += (_, _) => FitTopArea();
         }
         Shown += (_, _) => FitTopArea();
+        _statsGrid.SizeChanged += (_, _) => AlignSessionColumns();
         left.Controls.Add(SectionTitle("Stops"), 0, 0);
         left.Controls.Add(_logGrid, 0, 1);
         _doneTitle = SectionTitle("Finished Stops");
@@ -311,12 +312,40 @@ public sealed partial class MainForm : Form
                 var missingPickups = _logGrid.Rows.Count - _logGrid.DisplayedRowCount(false);
                 var missingLeaders = _statsGrid.Rows.Count - _statsGrid.DisplayedRowCount(false);
                 var missingDone = hasDone ? _doneGrid.Rows.Count - _doneGrid.DisplayedRowCount(false) : 0;
+                AlignSessionColumns();
                 if (missingPickups <= 0 && missingLeaders <= 0 && missingDone <= 0) break;
                 if (missingDone > 0) done += missingDone * _doneGrid.RowTemplate.Height;
                 if (missingPickups > 0) pickups += missingPickups * _logGrid.RowTemplate.Height;
                 if (missingLeaders > 0) leaders += missingLeaders * _statsGrid.RowTemplate.Height;
             }
         }));
+    }
+
+    static List<DataGridViewColumn> ShownColumns(DataGridView g) =>
+        g.Columns.Cast<DataGridViewColumn>().Where(c => c.Visible).OrderBy(c => c.DisplayIndex).ToList();
+
+    /// <summary>
+    /// The first columns of the Stops, Finished Stops and Cargo Runs boards are as wide as the columns right above or below them in the Session Leaderboard
+    /// (#, Worker, Completed Runs, ...), so everything lines up. The last column of the Stops boards (Notes, Handed In) takes what is left.
+    /// </summary>
+    void AlignSessionColumns()
+    {
+        var lead = ShownColumns(_statsGrid);
+        if (lead.Count < 6 || lead[0].Width < 10) return;
+        void Fix(DataGridView g, int count)
+        {
+            var cols = ShownColumns(g);
+            for (var i = 0; i < count && i < cols.Count && i < lead.Count; i++)
+            {
+                if (i == cols.Count - 1) break;   // the last column keeps filling
+                cols[i].MinimumWidth = 30;
+                cols[i].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                cols[i].Width = lead[i].Width;
+            }
+        }
+        Fix(_logGrid, 5);     // #, Pickup Location, From Ruin, Batches, Value
+        Fix(_doneGrid, 6);    // #, Pickup Location, From Ruin, Delivered, Worker, Value
+        Fix(_tripGrid, 2);    // #, Worker
     }
 
     static Label SectionTitle(string text) => new()
