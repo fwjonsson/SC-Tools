@@ -1399,7 +1399,7 @@ public sealed partial class MainForm : Form
             ColorMissionsCell(row, r);
         }
 
-        if (_planHost.Visible && _planHost.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
+        if (_planTabs.Visible && _planTabs.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
     }
 
     /// <summary>
