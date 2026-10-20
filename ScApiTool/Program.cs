@@ -11,7 +11,7 @@ using System.Text;
 using System.Text.Json;
 
 const string BaseUrl = "https://api.star-citizen.wiki";
-const int DefaultPageLimit = 60;
+const int DefaultPageLimit = 100;
 
 var all = args.Contains("--all");
 var custom = args.Where(a => !a.StartsWith("--")).ToList();
@@ -40,6 +40,13 @@ else
 {
     await Safe("game-versions", "/api/game-versions/default", 1);
     await Safe("openapi", "/api/openapi", 1);   // the list of every address the API has, the most useful file of all
+    // world positions of every place in the three systems, so distances can be calculated
+    await Safe("positions-pyro", "/api/locations/positions?filter[system]=pyro", 1);
+    await Safe("positions-stanton", "/api/locations/positions?filter[system]=stanton", 1);
+    await Safe("positions-nyx", "/api/locations/positions?filter[system]=nyx", 1);
+    await Safe("starsystems", "/api/starsystems", DefaultPageLimit);
+    await Safe("celestial-pyro", "/api/celestial-objects?filter[starsystem]=pyro", DefaultPageLimit);
+    await Safe("mission-filters", "/api/missions/filters", 1);
     await Safe("locations", "/api/locations", all ? int.MaxValue : DefaultPageLimit);
     await Safe("missions", "/api/missions", all ? int.MaxValue : DefaultPageLimit);
     await Safe("commodities", "/api/commodities", all ? int.MaxValue : DefaultPageLimit);
