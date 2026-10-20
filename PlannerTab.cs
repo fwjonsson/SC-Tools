@@ -45,6 +45,7 @@ public sealed partial class MainForm
         public PlannedTrip? Trip;
         public bool Locked;              // a planned trip that is locked to its worker (his Current)
         public bool First;               // the trip the worker is flying right now (his run in progress, or his first planned trip when he has none): the whole row has his colour
+        public decimal Value;            // a run: what its batches are worth; a planned trip: the batches at each stop times the average value of a batch there
         public bool OnMap;               // a run in progress that is drawn on the map by itself (Ruin, its pickups, back to Ruin)
         public bool Hidden;              // a planned trip that is shown inside the Current row (the continuation of the run in progress), not as a row of its own
         public bool Estimate;            // the time is an estimate (~) although this is a run
@@ -350,6 +351,7 @@ public sealed partial class MainForm
                 Seconds = t.End.HasValue ? Math.Max(0, (t.End.Value - t.Start).TotalSeconds) : 0,
                 Level = level == "All" ? "all" : level == "Little" ? "little" : t.End.HasValue ? "done" : "active",
                 Stops = stops,
+                Value = RunValue(t),
             });
         }
         return rows;
@@ -498,6 +500,7 @@ public sealed partial class MainForm
         var crew = ActiveCrew().Select(n => (Name: n, Capacity: ShipCapacityOf(n), Drive: QtOf(n))).ToList();
         var remaining = new Dictionary<string, int>();
         var unknown = new List<string>();
+        var worth = new Dictionary<string, (decimal Value, int Batches)>();   // station -> what its batches are worth together (the value of a stop is reward / stops of its mission)
         if (_inputs != null)
         {
             foreach (var r in _openRows)
@@ -505,6 +508,11 @@ public sealed partial class MainForm
                 var left = r.Missions - r.Loaded;   // batches not picked up yet
                 if (left <= 0) continue;
                 var id = StationOf(r.Zone);
+                if (id != null && r.Missions > 0)
+                {
+                    var was = worth.GetValueOrDefault(id);
+                    worth[id] = (was.Value + StopValue(r), was.Batches + r.Missions);
+                }
                 if (id == null)
                 {
                     unknown.Add(LocationName(r.Zone) + " (" + left + ")");
@@ -515,6 +523,7 @@ public sealed partial class MainForm
         }
 
         var core = CoreFor(crew, remaining, unknown);
+        decimal PerBatch(string id) => worth.TryGetValue(id, out var x) && x.Batches > 0 ? x.Value / x.Batches : 0;   // the average batch at that station
 
         var plan = new PlanView { Note = core.Note };
         var flying = crew.Where(c => c.Capacity > 0).ToList();
@@ -549,6 +558,7 @@ public sealed partial class MainForm
                     Route = RouteText(mine[k]),
                     Batches = mine[k].Batches + "/" + (mine[k].Room > 0 ? mine[k].Room : c.Capacity),
                     BatchCount = mine[k].Batches,
+                    Value = mine[k].Stops.Sum(s => s.Batches * PerBatch(s.Id)),
                     Gm = mine[k].Distance,
                     Seconds = mine[k].Seconds,
                     Level = "plan",
@@ -563,6 +573,7 @@ public sealed partial class MainForm
                 var cont = mine[0];
                 runRow.Route += "  →  " + StopsText(cont);
                 runRow.BatchCount += cont.Batches;
+                runRow.Value += cont.Stops.Sum(s => s.Batches * PerBatch(s.Id));
                 runRow.Batches = runRow.BatchCount + "/" + c.Capacity;
                 runRow.Stops = runRow.Stops.Concat(cont.Stops.Select(s => s.Id)).ToList();
                 runRow.Gm = PyroDistances.Run(runRow.Stops);
@@ -595,7 +606,7 @@ public sealed partial class MainForm
         }
 
         plan.Signature = plan.Summary + "¦" + (Theme.Dark ? "dark" : "light") + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
-            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + w.Drive)));
+            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + w.Drive)));
         return plan;
     }
 
@@ -737,6 +748,7 @@ public sealed partial class MainForm
             grid.Columns.Add(Col("Trip", 110, true));
             grid.Columns.Add(Col("Route (Ruin, then these, then back to Ruin)", 430, true, DataGridViewContentAlignment.MiddleLeft, true));
             grid.Columns.Add(Col("Batches", 80, true));
+            grid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Distance", 110, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Time", 90, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
@@ -748,6 +760,7 @@ public sealed partial class MainForm
                     RowLabel(r),
                     r.Route,
                     r.Batches,
+                    ValueText(r.Value),
                     r.Gm > 0 ? Gm(r.Gm) : "",
                     TimeText(r),
                     r.Gm > 0 && r.BatchCount > 0 ? (r.Gm / r.BatchCount).ToString("N1", CultureInfo.InvariantCulture) : "");
@@ -808,5 +821,7 @@ public sealed partial class MainForm
     }
 
     /// <summary>A run: the time it really took. A planned trip: the estimated flight time, with a ~ in front.</summary>
+    static string ValueText(decimal v) => v <= 0 ? "" : Math.Round(v).ToString("N0");
+
     static string TimeText(PlanRow r) => r.Seconds <= 0 ? "" : (r.IsPlan || r.Estimate ? "~" : "") + FlightSpan(r.Seconds);
 }
