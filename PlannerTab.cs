@@ -713,7 +713,8 @@ public sealed partial class MainForm
         void Arrange()
         {
             const int pad = 8, gap = 12;
-            var width = Math.Max(400, page.ClientSize.Width);
+            // the width does not depend on whether the scroll bar is there, so the page does not flip back and forth near the limit
+            var width = Math.Max(400, page.ClientSize.Width - (page.VerticalScroll.Visible ? 0 : SystemInformation.VerticalScrollBarWidth));
             var inside = width - 2 * pad;
             var y = 0;
             foreach (Control c in host.Controls)
