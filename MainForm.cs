@@ -700,7 +700,9 @@ public sealed partial class MainForm : Form
             if (_current == null || _inputs == null || _log == null) return;
 
             var inputs = _inputs;
+            var sessionStart = _current.Start;
             _trips = WorkerTripBuilder.Build(_current, (z, t) => WorkerTripBuilder.WorkerAt(inputs, z, t), _log, inputs.ManualEnds)
+                .Where(t => !t.End.HasValue || t.End.Value >= sessionStart)   // runs that were handed in before the session started belong to an earlier session
                 .OrderByDescending(RunLastActivity).ThenByDescending(RunStartedAt).ThenByDescending(t => t.Start).ThenBy(t => t.Worker, StringComparer.OrdinalIgnoreCase).ToList();   // latest activity on top
 
             foreach (var t in _trips)
