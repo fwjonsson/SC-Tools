@@ -1652,13 +1652,13 @@ public sealed partial class MainForm : Form
             start = local.ToUniversalTime();
         }
         var latest = _sessions.Count > 0 && _current.Key == _sessions[^1].Key;
-        if (_current.Manual && _inputs?.Start is not { Length: > 0 })
+        if (_inputs?.Start is not { Length: > 0 })
         {
-            // a session you started by hand can go on for days: the breaks are not counted
+            // a session can go on for days: a stretch with no activity for an hour does not count (the clock just stops, the session goes on)
             var running = !_current.Stop.HasValue && _live && latest && HasOpenContracts();
             return SessionBuilder.ActiveTime(_current, running ? DateTime.UtcNow : null);
         }
-        var active = _live && latest && HasOpenContracts() && (!_summary.End.HasValue || DateTime.UtcNow - _summary.End.Value < SessionBuilder.IdleLimit);
+        var active = _live && latest && HasOpenContracts() && (!_summary.End.HasValue || DateTime.UtcNow - _summary.End.Value < SessionBuilder.ClockIdleLimit);
         var end = active ? DateTime.UtcNow : _summary.End ?? start;
         var d = end - start;
         return d > TimeSpan.Zero ? d : TimeSpan.Zero;
