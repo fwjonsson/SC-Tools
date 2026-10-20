@@ -803,6 +803,19 @@ public sealed partial class MainForm
             grid.Columns.Add(Col("Time", 90, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
             FitColumns(grid);   // the columns share the width, so nothing is cut off or has to scroll sideways
+            // only the Route column is long (it takes what is left); the others keep a narrow width of their own: Trip, Batches, Value, Distance, Flight time, Time, Gm / Batch
+            var narrow = new[] { 90, 0, 66, 96, 82, 90, 76, 82 };
+            for (var i = 0; i < grid.Columns.Count && i < narrow.Length; i++)
+            {
+                if (i == 1)
+                {
+                    grid.Columns[i].MinimumWidth = 220;
+                    continue;
+                }
+                grid.Columns[i].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                grid.Columns[i].MinimumWidth = 40;
+                grid.Columns[i].Width = narrow[i];
+            }
             var boldFont = new Font("Segoe UI", 10f, FontStyle.Bold);
             foreach (var r in w.Rows.Where(x => !x.Hidden))
             {
