@@ -20,6 +20,7 @@ sealed class PyroMapView : Control
     public List<MapRoute> Routes { get; set; } = new();
 
     const float LegendRow = 16f;
+    static readonly Color Space = Color.FromArgb(8, 8, 12);
 
     public PyroMapView()
     {
@@ -31,7 +32,7 @@ sealed class PyroMapView : Control
     {
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.Clear(Theme.Cell);
+        g.Clear(Space);
 
         var pts = PyroDistances.Points.ToDictionary(p => p.Id);
         var minX = pts.Values.Min(p => p.X);
@@ -52,6 +53,32 @@ sealed class PyroMapView : Control
         var ox = left + (w - (float)(maxX - minX) * scale) / 2f;
         var oy = top + (h - (float)(maxY - minY) * scale) / 2f;
         PointF P(string id) => new(ox + (float)((pts[id].X - minX) * scale), oy + (float)((pts[id].Y - minY) * scale));
+        PointF Px(double x, double y) => new(ox + (float)((x - minX) * scale), oy + (float)((y - minY) * scale));
+
+        // the backdrop: orbits, planets and the sun of the Pyro map (no names)
+        var sun = Px(PyroDistances.Sun.X, PyroDistances.Sun.Y);
+        using (var ring = new Pen(Color.FromArgb(95, 235, 235, 245), 1f))
+        {
+            foreach (var radius in PyroDistances.OrbitRadii)
+            {
+                var rr = (float)(radius * scale);
+                g.DrawEllipse(ring, sun.X - rr, sun.Y - rr, rr * 2, rr * 2);
+            }
+        }
+        using (var planet = new SolidBrush(Color.FromArgb(140, 85, 20)))
+        {
+            foreach (var (px, py) in PyroDistances.Planets)
+            {
+                var c = Px(px, py);
+                var pr = Math.Max(3.5f, (float)(10 * scale));
+                g.FillEllipse(planet, c.X - pr, c.Y - pr, pr * 2, pr * 2);
+            }
+        }
+        var sr = Math.Max(7f, (float)(PyroDistances.SunRadius * scale));
+        using (var halo = new SolidBrush(Color.FromArgb(55, 255, 70, 30)))
+            g.FillEllipse(halo, sun.X - sr * 1.9f, sun.Y - sr * 1.9f, sr * 3.8f, sr * 3.8f);
+        using (var disc = new SolidBrush(Color.FromArgb(255, 58, 24)))
+            g.FillEllipse(disc, sun.X - sr, sun.Y - sr, sr * 2, sr * 2);
 
         // routes: the bold ones on top, every route a little to the side of the others so overlapping legs stay visible
         var count = Routes.Count;
@@ -97,8 +124,8 @@ sealed class PyroMapView : Control
 
         // stations: those on a route are filled, the rest are faint
         var used = Routes.SelectMany(r => r.Stops).ToHashSet();
-        using var textBrush = new SolidBrush(Theme.Text);
-        using var faintBrush = new SolidBrush(Theme.Muted);
+        using var textBrush = new SolidBrush(Color.FromArgb(236, 236, 242));      // the map is always dark, whatever the theme
+        using var faintBrush = new SolidBrush(Color.FromArgb(150, 150, 160));
         using var font = new Font("Segoe UI", 8.5f);
         using var bold = new Font("Segoe UI", 9f, FontStyle.Bold);
         using var farFormat = new StringFormat { Alignment = StringAlignment.Far };

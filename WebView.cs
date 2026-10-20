@@ -242,7 +242,7 @@ function section(parent, tag, title, g) {
   table(box, g);
 }
 
-function mapSvg(el, stations, routes) {
+function mapSvg(el, stations, routes, bg) {
   el.textContent = '';
   const NS = 'http://www.w3.org/2000/svg';
   const W = 520, H = 560, L = 40, R = 150, B = 24;
@@ -266,6 +266,13 @@ function mapSvg(el, stations, routes) {
     svg.appendChild(e);
     return e;
   }
+  add('rect', { x: 0, y: 0, width: W, height: H, fill: '#08080c' });
+  const sx = ox + (bg.sun[0] - minX) * sc, sy = oy + (bg.sun[1] - minY) * sc;
+  bg.orbits.forEach(function (r) { add('circle', { cx: sx, cy: sy, r: r * sc, fill: 'none', stroke: '#ebebf5', 'stroke-opacity': 0.37, 'stroke-width': 1 }); });
+  bg.planets.forEach(function (q) { add('circle', { cx: ox + (q[0] - minX) * sc, cy: oy + (q[1] - minY) * sc, r: Math.max(3.5, 10 * sc), fill: '#8c5514' }); });
+  const sr = Math.max(7, bg.sunRadius * sc);
+  add('circle', { cx: sx, cy: sy, r: sr * 1.9, fill: '#ff461e', 'fill-opacity': 0.22 });
+  add('circle', { cx: sx, cy: sy, r: sr, fill: '#ff3a18' });
   const n = routes.length;
   [false, true].forEach(function (boldPass) {
     routes.forEach(function (r, i) {
@@ -297,12 +304,12 @@ function mapSvg(el, stations, routes) {
   stations.forEach(function (s) {
     const p = pos[s.id];
     if (s.id === 'Ruin') {
-      add('rect', { x: p[0] - 6, y: p[1] - 6, width: 12, height: 12, style: 'fill:var(--fg)' });
-      add('text', { x: p[0] + 9, y: p[1] + 4, style: 'fill:var(--fg);font-size:12px;font-weight:700' }, s.name);
+      add('rect', { x: p[0] - 6, y: p[1] - 6, width: 12, height: 12, style: 'fill:#ecece8' });
+      add('text', { x: p[0] + 9, y: p[1] + 4, style: 'fill:#ecece8;font-size:12px;font-weight:700' }, s.name);
       return;
     }
     const on = !!used[s.id];
-    const st = on ? 'fill:var(--fg)' : 'fill:var(--fg);opacity:.45';
+    const st = on ? 'fill:#ecece8' : 'fill:#ecece8;opacity:.55';
     add('circle', { cx: p[0], cy: p[1], r: on ? 5 : 3.5, style: st });
     if (s.id === '73041') add('text', { x: p[0] - 8, y: p[1] + 4, 'text-anchor': 'end', style: st + ';font-size:11px' }, s.name);
     else add('text', { x: p[0] + 8, y: p[1] + 4, style: st + ';font-size:11px' }, s.name);
@@ -310,7 +317,7 @@ function mapSvg(el, stations, routes) {
   legend.forEach(function (r, i) {
     const x = 8 + (i % cols) * 170, y = 6 + Math.floor(i / cols) * 16;
     add('line', { x1: x, y1: y + 8, x2: x + 16, y2: y + 8, stroke: r.color, 'stroke-width': 3 });
-    add('text', { x: x + 20, y: y + 12, style: 'fill:var(--fg);font-size:11px' }, r.label);
+    add('text', { x: x + 20, y: y + 12, style: 'fill:#ecece8;font-size:11px' }, r.label);
   });
   el.appendChild(svg);
 }
@@ -348,7 +355,7 @@ function renderPlanner() {
       w.routes.forEach(function (r, i) { routes.push({ label: r.label, color: p.palette[i % p.palette.length], stops: r.stops, bold: i === 0 }); });
     });
   }
-  mapSvg(mapBox, p.stations, routes);
+  mapSvg(mapBox, p.stations, routes, p.backdrop);
   shown.forEach(function (w) { section(tables, 'h2', w.title, w.grid); });
 }
 
@@ -666,6 +673,13 @@ public sealed partial class MainForm
             note = plan.Note,
             palette = MapPalette.Select(WebColor).ToArray(),
             stations = PyroDistances.Points.Select(p => new { id = p.Id, name = p.Name, x = p.X, y = p.Y }).ToList(),
+            backdrop = new
+            {
+                sun = new[] { PyroDistances.Sun.X, PyroDistances.Sun.Y },
+                sunRadius = PyroDistances.SunRadius,
+                orbits = PyroDistances.OrbitRadii,
+                planets = PyroDistances.Planets.Select(q => new[] { q.X, q.Y }).ToList(),
+            },
             workers,
         };
     }

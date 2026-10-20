@@ -14,7 +14,7 @@ public sealed partial class MainForm
     static readonly Color[] MapPalette =
     {
         Color.FromArgb(70, 130, 255), Color.FromArgb(210, 70, 180), Color.FromArgb(0, 170, 160),
-        Color.FromArgb(140, 100, 220), Color.FromArgb(150, 110, 70), Color.FromArgb(90, 190, 230),
+        Color.FromArgb(140, 100, 220), Color.FromArgb(205, 160, 100), Color.FromArgb(90, 190, 230),
     };
 
     /// <summary>One line of a table: a run that is done (or on the way), or a planned trip.</summary>
