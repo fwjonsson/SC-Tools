@@ -22,7 +22,7 @@ A program you built yourself (Visual Studio, `dotnet run`) has no build version,
 
 1. **Options → Open Log File(s)…** to read old logs (pick several at once, for example logs split by a crash).
    Or **Options → Watch Live Game.log** while you play. The window updates every 1.5 seconds.
-2. Press **Start Session** on the front page to begin a session (and **Stop Session** to end it). The drop-down lists your sessions (both are in the top row of the window, on the right, level with the Options menu; the status text is just right of Options). Missions outside every session are not shown.
+2. Press **Start Session** on the front page to begin a session (and **Stop Session** to end it). The drop-down lists your sessions (both are in the top row of the window, on the right, level with the Options menu; the status text is just right of Options). Missions outside every session are not shown. A contract that is still active in the game is shown in the running session even if you accepted it before you pressed Start (so you can stop and start a session without losing it); runs that were handed in before the session started are not shown in it.
 3. Start and End times are filled from the log. Type over them if you want. **Use log times** resets them.
 4. Rename each pickup location once (click the name). It is remembered for every future session.
 5. Pick the worker for each location, write notes. Payouts can be changed in the reward table.

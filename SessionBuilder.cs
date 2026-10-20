@@ -60,14 +60,17 @@ public static class SessionBuilder
     }
 
     /// <summary>
-    /// The sessions are the ones you start and stop with the button: a mission belongs to the one that was running when it ended
-    /// (a mission that is still going belongs to the one that is running now). Missions outside every session are not shown.
+    /// The sessions are the ones you start and stop with the button: a mission belongs to the one that was running when it ended.
+    /// A mission that is still going belongs to the session that is running now, also when you accepted it before you pressed Start
+    /// (with no session running it belongs to the one that was running at the last log line). Missions outside every session are not shown.
     /// </summary>
     public static List<SessionGroup> Build(HaulingLog log, IReadOnlyList<ManualSession>? manual = null)
     {
         var claimed = new HashSet<string>();
         var groups = new List<SessionGroup>();
-        foreach (var w in (manual ?? Array.Empty<ManualSession>()).OrderBy(x => x.StartUtc))
+        var windows = (manual ?? Array.Empty<ManualSession>()).OrderBy(x => x.StartUtc).ToList();
+        var running = windows.LastOrDefault(x => !x.StopUtc.HasValue);
+        foreach (var w in windows)
         {
             var stop = w.StopUtc ?? DateTime.MaxValue;
             var g = new SessionGroup
@@ -81,8 +84,15 @@ public static class SessionBuilder
             foreach (var m in log.Missions.Values.Where(x => x.IsHauling && !x.Dead).OrderBy(MissionStart))
             {
                 if (claimed.Contains(m.Id)) continue;
-                var t = m.EndedAt ?? log.LastTime;
-                if (t < w.StartUtc || t > stop) continue;
+                if (!m.EndedAt.HasValue && running != null)
+                {
+                    if (!ReferenceEquals(w, running)) continue;   // a mission that is still going belongs to the running session
+                }
+                else
+                {
+                    var t = m.EndedAt ?? log.LastTime;
+                    if (t < w.StartUtc || t > stop) continue;
+                }
                 g.Missions.Add(m);
                 claimed.Add(m.Id);
             }
