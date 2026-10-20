@@ -350,16 +350,28 @@ public sealed partial class MainForm
     static string StopsText(PlannedTrip trip) =>
         string.Join("  →  ", trip.Stops.Select(s => PyroDistances.NameOf(s.Id) + " ×" + s.Batches));   // a locked stop is not marked: the planner just keeps it quietly
 
-    static string PlanTitle(PlanWorkerView w)
+    /// <summary>The title of a worker's table: just his name.</summary>
+    static string PlanTitle(PlanWorkerView w) => w.Name;
+
+    /// <summary>The Total line under a worker's table: the number of stops, batches, value, distance, flight time, time and Gm per batch of the rows above it.</summary>
+    static string[] PlanTotals(List<PlanRow> rows)
     {
-        var planned = w.Planned;
-        var done = w.RunsSoFar;
-        var text = w.Name + "  –  ship holds " + w.Capacity + (w.Capacity == 1 ? " batch" : " batches") + "  –  " + (w.DriveNote.Length > 0 ? w.DriveNote + "  –  " : "")
-            + done + (done == 1 ? " run so far" : " runs so far") + "  –  ";
-        text += planned.Count == 0
-            ? "nothing planned"
-            : planned.Count + (planned.Count == 1 ? " trip planned (" : " trips planned (") + planned.Sum(r => r.BatchCount) + " batches, " + Gm(planned.Sum(r => r.Gm)) + ", about " + FlightSpan(planned.Sum(r => r.Seconds)) + " of flying)";
-        return text;
+        var stops = rows.Sum(r => r.Stops.Count);
+        var batches = rows.Sum(r => r.BatchCount);
+        var gm = rows.Sum(r => r.Gm);
+        var flight = rows.Sum(r => r.Flight);
+        var seconds = rows.Where(r => !r.IsPlan).Sum(r => r.Seconds);
+        return new[]
+        {
+            "Total",
+            stops + (stops == 1 ? " stop" : " stops"),
+            batches.ToString(CultureInfo.InvariantCulture),
+            ValueText(rows.Sum(r => r.Value)),
+            gm > 0 ? Gm(gm) : "",
+            flight > 0 ? "~" + FlightSpan(flight) : "",
+            seconds > 0 ? FlightSpan(seconds) : "",
+            gm > 0 && batches > 0 ? (gm / batches).ToString("N1", CultureInfo.InvariantCulture) : "",
+        };
     }
 
     /// <summary>Red = all cargo lost, orange = some lost, green = done, yellow = on the way. Planned trips have no colour.</summary>
@@ -767,21 +779,16 @@ public sealed partial class MainForm
     Control PlanBlock(PlanWorkerView w, Action<PlanRow>? onSelect)
     {
         var block = new Panel { Margin = new Padding(0, 0, 0, 14) };
-        var label = new Label
-        {
-            Text = PlanTitle(w),
-            Dock = DockStyle.Top,
-            Height = 30,
-            Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-            ForeColor = Theme.Text,
-            TextAlign = ContentAlignment.BottomLeft,
-        };
-        var height = label.Height;
-
-        // where he starts from: Ruin Station, or the station he is at now (the plan then begins with the stops near him)
-        var bar = new Panel { Dock = DockStyle.Top, Height = 30 };
-        bar.Controls.Add(new Label { Text = "Starting point:", AutoSize = true, ForeColor = Theme.Muted, Location = new Point(0, 6) });
-        var combo = new ThemedCombo { Width = 230, Location = new Point(96, 2), Font = new Font("Segoe UI", 9.5f) };
+        // the title: his name, and right of it where he starts from (Ruin Station, or the station he is at now: the plan then begins with the stops near him)
+        var label = new Panel { Dock = DockStyle.Top, Height = 34 };
+        var titleFont = new Font("Segoe UI", 11f, FontStyle.Bold);
+        var nameWidth = TextRenderer.MeasureText(PlanTitle(w), titleFont).Width;
+        label.Controls.Add(new Label { Text = PlanTitle(w), AutoSize = true, Font = titleFont, ForeColor = Theme.Text, Location = new Point(0, 6) });
+        var hintFont = new Font("Segoe UI", 9.5f);
+        var hintText = "Starting point:";
+        var hintX = nameWidth + 30;
+        label.Controls.Add(new Label { Text = hintText, AutoSize = true, Font = hintFont, ForeColor = Theme.Muted, Location = new Point(hintX, 9) });
+        var combo = new ThemedCombo { Width = 230, Location = new Point(hintX + TextRenderer.MeasureText(hintText, hintFont).Width + 12, 5), Font = hintFont };
         var stations = PyroDistances.Points.Where(s => s.Id != PyroDistances.Ruin).OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToList();
         combo.Items.Add("Ruin Station (default)");
         foreach (var s in stations) combo.Items.Add(s.Name);
@@ -789,8 +796,8 @@ public sealed partial class MainForm
         combo.SelectedIndex = current == null ? 0 : Math.Max(0, stations.FindIndex(s => s.Id == current) + 1);
         combo.SelectedIndexChanged += (_, _) =>
             SetStartPoint(w.Name, combo.SelectedIndex <= 0 ? null : stations[combo.SelectedIndex - 1].Id);
-        bar.Controls.Add(combo);
-        height += bar.Height;
+        label.Controls.Add(combo);
+        var height = label.Height;
 
         if (w.Rows.Count > 0)
         {
@@ -865,12 +872,18 @@ public sealed partial class MainForm
                     if (grid.CurrentRow?.Tag is PlanRow picked && picked.IsPlan) onSelect(picked);
                 };
             }
-            grid.Height = grid.ColumnHeadersHeight + w.Rows.Count(x => !x.Hidden) * grid.RowTemplate.Height + 3;
+            // the Total line of everything above it
+            var totalRow = grid.Rows[grid.Rows.Add(PlanTotals(w.Rows.Where(x => !x.Hidden).ToList()))];
+            totalRow.DefaultCellStyle.Font = boldFont;
+            totalRow.DefaultCellStyle.BackColor = Theme.Calc;
+            totalRow.DefaultCellStyle.ForeColor = Theme.Text;
+            totalRow.DefaultCellStyle.SelectionBackColor = Theme.Calc;
+            totalRow.DefaultCellStyle.SelectionForeColor = Theme.Text;
+            grid.Height = grid.ColumnHeadersHeight + (w.Rows.Count(x => !x.Hidden) + 1) * grid.RowTemplate.Height + 3;
             height += grid.Height;
             block.Controls.Add(grid);   // added first, so the title sits above it
         }
 
-        block.Controls.Add(bar);
         block.Controls.Add(label);
         block.Height = height;
         return block;

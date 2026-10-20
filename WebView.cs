@@ -728,7 +728,22 @@ public sealed partial class MainForm
                         fore = fores,
                         bold = r.First,
                     };
-                }).ToList(),
+                }).Cast<object>().Concat(TotalRow(w)).ToList(),
+            };
+        }
+
+        // the Total line under a worker's table, like in the program
+        IEnumerable<object> TotalRow(PlanWorkerView w)
+        {
+            var visible = w.Rows.Where(r => !r.Hidden).ToList();
+            if (visible.Count == 0) yield break;
+            var calc = WebColor(Theme.Calc);
+            yield return new
+            {
+                cells = PlanTotals(visible),
+                back = Enumerable.Repeat(calc, 8).ToArray(),
+                fore = Enumerable.Repeat(text, 8).ToArray(),
+                bold = true,
             };
         }
 
