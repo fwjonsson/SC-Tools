@@ -222,6 +222,27 @@ public sealed partial class MainForm
     }
 
     /// <summary>Saves and updates everything that depends on the party (debts, planner, worker choices).</summary>
+    /// <summary>
+    /// With one active member he does all the stops: he is put on every stop that is not finished. With two or more nobody is on the
+    /// stops any more, so the crew can hand them out again (the finished stops keep their worker, they are done). Called when the party changes.
+    /// </summary>
+    void ApplyPartyAssignment()
+    {
+        if (_inputs == null) return;
+        var crew = ActiveCrew();
+        if (crew.Count == 0) return;
+        var want = crew.Count == 1 ? crew[0] : "";
+        var changed = false;
+        foreach (var r in _pickupRows)
+        {
+            var inp = GetRow(r.Zone);
+            if ((inp.Worker ?? "").Trim() == want) continue;
+            inp.Worker = want;
+            changed = true;
+        }
+        if (changed) Storage.Save(_data);
+    }
+
     void PartyChanged()
     {
         Storage.Save(_data);
@@ -247,6 +268,7 @@ public sealed partial class MainForm
             var active = row.Cells[1].Value is true;
             if (active == IsActiveAt(name, DateTime.UtcNow)) return;
             SetMemberActive(name, active);
+            ApplyPartyAssignment();
             SetStatus(name + (active ? " joined the party." : " left the party.") + " Mission payouts from now on are split between the active members.");
         }
         else if (e.ColumnIndex == 2)
@@ -287,6 +309,7 @@ public sealed partial class MainForm
             SetMemberActive(name, true);
         }
         _partyName.Clear();
+        ApplyPartyAssignment();
         SetStatus(name + " joined the party.");
         PartyChanged();
     }
@@ -307,6 +330,7 @@ public sealed partial class MainForm
         if (IsActiveAt(name, DateTime.UtcNow)) SetMemberActive(name, false);
         _data.Party.RemoveAll(x => SameName(x, name));
         _data.InactiveParty.RemoveAll(x => SameName(x, name));
+        ApplyPartyAssignment();
         SetStatus(name + " was removed from the party.");
         PartyChanged();
     }
