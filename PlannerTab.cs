@@ -10,7 +10,7 @@ public sealed partial class MainForm
     const int DefaultShipCapacity = 3;
     const int MaxShipCapacity = 24;
 
-    static readonly Color NextRouteGreen = Color.FromArgb(60, 205, 95);   // the next trip of a worker, on his own page
+    static readonly Color NextRouteGreen = Color.FromArgb(60, 205, 95);   // the next trip of every worker, on the Overview
     // routes on the map: colours that cannot be mistaken for the run colours (green, orange, red, yellow)
     static readonly Color[] MapPalette =
     {
@@ -315,7 +315,7 @@ public sealed partial class MainForm
                 var k = 0;
                 foreach (var r in w.Planned)
                 {
-                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, Bold = k == 0, Tag = r });
+                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = k == 0 ? NextRouteGreen : w.Color, Stops = r.Stops, Bold = k == 0, Tag = r });   // everybody's next trip is green
                     k++;
                 }
             }
@@ -326,7 +326,7 @@ public sealed partial class MainForm
             var k = 0;
             foreach (var r in only.Planned)
             {
-                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = k == 0 ? NextRouteGreen : MapPalette[k % MapPalette.Length], Stops = r.Stops, Bold = k == 0, Tag = r });
+                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = MapPalette[k % MapPalette.Length], Stops = r.Stops, Bold = k == 0, Tag = r });
                 k++;
             }
         }
@@ -340,7 +340,7 @@ public sealed partial class MainForm
                 map.Invalidate();
             };
         }
-        foreach (var w in workers) host.Controls.Add(PlanBlock(w, onSelect));
+        foreach (var w in workers) host.Controls.Add(PlanBlock(w, onSelect, only == null));
         FitPlanBlocks(host);
 
         t.Controls.Add(map, 0, 0);
@@ -356,7 +356,7 @@ public sealed partial class MainForm
     }
 
     /// <summary>A title and the table of one crew member: the runs so far, then the planned trips.</summary>
-    Control PlanBlock(PlanWorkerView w, Action<PlanRow>? onSelect)
+    Control PlanBlock(PlanWorkerView w, Action<PlanRow>? onSelect, bool overview)
     {
         var block = new Panel { Margin = new Padding(0, 0, 0, 14) };
         var label = new Label
@@ -400,7 +400,7 @@ public sealed partial class MainForm
                 if (r.Label == "Next")
                 {
                     row.DefaultCellStyle.Font = boldFont;
-                    row.DefaultCellStyle.BackColor = DoneGreen;   // the trip to fly now is green
+                    if (overview) row.DefaultCellStyle.BackColor = DoneGreen;   // on the Overview the trip to fly now is green (a worker's own page stays as it was)
                 }
             }
             if (onSelect != null)
