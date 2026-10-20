@@ -13,6 +13,11 @@ You need the .NET 10 SDK (Windows).
 or open `HaulingTracker.csproj` in Visual Studio and press F5.
 To make a single exe: `dotnet publish -c Release -r win-x64 --self-contained false`.
 
+## Updates
+
+The exe from the [Releases page](https://github.com/fwjonsson/SCHaulingTracker/releases/tag/latest) (the "latest" release the build makes from `main`) updates itself. At startup it asks GitHub for the newest build; if there is a newer one it asks **Update now?** (default No). On Yes it downloads the new exe, renames the running one to `HaulingTracker.old.exe` (kept as a backup until the next update), puts the new one in its place and restarts. Your data is not touched. **Options → Check for Updates…** does the same by hand and always answers. The version (the first letters of the commit) is at the bottom of the Options menu.
+A program you built yourself (Visual Studio, `dotnet run`) has no build version, so it never updates itself. A build from a branch that is not merged yet is never replaced by an older one. If the exe sits in a folder that needs administrator rights (like Program Files) the update fails with a message and nothing changes.
+
 ## Use
 
 1. **Options → Open Log File(s)…** to read old logs (pick several at once, for example logs split by a crash).
