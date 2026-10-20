@@ -90,6 +90,7 @@ public sealed partial class MainForm
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0),
+            Padding = new Padding(0, PartyTopGap, 0, 0),
         };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));   // the table, as high as its members (RefreshPartyPanel), with no title: it is not part of the hauling info
@@ -109,7 +110,6 @@ public sealed partial class MainForm
         driveCol.Items.Add("");
         foreach (var d in QuantumDrives.All.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Size)) driveCol.Items.Add(d.Label);
         _partyGrid.Columns.Add(driveCol);
-        _partyGrid.Columns.Add(Col("Since", PartyColSince, false));
         foreach (DataGridViewColumn c in _partyGrid.Columns)
         {
             c.FillWeight = c.Width;
@@ -125,11 +125,11 @@ public sealed partial class MainForm
         _partyGrid.CellValueChanged += PartyGrid_CellValueChanged;
         _partyGrid.DataError += (_, e) => e.ThrowException = false;
 
-        // The entry row: the name box is a cell under Member / Active / Batches, Add sits under QT Drive and Remove under Since
+        // The entry row: the name box is a cell under Member / Active, Add sits under Batches and Remove under QT Drive
         var bar = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Margin = new Padding(0) };
-        bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, PartyColMember + PartyColActive + PartyColBatches));
+        bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, PartyColMember + PartyColActive));
+        bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, PartyColBatches));
         bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, PartyColDrive));
-        bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, PartyColSince));
         bar.RowStyles.Add(new RowStyle(SizeType.Absolute, PartyRowHeight));
         _partyName.BorderStyle = BorderStyle.None;
         _partyName.Dock = DockStyle.Fill;
@@ -172,12 +172,13 @@ public sealed partial class MainForm
     const int PartyRowHeight = 26;
     const int PartyMaxRows = 6;
     // proportions of the columns (the entry row under the table uses the same ones)
-    const int PartyColMember = 85, PartyColActive = 58, PartyColBatches = 66, PartyColDrive = 120, PartyColSince = 90;
+    const int PartyColMember = 90, PartyColActive = 62, PartyColBatches = 78, PartyColDrive = 130;
     TableLayoutPanel? _partyPanel;
     int _partyHeight = PartyMaxHeight;   // as drawn now, the party table and its entry row
 
     /// <summary>The height of the party table with all its rows, and of its entry row.</summary>
-    const int PartyMaxHeight = 28 + PartyMaxRows * PartyRowHeight + 2 + PartyRowHeight;
+    const int PartyTopGap = 3;   // the same gap above the pickup board, so both tables start at the same height
+    const int PartyMaxHeight = PartyTopGap + 28 + PartyMaxRows * PartyRowHeight + 2 + PartyRowHeight;
 
     void FitPartyGrid()
     {
@@ -186,7 +187,7 @@ public sealed partial class MainForm
         var grid = _partyGrid.ColumnHeadersHeight + rows * _partyGrid.RowTemplate.Height + 2;
         _partyPanel.RowStyles[0].Height = grid;
         _partyPanel.RowStyles[1].Height = PartyRowHeight;
-        _partyHeight = grid + PartyRowHeight;
+        _partyHeight = PartyTopGap + grid + PartyRowHeight;
     }
 
     void RefreshPartyPanel()
@@ -200,9 +201,7 @@ public sealed partial class MainForm
             foreach (var name in _data.Party)
             {
                 var active = IsActiveAt(name, DateTime.UtcNow);
-                var last = _data.PartyChanges.Where(c => SameName(c.Name, name)).OrderBy(c => c.TimeUtc).LastOrDefault();
-                var since = last == null ? "" : last.TimeUtc.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture);
-                var idx = _partyGrid.Rows.Add(name, active, Math.Max(1, ShipCapacityOf(name)), DriveOf(name)?.Label ?? "", since);
+                var idx = _partyGrid.Rows.Add(name, active, Math.Max(1, ShipCapacityOf(name)), DriveOf(name)?.Label ?? "");
                 if (!active) _partyGrid.Rows[idx].DefaultCellStyle.ForeColor = Theme.Muted;
             }
             if (selected != null)
@@ -262,43 +261,7 @@ public sealed partial class MainForm
             foreach (var k in _data.QuantumDrive.Keys.Where(k => SameName(k, name)).ToList()) _data.QuantumDrive.Remove(k);
             if (picked != null) _data.QuantumDrive[name] = picked.Key;
         }
-        else if (e.ColumnIndex == 4)
-        {
-            var typed = (Convert.ToString(row.Cells[4].Value) ?? "").Trim();
-            var when = default(DateTime);
-            var ok = typed.Length > 0 && TryParseSince(typed, out when);
-            if (typed.Length > 0 && !ok)
-            {
-                SetStatus("Could not read that time. Type it like 12:30 or 19 Oct 22:15.");
-            }
-            else if (ok)
-            {
-                var last = _data.PartyChanges.Where(c => SameName(c.Name, name)).OrderBy(c => c.TimeUtc).LastOrDefault();
-                if (last != null) last.TimeUtc = when;
-                else SetMemberActive(name, IsActiveAt(name, DateTime.UtcNow), when);   // "since" for someone with no saved change: from then on he is in his current state
-                _data.PartyTrackingSince ??= DateTime.UtcNow;
-            }
-        }
         PartyChanged();
-    }
-
-    static readonly string[] SinceFormats = { "HH:mm", "H:mm", "d MMM HH:mm", "d MMM H:mm", "yyyy-MM-dd HH:mm", "d/M HH:mm", "d/M H:mm" };
-
-    /// <summary>12:30 (today, or yesterday when that is still ahead), 19 Oct 22:15 or 2026-10-19 22:15, in your own time.</summary>
-    static bool TryParseSince(string text, out DateTime utc)
-    {
-        utc = default;
-        text = text.Trim();
-        foreach (var culture in new[] { CultureInfo.CurrentCulture, CultureInfo.InvariantCulture })
-        {
-            if (!DateTime.TryParseExact(text, SinceFormats, culture, DateTimeStyles.AllowWhiteSpaces, out var d)) continue;
-            var timeOnly = !text.Contains(' ') && !text.Contains('-') && !text.Contains('/');
-            var now = DateTime.Now;
-            if (d > now.AddMinutes(1)) d = timeOnly ? d.AddDays(-1) : d.AddYears(-1);
-            utc = DateTime.SpecifyKind(d, DateTimeKind.Local).ToUniversalTime();
-            return true;
-        }
-        return false;
     }
 
     void AddPartyMember()
