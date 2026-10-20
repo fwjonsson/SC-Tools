@@ -117,6 +117,13 @@ public sealed class PayoutRecord
     public decimal Each { get; set; }
 }
 
+/// <summary>Where a worker starts his next trip when he is not at Ruin Station (set on the Trip Planner). It ends when he picks up or hands in something.</summary>
+public sealed class StartPoint
+{
+    public string Id { get; set; } = "";
+    public DateTime Since { get; set; }   // UTC
+}
+
 public sealed class AppData
 {
     public string? GameLogPath { get; set; }
@@ -139,6 +146,7 @@ public sealed class AppData
     public Dictionary<string, SessionInputs> Sessions { get; set; } = new();
     public List<SavedTransfer> Transfers { get; set; } = new();
     public List<PayoutRecord> Payouts { get; set; } = new();   // the completed missions and who shared their payout
+    public Dictionary<string, StartPoint> StartPoints { get; set; } = new();   // worker -> where he starts his next trip
     public Dictionary<string, decimal> PairAdjust { get; set; } = new();   // "a|b" (a before b) -> amount b owes a, typed by you
 }
 

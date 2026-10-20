@@ -312,7 +312,40 @@ public sealed partial class MainForm
     List<string> ActiveCrew() => _data.Party.Where(n => !_data.InactiveParty.Any(x => SameName(x, n))).ToList();
 
     static string RouteText(PlannedTrip trip) =>
-        (trip.From != null ? "From " + PyroDistances.NameOf(trip.From) + "  →  " : "") + StopsText(trip);
+        (trip.From != null && !(trip.Stops.Count > 0 && trip.Stops[0].Id == trip.From) ? "From " + PyroDistances.NameOf(trip.From) + "  →  " : "") + StopsText(trip);
+
+    /// <summary>The station a worker said he starts from (null = Ruin Station). It only lasts until he picks up or hands in something after he set it.</summary>
+    string? StartPointOf(string name)
+    {
+        var kv = _data.StartPoints.FirstOrDefault(k => SameName(k.Key, name));
+        if (kv.Value == null) return null;
+        var since = kv.Value.Since;
+        var used = _trips.Any(t => SameName(t.Worker, name) && ((t.End ?? DateTime.MinValue) > since || t.Pickups.Any(p => p.Time > since)));
+        if (used)
+        {
+            _data.StartPoints.Remove(kv.Key);
+            Storage.Save(_data);
+            return null;
+        }
+        return PyroDistances.Stations.Any(s => s.Id == kv.Value.Id && s.Id != PyroDistances.Ruin) ? kv.Value.Id : null;
+    }
+
+    /// <summary>Sets (or clears, with null) where a worker starts from. His locked next stop is released, so the plan is free to start with a stop near him.</summary>
+    void SetStartPoint(string name, string? stationId)
+    {
+        foreach (var k in _data.StartPoints.Keys.Where(k => SameName(k, name)).ToList()) _data.StartPoints.Remove(k);
+        if (stationId != null) _data.StartPoints[name] = new StartPoint { Id = stationId, Since = DateTime.UtcNow };
+        var lockKey = LockKey(name);
+        if (lockKey != null) _inputs!.LockedTrips.Remove(lockKey);
+        Storage.Save(_data);
+        BeginInvoke(new Action(() =>
+        {
+            _planCore = null;
+            _planShown = "";
+            GetPlan();
+            RefreshPlanner();
+        }));
+    }
 
     static string StopsText(PlannedTrip trip) =>
         string.Join("  →  ", trip.Stops.Select(s => PyroDistances.NameOf(s.Id) + " ×" + s.Batches));   // a locked stop is not marked: the planner just keeps it quietly
@@ -466,7 +499,7 @@ public sealed partial class MainForm
                 foreach (var c in crew.Where(x => x.Capacity > 0))
                 {
                     var run = ActiveRunOf(c.Name);
-                    var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, From = run?.From };
+                    var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, From = run?.From ?? (run == null ? StartPointOf(c.Name) : null) };   // flying a run: from there, else from where he said he is
                     var lockKey = LockKey(c.Name);
                     if (lockKey != null)
                     {
@@ -493,7 +526,7 @@ public sealed partial class MainForm
                         }
                         if (start.FirstId == null && (run == null || run.Value.Loaded < c.Capacity)) waiting.Add(c.Name);   // a run with room left locks the next stop of its continuation too
                     }
-                    if (start.FirstId != null || start.Loaded > 0) starts.Add(start);
+                    if (start.FirstId != null || start.Loaded > 0 || start.From != null) starts.Add(start);
                 }
                 if (changed) Storage.Save(_data);
             }
@@ -745,6 +778,20 @@ public sealed partial class MainForm
         };
         var height = label.Height;
 
+        // where he starts from: Ruin Station, or the station he is at now (the plan then begins with the stops near him)
+        var bar = new Panel { Dock = DockStyle.Top, Height = 30 };
+        bar.Controls.Add(new Label { Text = "Starting point:", AutoSize = true, ForeColor = Theme.Muted, Location = new Point(0, 6) });
+        var combo = new ThemedCombo { Width = 230, Location = new Point(96, 2), Font = new Font("Segoe UI", 9.5f) };
+        var stations = PyroDistances.Points.Where(s => s.Id != PyroDistances.Ruin).OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        combo.Items.Add("Ruin Station (default)");
+        foreach (var s in stations) combo.Items.Add(s.Name);
+        var current = StartPointOf(w.Name);
+        combo.SelectedIndex = current == null ? 0 : Math.Max(0, stations.FindIndex(s => s.Id == current) + 1);
+        combo.SelectedIndexChanged += (_, _) =>
+            SetStartPoint(w.Name, combo.SelectedIndex <= 0 ? null : stations[combo.SelectedIndex - 1].Id);
+        bar.Controls.Add(combo);
+        height += bar.Height;
+
         if (w.Rows.Count > 0)
         {
             var grid = new DataGridView();
@@ -823,6 +870,7 @@ public sealed partial class MainForm
             block.Controls.Add(grid);   // added first, so the title sits above it
         }
 
+        block.Controls.Add(bar);
         block.Controls.Add(label);
         block.Height = height;
         return block;
