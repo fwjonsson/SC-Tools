@@ -88,12 +88,12 @@ public sealed partial class MainForm
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
-            RowCount = 2,
+            RowCount = 3,
             Margin = new Padding(0),
-            Padding = new Padding(0, PartyTopGap, 0, 0),
         };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));   // the table, as high as its members (RefreshPartyPanel), with no title: it is not part of the hauling info
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));   // the title: Party
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));   // the table, as high as its members (RefreshPartyPanel)
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, PartyRowHeight));   // the entry row: it looks like the next row of the table
 
         StyleGrid(_partyGrid);
@@ -163,8 +163,9 @@ public sealed partial class MainForm
         bar.Controls.Add(_partyAddBtn, 1, 0);
         bar.Controls.Add(_partyRemoveBtn, 2, 0);
 
-        p.Controls.Add(_partyGrid, 0, 0);
-        p.Controls.Add(bar, 0, 1);
+        p.Controls.Add(SectionTitle("Party"), 0, 0);
+        p.Controls.Add(_partyGrid, 0, 1);
+        p.Controls.Add(bar, 0, 2);
         return p;
     }
 
@@ -177,17 +178,17 @@ public sealed partial class MainForm
     int _partyHeight = PartyMaxHeight;   // as drawn now, the party table and its entry row
 
     /// <summary>The height of the party table with all its rows, and of its entry row.</summary>
-    const int PartyTopGap = 3;   // the same gap above the pickup board, so both tables start at the same height
-    const int PartyMaxHeight = PartyTopGap + 28 + PartyMaxRows * PartyRowHeight + 2 + PartyRowHeight;
+    const int PartyMaxHeight = TitleHeight + 28 + PartyMaxRows * PartyRowHeight + 2 + PartyRowHeight;   // with its title
 
     void FitPartyGrid()
     {
         if (_partyPanel == null) return;
         var rows = Math.Clamp(_partyGrid.Rows.Count, 1, PartyMaxRows);
         var grid = _partyGrid.ColumnHeadersHeight + rows * _partyGrid.RowTemplate.Height + 2;
-        _partyPanel.RowStyles[0].Height = grid;
-        _partyPanel.RowStyles[1].Height = PartyRowHeight;
-        _partyHeight = PartyTopGap + grid + PartyRowHeight;
+        _partyPanel.RowStyles[0].Height = TitleHeight;
+        _partyPanel.RowStyles[1].Height = grid;
+        _partyPanel.RowStyles[2].Height = PartyRowHeight;
+        _partyHeight = TitleHeight + grid + PartyRowHeight;
     }
 
     void RefreshPartyPanel()
