@@ -634,7 +634,7 @@ public sealed partial class MainForm
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var map = new PyroMapView { Dock = DockStyle.Top, Margin = new Padding(0, 0, 12, 0) };
-        var host = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
+        var host = new PlanHost { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
         host.Resize += (_, _) => FitPlanBlocks(host);
 
         var workers = only == null ? plan.Workers : new List<PlanWorkerView> { only };
@@ -694,6 +694,21 @@ public sealed partial class MainForm
     {
         var width = Math.Max(200, host.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 6);
         foreach (Control c in host.Controls) c.Width = width;
+        // after the window got bigger again nothing may stay scrolled to the side
+        if (host.AutoScrollPosition.X != 0) host.AutoScrollPosition = new Point(0, -host.AutoScrollPosition.Y);
+    }
+
+    /// <summary>The panel that holds the tables of the Trip Planner: it scrolls up and down only, never sideways (the tables fit its width).</summary>
+    sealed class PlanHost : FlowLayoutPanel
+    {
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern bool ShowScrollBar(IntPtr hWnd, int bar, bool show);
+
+        protected override void WndProc(ref Message m)
+        {
+            if (IsHandleCreated) ShowScrollBar(Handle, 0, false);   // 0 = the horizontal bar
+            base.WndProc(ref m);
+        }
     }
 
     /// <summary>A title and the table of one crew member: the runs so far, then the planned trips.</summary>
