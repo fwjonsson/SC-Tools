@@ -238,10 +238,10 @@ var planSel = 'Overview';
 
 function table(el, g) {
   el.textContent = '';
-  if (!g || !g.rows || g.rows.length === 0) {
+  if (!g || !g.headers || !g.rows) {
     const d = document.createElement('div'); d.className = 'empty'; d.textContent = 'Nothing yet.'; el.appendChild(d); return;
   }
-  const t = document.createElement('table');
+  const t = document.createElement('table');   // an empty table still shows its header, like in the program
   const hr = t.createTHead().insertRow();
   g.headers.forEach(function (h) { const th = document.createElement('th'); th.textContent = h.text; hr.appendChild(th); });
   const tb = t.createTBody();
