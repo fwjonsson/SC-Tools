@@ -639,6 +639,7 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(Col("Started", 76, true));
         _tripGrid.Columns.Add(Col("Completed", 108, true));
         _tripGrid.Columns.Add(Col("Run Time", 90, true));
+        _tripGrid.Columns.Add(Col("Flight time", 90, true));   // the estimated flying time of the run (the Flight time of the Trip Planner)
         var lostCol = new DataGridViewComboBoxColumn
         {
             HeaderText = "Lost Cargo",
@@ -656,10 +657,10 @@ public sealed partial class MainForm : Form
         };
         _tripGrid.CellValueChanged += (_, e) =>
         {
-            if (_updating || _inputs == null || e.RowIndex < 0 || e.ColumnIndex != 8) return;
+            if (_updating || _inputs == null || e.RowIndex < 0 || e.ColumnIndex != 9) return;
             var row = _tripGrid.Rows[e.RowIndex];
             if (row.Tag is not WorkerTrip trip) return;
-            var level = Convert.ToString(row.Cells[8].Value) ?? "None";
+            var level = Convert.ToString(row.Cells[9].Value) ?? "None";
             _inputs.LostRuns.Remove(trip.Key);
             if (level == "None") _inputs.LostCargo.Remove(trip.Key);
             else _inputs.LostCargo[trip.Key] = level;
@@ -776,6 +777,7 @@ public sealed partial class MainForm : Form
                     FormatTime(t.Start),
                     t.End.HasValue ? FormatTime(t.End.Value) : "",
                     RunDuration(t),
+                    RunFlightText(t),
                     level,
                 };
                 foreach (var grid in new[] { _tripGrid, _planRunsGrid })

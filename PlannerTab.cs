@@ -299,6 +299,7 @@ public sealed partial class MainForm
         g.Columns.Add(Col("Started", 76, true));
         g.Columns.Add(Col("Completed", 108, true));
         g.Columns.Add(Col("Run Time", 90, true));
+        g.Columns.Add(Col("Flight time", 90, true));
         g.Columns.Add(Col("Lost Cargo", 116, true));
         FitColumns(g);
         g.ScrollBars = ScrollBars.Vertical;
@@ -386,6 +387,14 @@ public sealed partial class MainForm
             from = id;
         }
         return seconds + drive.Seconds(PyroDistances.Between(from, PyroDistances.Ruin));
+    }
+
+    /// <summary>The estimated flying time of a run on the Cargo Runs board: Ruin, its pickup stations in order, and back to Ruin.</summary>
+    string RunFlightText(WorkerTrip t)
+    {
+        var stops = t.Pickups.Select(p => StationOf(p.Zone)).Where(id => id != null).Select(id => id!).ToList();
+        var seconds = stops.Count > 0 ? FlightOf(t.Worker, stops) : 0;
+        return seconds <= 0 ? "" : "~" + FlightSpan(seconds);
     }
 
     /// <summary>The run the worker is flying (picked up, not handed in yet): the batches on board and the station of the last pickup, or null.</summary>
