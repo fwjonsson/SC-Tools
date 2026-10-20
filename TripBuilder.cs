@@ -175,6 +175,7 @@ public static class WorkerTripBuilder
         }
         if (era.Workers.Count > 0) inp.PastWorkers.Add(era);
         inp.WorkersResetAt = batchStart;
+        inp.LockedTrips.Clear();   // the locked Next trips belonged to the old set of missions
         return true;
     }
 

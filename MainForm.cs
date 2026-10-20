@@ -1437,6 +1437,7 @@ public sealed partial class MainForm : Form
         }
 
         RecomputeRewards();
+        if (_inputs != null && _inputs.LockedTrips.Count > 0) GetPlan();   // keeps the locked Next trips rolling on while the planner tab is closed
     }
 
     void ClearView()
@@ -1641,7 +1642,15 @@ public sealed partial class MainForm : Form
 
         if (e.ColumnIndex == 3)
         {
-            GetRow(zone).Worker = (Convert.ToString(row.Cells[3].Value) ?? "").Trim();
+            var before = GetRow(zone).Worker ?? "";
+            var after = (Convert.ToString(row.Cells[3].Value) ?? "").Trim();
+            GetRow(zone).Worker = after;
+            if (!SameName(before, after))
+            {
+                // what you do by hand wins over the plan: the locked trips of both workers follow the stops they have now
+                RebuildLock(before, false);
+                RebuildLock(after, true);
+            }
             Storage.Save(_data);
             FillTrips();   // the run board follows the assigned workers
             UpdateSnapshots();
