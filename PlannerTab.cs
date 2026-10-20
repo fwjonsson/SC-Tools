@@ -343,7 +343,7 @@ public sealed partial class MainForm
             rows.Add(new PlanRow
             {
                 Label = "Run #" + t.Number,
-                Route = string.Join("  →  ", parts.Select(x => x.Name + " ×" + x.N)),
+                Route = string.Join("  →  ", parts.Select(x => x.Name + " ×" + x.N + (t.End.HasValue ? "" : " (picked up)"))),   // the run in progress: what is already on board says so
                 Batches = level == "All" ? "failed" : t.End.HasValue ? t.HandedIn.ToString(CultureInfo.InvariantCulture) : picked.ToString(CultureInfo.InvariantCulture),
                 BatchCount = picked,
                 Gm = stops.Count > 0 ? PyroDistances.Run(stops) : 0,
