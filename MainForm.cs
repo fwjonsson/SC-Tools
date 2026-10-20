@@ -154,9 +154,8 @@ public sealed partial class MainForm : Form
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 306));   // both rows are fitted to the boards by FitTopArea
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 130));
 
-        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, Margin = new Padding(0) };
+        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Margin = new Padding(0) };
         left.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        left.RowStyles.Add(new RowStyle(SizeType.AutoSize));       // the session bar
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));    // the finished stops: shown when there are some
@@ -177,14 +176,13 @@ public sealed partial class MainForm : Form
             grid.RowsRemoved += (_, _) => FitTopArea();
         }
         Shown += (_, _) => FitTopArea();
-        left.Controls.Add(BuildTopBar(), 0, 0);
-        left.Controls.Add(SectionTitle("Hauling Tracker"), 0, 1);
-        left.Controls.Add(_logGrid, 0, 2);
+        left.Controls.Add(SectionTitle("Hauling Tracker"), 0, 0);
+        left.Controls.Add(_logGrid, 0, 1);
         _doneTitle = SectionTitle("Finished Stops");
         _doneTitle.Visible = false;
         _doneGrid.Visible = false;
-        left.Controls.Add(_doneTitle, 0, 3);
-        left.Controls.Add(_doneGrid, 0, 4);
+        left.Controls.Add(_doneTitle, 0, 2);
+        left.Controls.Add(_doneGrid, 0, 3);
 
         var board = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
         board.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -222,7 +220,7 @@ public sealed partial class MainForm : Form
     const int TitleHeight = 30;
     const int SideWidth = 400;     // the column on the right: the party, the contracts and the times
     const int PartyHeight = 200;   // the party table (header and five members) and the name box with its buttons under it
-    const int SideHeight = PartyHeight + 8 + 114 + 10 + 156;   // the party, the contracts table and the summary table
+    const int SideHeight = PartyHeight + 8 + 114 + 10 + 166;   // the party, the contracts table and the summary table
 
     /// <summary>
     /// The grid never scrolls, neither sideways nor up and down (FitTopArea gives it the height of all its rows).
@@ -268,16 +266,14 @@ public sealed partial class MainForm : Form
             // set the heights, then check that every row really is shown and add what is missing
             for (var pass = 0; pass < 4; pass++)
             {
-                var heights = _left.GetRowHeights();   // as drawn, also on a scaled screen
-                var bar = heights.Length > 0 ? heights[0] : 0;
-                var title = heights.Length > 1 ? heights[1] : 0;
+                var title = _left.GetRowHeights().FirstOrDefault();   // as drawn, also on a scaled screen
                 if (title <= 0) title = TitleHeight;
-                _left.RowStyles[2].Height = pickups;
+                _left.RowStyles[1].Height = pickups;
                 if (_doneTitle != null) _doneTitle.Visible = hasDone;
                 _doneGrid.Visible = hasDone;
-                _left.RowStyles[3].Height = hasDone ? title : 0;
-                _left.RowStyles[4].Height = hasDone ? done : 0;
-                var row0 = Math.Max(bar + title + pickups + (hasDone ? title + done : 0), SideHeight);   // the party and the small tables on the right need their own height too
+                _left.RowStyles[2].Height = hasDone ? title : 0;
+                _left.RowStyles[3].Height = hasDone ? done : 0;
+                var row0 = Math.Max(title + pickups + (hasDone ? title + done : 0), SideHeight);   // the party and the small tables on the right need their own height too
                 var row1 = title + leaders;
                 _main.RowStyles[0].Height = row0;
                 _main.RowStyles[1].Height = row1;
@@ -307,31 +303,39 @@ public sealed partial class MainForm : Form
         Padding = new Padding(2, 0, 0, 3),
     };
 
-    /// <summary>The slim bar on the front page: the session picker and the status. Everything else is in the Options menu.</summary>
-    Control BuildTopBar()
+    /// <summary>
+    /// The top row of the window, next to the Options menu: the status text just right of Options, and on the far right the session
+    /// picker with the Start / Stop Session button.
+    /// </summary>
+    void AddSessionControlsToMenu()
     {
-        var bar = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            WrapContents = true,
-            FlowDirection = FlowDirection.LeftToRight,
-            Padding = new Padding(0, 3, 0, 3),
-        };
-
         _sessionBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        _sessionBox.Width = 300;
-        _sessionBox.Margin = new Padding(0, 4, 10, 4);
+        _sessionBox.Width = 260;
+        _sessionBox.Margin = new Padding(0, 0, 8, 0);
         _sessionBox.SelectedIndexChanged += SessionChanged;
 
-        _status.AutoSize = true;
+        _status.AutoSize = false;
+        _status.AutoEllipsis = true;
+        _status.Size = new Size(430, 18);
+        _status.TextAlign = ContentAlignment.MiddleLeft;
         _status.ForeColor = Color.DimGray;
         _status.Tag = "muted";
-        _status.Margin = new Padding(6, 8, 0, 0);
+        _status.Margin = new Padding(0);
+        _menu.Items.Add(new ToolStripControlHost(_status) { Margin = new Padding(14, 0, 0, 0) });
 
-        bar.Controls.AddRange(new Control[] { _sessionBox, _sessionToggleBtn, _status });
-        return bar;
+        var right = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+            FlowDirection = FlowDirection.LeftToRight,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+        };
+        _sessionToggleBtn.Margin = new Padding(0);
+        right.Controls.Add(_sessionBox);
+        right.Controls.Add(_sessionToggleBtn);
+        _menu.Items.Add(new ToolStripControlHost(right) { Alignment = ToolStripItemAlignment.Right, Margin = new Padding(0, 0, 4, 0) });
     }
 
     readonly MenuStrip _menu = new();
@@ -386,6 +390,7 @@ public sealed partial class MainForm : Form
         });
         _menu.Items.Add(options);
         _menu.Dock = DockStyle.Top;
+        AddSessionControlsToMenu();
     }
 
     /// <summary>Opens the folder with the daily copies of the data file.</summary>
@@ -428,7 +433,7 @@ public sealed partial class MainForm : Form
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 114));   // the contracts: small, they are not the main thing
         p.RowStyles.Add(new RowStyle(SizeType.Absolute, 10));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 156));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 166));
         p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // empty, so the clean table keeps its small rows
 
         // start / end / duration / totals, neutral and clean
@@ -1393,6 +1398,7 @@ public sealed partial class MainForm : Form
         _missionsActiveVal.Text = "";
         _rewardsTotalMissions.Text = "";
         _rewardsTotalRevenue.Text = "";
+        RefreshPartyPanel();   // the party is not part of a session: it is shown also when no session is loaded
     }
 
     /// <summary>Missions still waiting at this location / missions that have cargo there. 5 missions start as 5/5.</summary>

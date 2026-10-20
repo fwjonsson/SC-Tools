@@ -72,6 +72,11 @@ public sealed partial class MainForm
                 break;
             case MenuStrip ms:
                 ThemeMenu(ms);
+                foreach (var host in ms.Items.OfType<ToolStripControlHost>())
+                {
+                    ApplyTheme(host.Control);                // the session picker, the button and the status text in the menu bar
+                    if (host.Control is FlowLayoutPanel) host.Control.BackColor = ms.BackColor;
+                }
                 return;
             case ComboBox cb:
                 cb.FlatStyle = Theme.Dark ? FlatStyle.Flat : FlatStyle.Standard;
