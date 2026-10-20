@@ -44,5 +44,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Remove the old release, and any half-made draft left behind by an earlier run (a draft has no tag, so the updater cannot find it)
           gh release delete latest --cleanup-tag --yes 2>$null
-          gh release create latest HaulingTracker.zip ScApiTool.zip --title "Latest build" --notes "Newest build of main. Unzip and run HaulingTracker.exe. ScApiTool.zip is the small tool that downloads data from the Star Citizen Wiki API. The program checks this release at startup to update itself. build: ${{ github.sha }}"
+          foreach ($id in (gh api "repos/${{ github.repository }}/releases" --paginate --jq '.[] | select(.draft) | .id')) {
+            if ($id) { gh api -X DELETE "repos/${{ github.repository }}/releases/$id" 2>$null }
+          }
+          gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/latest" 2>$null
+          gh release create latest HaulingTracker.zip ScApiTool.zip --target ${{ github.sha }} --latest --title "Latest build" --notes "Newest build of main. Unzip and run HaulingTracker.exe. ScApiTool.zip is the small tool that downloads data from the Star Citizen Wiki API. The program checks this release at startup to update itself. build: ${{ github.sha }}"
+          # The program finds the release by its tag: make sure it is published and has the tag, otherwise fail loudly
+          $draft = gh api "repos/${{ github.repository }}/releases/tags/latest" --jq '.draft' 2>$null
+          if ($draft -ne 'false') {
+            $id = gh api "repos/${{ github.repository }}/releases" --jq '[.[] | select(.tag_name == "latest")][0].id'
+            gh api -X PATCH "repos/${{ github.repository }}/releases/$id" -F draft=false
+            $draft = gh api "repos/${{ github.repository }}/releases/tags/latest" --jq '.draft'
+            if ($draft -ne 'false') { throw "The latest release is not published." }
+          }
