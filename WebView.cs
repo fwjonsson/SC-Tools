@@ -201,7 +201,7 @@ sealed class LiveWebServer : IDisposable
   .plantables h2:first-child { margin-top:0; }
   .plantables table { table-layout:fixed; }
   .plantables th:nth-child(1) { width:90px; } .plantables th:nth-child(3) { width:66px; } .plantables th:nth-child(4) { width:96px; }
-  .plantables th:nth-child(5) { width:82px; } .plantables th:nth-child(6) { width:90px; } .plantables th:nth-child(7) { width:76px; } .plantables th:nth-child(8) { width:82px; }
+  .plantables th:nth-child(5) { width:82px; } .plantables th:nth-child(6) { width:90px; } .plantables th:nth-child(7) { width:76px; } .plantables th:nth-child(8) { width:104px; }
   .plantables td:nth-child(2) { white-space:normal; }
   .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
   .mapbox { flex:0 0 520px; max-width:100%; background:var(--cell); border:1px solid var(--line); }

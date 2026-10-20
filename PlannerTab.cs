@@ -817,7 +817,7 @@ public sealed partial class MainForm
             grid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
             FitColumns(grid);   // the columns share the width, so nothing is cut off or has to scroll sideways
             // only the Route column is long (it takes what is left); the others keep a narrow width of their own: Trip, Batches, Value, Distance, Flight time, Time, Gm / Batch
-            var narrow = new[] { 90, 0, 66, 96, 82, 90, 76, 82 };
+            var narrow = new[] { 90, 0, 66, 96, 82, 90, 76, 104 };
             for (var i = 0; i < grid.Columns.Count && i < narrow.Length; i++)
             {
                 if (i == 1)
