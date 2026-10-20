@@ -92,16 +92,14 @@ public sealed partial class MainForm
 
     Control BuildPlannerPage()
     {
-        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 8, Padding = new Padding(12) };
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, Padding = new Padding(12) };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));    // title
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));    // hint
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));    // button
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));    // summary
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));    // note
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 62));     // the pages
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));   // Cargo Runs
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 38));     // the copy of Cargo Runs
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // the pages: the tables, then the map with the copy of Cargo Runs beside it
 
         t.Controls.Add(Caption("Trip Planner", "Divides the open batches over the crew, so everybody flies as little as possible and you finish together"), 0, 0);
 
@@ -139,9 +137,8 @@ public sealed partial class MainForm
         _planTabs.Dock = DockStyle.Fill;
         _planTabs.Margin = new Padding(0);
         t.Controls.Add(_planTabs, 0, 5);
-        t.Controls.Add(SectionTitle("Cargo Runs"), 0, 6);
-        BuildPlanRunsGrid();
-        t.Controls.Add(_planRunsGrid, 0, 7);
+        BuildPlanRunsGrid();   // it sits beside the map of the page that is shown (AttachPlanRuns)
+        _planTabs.SelectedIndexChanged += (_, _) => AttachPlanRuns();
         return t;
     }
 
@@ -637,6 +634,7 @@ public sealed partial class MainForm
         _planShown = plan.Signature;
 
         var selected = _planTabs.SelectedTab?.Text ?? "Overview";
+        _planRunsGrid.Parent?.Controls.Remove(_planRunsGrid);   // it belongs to no page while the pages are rebuilt (a disposed page would take it along)
         _planTabs.SuspendLayout();
         foreach (var old in _planTabs.TabPages.Cast<TabPage>().ToList())
         {
@@ -649,21 +647,30 @@ public sealed partial class MainForm
         if (keep != null) _planTabs.SelectedTab = keep;
         _planTabs.ResumeLayout(true);
         _planTabs.RefreshStyle();
+        AttachPlanRuns();
     }
 
-    /// <summary>A page: the map on the left, the tables on the right. only = null is the overview with everybody.</summary>
+    /// <summary>The copy of Cargo Runs is one grid: it is put beside the map of the page that is shown.</summary>
+    void AttachPlanRuns()
+    {
+        if (_planTabs.SelectedTab?.Tag is not Panel holder || _planRunsGrid.Parent == holder) return;
+        holder.Controls.Add(_planRunsGrid);
+        holder.Controls.SetChildIndex(_planRunsGrid, 0);   // docked last: it fills what the title leaves
+    }
+
+    /// <summary>A page: the tables on top, under them the map with the copy of Cargo Runs beside it. only = null is the overview with everybody.</summary>
     TabPage PlanPage(string title, PlanView plan, PlanWorkerView? only)
     {
-        var page = new TabPage(title) { BackColor = Theme.Window };
-        // the map on the left, square and as large as the page allows, the tables on the right
-        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Padding = new Padding(8) };
-        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 500));
-        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        var map = new PyroMapView { Dock = DockStyle.Top, Margin = new Padding(0, 0, 12, 0) };
-        var host = new PlanHost { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
-        host.Resize += (_, _) => FitPlanBlocks(host);
+        var page = new TabPage(title) { BackColor = Theme.Window, AutoScroll = true };
+        var inner = new Panel { Location = new Point(0, 0), BackColor = Theme.Window };   // everything of the page; the page scrolls up and down when it is too high
+        var map = new PyroMapView();
+        var host = new Panel { BackColor = Theme.Window };   // the tables, one under the other
+        var runsHost = new Panel { BackColor = Theme.Window };   // the copy of Cargo Runs (the grid is put here when the page is shown)
+        var runsTitle = SectionTitle("Cargo Runs");
+        runsTitle.Dock = DockStyle.Top;
+        runsTitle.Height = TitleHeight;
+        runsHost.Controls.Add(runsTitle);
+        page.Tag = runsHost;
 
         var workers = only == null ? plan.Workers : new List<PlanWorkerView> { only };
         if (only == null)
@@ -682,12 +689,8 @@ public sealed partial class MainForm
         else
         {
             // one worker: his colour, the next trip solid and bold, the later ones dotted (click a planned trip in the table to bold that one)
-            var k = 0;
             foreach (var r in only.MapRows)
-            {
                 map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = only.Color, Stops = r.Stops, From = r.From, Bold = r.Solid, Dashed = !r.Solid, Tag = r });
-                k++;
-            }
         }
 
         Action<PlanRow>? onSelect = null;
@@ -700,43 +703,35 @@ public sealed partial class MainForm
             };
         }
         foreach (var w in workers) host.Controls.Add(PlanBlock(w, onSelect));
-        FitPlanBlocks(host);
 
-        // the map is a square: as high as the page, but at most 55% of its width (the tables keep the rest)
-        void FitMap()
+        inner.Controls.Add(host);
+        inner.Controls.Add(map);
+        inner.Controls.Add(runsHost);
+        page.Controls.Add(inner);
+
+        // the tables take the whole width; the map is a square under them (at most 40% of the width) and Cargo Runs fills the rest of that row
+        void Arrange()
         {
-            var room = Math.Max(320, t.ClientSize.Height - t.Padding.Vertical);
-            var side = Math.Max(320, Math.Min(room, (int)((t.ClientSize.Width - t.Padding.Horizontal) * 0.5)));
-            t.ColumnStyles[0].Width = side + map.Margin.Horizontal;
-            map.Height = side;
+            const int pad = 8, gap = 12;
+            // the width does not depend on whether the scroll bar is there, so the page does not flip back and forth near the limit
+            var width = Math.Max(400, page.ClientSize.Width - (page.VerticalScroll.Visible ? 0 : SystemInformation.VerticalScrollBarWidth));
+            var inside = width - 2 * pad;
+            var y = 0;
+            foreach (Control c in host.Controls)
+            {
+                c.SetBounds(0, y, inside, c.Height);
+                y += c.Height + c.Margin.Bottom;
+            }
+            host.SetBounds(pad, pad, inside, y);
+            var side = Math.Max(320, Math.Min(560, (int)(inside * 0.4)));
+            var top = pad + y;
+            map.SetBounds(pad, top, side, side);
+            runsHost.SetBounds(pad + side + gap, top, Math.Max(300, inside - side - gap), side);
+            inner.Size = new Size(width, top + side + pad);
         }
-        t.Resize += (_, _) => FitMap();
-        FitMap();
-        t.Controls.Add(map, 0, 0);
-        t.Controls.Add(host, 1, 0);
-        page.Controls.Add(t);
+        page.Resize += (_, _) => Arrange();
+        Arrange();
         return page;
-    }
-
-    static void FitPlanBlocks(FlowLayoutPanel host)
-    {
-        var width = Math.Max(200, host.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 6);
-        foreach (Control c in host.Controls) c.Width = width;
-        // after the window got bigger again nothing may stay scrolled to the side
-        if (host.AutoScrollPosition.X != 0) host.AutoScrollPosition = new Point(0, -host.AutoScrollPosition.Y);
-    }
-
-    /// <summary>The panel that holds the tables of the Trip Planner: it scrolls up and down only, never sideways (the tables fit its width).</summary>
-    sealed class PlanHost : FlowLayoutPanel
-    {
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        static extern bool ShowScrollBar(IntPtr hWnd, int bar, bool show);
-
-        protected override void WndProc(ref Message m)
-        {
-            if (IsHandleCreated) ShowScrollBar(Handle, 0, false);   // 0 = the horizontal bar
-            base.WndProc(ref m);
-        }
     }
 
     /// <summary>A title and the table of one crew member: the runs so far, then the planned trips.</summary>
