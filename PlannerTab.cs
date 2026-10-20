@@ -45,6 +45,7 @@ public sealed partial class MainForm
         public PlannedTrip? Trip;
         public bool Locked;              // a planned trip that is locked to its worker (his Current)
         public bool First;               // the trip the worker is flying right now (his run in progress, or his first planned trip when he has none): the whole row has his colour
+        public bool OnMap;               // a run in progress that is drawn on the map by itself (Ruin, its pickups, back to Ruin)
         public bool Hidden;              // a planned trip that is shown inside the Current row (the continuation of the run in progress), not as a row of its own
         public bool Estimate;            // the time is an estimate (~) although this is a run
         public bool Solid;               // a planned trip that is flown first (solid line on the map); the later ones are dotted
@@ -60,6 +61,7 @@ public sealed partial class MainForm
         public Color Color;
         public List<PlanRow> Rows = new();
         public List<PlanRow> Planned => Rows.Where(r => r.IsPlan).ToList();
+        public List<PlanRow> MapRows => Rows.Where(r => r.IsPlan || r.OnMap).ToList();   // the lines on the map: the planned trips, and the run in progress when the plan adds nothing to it
     }
 
     sealed class PlanView
@@ -568,6 +570,11 @@ public sealed partial class MainForm
                 runRow.Estimate = true;
                 w.Rows.First(r => r.Trip == cont).Hidden = true;
             }
+            else if (runRow != null && runRow.Stops.Count > 0)
+            {
+                runRow.OnMap = true;   // nothing is added to it (full ship): the run itself is his solid line
+                runRow.Solid = true;
+            }
             plan.Workers.Add(w);
         }
 
@@ -637,7 +644,7 @@ public sealed partial class MainForm
             foreach (var w in workers)
             {
                 var k = 0;
-                foreach (var r in w.Planned)
+                foreach (var r in w.MapRows)
                 {
                     map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, From = r.From, Bold = r.Solid, Dashed = !r.Solid, Tag = r });
                     k++;
@@ -648,7 +655,7 @@ public sealed partial class MainForm
         {
             // one worker: his colour, the next trip solid and bold, the later ones dotted (click a planned trip in the table to bold that one)
             var k = 0;
-            foreach (var r in only.Planned)
+            foreach (var r in only.MapRows)
             {
                 map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = only.Color, Stops = r.Stops, From = r.From, Bold = r.Solid, Dashed = !r.Solid, Tag = r });
                 k++;

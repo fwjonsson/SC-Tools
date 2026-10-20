@@ -749,7 +749,7 @@ public sealed partial class MainForm
             title = PlanTitle(w),
             grid = Grid(w, false),
             personal = Grid(w, true),
-            routes = w.Planned.Select(r => new { label = r.Label + "  " + Gm(r.Gm), stops = r.Stops, from = r.From, solid = r.Solid }).ToList(),
+            routes = w.MapRows.Select(r => new { label = r.Label + "  " + Gm(r.Gm), stops = r.Stops, from = r.From, solid = r.Solid }).ToList(),
         }).ToList();
         return new
         {
