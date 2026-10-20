@@ -37,6 +37,7 @@ public sealed class LocationRow
     public int Loaded;          // stops fully picked up
     public int Partial;         // stops where only part is picked up so far
     public int Delivered;       // stops whose cargo has been handed in at Ruin
+    public int Missing;         // of those missions, the ones whose cargo is all handed in but that never completed (cargo missing)
     public DateTime? LoadedTime;     // latest pickup event here (UTC)
     public DateTime? DeliveredTime;  // set when every stop here has been handed in (UTC)
 }
@@ -246,8 +247,30 @@ public static class SessionBuilder
         return (state, last, delivered);
     }
 
+    /// <summary>
+    /// Missions whose cargo is all picked up and handed in, yet the game does not complete them: some cargo went missing (a lost or forgotten box).
+    /// The log does not say which stop or trip it was, only that the mission is short. A mission counts when every stop has a pickup signal,
+    /// something was handed in after the last pickup, nobody is still flying cargo of it, and the hand-in is a few minutes old.
+    /// </summary>
+    public static HashSet<string> MissingCargo(SessionGroup g, IEnumerable<WorkerTrip> runs, DateTime logNow)
+    {
+        var open = runs.Where(r => !r.End.HasValue).SelectMany(r => r.Pickups.SelectMany(p => p.MissionIds)).ToHashSet();
+        var result = new HashSet<string>();
+        foreach (var m in g.Missions.Where(m => !m.Completed))
+        {
+            var stops = m.ObjZone.Keys.Where(IsStop).ToList();
+            if (stops.Count == 0 || open.Contains(m.Id)) continue;
+            if (!stops.All(s => m.Events.TryGetValue(s, out var ev) && ev.Count > 0)) continue;   // some stop has not been picked up yet
+            var lastPickup = stops.Max(s => m.Events[s].Max(e => e.Time));
+            var hands = HandIns(m).Where(h => h > lastPickup).ToList();
+            if (hands.Count == 0 || logNow - hands.Max() < TimeSpan.FromMinutes(5)) continue;
+            result.Add(m.Id);
+        }
+        return result;
+    }
+
     /// <summary>The pickup locations of the session. openOnly leaves out the missions that are already completed.</summary>
-    public static List<LocationRow> Locations(SessionGroup g, bool openOnly = false)
+    public static List<LocationRow> Locations(SessionGroup g, bool openOnly = false, ISet<string>? missing = null)
     {
         var zones = new Dictionary<string, List<(Mission Mission, string Objective)>>();
         foreach (var m in g.Missions.Where(m => !openOnly || !m.Completed))
@@ -281,6 +304,7 @@ public static class SessionBuilder
                 Loaded = infos.Count(i => i.State.StartsWith("loaded")),
                 Partial = infos.Count(i => i.State == "partial"),
                 Delivered = delivered.Count,
+                Missing = missing == null ? 0 : kv.Value.Count(i => missing.Contains(i.Mission.Id)),
                 LoadedTime = lasts.Count > 0 ? lasts.Max() : (DateTime?)null,
                 DeliveredTime = delivered.Count == infos.Count && delivered.Count > 0 ? delivered.Max() : (DateTime?)null,
             });

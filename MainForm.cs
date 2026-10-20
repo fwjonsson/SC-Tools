@@ -22,6 +22,7 @@ public sealed partial class MainForm : Form
     readonly DataGridView _tripGrid = new();
     readonly DataGridView _planRunsGrid = new();   // a read-only copy of Cargo Runs under the Trip Planner
     List<WorkerTrip> _trips = new();
+    HashSet<string> _missing = new();   // missions whose cargo is all handed in but that never completed (see SessionBuilder.MissingCargo)
     readonly AppData _data = Storage.Load();
     List<SessionGroup> _sessions = new();
     SessionGroup? _current;
@@ -1454,14 +1455,15 @@ public sealed partial class MainForm : Form
         try
         {
             _inputs = GetInputs(_current.Key);
-            if (WorkerTripBuilder.ResetWorkersForNewBatch(_current, _inputs)) Storage.Save(_data);   // new missions: a clean slate for the assigned workers
+            if (WorkerTripBuilder.ResetWorkersForNewBatch(_current, _inputs, _missing)) Storage.Save(_data);   // new missions: a clean slate for the assigned workers
             ClaimNewPickups();   // before the boards change: the plan still has the batches that were just picked up
+            _missing = _log == null ? new HashSet<string>() : SessionBuilder.MissingCargo(_current, BuildRuns(_current, _inputs), _log.LastTime);
             _summary = SessionBuilder.Summarize(_current);
             _rows = SessionBuilder.Locations(_current);
             // both boards only show the missions that are active (not completed). A location where every batch of those missions
             // is handed in moves from the pickup table to the finished stops table. A completed mission is on neither: the
             // Cargo Runs log below keeps everything since the session started.
-            _openRows = SessionBuilder.Locations(_current, true);
+            _openRows = SessionBuilder.Locations(_current, true, _missing);
             _pickupRows = _openRows.Where(r => !r.DeliveredTime.HasValue).ToList();
             _doneRows = _openRows.Where(r => r.DeliveredTime.HasValue).ToList();
 
@@ -1494,6 +1496,7 @@ public sealed partial class MainForm : Form
 
     void ClearView()
     {
+        _missing = new HashSet<string>();
         _updating = true;
         try
         {
@@ -1533,7 +1536,8 @@ public sealed partial class MainForm : Form
 
     static string DeliveredText(LocationRow r)
     {
-        if (r.DeliveredTime.HasValue) return FormatTime(r.DeliveredTime.Value);
+        if (r.Missing > 0 && r.Missing >= r.Missions) return "Cargo Missing";
+        if (r.DeliveredTime.HasValue) return FormatTime(r.DeliveredTime.Value) + (r.Missing > 0 ? "  (" + r.Missing + " missing)" : "");
         if (r.Delivered > 0) return "Partial " + r.Delivered + "/" + r.Missions;
         return "";
     }
@@ -1619,6 +1623,7 @@ public sealed partial class MainForm : Form
             var row = _doneGrid.Rows[idx];
             row.Tag = r.Zone;
             row.Cells[2].Style.BackColor = DoneGreen;
+            if (r.Missing > 0) row.Cells[5].Style.BackColor = LostOrange;   // cargo is missing from a mission that has this stop
         }
         NumberRows(_doneGrid);
         FitTopArea();
@@ -1777,7 +1782,7 @@ public sealed partial class MainForm : Form
 
     /// <summary>How long the session lasts: until now while you are watching it live, otherwise until its last activity.</summary>
     /// <summary>True while the session has a contract that is not completed (abandoned and failed ones are not part of the session). The live clocks only run then.</summary>
-    bool HasOpenContracts() => _current != null && _current.Missions.Any(m => !m.Completed);
+    bool HasOpenContracts() => _current != null && _current.Missions.Any(m => !m.Completed && !_missing.Contains(m.Id));   // a mission with missing cargo never completes, it does not keep the clock running
 
     TimeSpan? SessionElapsed()
     {
@@ -1835,7 +1840,8 @@ public sealed partial class MainForm : Form
         var doneBatches = _trips.Where(t => t.End.HasValue && _inputs != null && !RunFailed(t, _inputs)).Sum(t => t.Pickups.Sum(p => p.Missions));
         _missionsVal.Text = _summary == null || totalBatches == 0 ? "" : Math.Min(doneBatches, totalBatches) + "/" + totalBatches;
         _missionsDoneVal.Text = _summary == null ? "" : _summary.Completed.ToString(CultureInfo.InvariantCulture);
-        _missionsActiveVal.Text = _summary == null ? "" : _summary.Active.ToString(CultureInfo.InvariantCulture);
+        _missionsActiveVal.Text = _summary == null ? "" : _summary.Active.ToString(CultureInfo.InvariantCulture)
+            + (_missing.Count > 0 ? "  (" + (_missing.Count == _summary.Active ? "" : _missing.Count + " ") + "Cargo Missing)" : "");
     }
 
     static bool TryTime(string text, out TimeSpan value) =>
