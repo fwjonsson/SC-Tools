@@ -945,7 +945,7 @@ public sealed partial class MainForm : Form
         _data.DisabledWatchPaths.Remove(dlg.SelectedPath);
         Storage.Save(_data);
         SetStatus("Added " + dlg.SelectedPath);
-        if (_live) StartLive();
+        ApplySources();
     }
 
     /// <summary>Shows every added live source with a tick to switch it on or off, and lets you remove one for good.</summary>
@@ -961,7 +961,7 @@ public sealed partial class MainForm : Form
             ShowInTaskbar = false,
             Font = Font,
         };
-        var label = new Label { Text = "Untick Enabled to stop reading a source without losing its address.", Dock = DockStyle.Top, Height = 28, Padding = new Padding(6, 6, 6, 0) };
+        var label = new Label { Text = "Tick or untick Enabled: it works at once. Untick stops reading a source without losing its address.", Dock = DockStyle.Top, Height = 28, Padding = new Padding(6, 6, 6, 0) };
         var grid = new DataGridView();
         StyleGrid(grid);
         grid.Dock = DockStyle.Fill;
@@ -983,9 +983,10 @@ public sealed partial class MainForm : Form
         f.Controls.Add(bar);
         f.AcceptButton = close;
 
-        var changed = false;
+        var filling = false;
         void Fill()
         {
+            filling = true;
             grid.Rows.Clear();
             foreach (var path in _data.WatchPaths)
             {
@@ -994,6 +995,7 @@ public sealed partial class MainForm : Form
                 row.Tag = path;
                 RefreshStatus(row);
             }
+            filling = false;
         }
         void RefreshStatus(DataGridViewRow row)
         {
@@ -1007,7 +1009,7 @@ public sealed partial class MainForm : Form
         };
         grid.CellValueChanged += (_, e) =>
         {
-            if (e.ColumnIndex != 0 || e.RowIndex < 0) return;
+            if (filling || e.ColumnIndex != 0 || e.RowIndex < 0) return;
             var row = grid.Rows[e.RowIndex];
             var path = (string)row.Tag!;
             if (row.Cells[0].Value is false)
@@ -1016,8 +1018,10 @@ public sealed partial class MainForm : Form
             }
             else _data.DisabledWatchPaths.Remove(path);
             Storage.Save(_data);
-            changed = true;
+            filling = true;   // RefreshStatus writes to a cell, that is not a click
             RefreshStatus(row);
+            filling = false;
+            ApplySources();   // a tick works at once, the dialog does not have to be closed
         };
         remove.Click += (_, _) =>
         {
@@ -1025,31 +1029,41 @@ public sealed partial class MainForm : Form
             _data.WatchPaths.Remove(path);
             _data.DisabledWatchPaths.Remove(path);
             Storage.Save(_data);
-            changed = true;
             Fill();
+            ApplySources();
         };
         Fill();
         ApplyTheme(f);
         f.ShowDialog(this);
-
-        if (!changed || !_live) return;
-        if (ActivePaths().Count > 0) StartLive();
-        else
-        {
-            StopLive();
-            _logs.Clear();
-            _sources.Clear();
-            _renderedVersion = -1;
-            RefreshFromLog();
-            SetStatus("All sources are switched off. Tick one in Sources to watch again.");
-        }
     }
+
+    /// <summary>
+    /// Makes the program read exactly the sources that are ticked, right now. With none ticked it stops and clears the screen;
+    /// ticking one again starts watching again (unless you pressed Stop Watching yourself).
+    /// </summary>
+    void ApplySources()
+    {
+        if (ActivePaths().Count > 0)
+        {
+            if (_live || !_userStopped) StartLive();
+            return;
+        }
+        StopLive();
+        _logs.Clear();
+        _sources.Clear();
+        _renderedVersion = -1;
+        RefreshFromLog();
+        SetStatus("All sources are switched off. Tick one in Sources to watch again.");
+    }
+
+    bool _userStopped;   // Stop Watching was pressed: ticking a source does not start watching by itself
 
     void ToggleLive()
     {
         if (_live)
         {
             StopLive();
+            _userStopped = true;
             SetStatus("Stopped watching.");
             return;
         }
@@ -1073,6 +1087,7 @@ public sealed partial class MainForm : Form
 
     void StartLive()
     {
+        _userStopped = false;
         _sources.Clear();
         _logs.Clear();
         var active = ActivePaths();
