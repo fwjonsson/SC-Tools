@@ -224,6 +224,17 @@ function table(el, g) {
   el.appendChild(t);
 }
 
+// Clocks that run (the session time and the run time of runs on the way) count up on the page every second between the updates.
+let tickers = [];
+let fetchedAt = Date.now();
+function parseHms(s) { const m = /^(\d+):(\d\d):(\d\d)$/.exec(s || ''); return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : null; }
+function fmtHms(n) { const h = Math.floor(n / 3600), m = Math.floor(n % 3600 / 60), s = n % 60; return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0'); }
+function addTicker(td) { const b = parseHms(td.textContent); if (b !== null) tickers.push({ td: td, base: b }); }
+setInterval(function () {
+  const dt = Math.floor((Date.now() - fetchedAt) / 1000);
+  tickers.forEach(function (t) { t.td.textContent = fmtHms(t.base + dt); });
+}, 1000);
+
 function summary(el, items) {
   el.textContent = '';
   const t = document.createElement('table'); t.className = 'kv';
@@ -232,6 +243,7 @@ function summary(el, items) {
     const tr = tb.insertRow();
     tr.insertCell().textContent = it.k;
     const td = tr.insertCell(); td.textContent = it.v; td.style.textAlign = 'right';
+    if (it.live) addTicker(td);
   });
   el.appendChild(t);
 }
@@ -395,6 +407,8 @@ async function refresh() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
     last = d;
+    tickers = [];
+    fetchedAt = Date.now();
     const root = document.documentElement.style;
     if (d.theme) { root.setProperty('--bg', d.theme.bg); root.setProperty('--fg', d.theme.fg); root.setProperty('--header', d.theme.header); root.setProperty('--line', d.theme.line); root.setProperty('--cell', d.theme.cell); }
     document.getElementById('session').textContent = d.session || '';
@@ -408,6 +422,10 @@ async function refresh() {
     table(document.getElementById('party'), d.party);
     table(document.getElementById('leaders'), d.leaders);
     table(document.getElementById('runs'), d.runs);
+    if (d.runsLive) {
+      const runRows = document.querySelectorAll('#runs tbody tr');
+      d.runsLive.forEach(function (live, i) { if (live && runRows[i] && runRows[i].cells[7]) addTicker(runRows[i].cells[7]); });
+    }
     if (d.planner) renderPlanner();
     if (d.debts) renderDebts();
     if (d.history) renderHistory();
@@ -429,6 +447,8 @@ public sealed partial class MainForm
     readonly System.Windows.Forms.Timer _webTimer = new();
     readonly ToolStripMenuItem _webBtn = new();
     int _webTick;
+    string _webLastDuration = "";
+    bool _webClockRunning;
 
     string WebButtonText() => _web != null ? "Live Web View: On (port " + _web.Port + ")" : "Live Web View: Off";
 
@@ -478,28 +498,6 @@ public sealed partial class MainForm
         _webTimer.Start();
         PublishWeb();
         SetStatus("Live web view on http://localhost:" + port + " (read only).");
-        if (announce)
-        {
-            // the command for the tunnel goes to the clipboard, so it can be pasted in the terminal with Ctrl+V
-            var command = "cloudflared tunnel --url http://localhost:" + port;
-            var copied = false;
-            try
-            {
-                Clipboard.SetText(command);
-                copied = true;
-            }
-            catch (Exception)
-            {
-                // the clipboard can be busy; the command is in the message anyway
-            }
-            MessageBox.Show(this,
-                "The live view now runs on this computer at:\n\nhttp://localhost:" + port + "\n\n"
-                + "It is read only: it only shows the tracker (Session, Trip Planner, Debts and History), nobody can change anything from it.\n\n"
-                + "To let somebody else watch, run this in a terminal and send them the https://...trycloudflare.com address it prints:\n\n"
-                + command + "\n\n"
-                + (copied ? "The command is copied: open a terminal and press Ctrl+V." : "(It could not be copied, type it in yourself.)"),
-                "Live Web View", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
         return true;
     }
 
@@ -518,6 +516,10 @@ public sealed partial class MainForm
         {
             // the Debts and History tables are filled when you open those tabs: keep them current, without touching them while you look at them
             if (_webTick++ % 5 == 0 && !_balanceGrid.Visible && !_balanceGrid.IsCurrentCellInEditMode) RefreshDebts();
+            // the session clock is running when its text changed since the last update
+            var duration = _durationVal.Text;
+            _webClockRunning = duration.Length > 0 && duration != _webLastDuration;
+            _webLastDuration = duration;
             _web.Json = BuildWebSnapshot();
         }
         catch (Exception ex)
@@ -543,32 +545,29 @@ public sealed partial class MainForm
             },
             summary = new[]
             {
-                new { k = "Start Time", v = _startBox.Text },
-                new { k = "Session Time", v = _durationVal.Text },
-                new { k = "Batches Delivered", v = _missionsVal.Text },
-                new { k = "Active Missions", v = _missionsActiveVal.Text },
-                new { k = "Missions Completed", v = _missionsDoneVal.Text },
-                new { k = "Total aUEC Earned", v = _revenueVal.Text },
-                new { k = "aUEC/Hour", v = _hourlyVal.Text },
+                new { k = "Start Time", v = _startBox.Text, live = false },
+                new { k = "Session Time", v = _durationVal.Text, live = _webClockRunning },   // the page counts it up between updates
+                new { k = "Batches Delivered", v = _missionsVal.Text, live = false },
+                new { k = "Active Missions", v = _missionsActiveVal.Text, live = false },
+                new { k = "Missions Completed", v = _missionsDoneVal.Text, live = false },
+                new { k = "Total aUEC Earned", v = _revenueVal.Text, live = false },
+                new { k = "aUEC/Hour", v = _hourlyVal.Text, live = false },
             },
             rewards = WebGrid(_rewards),
-            party = WebSimple(new[] { ("Member", "left"), ("Active", "center"), ("Batches", "center"), ("QT Drive", "left"), ("Since", "center") },
-                _data.Party.Select(n =>
+            party = WebSimple(new[] { ("Member", "left"), ("Active", "center"), ("Batches", "center"), ("QT Drive", "left") },
+                _data.Party.Select(n => new[]
                 {
-                    var last = _data.PartyChanges.Where(c => SameName(c.Name, n)).OrderBy(c => c.TimeUtc).LastOrDefault();
-                    return new[]
-                    {
-                        n,
-                        IsActiveAt(n, DateTime.UtcNow) ? "Yes" : "No",
-                        Math.Max(1, ShipCapacityOf(n)).ToString(System.Globalization.CultureInfo.InvariantCulture),
-                        DriveOf(n)?.Label ?? "",
-                        last == null ? "" : last.TimeUtc.ToLocalTime().ToString("d MMM HH:mm", System.Globalization.CultureInfo.CurrentCulture),
-                    };
+                    n,
+                    IsActiveAt(n, DateTime.UtcNow) ? "Yes" : "No",
+                    Math.Max(1, ShipCapacityOf(n)).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    DriveOf(n)?.Label ?? "",
                 })),
             pickups = WebGrid(_logGrid),
             finished = WebGrid(_doneGrid),
             leaders = WebGrid(_statsGrid),
             runs = WebGrid(_tripGrid),
+            runsLive = _tripGrid.Rows.Cast<DataGridViewRow>().Where(r => !r.IsNewRow)
+                .Select(r => r.Tag is WorkerTrip t && !t.End.HasValue && (Convert.ToString(r.Cells[7].Value) ?? "").Length > 0).ToArray(),   // runs on the way: the page counts their Run Time up
             planner = WebPlan(GetPlan()),
             debts = WebDebts(),
             history = new { allTime = WebGrid(_allTimeGrid), best = _bestLine.Text, saved = WebGrid(_historyGrid) },
