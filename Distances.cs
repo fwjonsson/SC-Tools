@@ -47,6 +47,19 @@ static class PyroDistances
         ["70273"] = (48.2968, 48.2920, 0.0027),
     };
 
+    // The backdrop of the map: the sun, the orbits and the planets, in the pixels of the same top-down map (measured on it).
+    public static readonly (double X, double Y) Sun = (1919.5, 1079.5);
+    public const double SunRadius = 25;
+    public static readonly double[] OrbitRadii = { 123.4, 158.7, 266.0, 642.4, 1026.5 };   // Pyro I, Monox, Bloom, Pyro V, Terminus
+    public static readonly (double X, double Y)[] Planets =
+    {
+        (1801.5, 1115.5),   // Pyro I
+        (2010.5, 1209.5),   // Monox
+        (1679.5, 964.5),    // Bloom
+        (1864.5, 1719.5),   // Pyro V
+        (1194.0, 355.0),    // Terminus
+    };
+
     public static string NameOf(string id) => Stations.First(s => s.Id == id).Name;
 
     /// <summary>Every station with its position on the top-down map (pixels of the 3840x2160 map), Ruin included.</summary>
