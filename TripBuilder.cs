@@ -157,9 +157,9 @@ public static class WorkerTripBuilder
     /// A clean slate for a new set of missions: when every mission of the earlier set is completed and new missions have been accepted,
     /// the assigned workers are cleared (and frozen for the old runs). Returns true when something changed and has to be saved.
     /// </summary>
-    public static bool ResetWorkersForNewBatch(SessionGroup g, SessionInputs inp)
+    public static bool ResetWorkersForNewBatch(SessionGroup g, SessionInputs inp, ISet<string>? ignore = null)
     {
-        var open = g.Missions.Where(m => !m.Completed).ToList();
+        var open = g.Missions.Where(m => !m.Completed && ignore?.Contains(m.Id) != true).ToList();   // a mission with missing cargo never completes: it does not hold up the clean slate
         var done = g.Missions.Where(m => m.Completed).ToList();
         if (open.Count == 0 || done.Count == 0) return false;
 
