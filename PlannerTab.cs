@@ -194,15 +194,15 @@ public sealed partial class MainForm
     string? LockKey(string name) => _inputs?.LockedTrips.Keys.FirstOrDefault(k => SameName(k, name));
 
     /// <summary>
-    /// A pickup that no log names (a member without a log) is credited to the worker whose planned trip needed a batch at that station, in the order
-    /// of the plan. It runs before the boards change, so the plan still holds the batches that were just picked up. What the logs show always wins.
+    /// A pickup that no log names (a member without a log) is credited to somebody once, and the credit is saved, so it never changes again (not when
+    /// the program restarts either). Who gets it: the worker whose locked stop it is, then the worker whose planned trip needed a batch at that station
+    /// (in the order of the plan, from before the batch was picked up), and else the only member without a log (a member with a log would have shown
+    /// up in it). Nobody gets more batches than his ship holds. What the logs show always wins.
     /// </summary>
     void ClaimNewPickups()
     {
         if (_current == null || _inputs == null || _log == null) return;
         var since = _data.PlanCreditSince ??= DateTime.UtcNow;
-        var core = _planCore;
-        if (core == null || core.Trips.Count == 0) return;
 
         var fresh = new List<(string Key, string Station, DateTime Time)>();
         foreach (var m in _current.Missions)
@@ -223,25 +223,62 @@ public sealed partial class MainForm
         }
         if (fresh.Count == 0) return;
 
+        var crew = ActiveCrew().Where(n => ShipCapacityOf(n) > 0).ToList();
+        var used = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);   // claimed just now
+        bool HasRoom(string n) => ShipCapacityOf(n) - (ActiveRunOf(n)?.Loaded ?? 0) - used.GetValueOrDefault(n) > 0;
+        var logged = new HashSet<string>(_log.UnstowByPlayer.Keys.Concat(_log.PlatformByPlayer.Keys), StringComparer.OrdinalIgnoreCase);
+        var core = _planCore;
+        var changed = false;
+
         foreach (var group in fresh.GroupBy(f => f.Station))
         {
-            var queue = new List<string>();   // one entry for every batch the plan expects at this station
-            foreach (var trip in core.Trips)
+            // 1. whose locked stop this is (one entry for every batch of the lock)
+            var locked = new List<string>();
+            foreach (var n in crew)
             {
-                foreach (var (id, n) in trip.Stops)
-                {
-                    if (id != group.Key) continue;
-                    for (var i = 0; i < n; i++) queue.Add(trip.Worker);
-                }
+                var lk = LockKey(n);
+                if (lk == null) continue;
+                var stored = _inputs.LockedTrips[lk];
+                if (stored.Count == 0 || stored[0].Id != group.Key) continue;
+                for (var i = 0; i < stored[0].Batches; i++) locked.Add(n);
             }
-            var next = 0;
+            // 2. whose planned trip expects a batch here, in the order of the plan
+            var queue = new List<string>();
+            if (core != null)
+            {
+                foreach (var trip in core.Trips)
+                    foreach (var (id, n) in trip.Stops)
+                    {
+                        if (id != group.Key) continue;
+                        for (var i = 0; i < n; i++) queue.Add(trip.Worker);
+                    }
+            }
+            // 3. members without a log: his pickups are the ones no log names
+            var noLog = crew.Where(n => !logged.Any(l => SameName(l, n))).ToList();
+
             foreach (var f in group.OrderBy(x => x.Time))
             {
-                if (next >= queue.Count) break;
-                _inputs.PickupClaims[f.Key] = queue[next++];
+                string? who = null;
+                foreach (var list in new[] { locked, queue })
+                {
+                    var i = list.FindIndex(n => HasRoom(n));
+                    if (i < 0) continue;
+                    who = list[i];
+                    list.RemoveAt(i);
+                    break;
+                }
+                if (who == null)
+                {
+                    var able = noLog.Where(HasRoom).ToList();
+                    if (able.Count == 1) who = able[0];
+                }
+                if (who == null) continue;
+                _inputs.PickupClaims[f.Key] = who;
+                used[who] = used.GetValueOrDefault(who) + 1;
+                changed = true;
             }
         }
-        Storage.Save(_data);
+        if (changed) Storage.Save(_data);
     }
 
     /// <summary>Clears all locked Current trips (asks first). The plan is free again until you press Plan Trips.</summary>
