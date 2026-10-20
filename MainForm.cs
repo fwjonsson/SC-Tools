@@ -27,8 +27,9 @@ public sealed partial class MainForm : Form
     SessionInputs? _inputs;
     SessionSummary? _summary;
     List<LocationRow> _rows = new();       // every pickup location of the session (the totals and the saved numbers use these)
-    List<LocationRow> _openRows = new();   // only the locations of missions that are not completed yet (the pickup table shows these)
-    List<LocationRow> _doneRows = new();   // locations whose missions are all completed, from the current set of missions (the finished stops table shows these)
+    List<LocationRow> _openRows = new();   // the locations of the missions that are not completed yet (completed missions are on neither board)
+    List<LocationRow> _pickupRows = new(); // of those, the ones with cargo still to deliver (the pickup table)
+    List<LocationRow> _doneRows = new();   // of those, the ones where every batch is handed in (the finished stops table)
     readonly DataGridView _doneGrid = new();
     Label? _doneTitle;
     decimal _revenue;
@@ -1216,7 +1217,7 @@ public sealed partial class MainForm : Form
             ClearView();
             UpdateSnapshots();
             RefreshDebts();
-            if (!_live) SetStatus("No Station to Ruin hauling missions were found in this log.");
+            SetStatus("No session yet. Press Start Session to begin.");
             return;
         }
         ShowSession();
@@ -1311,14 +1312,12 @@ public sealed partial class MainForm : Form
             if (WorkerTripBuilder.ResetWorkersForNewBatch(_current, _inputs)) Storage.Save(_data);   // new missions: a clean slate for the assigned workers
             _summary = SessionBuilder.Summarize(_current);
             _rows = SessionBuilder.Locations(_current);
-            // the pickup table shows the missions that are not completed yet. A location whose missions are all completed
-            // moves to the finished stops table below it, where it stays until the next set of missions begins
+            // both boards only show the missions that are active (not completed). A location where every batch of those missions
+            // is handed in moves from the pickup table to the finished stops table. A completed mission is on neither: the
+            // Cargo Runs log below keeps everything since the session started.
             _openRows = SessionBuilder.Locations(_current, true);
-            var openZones = _openRows.Select(r => r.Zone).ToHashSet();
-            var since = _inputs.WorkersResetAt;
-            _doneRows = _rows
-                .Where(r => !openZones.Contains(r.Zone) && (since == null || (r.DeliveredTime ?? r.LoadedTime ?? DateTime.MinValue) >= since.Value))
-                .ToList();
+            _pickupRows = _openRows.Where(r => !r.DeliveredTime.HasValue).ToList();
+            _doneRows = _openRows.Where(r => r.DeliveredTime.HasValue).ToList();
 
             _startBox.Text = _inputs.Start ?? FormatTime(_summary.Start);
             _endBox.Text = _inputs.End ?? (_summary.End.HasValue ? FormatTime(_summary.End.Value) : "");
@@ -1355,6 +1354,7 @@ public sealed partial class MainForm : Form
             _summary = null;
             _rows = new List<LocationRow>();
             _openRows = new List<LocationRow>();
+            _pickupRows = new List<LocationRow>();
             _doneRows = new List<LocationRow>();
             _doneGrid.Rows.Clear();
             _startBox.Text = "";
@@ -1438,7 +1438,7 @@ public sealed partial class MainForm : Form
 
         // the most valuable location on top. Once new missions are accepted, completed ones are gone from here
         // (everything else, runs, leaderboards and totals, keeps counting them)
-        foreach (var r in _openRows.OrderByDescending(StopValue))
+        foreach (var r in _pickupRows.OrderByDescending(StopValue))
         {
             _inputs!.Rows.TryGetValue(r.Zone, out var inp);
             var idx = _logGrid.Rows.Add(
@@ -1504,7 +1504,7 @@ public sealed partial class MainForm : Form
         foreach (DataGridViewRow row in _logGrid.Rows)
         {
             if (row.Tag is not string zone) continue;
-            var info = _openRows.FirstOrDefault(x => x.Zone == zone);
+            var info = _pickupRows.FirstOrDefault(x => x.Zone == zone);
             if (info != null) row.Cells[4].Value = StopValueText(info);
         }
         foreach (DataGridViewRow row in _doneGrid.Rows)
