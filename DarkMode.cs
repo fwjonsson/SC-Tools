@@ -74,8 +74,11 @@ public sealed partial class MainForm
                 ThemeMenu(ms);
                 foreach (var host in ms.Items.OfType<ToolStripControlHost>())
                 {
-                    ApplyTheme(host.Control);                // the session picker, the button and the status text in the menu bar
-                    if (host.Control is FlowLayoutPanel) host.Control.BackColor = ms.BackColor;
+                    ApplyTheme(host.Control);                // the session picker and the status text in the menu bar
+                }
+                foreach (var button in ms.Items.OfType<ToolStripButton>())
+                {
+                    button.BackColor = Theme.Dark ? Theme.Button : SystemColors.ControlLight;   // the Start / Stop Session button stands out from the bar
                 }
                 return;
             case ComboBox cb:
@@ -184,4 +187,12 @@ sealed class DarkMenuColors : ProfessionalColorTable
     public override Color CheckSelectedBackground => Hot;
     public override Color CheckPressedBackground => Hot;
     public override Color ButtonSelectedHighlight => Hot;
+    public override Color ButtonSelectedGradientBegin => Hot;
+    public override Color ButtonSelectedGradientMiddle => Hot;
+    public override Color ButtonSelectedGradientEnd => Hot;
+    public override Color ButtonPressedGradientBegin => Hot;
+    public override Color ButtonPressedGradientMiddle => Hot;
+    public override Color ButtonPressedGradientEnd => Hot;
+    public override Color ButtonSelectedBorder => Theme.Lines;
+    public override Color ButtonPressedBorder => Theme.Lines;
 }

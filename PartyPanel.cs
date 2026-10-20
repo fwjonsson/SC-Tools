@@ -82,16 +82,18 @@ public sealed partial class MainForm
     {
         _data.PartyTrackingSince ??= DateTime.UtcNow;
 
-        var p = new TableLayoutPanel
+        var p = _partyPanel = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0),
         };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // the table, with no title: it is not part of the hauling info
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // the name box and the buttons, right under the table
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));   // the table, as high as its members (RefreshPartyPanel), with no title: it is not part of the hauling info
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, PartyRowHeight));   // the entry row: it looks like the next row of the table
 
         StyleGrid(_partyGrid);
         _partyGrid.Dock = DockStyle.Fill;
@@ -99,14 +101,15 @@ public sealed partial class MainForm
         _partyGrid.AllowUserToAddRows = false;
         _partyGrid.AllowUserToDeleteRows = false;
         _partyGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-        _partyGrid.Columns.Add(Col("Member", 100, true, DataGridViewContentAlignment.MiddleLeft));
-        _partyGrid.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = "Active", Width = 52, SortMode = DataGridViewColumnSortMode.NotSortable });
-        _partyGrid.Columns.Add(Col("Batches", 52, false));
-        var driveCol = new DataGridViewComboBoxColumn { HeaderText = "QT Drive", Width = 100, SortMode = DataGridViewColumnSortMode.NotSortable, FlatStyle = FlatStyle.Flat, DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing };
+        _partyGrid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+        _partyGrid.Columns.Add(Col("Member", PartyColMember, true, DataGridViewContentAlignment.MiddleLeft));
+        _partyGrid.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = "Active", Width = PartyColActive, SortMode = DataGridViewColumnSortMode.NotSortable });
+        _partyGrid.Columns.Add(Col("Batches", PartyColBatches, false));
+        var driveCol = new DataGridViewComboBoxColumn { HeaderText = "QT Drive", Width = PartyColDrive, SortMode = DataGridViewColumnSortMode.NotSortable, FlatStyle = FlatStyle.Flat, DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing };
         driveCol.Items.Add("");
-        foreach (var d in QuantumDrives.All.OrderBy(x => x.Size).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)) driveCol.Items.Add(d.Label);
+        foreach (var d in QuantumDrives.All.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Size)) driveCol.Items.Add(d.Label);
         _partyGrid.Columns.Add(driveCol);
-        _partyGrid.Columns.Add(Col("Since", 90, false));
+        _partyGrid.Columns.Add(Col("Since", PartyColSince, false));
         foreach (DataGridViewColumn c in _partyGrid.Columns)
         {
             c.FillWeight = c.Width;
@@ -122,29 +125,68 @@ public sealed partial class MainForm
         _partyGrid.CellValueChanged += PartyGrid_CellValueChanged;
         _partyGrid.DataError += (_, e) => e.ThrowException = false;
 
-        var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Margin = new Padding(0), Padding = new Padding(0, 4, 0, 0) };
-        _partyName.Width = 100;
-        _partyName.Margin = new Padding(0, 3, 6, 0);
-        _partyName.PlaceholderText = "Type a name";
+        // The entry row: the name box is a cell under Member / Active / Batches, Add sits under QT Drive and Remove under Since
+        var bar = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Margin = new Padding(0) };
+        bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, PartyColMember + PartyColActive + PartyColBatches));
+        bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, PartyColDrive));
+        bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, PartyColSince));
+        bar.RowStyles.Add(new RowStyle(SizeType.Absolute, PartyRowHeight));
+        _partyName.BorderStyle = BorderStyle.None;
+        _partyName.Dock = DockStyle.Fill;
+        _partyName.PlaceholderText = "New member";
         _partyName.KeyDown += (_, e) =>
         {
             if (e.KeyCode != Keys.Enter) return;
             e.SuppressKeyPress = true;
             AddPartyMember();
         };
-        StyleButton(_partyAddBtn, "Add");
-        StyleButton(_partyRemoveBtn, "Remove");
-        _partyAddBtn.AutoSize = true;
-        _partyRemoveBtn.AutoSize = true;
+        foreach (var (b, text) in new[] { (_partyAddBtn, "Add"), (_partyRemoveBtn, "Remove") })
+        {
+            b.Text = text;
+            b.AutoSize = false;
+            b.Dock = DockStyle.Fill;
+            b.Margin = new Padding(0);
+            b.Padding = new Padding(0);
+        }
         _partyAddBtn.Click += (_, _) => AddPartyMember();
         _partyRemoveBtn.Click += (_, _) => RemovePartyMember();
-        bar.Controls.Add(_partyName);
-        bar.Controls.Add(_partyAddBtn);
-        bar.Controls.Add(_partyRemoveBtn);
+
+        // the name box looks like a cell of the table: a bordered cell with the text a little in from the edge
+        var cell = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0), Padding = new Padding(6, 4, 4, 0), Tag = "input" };
+        cell.Controls.Add(_partyName);
+        cell.Paint += (_, e) =>
+        {
+            using var pen = new Pen(Theme.Lines);
+            e.Graphics.DrawRectangle(pen, 0, 0, cell.Width - 1, cell.Height - 1);
+        };
+        bar.Controls.Add(cell, 0, 0);
+        bar.Controls.Add(_partyAddBtn, 1, 0);
+        bar.Controls.Add(_partyRemoveBtn, 2, 0);
 
         p.Controls.Add(_partyGrid, 0, 0);
         p.Controls.Add(bar, 0, 1);
         return p;
+    }
+
+    // the party table: one row per member (up to PartyMaxRows, then it scrolls) with the entry row right under the last one
+    const int PartyRowHeight = 26;
+    const int PartyMaxRows = 6;
+    // proportions of the columns (the entry row under the table uses the same ones)
+    const int PartyColMember = 85, PartyColActive = 58, PartyColBatches = 66, PartyColDrive = 120, PartyColSince = 90;
+    TableLayoutPanel? _partyPanel;
+    int _partyHeight = PartyMaxHeight;   // as drawn now, the party table and its entry row
+
+    /// <summary>The height of the party table with all its rows, and of its entry row.</summary>
+    const int PartyMaxHeight = 28 + PartyMaxRows * PartyRowHeight + 2 + PartyRowHeight;
+
+    void FitPartyGrid()
+    {
+        if (_partyPanel == null) return;
+        var rows = Math.Clamp(_partyGrid.Rows.Count, 1, PartyMaxRows);
+        var grid = _partyGrid.ColumnHeadersHeight + rows * _partyGrid.RowTemplate.Height + 2;
+        _partyPanel.RowStyles[0].Height = grid;
+        _partyPanel.RowStyles[1].Height = PartyRowHeight;
+        _partyHeight = grid + PartyRowHeight;
     }
 
     void RefreshPartyPanel()
@@ -175,6 +217,8 @@ public sealed partial class MainForm
         {
             _partyUpdating = false;
         }
+        FitPartyGrid();
+        FitTopArea();
     }
 
     /// <summary>Saves and updates everything that depends on the party (debts, planner, worker choices).</summary>

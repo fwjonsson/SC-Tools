@@ -1,4 +1,4 @@
-# Hauling Session Tracker
+# Hauling Tracker
 
 Reads Star Citizen `Game.log` files and fills in your hauling session sheet.
 Only **Station to Ruin** hauling contracts are used. Ruin to Station missions are ignored.
@@ -70,7 +70,7 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. The first time the p
 
 ## Layout
 
-Every board has a title. At the top: **Hauling Tracker** (the pickup board) on the left, and on the right the contract table with the clean table (times, missions, revenue, hourly rate) below it. Under them the **Session Leaderboard** runs over the full width. **Cargo Runs** takes what is left of the window and scrolls, with the run that had the latest activity on top: a run that gets completed (handed in) jumps to the top, a run still on the way sits by its last pickup. Not sorted by run number. The pickup board and the leaderboard are always shown in full.
+Every board has a title. At the top: the pickup board (and, when there are some, the **Finished Stops**) on the left, and on the right the party table with its entry row (**New member**, **Add**, **Remove**) right under the last member, and under it the small contract table and the clean table (times, missions, revenue, hourly rate). The party table is as high as its members (it scrolls after six). Under them the **Session Leaderboard** runs over the full width. **Cargo Runs** takes what is left of the window and scrolls, with the run that had the latest activity on top: a run that gets completed (handed in) jumps to the top, a run still on the way sits by its last pickup. Not sorted by run number. The pickup board and the leaderboard are always shown in full.
 
 The program starts watching the logs by itself when it opens, and reads the backup logs of the last 24 hours first.
 
