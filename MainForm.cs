@@ -66,7 +66,7 @@ public sealed partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "Hauling Session Tracker";
+        Text = "Hauling Tracker";
         Font = new Font("Segoe UI", 10f);
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(1500, 860);
@@ -154,9 +154,8 @@ public sealed partial class MainForm : Form
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 306));   // both rows are fitted to the boards by FitTopArea
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 130));
 
-        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Margin = new Padding(0) };
+        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Margin = new Padding(0) };
         left.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        left.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));    // the finished stops: shown when there are some
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
@@ -176,13 +175,12 @@ public sealed partial class MainForm : Form
             grid.RowsRemoved += (_, _) => FitTopArea();
         }
         Shown += (_, _) => FitTopArea();
-        left.Controls.Add(SectionTitle("Hauling Tracker"), 0, 0);
-        left.Controls.Add(_logGrid, 0, 1);
+        left.Controls.Add(_logGrid, 0, 0);
         _doneTitle = SectionTitle("Finished Stops");
         _doneTitle.Visible = false;
         _doneGrid.Visible = false;
-        left.Controls.Add(_doneTitle, 0, 2);
-        left.Controls.Add(_doneGrid, 0, 3);
+        left.Controls.Add(_doneTitle, 0, 1);
+        left.Controls.Add(_doneGrid, 0, 2);
 
         var board = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
         board.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -194,7 +192,7 @@ public sealed partial class MainForm : Form
         // the party (with its name box and buttons) on top, the small tables with the contracts and the times under it
         var side = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0), Padding = new Padding(10, 0, 0, 0) };
         side.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        side.RowStyles.Add(new RowStyle(SizeType.Absolute, PartyHeight));
+        side.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // as high as the party table with its members
         side.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         side.Controls.Add(BuildPartyPanel(), 0, 0);
         side.Controls.Add(BuildHeader(), 0, 1);
@@ -218,9 +216,8 @@ public sealed partial class MainForm : Form
     }
 
     const int TitleHeight = 30;
-    const int SideWidth = 400;     // the column on the right: the party, the contracts and the times
-    const int PartyHeight = 200;   // the party table (header and five members) and the name box with its buttons under it
-    const int SideHeight = PartyHeight + 8 + 114 + 10 + 166;   // the party, the contracts table and the summary table
+    const int SideWidth = 420;     // the column on the right: the party, the contracts and the times
+    const int SideTables = 8 + 114 + 10 + 166;   // the contracts table and the summary table under the party
 
     /// <summary>
     /// The grid never scrolls, neither sideways nor up and down (FitTopArea gives it the height of all its rows).
@@ -266,14 +263,13 @@ public sealed partial class MainForm : Form
             // set the heights, then check that every row really is shown and add what is missing
             for (var pass = 0; pass < 4; pass++)
             {
-                var title = _left.GetRowHeights().FirstOrDefault();   // as drawn, also on a scaled screen
-                if (title <= 0) title = TitleHeight;
-                _left.RowStyles[1].Height = pickups;
+                var title = LogicalToDeviceUnits(TitleHeight);   // as drawn, also on a scaled screen
+                _left.RowStyles[0].Height = pickups;
                 if (_doneTitle != null) _doneTitle.Visible = hasDone;
                 _doneGrid.Visible = hasDone;
-                _left.RowStyles[2].Height = hasDone ? title : 0;
-                _left.RowStyles[3].Height = hasDone ? done : 0;
-                var row0 = Math.Max(title + pickups + (hasDone ? title + done : 0), SideHeight);   // the party and the small tables on the right need their own height too
+                _left.RowStyles[1].Height = hasDone ? title : 0;
+                _left.RowStyles[2].Height = hasDone ? done : 0;
+                var row0 = Math.Max(pickups + (hasDone ? title + done : 0), _partyHeight + SideTables);   // the party and the small tables on the right need their own height too
                 var row1 = title + leaders;
                 _main.RowStyles[0].Height = row0;
                 _main.RowStyles[1].Height = row1;
@@ -323,19 +319,11 @@ public sealed partial class MainForm : Form
         _status.Margin = new Padding(0);
         _menu.Items.Add(new ToolStripControlHost(_status) { Margin = new Padding(14, 0, 0, 0) });
 
-        var right = new FlowLayoutPanel
-        {
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            WrapContents = false,
-            FlowDirection = FlowDirection.LeftToRight,
-            Margin = new Padding(0),
-            Padding = new Padding(0),
-        };
-        _sessionToggleBtn.Margin = new Padding(0);
-        right.Controls.Add(_sessionBox);
-        right.Controls.Add(_sessionToggleBtn);
-        _menu.Items.Add(new ToolStripControlHost(right) { Alignment = ToolStripItemAlignment.Right, Margin = new Padding(0, 0, 4, 0) });
+        // right aligned items are placed from the right edge in the order they are added: the button is the last one, the picker is left of it
+        _sessionToggleBtn.Alignment = ToolStripItemAlignment.Right;
+        _sessionToggleBtn.Margin = new Padding(6, 1, 6, 1);
+        _menu.Items.Add(_sessionToggleBtn);
+        _menu.Items.Add(new ToolStripControlHost(_sessionBox) { Alignment = ToolStripItemAlignment.Right, Margin = new Padding(0, 0, 0, 0) });
     }
 
     readonly MenuStrip _menu = new();

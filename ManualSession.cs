@@ -6,17 +6,13 @@ namespace HaulingTracker;
 // also when that is days later, and the start is remembered when you close the program.
 public sealed partial class MainForm
 {
-    readonly Button _sessionToggleBtn = new();
+    readonly ToolStripButton _sessionToggleBtn = new() { DisplayStyle = ToolStripItemDisplayStyle.Text, Text = "Start Session", Padding = new Padding(8, 0, 8, 0) };
     string? _forceKey;   // the session to show after the next refresh (the one you just started)
 
     ManualSession? OpenManualSession => _data.ManualSessions.LastOrDefault(s => !s.StopUtc.HasValue);
 
     void InitSessionButtons()
     {
-        StyleButton(_sessionToggleBtn, "Start Session");
-        _sessionToggleBtn.AutoSize = false;          // as high as the menu bar it sits in
-        _sessionToggleBtn.Size = new Size(96, 24);
-        _sessionToggleBtn.Padding = new Padding(0);
         _sessionToggleBtn.Click += (_, _) => ToggleSession();
         UpdateSessionButtons();
     }
