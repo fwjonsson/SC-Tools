@@ -327,7 +327,7 @@ public sealed partial class MainForm
             Storage.Save(_data);
             return null;
         }
-        return PyroDistances.Stations.Any(s => s.Id == kv.Value.Id && s.Id != PyroDistances.Ruin) ? kv.Value.Id : null;
+        return PyroDistances.Points.Any(s => s.Id == kv.Value.Id && s.Id != PyroDistances.Ruin) ? kv.Value.Id : null;
     }
 
     /// <summary>Sets (or clears, with null) where a worker starts from. His locked next stop is released, so the plan is free to start with a stop near him.</summary>
