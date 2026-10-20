@@ -153,6 +153,9 @@ sealed class LiveWebServer : IDisposable
   .top { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
   .top > div { min-width:300px; flex:1 1 360px; }
   .scroll { overflow-x:auto; }
+  .bal table { table-layout:fixed; }
+  .bal th:nth-child(1) { width:24%; }
+  .bal th:nth-child(2) { width:18%; }
   table { border-collapse:collapse; width:100%; }
   th, td { border:1px solid var(--line); padding:4px 8px; white-space:nowrap; }
   th { background:var(--header); color:#fff; font-weight:600; text-align:center; white-space:normal; }
@@ -252,6 +255,16 @@ function section(parent, tag, title, g) {
   const h = document.createElement(tag); h.textContent = title; parent.appendChild(h);
   const box = document.createElement('div'); box.className = 'scroll'; parent.appendChild(box);
   table(box, g);
+}
+
+// green when somebody owes the member (+), red when he owes them (-), like in the program
+function signColors(box, col, d) {
+  box.querySelectorAll('tbody tr').forEach(function (tr) {
+    const td = tr.cells[col];
+    if (!td) return;
+    if (td.textContent.charAt(0) === '+') td.style.background = d.pos;
+    else if (td.textContent.charAt(0) === '-') td.style.background = d.neg;
+  });
 }
 
 function mapSvg(el, stations, routes, bg) {
@@ -376,8 +389,13 @@ function renderDebts() {
   el.textContent = '';
   const d = last.debts;
   section(el, 'h2', 'Earnings', d.earnings);
+  signColors(el.lastChild, 3, d);
   const h = document.createElement('h2'); h.textContent = 'Balances'; el.appendChild(h);
-  d.balances.forEach(function (b) { section(el, 'h3', b.name, b.grid); });
+  d.balances.forEach(function (b) {
+    section(el, 'h3', b.name, b.grid);
+    el.lastChild.classList.add('bal');   // the same column widths in every table
+    signColors(el.lastChild, 1, d);
+  });
   section(el, 'h2', 'Money transfers', d.transfers);
 }
 
@@ -601,7 +619,7 @@ public sealed partial class MainForm
                 t.Amount.ToString("N0", System.Globalization.CultureInfo.InvariantCulture),
                 t.Payment ? "yes" : "",
             }));
-        return new { earnings = WebGrid(_earnGrid), balances, transfers };
+        return new { earnings = WebGrid(_earnGrid), balances, transfers, pos = WebColor(DoneGreen), neg = WebColor(LostRed) };
     }
 
     /// <summary>A plain table made from text: no special colours.</summary>

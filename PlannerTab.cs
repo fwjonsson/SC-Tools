@@ -435,7 +435,7 @@ public sealed partial class MainForm
         void FitMap()
         {
             var room = Math.Max(320, t.ClientSize.Height - t.Padding.Vertical);
-            var side = Math.Max(320, Math.Min(room, (int)((t.ClientSize.Width - t.Padding.Horizontal) * 0.55)));
+            var side = Math.Max(320, Math.Min(room, (int)((t.ClientSize.Width - t.Padding.Horizontal) * 0.5)));
             t.ColumnStyles[0].Width = side + map.Margin.Horizontal;
             map.Height = side;
         }
@@ -449,7 +449,7 @@ public sealed partial class MainForm
 
     static void FitPlanBlocks(FlowLayoutPanel host)
     {
-        var width = Math.Max(400, host.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 6);
+        var width = Math.Max(200, host.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 6);
         foreach (Control c in host.Controls) c.Width = width;
     }
 
@@ -482,6 +482,7 @@ public sealed partial class MainForm
             grid.Columns.Add(Col("Distance", 110, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Time", 90, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
+            FitColumns(grid);   // the columns share the width, so nothing is cut off or has to scroll sideways
             var boldFont = new Font("Segoe UI", 10f, FontStyle.Bold);
             var plannedCount = w.Planned.Count;
             var plannedIndex = 0;
