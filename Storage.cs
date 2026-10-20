@@ -56,6 +56,13 @@ public sealed class PartyChange
     public bool Active { get; set; }
 }
 
+/// <summary>One stop of a locked trip: the station (see PyroDistances) and the batches taken there.</summary>
+public sealed class LockedStop
+{
+    public string Id { get; set; } = "";
+    public int Batches { get; set; }
+}
+
 /// <summary>What you typed yourself for one session.</summary>
 public sealed class SessionInputs
 {
@@ -69,6 +76,7 @@ public sealed class SessionInputs
     public Dictionary<string, string> LostCargo { get; set; } = new();   // run key -> Little or All
     public List<ManualEnd> ManualEnds { get; set; } = new();
     public Dictionary<string, RowInputs> Rows { get; set; } = new();   // key = pickup location id
+    public Dictionary<string, List<LockedStop>> LockedTrips { get; set; } = new();   // worker -> his Next trip: the Trip Planner leaves it as it is (set by Assign Workers to Stops or by assigning stops by hand)
     public List<WorkerEra> PastWorkers { get; set; } = new();   // assigned workers of earlier sets of missions (frozen when the table was reset)
     public DateTime? WorkersResetAt { get; set; }               // when the last set of missions began: the assigned workers were cleared then
     public Dictionary<string, decimal> Carried { get; set; } = new();   // worker -> value of the locations he carried (saved for the Debts tab)

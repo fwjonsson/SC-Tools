@@ -8,6 +8,7 @@ public sealed class PlannedTrip
     public int Batches => Stops.Sum(s => s.Batches);
     public double Distance;   // Gm: Ruin, the stops in order, back to Ruin
     public double Seconds;    // estimated flight time with this worker's quantum drive (the time of every jump, see QtDrive.Seconds)
+    public bool Locked;       // his Next trip, kept as it is: the planner only plans the rest around it
 }
 
 /// <summary>
@@ -21,15 +22,105 @@ public static class TripPlanner
     const int Restarts = 30;
     const double TotalWeight = 0.25;   // how much the combined Gm counts next to the longest worker total
 
-    /// <param name="remaining">station id (see PyroDistances) to the batches still to pick up there</param>
+    /// <summary>The cheapest order (Ruin, these stations, back to Ruin) for a few stations: the indexes into ids, in flying order.</summary>
+    static int[] BestOrder(IReadOnlyList<string> ids)
+    {
+        var k = ids.Count;
+        var identity = Enumerable.Range(0, k).ToArray();
+        if (k <= 2 || k > 12) return identity;
+        var d0 = ids.Select(id => PyroDistances.Between(PyroDistances.Ruin, id)).ToArray();
+        var d = new double[k, k];
+        for (var i = 0; i < k; i++)
+        {
+            for (var j = 0; j < k; j++) d[i, j] = PyroDistances.Between(ids[i], ids[j]);
+        }
+        var full = (1 << k) - 1;
+        var dp = new double[full + 1, k];
+        var parent = new int[full + 1, k];
+        for (var s = 0; s <= full; s++)
+        {
+            for (var j = 0; j < k; j++)
+            {
+                dp[s, j] = double.MaxValue;
+                parent[s, j] = -1;
+            }
+        }
+        for (var j = 0; j < k; j++) dp[1 << j, j] = d0[j];
+        for (var s = 1; s <= full; s++)
+        {
+            for (var j = 0; j < k; j++)
+            {
+                if (((s >> j) & 1) == 0 || dp[s, j] == double.MaxValue) continue;
+                for (var nx = 0; nx < k; nx++)
+                {
+                    if (((s >> nx) & 1) != 0) continue;
+                    var s2 = s | (1 << nx);
+                    var cost = dp[s, j] + d[j, nx];
+                    if (cost < dp[s2, nx])
+                    {
+                        dp[s2, nx] = cost;
+                        parent[s2, nx] = j;
+                    }
+                }
+            }
+        }
+        var best = double.MaxValue;
+        var last = 0;
+        for (var j = 0; j < k; j++)
+        {
+            var cost = dp[full, j] + d0[j];
+            if (cost < best)
+            {
+                best = cost;
+                last = j;
+            }
+        }
+        var order = new int[k];
+        var cur = last;
+        var set = full;
+        for (var pos = k - 1; pos >= 0; pos--)
+        {
+            order[pos] = cur;
+            var prev = parent[set, cur];
+            set &= ~(1 << cur);
+            cur = prev;
+        }
+        return order;
+    }
+
+    /// <summary>A trip that is decided already (locked to its worker): the stops in the cheapest order, with the distance and the flight time of his drive.</summary>
+    public static PlannedTrip Fixed(string worker, IReadOnlyList<(string Id, int Batches)> stops, QtDrive drive)
+    {
+        var trip = new PlannedTrip { Worker = worker, Locked = true };
+        foreach (var i in BestOrder(stops.Select(s => s.Id).ToList())) trip.Stops.Add(stops[i]);
+        var from = PyroDistances.Ruin;
+        foreach (var s in trip.Stops)
+        {
+            var gm = PyroDistances.Between(from, s.Id);
+            trip.Distance += gm;
+            trip.Seconds += drive.Seconds(gm);
+            from = s.Id;
+        }
+        var home = PyroDistances.Between(from, PyroDistances.Ruin);
+        trip.Distance += home;
+        trip.Seconds += drive.Seconds(home);
+        return trip;
+    }
+
+    /// <param name="remaining">station id (see PyroDistances) to the batches still to pick up there (without the locked trips)</param>
     /// <param name="crew">every worker with the batches his ship holds (0 = not flying) and his quantum drive</param>
-    public static List<PlannedTrip> Plan(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity, QtDrive Drive)> crew)
+    /// <param name="locked">trips that stay as they are (see Fixed). They come first for their worker and count in his total time.</param>
+    public static List<PlannedTrip> Plan(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity, QtDrive Drive)> crew, IReadOnlyList<PlannedTrip>? locked = null)
     {
         var workers = crew.Where(c => c.Capacity > 0).ToList();
+        var fixedTrips = (locked ?? new List<PlannedTrip>()).Where(t => workers.Any(c => c.Name == t.Worker)).ToList();
         var ids = remaining.Where(kv => kv.Value > 0).Select(kv => kv.Key).OrderBy(k => k, StringComparer.Ordinal).ToList();
         var n = ids.Count;
         var trips = new List<PlannedTrip>();
-        if (n == 0 || workers.Count == 0) return trips;
+        if (workers.Count == 0) return trips;
+        if (n == 0) return fixedTrips;
+        var lockedSeconds = new double[workers.Count];
+        foreach (var t in fixedTrips) lockedSeconds[workers.FindIndex(c => c.Name == t.Worker)] += t.Seconds;
 
         var need = ids.Select(id => remaining[id]).ToArray();
         var total = need.Sum();
@@ -246,7 +337,7 @@ public static class TripPlanner
             }
 
             var slotCost = assign.Select((row, t) => SlotCost(row, slotWorker[t])).ToArray();
-            var totals = new double[w];
+            var totals = (double[])lockedSeconds.Clone();   // the locked trips are flown too
             for (var t = 0; t < slots; t++) totals[slotWorker[t]] += slotCost[t];
             var current = Objective(totals);
             while (Improve(assign, loads, slotCost, totals, ref current)) { }
@@ -268,9 +359,11 @@ public static class TripPlanner
             trips.Add(trip);
         }
 
+        trips.AddRange(fixedTrips);
         var order2 = workers.Select(c => c.Name).ToList();
         return trips
             .OrderBy(tp => order2.IndexOf(tp.Worker))
+            .ThenBy(tp => tp.Locked ? 0 : 1)   // the locked trip is his Next
             .ThenByDescending(tp => tp.Batches)
             .ThenBy(tp => tp.Distance)
             .ToList();

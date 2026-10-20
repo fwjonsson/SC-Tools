@@ -250,9 +250,11 @@ public sealed partial class MainForm
         if (crew.Count == 0) return;
         var want = crew.Count == 1 ? crew[0] : "";
         var changed = false;
+        var locked = LockedStations();
         foreach (var r in _pickupRows)
         {
             if (PickupStarted(r)) continue;   // somebody has started picking up here: his pickups stay his
+            if (crew.Count > 1 && StationOf(r.Zone) is { } station && locked.Contains(station)) continue;   // part of somebody's locked Next trip
             var inp = GetRow(r.Zone);
             if ((inp.Worker ?? "").Trim() == want) continue;
             inp.Worker = want;

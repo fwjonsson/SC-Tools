@@ -89,6 +89,7 @@ sealed class LiveWebServer : IDisposable
                 var status = 200;
                 var reason = "OK";
                 var type = "text/html; charset=utf-8";
+                var cache = "no-store";
                 byte[] body;
                 if (method != "GET" && method != "HEAD")
                 {
@@ -106,6 +107,12 @@ sealed class LiveWebServer : IDisposable
                     type = "application/json; charset=utf-8";
                     body = Encoding.UTF8.GetBytes(_json);
                 }
+                else if (path == "/favicon.ico" && Icon() is { } icon)
+                {
+                    type = "image/x-icon";
+                    body = icon;
+                    cache = "public, max-age=86400";
+                }
                 else
                 {
                     status = 404;
@@ -117,9 +124,9 @@ sealed class LiveWebServer : IDisposable
                 var header = "HTTP/1.1 " + status + " " + reason + "\r\n"
                     + "Content-Type: " + type + "\r\n"
                     + "Content-Length: " + body.Length + "\r\n"
-                    + "Cache-Control: no-store\r\n"
+                    + "Cache-Control: " + cache + "\r\n"
                     + "X-Content-Type-Options: nosniff\r\n"
-                    + "Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'\r\n"
+                    + "Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self'\r\n"
                     + "Connection: close\r\n\r\n";
                 await stream.WriteAsync(Encoding.ASCII.GetBytes(header), cts.Token);
                 if (method != "HEAD") await stream.WriteAsync(body, cts.Token);
@@ -133,6 +140,29 @@ sealed class LiveWebServer : IDisposable
         }
     }
 
+    static byte[]? _icon;
+    static bool _iconRead;
+
+    /// <summary>The program icon (built into the exe), shown as the icon of the page and of the bookmark. Null when it cannot be read.</summary>
+    static byte[]? Icon()
+    {
+        if (_iconRead) return _icon;
+        _iconRead = true;
+        try
+        {
+            using var stream = typeof(MainForm).Assembly.GetManifestResourceStream("icon.ico");
+            if (stream == null) return null;
+            using var memory = new MemoryStream();
+            stream.CopyTo(memory);
+            _icon = memory.ToArray();
+        }
+        catch (Exception)
+        {
+            _icon = null;
+        }
+        return _icon;
+    }
+
     const string Page = """
 <!doctype html>
 <html lang="en">
@@ -140,6 +170,8 @@ sealed class LiveWebServer : IDisposable
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hauling Tracker (live)</title>
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="shortcut icon" href="/favicon.ico">
 <style>
   :root { --bg:#1e1e1e; --fg:#e6e6e6; --header:#1f3a68; --line:#3a3a3a; --cell:#2b2b2b; }
   * { box-sizing: border-box; }
@@ -379,11 +411,11 @@ function renderPlanner() {
   } else {
     shown = p.workers.filter(function (w) { return w.name === planSel; });
     shown.forEach(function (w) {
-      w.routes.forEach(function (r, i) { routes.push({ label: r.label, color: p.palette[i % p.palette.length], stops: r.stops, bold: i === 0 }); });
+      w.routes.forEach(function (r, i) { routes.push({ label: r.label, color: r.color, stops: r.stops, bold: i === 0 }); });
     });
   }
   mapSvg(mapBox, p.stations, routes, p.backdrop);
-  shown.forEach(function (w) { section(tables, 'h2', w.title, w.grid); });
+  shown.forEach(function (w) { section(tables, 'h2', w.title, planSel === 'Overview' ? w.grid : w.personal); });
 }
 
 function renderDebts() {
@@ -657,35 +689,59 @@ public sealed partial class MainForm
         };
         var cell = WebColor(Theme.Cell);
         var text = WebColor(Theme.Text);
-        var workers = plan.Workers.Select(w => new
+
+        // the same table twice: on the Overview the whole Next row has the worker's colour, on his own page the Trip cell has the colour of its line on the map
+        object Grid(PlanWorkerView w, bool personal)
         {
-            name = w.Name,
-            color = WebColor(w.Color),
-            title = PlanTitle(w),
-            grid = new
+            var planned = w.Planned;
+            return new
             {
                 headers,
                 rows = w.Rows.Select(r =>
                 {
                     var back = RowColor(r) is { } c ? WebColor(c) : cell;
+                    var backs = new[] { back, back, back, back, back, back };
+                    var fores = new[] { text, text, text, text, text, text };
+                    if (personal && r.IsPlan)
+                    {
+                        backs[0] = WebColor(TripColor(planned.IndexOf(r), planned.Count));
+                        fores[0] = "#000000";
+                    }
+                    else if (!personal && r.Label == "Next")
+                    {
+                        for (var i = 0; i < backs.Length; i++)
+                        {
+                            backs[i] = WebColor(w.Color);
+                            fores[i] = WebColor(TextOn(w.Color));
+                        }
+                    }
                     return new
                     {
                         cells = new[]
                         {
-                            r.Label,
+                            RowLabel(r),
                             r.Route,
                             r.Batches,
                             r.Gm > 0 ? Gm(r.Gm) : "",
                             TimeText(r),
                             r.Gm > 0 && r.BatchCount > 0 ? (r.Gm / r.BatchCount).ToString("N1", System.Globalization.CultureInfo.InvariantCulture) : "",
                         },
-                        back = new[] { back, back, back, back, back, back },
-                        fore = new[] { text, text, text, text, text, text },
+                        back = backs,
+                        fore = fores,
                         bold = r.Label == "Next",
                     };
                 }).ToList(),
-            },
-            routes = w.Planned.Select(r => new { label = r.Label + "  " + Gm(r.Gm), stops = r.Stops }).ToList(),
+            };
+        }
+
+        var workers = plan.Workers.Select(w => new
+        {
+            name = w.Name,
+            color = WebColor(w.Color),
+            title = PlanTitle(w),
+            grid = Grid(w, false),
+            personal = Grid(w, true),
+            routes = w.Planned.Select((r, k) => new { label = r.Label + "  " + Gm(r.Gm), stops = r.Stops, color = WebColor(TripColor(k, w.Planned.Count)) }).ToList(),
         }).ToList();
         return new
         {
