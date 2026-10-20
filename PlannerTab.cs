@@ -315,12 +315,13 @@ public sealed partial class MainForm
     TabPage PlanPage(string title, PlanView plan, PlanWorkerView? only)
     {
         var page = new TabPage(title) { BackColor = Theme.Window };
-        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Padding = new Padding(8) };
-        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 500));
+        // the tables on top over the full width, and under them the map, as large as the page allows
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(8) };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 200));
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var map = new PyroMapView { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 10, 0) };
+        var map = new PyroMapView { Dock = DockStyle.Fill, Margin = new Padding(0, 8, 0, 0) };
         var host = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
         host.Resize += (_, _) => FitPlanBlocks(host);
 
@@ -362,8 +363,17 @@ public sealed partial class MainForm
         foreach (var w in workers) host.Controls.Add(PlanBlock(w, onSelect));
         FitPlanBlocks(host);
 
-        t.Controls.Add(map, 0, 0);
-        t.Controls.Add(host, 1, 0);
+        // the tables get the height they need, but never more than 45% of the page (then they scroll); the map gets the rest
+        void FitRows()
+        {
+            var need = host.Controls.Cast<Control>().Sum(c => c.Height + c.Margin.Vertical) + 4;
+            var room = Math.Max(150, t.ClientSize.Height - t.Padding.Vertical);
+            t.RowStyles[0].Height = Math.Min(need, (int)(room * 0.45));
+        }
+        t.Resize += (_, _) => FitRows();
+        FitRows();
+        t.Controls.Add(host, 0, 0);
+        t.Controls.Add(map, 0, 1);
         page.Controls.Add(t);
         return page;
     }
