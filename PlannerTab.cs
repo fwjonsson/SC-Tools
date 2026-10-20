@@ -314,7 +314,7 @@ public sealed partial class MainForm
         (trip.From != null ? "From " + PyroDistances.NameOf(trip.From) + "  →  " : "") + StopsText(trip);
 
     static string StopsText(PlannedTrip trip) =>
-        string.Join("  →  ", trip.Stops.Select((s, i) => PyroDistances.NameOf(s.Id) + " ×" + s.Batches + (i == 0 && trip.Locked ? " \U0001F512" : "")));   // the locked stop says so
+        string.Join("  →  ", trip.Stops.Select(s => PyroDistances.NameOf(s.Id) + " ×" + s.Batches));   // a locked stop is not marked: the planner just keeps it quietly
 
     static string PlanTitle(PlanWorkerView w)
     {
