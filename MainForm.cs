@@ -387,7 +387,10 @@ public sealed partial class MainForm : Form
             _resetBtn, _copyBtn, backupBtn,
             new ToolStripSeparator(),
             _themeBtn, _webBtn,
+            new ToolStripSeparator(),
+            _versionItem, _updateBtn,
         });
+        InitUpdater();
         _menu.Items.Add(options);
         _menu.Dock = DockStyle.Top;
         AddSessionControlsToMenu();

@@ -18,7 +18,7 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Build and publish a single exe
-        run: dotnet publish HaulingTracker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+        run: dotnet publish HaulingTracker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:InformationalVersion=release-${{ github.sha }} -o publish
 
       - name: Build and publish the API tool
         run: dotnet publish ScApiTool/ScApiTool.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish-api
@@ -45,4 +45,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --cleanup-tag --yes 2>$null
-          gh release create latest HaulingTracker.zip ScApiTool.zip --title "Latest build" --notes "Newest build of main. Unzip and run HaulingTracker.exe. ScApiTool.zip is the small tool that downloads data from the Star Citizen Wiki API."
+          gh release create latest HaulingTracker.zip ScApiTool.zip --title "Latest build" --notes "Newest build of main. Unzip and run HaulingTracker.exe. ScApiTool.zip is the small tool that downloads data from the Star Citizen Wiki API. The program checks this release at startup to update itself. build: ${{ github.sha }}"
