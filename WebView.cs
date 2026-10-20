@@ -407,12 +407,12 @@ function renderPlanner() {
   const routes = [];
   if (planSel === 'Overview') {
     p.workers.forEach(function (w) {
-      w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, bold: i === 0, dashed: i > 0 }); });
+      w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, bold: !!r.solid, dashed: !r.solid }); });
     });
   } else {
     shown = p.workers.filter(function (w) { return w.name === planSel; });
     shown.forEach(function (w) {
-      w.routes.forEach(function (r, i) { routes.push({ label: r.label, color: w.color, stops: r.stops, from: r.from, bold: i === 0, dashed: i > 0 }); });
+      w.routes.forEach(function (r, i) { routes.push({ label: r.label, color: w.color, stops: r.stops, from: r.from, bold: !!r.solid, dashed: !r.solid }); });
     });
   }
   mapSvg(mapBox, p.stations, routes, p.backdrop);
@@ -709,19 +709,19 @@ public sealed partial class MainForm
                     var back = RowColor(r) is { } c ? WebColor(c) : cell;
                     var backs = new[] { back, back, back, back, back, back };
                     var fores = new[] { text, text, text, text, text, text };
-                    if (personal && r.IsPlan)
-                    {
-                        var tint = planned.IndexOf(r) == 0 ? w.Color : Faded(w.Color);   // the later trips are faded, like their dotted line on the map
-                        backs[0] = WebColor(tint);
-                        fores[0] = WebColor(TextOn(tint));
-                    }
-                    else if (!personal && r.First)
+                    if (r.First)
                     {
                         for (var i = 0; i < backs.Length; i++)
                         {
                             backs[i] = WebColor(w.Color);
                             fores[i] = WebColor(TextOn(w.Color));
                         }
+                    }
+                    else if (personal && r.IsPlan)
+                    {
+                        var tint = r.Solid ? w.Color : Faded(w.Color);   // the later trips are faded, like their dotted line on the map
+                        backs[0] = WebColor(tint);
+                        fores[0] = WebColor(TextOn(tint));
                     }
                     return new
                     {
@@ -749,7 +749,7 @@ public sealed partial class MainForm
             title = PlanTitle(w),
             grid = Grid(w, false),
             personal = Grid(w, true),
-            routes = w.Planned.Select(r => new { label = r.Label + "  " + Gm(r.Gm), stops = r.Stops, from = r.From }).ToList(),
+            routes = w.Planned.Select(r => new { label = r.Label + "  " + Gm(r.Gm), stops = r.Stops, from = r.From, solid = r.Solid }).ToList(),
         }).ToList();
         return new
         {
