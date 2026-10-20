@@ -1462,7 +1462,7 @@ public sealed partial class MainForm : Form
         }
 
         RecomputeRewards();
-        if (_inputs != null) GetPlan();   // keeps the plan and the locked Next trips up to date while the planner tab is closed
+        if (_inputs != null) GetPlan();   // keeps the plan and the locked Current trips up to date while the planner tab is closed
     }
 
     void ClearView()

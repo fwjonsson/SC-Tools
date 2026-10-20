@@ -347,7 +347,8 @@ function mapSvg(el, stations, routes, bg) {
         const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
         a = [a[0] + nx * shift, a[1] + ny * shift];
         b = [b[0] + nx * shift, b[1] + ny * shift];
-        add('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: r.color, 'stroke-width': r.bold ? 3.5 : 2, 'stroke-opacity': r.bold ? 1 : 0.67 });
+        if (r.dashed) add('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: r.color, 'stroke-width': r.bold ? 3.5 : 2.5, 'stroke-opacity': 0.92, 'stroke-dasharray': '1 5', 'stroke-linecap': 'round' });
+        else add('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: r.color, 'stroke-width': r.bold ? 3.5 : 2, 'stroke-opacity': r.bold ? 1 : 0.67 });
         const cx = a[0] + (b[0] - a[0]) * 0.62, cy = a[1] + (b[1] - a[1]) * 0.62, z = r.bold ? 8 : 6;
         const pts = [
           [cx + ux * z, cy + uy * z],
@@ -375,7 +376,7 @@ function mapSvg(el, stations, routes, bg) {
   });
   legend.forEach(function (r, i) {
     const x = 8 + (i % cols) * 170, y = 6 + Math.floor(i / cols) * 16;
-    add('line', { x1: x, y1: y + 8, x2: x + 16, y2: y + 8, stroke: r.color, 'stroke-width': 3 });
+    add('line', r.dashed ? { x1: x, y1: y + 8, x2: x + 16, y2: y + 8, stroke: r.color, 'stroke-width': 3, 'stroke-dasharray': '1 5', 'stroke-linecap': 'round' } : { x1: x, y1: y + 8, x2: x + 16, y2: y + 8, stroke: r.color, 'stroke-width': 3 });
     add('text', { x: x + 20, y: y + 12, style: 'fill:#ecece8;font-size:11px' }, r.label);
   });
   el.appendChild(svg);
@@ -406,12 +407,12 @@ function renderPlanner() {
   const routes = [];
   if (planSel === 'Overview') {
     p.workers.forEach(function (w) {
-      w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, bold: i === 0 }); });
+      w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, bold: i === 0, dashed: i > 0 }); });
     });
   } else {
     shown = p.workers.filter(function (w) { return w.name === planSel; });
     shown.forEach(function (w) {
-      w.routes.forEach(function (r, i) { routes.push({ label: r.label, color: r.color, stops: r.stops, bold: i === 0 }); });
+      w.routes.forEach(function (r, i) { routes.push({ label: r.label, color: w.color, stops: r.stops, bold: i === 0, dashed: i > 0 }); });
     });
   }
   mapSvg(mapBox, p.stations, routes, p.backdrop);
@@ -696,7 +697,7 @@ public sealed partial class MainForm
         var cell = WebColor(Theme.Cell);
         var text = WebColor(Theme.Text);
 
-        // the same table twice: on the Overview the whole Next row has the worker's colour, on his own page the Trip cell has the colour of its line on the map
+        // the same table twice: on the Overview the whole Current row has the worker's colour, on his own page the Trip cell has the colour of its line on the map
         object Grid(PlanWorkerView w, bool personal)
         {
             var planned = w.Planned;
@@ -710,10 +711,11 @@ public sealed partial class MainForm
                     var fores = new[] { text, text, text, text, text, text };
                     if (personal && r.IsPlan)
                     {
-                        backs[0] = WebColor(TripColor(planned.IndexOf(r), planned.Count));
-                        fores[0] = "#000000";
+                        var tint = planned.IndexOf(r) == 0 ? w.Color : Faded(w.Color);   // the later trips are faded, like their dotted line on the map
+                        backs[0] = WebColor(tint);
+                        fores[0] = WebColor(TextOn(tint));
                     }
-                    else if (!personal && r.Label == "Next")
+                    else if (!personal && r.Label == "Current")
                     {
                         for (var i = 0; i < backs.Length; i++)
                         {
@@ -734,7 +736,7 @@ public sealed partial class MainForm
                         },
                         back = backs,
                         fore = fores,
-                        bold = r.Label == "Next",
+                        bold = r.Label == "Current",
                     };
                 }).ToList(),
             };
@@ -747,7 +749,7 @@ public sealed partial class MainForm
             title = PlanTitle(w),
             grid = Grid(w, false),
             personal = Grid(w, true),
-            routes = w.Planned.Select((r, k) => new { label = r.Label + "  " + Gm(r.Gm), stops = r.Stops, color = WebColor(TripColor(k, w.Planned.Count)) }).ToList(),
+            routes = w.Planned.Select(r => new { label = r.Label + "  " + Gm(r.Gm), stops = r.Stops }).ToList(),
         }).ToList();
         return new
         {

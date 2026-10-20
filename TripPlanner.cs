@@ -8,7 +8,7 @@ public sealed class PlannedTrip
     public int Batches => Stops.Sum(s => s.Batches);
     public double Distance;   // Gm: Ruin, the stops in order, back to Ruin
     public double Seconds;    // estimated flight time with this worker's quantum drive (the time of every jump, see QtDrive.Seconds)
-    public bool Locked;       // his Next trip, kept as it is: the planner only plans the rest around it
+    public bool Locked;       // his Current trip, kept as it is: the planner only plans the rest around it
 }
 
 /// <summary>
@@ -363,7 +363,7 @@ public static class TripPlanner
         var order2 = workers.Select(c => c.Name).ToList();
         return trips
             .OrderBy(tp => order2.IndexOf(tp.Worker))
-            .ThenBy(tp => tp.Locked ? 0 : 1)   // the locked trip is his Next
+            .ThenBy(tp => tp.Locked ? 0 : 1)   // the locked trip is his Current
             .ThenByDescending(tp => tp.Batches)
             .ThenBy(tp => tp.Distance)
             .ToList();
