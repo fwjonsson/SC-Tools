@@ -90,18 +90,16 @@ public sealed partial class MainForm
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 2,
             Margin = new Padding(0),
-            Padding = new Padding(10, 0, 0, 0),
         };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
-        p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+        p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // the table, with no title: it is not part of the hauling info
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // the name box and the buttons, right under the table
 
         StyleGrid(_partyGrid);
         _partyGrid.Dock = DockStyle.Fill;
-        _partyGrid.Margin = new Padding(0, 3, 0, 3);
+        _partyGrid.Margin = new Padding(0, 0, 0, 0);
         _partyGrid.AllowUserToAddRows = false;
         _partyGrid.AllowUserToDeleteRows = false;
         _partyGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
@@ -148,9 +146,8 @@ public sealed partial class MainForm
         bar.Controls.Add(_partyAddBtn);
         bar.Controls.Add(_partyRemoveBtn);
 
-        p.Controls.Add(SectionTitle("Party"), 0, 0);
-        p.Controls.Add(_partyGrid, 0, 1);
-        p.Controls.Add(bar, 0, 2);
+        p.Controls.Add(_partyGrid, 0, 0);
+        p.Controls.Add(bar, 0, 1);
         return p;
     }
 

@@ -117,11 +117,10 @@ public sealed partial class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 3,
-            Padding = new Padding(12),
+            RowCount = 2,
+            Padding = new Padding(12, 3, 12, 12),   // the party table starts right under the line of the tabs
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 420));   // fitted to the boards by FitTopArea
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // the run board takes what is left and scrolls
         var tabs = new ThemedTabControl { Dock = DockStyle.Fill };
@@ -147,16 +146,17 @@ public sealed partial class MainForm : Form
             else if (tabs.SelectedIndex >= 1) RefreshDebts();
         };
 
-        // top area: the pickup board and the session summary side by side, the leaderboard under both
-        var main = _main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2, Margin = new Padding(0) };
+        // top area: the session bar and the pickup boards on the left, the party with the small times and contracts tables on the right,
+        // the leaderboard under both
+        var main = _main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Margin = new Padding(0) };
         main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 470));   // the tables with the times and the contracts
-        main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 350));   // the party
+        main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, SideWidth));   // the party, the contracts and the times
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 306));   // both rows are fitted to the boards by FitTopArea
         main.RowStyles.Add(new RowStyle(SizeType.Absolute, 130));
 
-        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Margin = new Padding(0) };
+        var left = _left = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, Margin = new Padding(0) };
         left.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        left.RowStyles.Add(new RowStyle(SizeType.AutoSize));       // the session bar
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
         left.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));    // the finished stops: shown when there are some
@@ -177,13 +177,14 @@ public sealed partial class MainForm : Form
             grid.RowsRemoved += (_, _) => FitTopArea();
         }
         Shown += (_, _) => FitTopArea();
-        left.Controls.Add(SectionTitle("Hauling Tracker"), 0, 0);
-        left.Controls.Add(_logGrid, 0, 1);
+        left.Controls.Add(BuildTopBar(), 0, 0);
+        left.Controls.Add(SectionTitle("Hauling Tracker"), 0, 1);
+        left.Controls.Add(_logGrid, 0, 2);
         _doneTitle = SectionTitle("Finished Stops");
         _doneTitle.Visible = false;
         _doneGrid.Visible = false;
-        left.Controls.Add(_doneTitle, 0, 2);
-        left.Controls.Add(_doneGrid, 0, 3);
+        left.Controls.Add(_doneTitle, 0, 3);
+        left.Controls.Add(_doneGrid, 0, 4);
 
         var board = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
         board.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -192,11 +193,18 @@ public sealed partial class MainForm : Form
         board.Controls.Add(SectionTitle("Session Leaderboard"), 0, 0);
         board.Controls.Add(_statsGrid, 0, 1);
 
+        // the party (with its name box and buttons) on top, the small tables with the contracts and the times under it
+        var side = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0), Padding = new Padding(10, 0, 0, 0) };
+        side.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        side.RowStyles.Add(new RowStyle(SizeType.Absolute, PartyHeight));
+        side.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        side.Controls.Add(BuildPartyPanel(), 0, 0);
+        side.Controls.Add(BuildHeader(), 0, 1);
+
         main.Controls.Add(left, 0, 0);
-        main.Controls.Add(BuildHeader(), 1, 0);
-        main.Controls.Add(BuildPartyPanel(), 2, 0);
+        main.Controls.Add(side, 1, 0);
         main.Controls.Add(board, 0, 1);
-        main.SetColumnSpan(board, 3);
+        main.SetColumnSpan(board, 2);
 
         // the run board with its title
         var runs = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
@@ -206,13 +214,15 @@ public sealed partial class MainForm : Form
         runs.Controls.Add(SectionTitle("Cargo Runs"), 0, 0);
 
         BuildTripGrid();
-        root.Controls.Add(BuildTopBar(), 0, 0);
-        root.Controls.Add(main, 0, 1);
+        root.Controls.Add(main, 0, 0);
         runs.Controls.Add(_tripGrid, 0, 1);
-        root.Controls.Add(runs, 0, 2);
+        root.Controls.Add(runs, 0, 1);
     }
 
     const int TitleHeight = 30;
+    const int SideWidth = 400;     // the column on the right: the party, the contracts and the times
+    const int PartyHeight = 200;   // the party table (header and five members) and the name box with its buttons under it
+    const int SideHeight = PartyHeight + 8 + 114 + 10 + 156;   // the party, the contracts table and the summary table
 
     /// <summary>
     /// The grid never scrolls, neither sideways nor up and down (FitTopArea gives it the height of all its rows).
@@ -258,18 +268,20 @@ public sealed partial class MainForm : Form
             // set the heights, then check that every row really is shown and add what is missing
             for (var pass = 0; pass < 4; pass++)
             {
-                var title = _left.GetRowHeights().FirstOrDefault();   // as drawn, also on a scaled screen
+                var heights = _left.GetRowHeights();   // as drawn, also on a scaled screen
+                var bar = heights.Length > 0 ? heights[0] : 0;
+                var title = heights.Length > 1 ? heights[1] : 0;
                 if (title <= 0) title = TitleHeight;
-                _left.RowStyles[1].Height = pickups;
+                _left.RowStyles[2].Height = pickups;
                 if (_doneTitle != null) _doneTitle.Visible = hasDone;
                 _doneGrid.Visible = hasDone;
-                _left.RowStyles[2].Height = hasDone ? title : 0;
-                _left.RowStyles[3].Height = hasDone ? done : 0;
-                var row0 = Math.Max(title + pickups + (hasDone ? title + done : 0), TitleHeight + 138 + 14 + 196 + 6);   // the summary on the right needs its own height too
+                _left.RowStyles[3].Height = hasDone ? title : 0;
+                _left.RowStyles[4].Height = hasDone ? done : 0;
+                var row0 = Math.Max(bar + title + pickups + (hasDone ? title + done : 0), SideHeight);   // the party and the small tables on the right need their own height too
                 var row1 = title + leaders;
                 _main.RowStyles[0].Height = row0;
                 _main.RowStyles[1].Height = row1;
-                _root.RowStyles[1].Height = row0 + row1;
+                _root.RowStyles[0].Height = row0 + row1;
                 _root.PerformLayout();
                 _main.PerformLayout();
                 _left.PerformLayout();
@@ -410,12 +422,13 @@ public sealed partial class MainForm : Form
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 4,
-            Padding = new Padding(10, TitleHeight, 0, 0),   // lines up with the boards on the left, which have a title above them
+            Margin = new Padding(0),
+            Padding = new Padding(0, 8, 0, 0),
         };
         p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 138));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
-        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 196));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 114));   // the contracts: small, they are not the main thing
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 10));
+        p.RowStyles.Add(new RowStyle(SizeType.Absolute, 156));
         p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // empty, so the clean table keeps its small rows
 
         // start / end / duration / totals, neutral and clean
@@ -427,9 +440,9 @@ public sealed partial class MainForm : Form
             RowCount = 7,
             CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
         };
-        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 175));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        for (var i = 0; i < 7; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        for (var i = 0; i < 7; i++) t.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
 
         ConfigureTimeBox(_startBox);
         ConfigureTimeBox(_endBox);
@@ -451,6 +464,9 @@ public sealed partial class MainForm : Form
 
         // the contract table on top, in the blue style of the other boards
         StyleGrid(_rewards);
+        _rewards.RowTemplate.Height = 22;
+        _rewards.ColumnHeadersHeight = 24;
+        _rewards.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
         _rewards.Dock = DockStyle.Fill;
         _rewards.Margin = new Padding(0);
         _rewards.AllowUserToAddRows = false;
@@ -508,7 +524,7 @@ public sealed partial class MainForm : Form
         t.Controls.Add(new Label
         {
             Text = label,
-            Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             Margin = new Padding(0),
