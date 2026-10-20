@@ -86,7 +86,8 @@ public sealed partial class MainForm
     readonly Button _resetTripsBtn = new();
     readonly Label _planSummary = new();
     readonly Label _planNote = new();
-    readonly ThemedTabControl _planTabs = new();   // Overview and one page per crew member
+    readonly Panel _planBody = new();              // the page: the map and the tables (rebuilt when the plan changes)
+    readonly ToolTip _planTip = new() { AutoPopDelay = 60000, InitialDelay = 250, ReshowDelay = 100 };
     string _planShown = "";                        // what the pages show now, so they are only rebuilt when it changes
     PlanCore? _planCore;
 
@@ -94,51 +95,52 @@ public sealed partial class MainForm
     {
         var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, Padding = new Padding(12) };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));    // title
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));    // hint
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));    // button
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));    // title and the buttons
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));    // summary
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));    // note
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // the pages: the tables, then the map with the copy of Cargo Runs beside it
+        t.RowStyles.Add(new RowStyle(SizeType.AutoSize));        // a warning, only when there is one
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 62));     // the map and the tables
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));   // Cargo Runs
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 38));     // the copy of Cargo Runs
 
-        t.Controls.Add(Caption("Trip Planner", "Divides the open batches over the crew, so everybody flies as little as possible and you finish together"), 0, 0);
-
-        var hint = new Label
-        {
-            Text = "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log. Flight time is the estimated flying time of that whole route with the drive of the worker (~, no loading); Time is how long a run really took. Green = done, orange = some cargo lost, red = all lost. The run you are flying is your Current row, in your colour. Plan Trips locks the next stop of everybody: planning again (for example when someone joins) leaves those alone and plans the rest around them. Reset Trips takes the locks away. Both ask first.",
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Color.DimGray,
-            Tag = "muted",
-        };
-        t.Controls.Add(hint, 0, 1);
-
+        // the title on the left (hold the mouse over it for the explanation), Plan Trips and Reset Trips on the right
+        var head = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0) };
+        var caption = Caption("Trip Planner");
+        const string info = "Divides the open batches over the crew, so everybody flies as little as possible and you finish together.\n\n"
+            + "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log.\n\n"
+            + "Flight time is the estimated flying time of that whole route with the drive of the worker (~, no loading); Time is how long a run really took. Green = done, orange = some cargo lost, red = all lost. The run you are flying is your Current row, in your colour.\n\n"
+            + "Plan Trips locks the next stop of everybody: planning again (for example when someone joins) leaves those alone and plans the rest around them, and a run in progress counts in the ship. Reset Trips takes the locks away. Both ask first.";
+        foreach (Control c in new[] { caption }.Concat(caption.Controls.Cast<Control>())) _planTip.SetToolTip(c, info);
         StyleButton(_planBtn, "Plan Trips");
-        _planBtn.Margin = new Padding(0, 5, 0, 5);
+        _planBtn.Margin = new Padding(0, 3, 0, 3);
         _planBtn.Click += (_, _) => PlanTrips();
-        var bar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0) };
         StyleButton(_resetTripsBtn, "Reset Trips");
-        _resetTripsBtn.Margin = new Padding(8, 5, 0, 5);
+        _resetTripsBtn.Margin = new Padding(8, 3, 0, 3);
         _resetTripsBtn.Click += (_, _) => ResetTrips();
+        var bar = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0) };
         bar.Controls.Add(_planBtn);
         bar.Controls.Add(_resetTripsBtn);
-        t.Controls.Add(bar, 0, 2);
+        head.Controls.Add(caption);   // docked last: it fills what the buttons leave
+        head.Controls.Add(bar);
+        t.Controls.Add(head, 0, 0);
 
         _planSummary.Dock = DockStyle.Fill;
         _planSummary.TextAlign = ContentAlignment.MiddleLeft;
         _planSummary.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
-        t.Controls.Add(_planSummary, 0, 3);
+        t.Controls.Add(_planSummary, 0, 1);
         _planNote.Dock = DockStyle.Fill;
+        _planNote.AutoSize = true;
         _planNote.TextAlign = ContentAlignment.MiddleLeft;
         _planNote.ForeColor = Color.DimGray;
         _planNote.Tag = "muted";
-        t.Controls.Add(_planNote, 0, 4);
+        _planNote.Visible = false;
+        t.Controls.Add(_planNote, 0, 2);
 
-        _planTabs.Dock = DockStyle.Fill;
-        _planTabs.Margin = new Padding(0);
-        t.Controls.Add(_planTabs, 0, 5);
-        BuildPlanRunsGrid();   // it sits beside the map of the page that is shown (AttachPlanRuns)
-        _planTabs.SelectedIndexChanged += (_, _) => AttachPlanRuns();
+        _planBody.Dock = DockStyle.Fill;
+        _planBody.Margin = new Padding(0);
+        t.Controls.Add(_planBody, 0, 3);
+        t.Controls.Add(SectionTitle("Cargo Runs"), 0, 4);
+        BuildPlanRunsGrid();
+        t.Controls.Add(_planRunsGrid, 0, 5);
         return t;
     }
 
@@ -513,10 +515,7 @@ public sealed partial class MainForm
                 + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "/" + t.Loaded + "@" + t.From));
             if (waiting.Count == 0 && _planCore != null && _planCore.Key == key) return _planCore;
 
-            var note = "Planning every open batch, whoever is assigned to the location now.";
-            if (starts.Any(t => t.FirstId != null)) note += " A locked stop is the next stop of its worker; the rest of his trip is planned.";
-            if (starts.Any(t => t.Loaded > 0)) note += " A run in progress counts in the ship: the plan continues it.";
-            if (unknown.Count > 0) note += " Not in the distance table, so left out: " + string.Join(", ", unknown) + ".";
+            var note = unknown.Count > 0 ? "Not in the distance table, so left out: " + string.Join(", ", unknown) + "." : "";
             var core = new PlanCore
             {
                 Key = key,
@@ -661,114 +660,85 @@ public sealed partial class MainForm
         return plan;
     }
 
-    /// <summary>Shows the plan on its pages. It only runs while the Trip Planner tab is on screen.</summary>
+    /// <summary>Shows the plan: the map on the left, the tables on the right. It only runs while the Trip Planner tab is on screen.</summary>
     void RefreshPlanner()
     {
         var plan = GetPlan();
         _planSummary.Text = plan.Summary;
         _planNote.Text = plan.Note;
+        _planNote.Visible = plan.Note.Length > 0;
         if (plan.Signature == _planShown) return;   // nothing changed, so nothing flickers
         _planShown = plan.Signature;
 
-        var selected = _planTabs.SelectedTab?.Text ?? "Overview";
-        _planRunsGrid.Parent?.Controls.Remove(_planRunsGrid);   // it belongs to no page while the pages are rebuilt (a disposed page would take it along)
-        _planTabs.SuspendLayout();
-        foreach (var old in _planTabs.TabPages.Cast<TabPage>().ToList())
+        _planBody.SuspendLayout();
+        foreach (var old in _planBody.Controls.Cast<Control>().ToList())
         {
-            _planTabs.TabPages.Remove(old);
+            _planBody.Controls.Remove(old);
             old.Dispose();
         }
-        _planTabs.TabPages.Add(PlanPage("Overview", plan, null));
-        foreach (var w in plan.Workers) _planTabs.TabPages.Add(PlanPage(w.Name, plan, w));
-        var keep = _planTabs.TabPages.Cast<TabPage>().FirstOrDefault(p => p.Text == selected);
-        if (keep != null) _planTabs.SelectedTab = keep;
-        _planTabs.ResumeLayout(true);
-        _planTabs.RefreshStyle();
-        AttachPlanRuns();
+        _planBody.Controls.Add(PlanPage(plan));
+        _planBody.ResumeLayout(true);
     }
 
-    /// <summary>The copy of Cargo Runs is one grid: it is put beside the map of the page that is shown.</summary>
-    void AttachPlanRuns()
+    /// <summary>The map on the left, square and as large as the page allows, the tables of everybody on the right.</summary>
+    Control PlanPage(PlanView plan)
     {
-        if (_planTabs.SelectedTab?.Tag is not Panel holder || _planRunsGrid.Parent == holder) return;
-        holder.Controls.Add(_planRunsGrid);
-        holder.Controls.SetChildIndex(_planRunsGrid, 0);   // docked last: it fills what the title leaves
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Padding = new Padding(0, 4, 0, 0) };
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 500));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var map = new PyroMapView { Dock = DockStyle.Top, Margin = new Padding(0, 0, 12, 0) };
+        var host = new PlanHost { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
+        host.Resize += (_, _) => FitPlanBlocks(host);
+
+        // one colour per worker, his current trip in bold and solid, the later ones dotted
+        foreach (var w in plan.Workers)
+        {
+            var k = 0;
+            foreach (var r in w.MapRows)
+            {
+                map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, From = r.From, Bold = r.Solid, Dashed = !r.Solid, Tag = r });
+                k++;
+            }
+        }
+        foreach (var w in plan.Workers) host.Controls.Add(PlanBlock(w, null));
+        FitPlanBlocks(host);
+
+        // the map is a square: as high as the page, but at most half of its width (the tables keep the rest)
+        void FitMap()
+        {
+            var room = Math.Max(320, t.ClientSize.Height - t.Padding.Vertical);
+            var side = Math.Max(320, Math.Min(room, (int)(t.ClientSize.Width * 0.4)));
+            t.ColumnStyles[0].Width = side + map.Margin.Horizontal;
+            map.Height = side;
+        }
+        t.Resize += (_, _) => FitMap();
+        FitMap();
+        t.Controls.Add(map, 0, 0);
+        t.Controls.Add(host, 1, 0);
+        return t;
     }
 
-    /// <summary>A page: the tables on top, under them the map with the copy of Cargo Runs beside it. only = null is the overview with everybody.</summary>
-    TabPage PlanPage(string title, PlanView plan, PlanWorkerView? only)
+    static void FitPlanBlocks(FlowLayoutPanel host)
     {
-        var page = new TabPage(title) { BackColor = Theme.Window, AutoScroll = true };
-        var inner = new Panel { Location = new Point(0, 0), BackColor = Theme.Window };   // everything of the page; the page scrolls up and down when it is too high
-        var map = new PyroMapView();
-        var host = new Panel { BackColor = Theme.Window };   // the tables, one under the other
-        var runsHost = new Panel { BackColor = Theme.Window };   // the copy of Cargo Runs (the grid is put here when the page is shown)
-        var runsTitle = SectionTitle("Cargo Runs");
-        runsTitle.Dock = DockStyle.Top;
-        runsTitle.Height = TitleHeight;
-        runsHost.Controls.Add(runsTitle);
-        page.Tag = runsHost;
+        var width = Math.Max(200, host.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 6);
+        foreach (Control c in host.Controls) c.Width = width;
+        // after the window got bigger again nothing may stay scrolled to the side
+        if (host.AutoScrollPosition.X != 0) host.AutoScrollPosition = new Point(0, -host.AutoScrollPosition.Y);
+    }
 
-        var workers = only == null ? plan.Workers : new List<PlanWorkerView> { only };
-        if (only == null)
-        {
-            // everybody: one colour per worker, his next trip in bold
-            foreach (var w in workers)
-            {
-                var k = 0;
-                foreach (var r in w.MapRows)
-                {
-                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, From = r.From, Bold = r.Solid, Dashed = !r.Solid, Tag = r });
-                    k++;
-                }
-            }
-        }
-        else
-        {
-            // one worker: his colour, the next trip solid and bold, the later ones dotted (click a planned trip in the table to bold that one)
-            foreach (var r in only.MapRows)
-                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = only.Color, Stops = r.Stops, From = r.From, Bold = r.Solid, Dashed = !r.Solid, Tag = r });
-        }
+    /// <summary>The panel that holds the tables of the Trip Planner: it scrolls up and down only, never sideways (the tables fit its width).</summary>
+    sealed class PlanHost : FlowLayoutPanel
+    {
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern bool ShowScrollBar(IntPtr hWnd, int bar, bool show);
 
-        Action<PlanRow>? onSelect = null;
-        if (only != null)
+        protected override void WndProc(ref Message m)
         {
-            onSelect = row =>
-            {
-                foreach (var route in map.Routes) route.Bold = ReferenceEquals(route.Tag, row);
-                map.Invalidate();
-            };
+            if (IsHandleCreated) ShowScrollBar(Handle, 0, false);   // 0 = the horizontal bar
+            base.WndProc(ref m);
         }
-        foreach (var w in workers) host.Controls.Add(PlanBlock(w, onSelect));
-
-        inner.Controls.Add(host);
-        inner.Controls.Add(map);
-        inner.Controls.Add(runsHost);
-        page.Controls.Add(inner);
-
-        // the tables take the whole width; the map is a square under them (at most 40% of the width) and Cargo Runs fills the rest of that row
-        void Arrange()
-        {
-            const int pad = 8, gap = 12;
-            // the width does not depend on whether the scroll bar is there, so the page does not flip back and forth near the limit
-            var width = Math.Max(400, page.ClientSize.Width - (page.VerticalScroll.Visible ? 0 : SystemInformation.VerticalScrollBarWidth));
-            var inside = width - 2 * pad;
-            var y = 0;
-            foreach (Control c in host.Controls)
-            {
-                c.SetBounds(0, y, inside, c.Height);
-                y += c.Height + c.Margin.Bottom;
-            }
-            host.SetBounds(pad, pad, inside, y);
-            var side = Math.Max(320, Math.Min(560, (int)(inside * 0.4)));
-            var top = pad + y;
-            map.SetBounds(pad, top, side, side);
-            runsHost.SetBounds(pad + side + gap, top, Math.Max(300, inside - side - gap), side);
-            inner.Size = new Size(width, top + side + pad);
-        }
-        page.Resize += (_, _) => Arrange();
-        Arrange();
-        return page;
     }
 
     /// <summary>A title and the table of one crew member: the runs so far, then the planned trips.</summary>

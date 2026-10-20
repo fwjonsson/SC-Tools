@@ -244,7 +244,7 @@ public sealed partial class MainForm
             RefreshFromLog();
             RefreshPartyPanel();
             RefreshDebts();
-            if (_planTabs.Visible && _planTabs.IsHandleCreated) RefreshPlanner();
+            if (_planBody.Visible && _planBody.IsHandleCreated) RefreshPlanner();
         }));
     }
 

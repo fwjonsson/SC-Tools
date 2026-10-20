@@ -198,7 +198,7 @@ sealed class LiveWebServer : IDisposable
   .nav button.on, .sub button.on { background:var(--header); color:#fff; }
   .hidden { display:none; }
   #planSummary { font-weight:600; margin:8px 0 2px; }
-  .plantables { margin-top:6px; }
+  .plantables { flex:1 1 520px; min-width:0; }
   .plantables h2:first-child { margin-top:0; }
   .plantables table { table-layout:fixed; }
   .plantables th:nth-child(1) { width:90px; } .plantables th:nth-child(3) { width:66px; } .plantables th:nth-child(4) { width:96px; }
@@ -206,8 +206,6 @@ sealed class LiveWebServer : IDisposable
   .plantables td:nth-child(2) { white-space:normal; }
   .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
   .mapbox { flex:0 0 520px; max-width:100%; background:var(--cell); border:1px solid var(--line); }
-  .runsbox { flex:1 1 520px; min-width:0; }
-  .runsbox h2:first-child { margin-top:0; }
 </style>
 </head>
 <body>
@@ -405,13 +403,11 @@ function renderPlanner() {
   });
   const body = document.getElementById('planBody');
   body.textContent = '';
-  // the tables on top, under them the map with the copy of Cargo Runs beside it
-  const tables = document.createElement('div'); tables.className = 'plantables';
+  // the map on the left, the tables on the right, the copy of Cargo Runs under them
   const wrap = document.createElement('div'); wrap.className = 'planwrap';
   const mapBox = document.createElement('div'); mapBox.className = 'mapbox';
-  const runsBox = document.createElement('div'); runsBox.className = 'runsbox';
-  wrap.appendChild(mapBox); wrap.appendChild(runsBox);
-  body.appendChild(tables); body.appendChild(wrap);
+  const tables = document.createElement('div'); tables.className = 'plantables';
+  wrap.appendChild(mapBox); wrap.appendChild(tables); body.appendChild(wrap);
   let shown = p.workers;
   const routes = [];
   if (planSel === 'Overview') {
@@ -426,10 +422,10 @@ function renderPlanner() {
   }
   mapSvg(mapBox, p.stations, routes, p.backdrop);
   shown.forEach(function (w) { section(tables, 'h2', w.title, planSel === 'Overview' ? w.grid : w.personal); });
-  // a copy of Cargo Runs beside the map
-  section(runsBox, 'h2', 'Cargo Runs', last.runs);
+  // a copy of Cargo Runs under the planner
+  section(body, 'h2', 'Cargo Runs', last.runs);
   if (last.runsLive) {
-    const rows = runsBox.lastChild.querySelectorAll('tbody tr');
+    const rows = body.lastChild.querySelectorAll('tbody tr');
     last.runsLive.forEach(function (live, i) { if (live && rows[i] && rows[i].cells[7]) addTicker(rows[i].cells[7]); });
   }
 }
