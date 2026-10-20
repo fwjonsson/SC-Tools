@@ -10,7 +10,25 @@ public sealed partial class MainForm
     const int DefaultShipCapacity = 3;
     const int MaxShipCapacity = 24;
 
-    static readonly Color NextRouteGreen = Color.FromArgb(60, 205, 95);   // the next trip of every worker, on the Overview
+    /// <summary>
+    /// The colour of the k-th planned trip of n (0 = the one to fly now): blue, like the rest of the program, then green for the one after it,
+    /// and the later ones go through yellow and orange towards red.
+    /// </summary>
+    static Color TripColor(int k, int n)
+    {
+        if (k <= 0) return MapPalette[0];
+        var hue = n <= 2 ? 125.0 : 125.0 * (1.0 - (k - 1) / (double)(n - 2));   // green (125) down to red (0)
+        return FromHsv(hue, 0.78, 0.92);
+    }
+
+    static Color FromHsv(double h, double s, double v)
+    {
+        var c = v * s;
+        var x = c * (1 - Math.Abs(h / 60.0 % 2 - 1));
+        var m = v - c;
+        var (r, g, b) = h < 60 ? (c, x, 0.0) : h < 120 ? (x, c, 0.0) : (0.0, c, x);
+        return Color.FromArgb((int)Math.Round((r + m) * 255), (int)Math.Round((g + m) * 255), (int)Math.Round((b + m) * 255));
+    }
     // routes on the map: colours that cannot be mistaken for the run colours (green, orange, red, yellow)
     static readonly Color[] MapPalette =
     {
@@ -309,24 +327,26 @@ public sealed partial class MainForm
         var workers = only == null ? plan.Workers : new List<PlanWorkerView> { only };
         if (only == null)
         {
-            // everybody: one colour per worker, his next trip in bold
+            // everybody: the trips in flying order get the colours of TripColor (blue now, green next, then towards red), the first one in bold
             foreach (var w in workers)
             {
                 var k = 0;
+                var n = w.Planned.Count;
                 foreach (var r in w.Planned)
                 {
-                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = k == 0 ? NextRouteGreen : w.Color, Stops = r.Stops, Bold = k == 0, Tag = r });   // everybody's next trip is green
+                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = TripColor(k, n), Stops = r.Stops, Bold = k == 0, Tag = r });
                     k++;
                 }
             }
         }
         else
         {
-            // one worker: a colour per trip, the next one in bold (click a planned trip in the table to bold that one)
+            // one worker: the colours of TripColor, the next one in bold (click a planned trip in the table to bold that one)
             var k = 0;
+            var n = only.Planned.Count;
             foreach (var r in only.Planned)
             {
-                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = MapPalette[k % MapPalette.Length], Stops = r.Stops, Bold = k == 0, Tag = r });
+                map.Routes.Add(new MapRoute { Label = r.Label + "  " + Gm(r.Gm), Color = TripColor(k, n), Stops = r.Stops, Bold = k == 0, Tag = r });
                 k++;
             }
         }
@@ -340,7 +360,7 @@ public sealed partial class MainForm
                 map.Invalidate();
             };
         }
-        foreach (var w in workers) host.Controls.Add(PlanBlock(w, onSelect, only == null));
+        foreach (var w in workers) host.Controls.Add(PlanBlock(w, onSelect));
         FitPlanBlocks(host);
 
         t.Controls.Add(map, 0, 0);
@@ -356,7 +376,7 @@ public sealed partial class MainForm
     }
 
     /// <summary>A title and the table of one crew member: the runs so far, then the planned trips.</summary>
-    Control PlanBlock(PlanWorkerView w, Action<PlanRow>? onSelect, bool overview)
+    Control PlanBlock(PlanWorkerView w, Action<PlanRow>? onSelect)
     {
         var block = new Panel { Margin = new Padding(0, 0, 0, 14) };
         var label = new Label
@@ -385,6 +405,8 @@ public sealed partial class MainForm
             grid.Columns.Add(Col("Time", 90, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
             var boldFont = new Font("Segoe UI", 10f, FontStyle.Bold);
+            var plannedCount = w.Planned.Count;
+            var plannedIndex = 0;
             foreach (var r in w.Rows)
             {
                 var idx = grid.Rows.Add(
@@ -397,10 +419,16 @@ public sealed partial class MainForm
                 var row = grid.Rows[idx];
                 row.Tag = r;
                 if (RowColor(r) is { } color) row.DefaultCellStyle.BackColor = color;
-                if (r.Label == "Next")
+                if (r.Label == "Next") row.DefaultCellStyle.Font = boldFont;
+                if (r.IsPlan)
                 {
-                    row.DefaultCellStyle.Font = boldFont;
-                    if (overview) row.DefaultCellStyle.BackColor = DoneGreen;   // on the Overview the trip to fly now is green (a worker's own page stays as it was)
+                    // the Trip cell has the colour of the trip's line on the map
+                    var c = TripColor(plannedIndex++, plannedCount);
+                    var cell = row.Cells[0].Style;
+                    cell.BackColor = c;
+                    cell.ForeColor = Color.Black;
+                    cell.SelectionBackColor = c;
+                    cell.SelectionForeColor = Color.Black;
                 }
             }
             if (onSelect != null)
