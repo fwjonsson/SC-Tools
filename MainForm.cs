@@ -638,7 +638,7 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
         _tripGrid.Columns.Add(Col("Started", 76, true));
         _tripGrid.Columns.Add(Col("Completed", 108, true));
-        _tripGrid.Columns.Add(Col("Run Time", 90, true));
+        _tripGrid.Columns.Add(Col("Time", 90, true));
         _tripGrid.Columns.Add(Col("Flight time", 90, true));   // the estimated flying time of the run (the Flight time of the Trip Planner)
         var lostCol = new DataGridViewComboBoxColumn
         {
