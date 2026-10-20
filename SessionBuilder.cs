@@ -222,7 +222,13 @@ public static class SessionBuilder
         var hasProgress = events.Any(e => e.State == "INPROGRESS");
         DateTime? last = events.Count > 0 ? events.Max(e => e.Time) : (DateTime?)null;
 
-        // The game's "partial" signal is not reliable, so any pickup signal counts the stop as picked up.
+        // A stop the game only marks in progress (never completed) has cargo left. If something was handed in after that and the mission is
+        // still open, the cargo that was taken is on its way home and the rest still waits at the stop: the stop is not picked up yet.
+        // (A mission that is completed had everything picked up.)
+        if (hasProgress && !hasComplete && !m.Completed && last.HasValue && HandIns(m).Any(h => h > last.Value))
+            return ("partial", last, null);
+
+        // Otherwise any pickup signal counts the stop as picked up (the game does not always send the completed signal).
         string state;
         if (hasComplete || hasProgress) state = "loaded";
         else if (m.Completed) state = "loaded*";
