@@ -327,14 +327,13 @@ public sealed partial class MainForm
         var workers = only == null ? plan.Workers : new List<PlanWorkerView> { only };
         if (only == null)
         {
-            // everybody: the trips in flying order get the colours of TripColor (blue now, green next, then towards red), the first one in bold
+            // everybody: one colour per worker, his next trip in bold
             foreach (var w in workers)
             {
                 var k = 0;
-                var n = w.Planned.Count;
                 foreach (var r in w.Planned)
                 {
-                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = TripColor(k, n), Stops = r.Stops, Bold = k == 0, Tag = r });
+                    map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, Bold = k == 0, Tag = r });
                     k++;
                 }
             }
@@ -420,7 +419,7 @@ public sealed partial class MainForm
                 row.Tag = r;
                 if (RowColor(r) is { } color) row.DefaultCellStyle.BackColor = color;
                 if (r.Label == "Next") row.DefaultCellStyle.Font = boldFont;
-                if (r.IsPlan)
+                if (r.IsPlan && onSelect != null)   // a worker's own page (the Overview keeps one colour per worker)
                 {
                     // the Trip cell has the colour of the trip's line on the map
                     var c = TripColor(plannedIndex++, plannedCount);
