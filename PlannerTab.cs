@@ -184,7 +184,7 @@ public sealed partial class MainForm
     /// <summary>The plan for the open batches of the selected session, with the runs so far. The trips are only worked out again when the batches or the crew change.</summary>
     PlanView GetPlan()
     {
-        var crew = ActiveCrew().Select(n => (Name: n, Capacity: ShipCapacityOf(n), SpeedMm: QtOf(n).Speed, Spool: QtOf(n).Spool)).ToList();
+        var crew = ActiveCrew().Select(n => (Name: n, Capacity: ShipCapacityOf(n), Drive: QtOf(n))).ToList();
         var remaining = new Dictionary<string, int>();
         var unknown = new List<string>();
         if (_inputs != null)
@@ -203,7 +203,7 @@ public sealed partial class MainForm
             }
         }
 
-        var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity + ":" + c.SpeedMm.ToString("F1", CultureInfo.InvariantCulture) + ":" + c.Spool.ToString("F1", CultureInfo.InvariantCulture)))
+        var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity + ":" + c.Drive.Key))
             + "#" + string.Join("|", remaining.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + ":" + kv.Value))
             + "#" + string.Join("|", unknown);
         if (_planCore == null || _planCore.Key != key)
@@ -224,7 +224,7 @@ public sealed partial class MainForm
             {
                 Name = c.Name,
                 Capacity = c.Capacity,
-                Drive = drive == null ? "no QT drive set (assuming " + QuantumDrives.AssumedSpeedMm.ToString("0", CultureInfo.InvariantCulture) + " Mm/s)" : drive.Key + " " + drive.SpeedMm.ToString("0", CultureInfo.InvariantCulture) + " Mm/s",
+                Drive = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : drive.Key + ", " + (drive.Speed / 1e6).ToString("0", CultureInfo.InvariantCulture) + " Mm/s",
                 Color = MapPalette[i % MapPalette.Length],
             };
             w.Rows.AddRange(RunRows(c.Name));

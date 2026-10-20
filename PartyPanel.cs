@@ -73,12 +73,8 @@ public sealed partial class MainForm
         return QuantumDrives.Find(key);
     }
 
-    /// <summary>Speed (Mm/s) and spool time (s) for the travel time estimates. Without a drive set, an average one is assumed.</summary>
-    (double Speed, double Spool) QtOf(string name)
-    {
-        var d = DriveOf(name);
-        return d == null ? (QuantumDrives.AssumedSpeedMm, QuantumDrives.AssumedSpool) : (d.SpeedMm, d.Spool);
-    }
+    /// <summary>The drive for the travel time estimates. Without a drive set, a common one is assumed.</summary>
+    QtDrive QtOf(string name) => DriveOf(name) ?? QuantumDrives.Assumed;
 
     // ------------------------------------------------------------------ the panel
 

@@ -7,7 +7,7 @@ public sealed class PlannedTrip
     public List<(string Id, int Batches)> Stops = new();
     public int Batches => Stops.Sum(s => s.Batches);
     public double Distance;   // Gm: Ruin, the stops in order, back to Ruin
-    public double Seconds;    // estimated flight time with this worker's quantum drive (spool + distance / speed for every jump)
+    public double Seconds;    // estimated flight time with this worker's quantum drive (the time of every jump, see QtDrive.Seconds)
 }
 
 /// <summary>
@@ -22,8 +22,8 @@ public static class TripPlanner
     const double TotalWeight = 0.25;   // how much the combined Gm counts next to the longest worker total
 
     /// <param name="remaining">station id (see PyroDistances) to the batches still to pick up there</param>
-    /// <param name="crew">every worker with the batches his ship holds (0 = not flying) and the speed (Mm/s) and spool time (s) of his quantum drive</param>
-    public static List<PlannedTrip> Plan(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity, double SpeedMm, double Spool)> crew)
+    /// <param name="crew">every worker with the batches his ship holds (0 = not flying) and his quantum drive</param>
+    public static List<PlannedTrip> Plan(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity, QtDrive Drive)> crew)
     {
         var workers = crew.Where(c => c.Capacity > 0).ToList();
         var ids = remaining.Where(kv => kv.Value > 0).Select(kv => kv.Key).OrderBy(k => k, StringComparer.Ordinal).ToList();
@@ -119,13 +119,16 @@ public static class TripPlanner
             return mask;
         }
 
-        // the flight time of a trip for one worker: his drive spools and flies every jump (Ruin, the stops, back to Ruin)
+        // the flight time of a trip for one worker: his drive flies every jump (Ruin, the stops, back to Ruin)
         double SlotCost(int[] row, int worker)
         {
             var mask = MaskOf(row);
             if (mask == 0) return 0;
-            var c = workers[worker];
-            return Tour(mask).Cost * 1000.0 / c.SpeedMm + (System.Numerics.BitOperations.PopCount((uint)mask) + 1) * c.Spool;
+            var drive = workers[worker].Drive;
+            var order = Tour(mask).Order;
+            var seconds = drive.Seconds(d0[order[0]]);
+            for (var i = 1; i < order.Length; i++) seconds += drive.Seconds(d[order[i - 1], order[i]]);
+            return seconds + drive.Seconds(d0[order[^1]]);
         }
 
         // the number to beat: the longest worker total, plus a part of the combined time (all in seconds)
