@@ -10,11 +10,16 @@ public sealed partial class MainForm
     const int DefaultShipCapacity = 3;
     const int MaxShipCapacity = 24;
 
-    /// <summary>The colour of a worker on the Overview: zzoega orange, zzatvo green, the others one of the palette.</summary>
-    static Color WorkerColor(string name, int index) =>
-        SameName(name, "zzoega") ? Color.FromArgb(255, 150, 40)
-        : SameName(name, "zzatvo") ? Color.FromArgb(60, 205, 95)
-        : MapPalette[index % MapPalette.Length];
+    /// <summary>The colour of a worker on the Overview: the one picked in the Party table, else zzoega orange, zzatvo green, the others one of the palette.</summary>
+    Color WorkerColor(string name)
+    {
+        var picked = _data.WorkerColors.FirstOrDefault(kv => SameName(kv.Key, name));
+        if (picked.Key != null) return Color.FromArgb(picked.Value);
+        if (SameName(name, "zzoega")) return Color.FromArgb(255, 150, 40);
+        if (SameName(name, "zzatvo")) return Color.FromArgb(60, 205, 95);
+        var index = Math.Max(0, _data.Party.FindIndex(x => SameName(x, name)));
+        return MapPalette[index % MapPalette.Length];
+    }
 
     /// <summary>
     /// The colour of the k-th planned trip of n (0 = the one to fly now): blue, like the rest of the program, then green for the one after it,
@@ -307,7 +312,7 @@ public sealed partial class MainForm
                 Name = c.Name,
                 Capacity = c.Capacity,
                 Drive = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : drive.Key + ", " + (drive.Speed / 1e6).ToString("0", CultureInfo.InvariantCulture) + " Mm/s",
-                Color = WorkerColor(c.Name, i),
+                Color = WorkerColor(c.Name),
             };
             w.Rows.AddRange(RunRows(c.Name));
             var mine = core.Trips.Where(t => t.Worker == c.Name).ToList();

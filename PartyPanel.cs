@@ -110,6 +110,7 @@ public sealed partial class MainForm
         driveCol.Items.Add("");
         foreach (var d in QuantumDrives.All.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Size)) driveCol.Items.Add(d.Label);
         _partyGrid.Columns.Add(driveCol);
+        _partyGrid.Columns.Add(Col("Color", PartyColColor, true));   // click it to pick the colour of this worker on the Trip Planner Overview
         foreach (DataGridViewColumn c in _partyGrid.Columns)
         {
             c.FillWeight = c.Width;
@@ -123,13 +124,24 @@ public sealed partial class MainForm
                 _partyGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
         };
         _partyGrid.CellValueChanged += PartyGrid_CellValueChanged;
+        _partyGrid.CellClick += (_, e) =>
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex != 4) return;
+            var name = Convert.ToString(_partyGrid.Rows[e.RowIndex].Cells[0].Value) ?? "";
+            if (name.Length == 0) return;
+            using var dlg = new ColorDialog { Color = WorkerColor(name), FullOpen = true };
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            foreach (var k in _data.WorkerColors.Keys.Where(k => SameName(k, name)).ToList()) _data.WorkerColors.Remove(k);
+            _data.WorkerColors[name] = dlg.Color.ToArgb();
+            PartyChanged();
+        };
         _partyGrid.DataError += (_, e) => e.ThrowException = false;
 
         // The entry row: the name box is a cell under Member / Active, Add sits under Batches and Remove under QT Drive
         var bar = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Margin = new Padding(0) };
         bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, PartyColMember + PartyColActive));
         bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, PartyColBatches));
-        bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, PartyColDrive));
+        bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, PartyColDrive + PartyColColor));
         bar.RowStyles.Add(new RowStyle(SizeType.Absolute, PartyRowHeight));
         _partyName.BorderStyle = BorderStyle.None;
         _partyName.Dock = DockStyle.Fill;
@@ -173,7 +185,7 @@ public sealed partial class MainForm
     const int PartyRowHeight = 26;
     const int PartyMaxRows = 6;
     // proportions of the columns (the entry row under the table uses the same ones)
-    const int PartyColMember = 90, PartyColActive = 62, PartyColBatches = 78, PartyColDrive = 130;
+    const int PartyColMember = 90, PartyColActive = 62, PartyColBatches = 78, PartyColDrive = 130, PartyColColor = 50;
     TableLayoutPanel? _partyPanel;
     int _partyHeight = PartyMaxHeight;   // as drawn now, the party table and its entry row
 
@@ -202,8 +214,10 @@ public sealed partial class MainForm
             foreach (var name in _data.Party)
             {
                 var active = IsActiveAt(name, DateTime.UtcNow);
-                var idx = _partyGrid.Rows.Add(name, active, Math.Max(1, ShipCapacityOf(name)), DriveOf(name)?.Label ?? "");
+                var idx = _partyGrid.Rows.Add(name, active, Math.Max(1, ShipCapacityOf(name)), DriveOf(name)?.Label ?? "", "");
                 if (!active) _partyGrid.Rows[idx].DefaultCellStyle.ForeColor = Theme.Muted;
+                var swatch = _partyGrid.Rows[idx].Cells[4].Style;
+                swatch.BackColor = swatch.SelectionBackColor = WorkerColor(name);
             }
             if (selected != null)
             {
