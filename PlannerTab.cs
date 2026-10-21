@@ -37,7 +37,7 @@ public sealed partial class MainForm
         public string Label = "";
         public string Route = "";
         public string Batches = "";
-        public int BatchCount;           // batches picked up or planned, for Gm per batch
+        public int BatchCount;           // batches picked up or planned
         public double Gm;
         public double Seconds;           // a run: the time it really took; a planned trip: the estimated flight time
         public DateTime? RunStart;       // a run still on the way (while watching live): its time counts from here until now
@@ -376,7 +376,7 @@ public sealed partial class MainForm
     /// <summary>The title of a worker's table: just his name.</summary>
     static string PlanTitle(PlanWorkerView w) => w.Name;
 
-    /// <summary>The Total line under a worker's table: the number of stops, batches, value, distance, flight time, time and Gm per batch of the rows above it.</summary>
+    /// <summary>The Total line under a worker's table: the number of stops, batches, value, distance, flight time, and time of the rows above it.</summary>
     static string[] PlanTotals(List<PlanRow> rows, DateTime? setStart)
     {
         var stops = rows.Sum(r => r.Stops.Count);
@@ -393,7 +393,6 @@ public sealed partial class MainForm
             gm > 0 ? Gm(gm) : "",
             flight > 0 ? "~" + FlightSpan(flight) : "",
             seconds > 0 ? FlightSpan(seconds) : "",
-            gm > 0 && batches > 0 ? (gm / batches).ToString("N1", CultureInfo.InvariantCulture) : "",
         };
     }
 
@@ -930,10 +929,9 @@ public sealed partial class MainForm
             grid.Columns.Add(Col("Distance", 110, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Flight time", 100, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Time", 90, true, DataGridViewContentAlignment.MiddleRight));
-            grid.Columns.Add(Col("Gm / Batch", 100, true, DataGridViewContentAlignment.MiddleRight));
             FitColumns(grid);   // the columns share the width, so nothing is cut off or has to scroll sideways
-            // only the Route column is long (it takes what is left); the others keep a narrow width of their own: Trip, Batches, Value, Distance, Flight time, Time, Gm / Batch
-            var narrow = new[] { 90, 0, 66, 96, 82, 90, 76, 104 };
+            // only the Route column is long (it takes what is left); the others keep a narrow width of their own: Trip, Batches, Value, Distance, Flight time, Time
+            var narrow = new[] { 78, 0, 66, 96, 82, 90, 76 };
             for (var i = 0; i < grid.Columns.Count && i < narrow.Length; i++)
             {
                 if (i == 1)
@@ -955,8 +953,7 @@ public sealed partial class MainForm
                     ValueText(r.Value),
                     r.Gm > 0 ? Gm(r.Gm) : "",
                     FlightText(r),
-                    TimeText(r),
-                    r.Gm > 0 && r.BatchCount > 0 ? (r.Gm / r.BatchCount).ToString("N1", CultureInfo.InvariantCulture) : "");
+                    TimeText(r));
                 var row = grid.Rows[idx];
                 row.Tag = r;
                 if (RowColor(r) is { } color) row.DefaultCellStyle.BackColor = color;
