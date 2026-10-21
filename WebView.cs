@@ -204,8 +204,8 @@ sealed class LiveWebServer : IDisposable
   .plantables { flex:1 1 520px; min-width:0; }
   .plantables h2:first-child { margin-top:0; }
   .plantables table { table-layout:fixed; }
-  .plantables th:nth-child(1) { width:90px; } .plantables th:nth-child(3) { width:66px; } .plantables th:nth-child(4) { width:96px; }
-  .plantables th:nth-child(5) { width:82px; } .plantables th:nth-child(6) { width:90px; } .plantables th:nth-child(7) { width:76px; } .plantables th:nth-child(8) { width:104px; }
+  .plantables th:nth-child(1) { width:78px; } .plantables th:nth-child(3) { width:66px; } .plantables th:nth-child(4) { width:96px; }
+  .plantables th:nth-child(5) { width:82px; } .plantables th:nth-child(6) { width:90px; } .plantables th:nth-child(7) { width:76px; }
   .plantables td:nth-child(2) { white-space:normal; }
   .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
   .mapbox { flex:0 0 520px; max-width:100%; background:var(--cell); border:1px solid var(--line); }
@@ -731,7 +731,6 @@ public sealed partial class MainForm
             new { text = "Distance", align = "right" },
             new { text = "Flight time", align = "right" },
             new { text = "Time", align = "right" },
-            new { text = "Gm / Batch", align = "right" },
         };
         var cell = WebColor(Theme.Cell);
         var text = WebColor(Theme.Text);
@@ -745,8 +744,8 @@ public sealed partial class MainForm
                 rows = w.Rows.Where(r => !r.Hidden).Select(r =>
                 {
                     var back = RowColor(r) is { } c ? WebColor(c) : cell;
-                    var backs = new[] { back, back, back, back, back, back, back, back };
-                    var fores = new[] { text, text, text, text, text, text, text, text };
+                    var backs = new[] { back, back, back, back, back, back, back };
+                    var fores = new[] { text, text, text, text, text, text, text };
                     if (r.First)
                     {
                         for (var i = 0; i < backs.Length; i++)
@@ -766,7 +765,6 @@ public sealed partial class MainForm
                             r.Gm > 0 ? Gm(r.Gm) : "",
                             FlightText(r),
                             TimeText(r),
-                            r.Gm > 0 && r.BatchCount > 0 ? (r.Gm / r.BatchCount).ToString("N1", System.Globalization.CultureInfo.InvariantCulture) : "",
                         },
                         back = backs,
                         fore = fores,
@@ -785,8 +783,8 @@ public sealed partial class MainForm
             yield return new
             {
                 cells = PlanTotals(visible, w.SetStart),
-                back = Enumerable.Repeat(calc, 8).ToArray(),
-                fore = Enumerable.Repeat(text, 8).ToArray(),
+                back = Enumerable.Repeat(calc, 7).ToArray(),
+                fore = Enumerable.Repeat(text, 7).ToArray(),
                 bold = true,
             };
         }
