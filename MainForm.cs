@@ -790,9 +790,9 @@ public sealed partial class MainForm : Form
                 }
                 else total = row;
             }
-            if (total != null && rows.Any(r => r.RunStart.HasValue))
+            if (total != null && total.Tag is DateTime setStart)
             {
-                var text = PlanTotals(rows)[6];
+                var text = PlanTotals(rows, setStart)[6];
                 if (!Equals(total.Cells[6].Value, text)) total.Cells[6].Value = text;
             }
         }

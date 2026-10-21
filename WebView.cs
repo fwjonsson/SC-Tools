@@ -784,7 +784,7 @@ public sealed partial class MainForm
             var calc = WebColor(Theme.Calc);
             yield return new
             {
-                cells = PlanTotals(visible),
+                cells = PlanTotals(visible, w.SetStart),
                 back = Enumerable.Repeat(calc, 8).ToArray(),
                 fore = Enumerable.Repeat(text, 8).ToArray(),
                 bold = true,
