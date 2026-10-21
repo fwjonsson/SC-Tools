@@ -65,21 +65,20 @@ public sealed partial class MainForm
         return moved ? null : (best.Value.Station!, at);
     }
 
-    /// <summary>The latest drop-off of a from-Ruin mission he holds that is completed: the station (null = a place that is not in the distance table) and when.</summary>
+    /// <summary>
+    /// The latest drop-off of a from-Ruin load that this worker delivered himself: the station (null = a place that is not in the distance table) and when.
+    /// A shared mission is in the log of everyone who has it, and a delivery shows up in all of those logs, so who delivered it comes from the loading platform
+    /// lines (see WorkerTripBuilder.OutSteps): only the one who did it is placed at that station. What nobody's log shows is not counted.
+    /// </summary>
     (string? Station, DateTime Time)? LastDropOf(string name)
     {
         if (_log == null) return null;
         (string? Station, DateTime Time)? best = null;
-        foreach (var m in _log.Missions.Values.Where(x => x.IsOut && !x.Dropped))
+        foreach (var s in WorkerTripBuilder.OutSteps(_log))
         {
-            if (!HasMission(m, name)) continue;
-            foreach (var kv in m.ObjZone.Where(o => o.Key.StartsWith("dropoff_")))
-            {
-                if (!m.Events.TryGetValue(kv.Key, out var ev)) continue;
-                var done = ev.Where(e => e.State == "COMPLETED").Select(e => e.Time).DefaultIfEmpty(DateTime.MinValue).Min();
-                if (done == DateTime.MinValue) continue;
-                if (best == null || done > best.Value.Time) best = (StationOf(kv.Value), done);
-            }
+            if (s.Pickup || s.Worker == null || !SameName(s.Worker, name)) continue;
+            if (!s.Mission.ObjZone.TryGetValue(s.Objective, out var zone)) continue;
+            if (best == null || s.Time > best.Value.Time) best = (StationOf(zone), s.Time);
         }
         return best;
     }

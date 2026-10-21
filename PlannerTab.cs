@@ -72,6 +72,17 @@ public sealed partial class MainForm
         public string ActionText => string.Join(" | ", Actions);
     }
 
+    /// <summary>What was done at one line of a run in progress (for the text of its Collect/Drop column).</summary>
+    sealed class DoneAt
+    {
+        public int Taken;                  // batches of waste taken out at Ruin
+        public string? TakenCargo;
+        public int Delivered;              // batches of waste delivered here
+        public int DeliveredScu;
+        public string? DeliveredCargo;
+        public int Picked;                 // batches picked up here
+    }
+
     sealed class PlanWorkerView
     {
         public string Name = "";
@@ -621,38 +632,94 @@ public sealed partial class MainForm
         _ => null,
     };
 
-    /// <summary>The runs of one worker in the selected session, oldest first, as lines for his table.</summary>
+    /// <summary>A run that has only waste taken out at Ruin or delivered in it (nothing picked up) is not shown as the worker's Current route once it is this old: nobody is flying it any more.</summary>
+    static readonly TimeSpan StaleLeg = TimeSpan.FromHours(3);
+
+    /// <summary>
+    /// The runs of one worker in the selected session, oldest first, as lines for his table. The lines are everything that was done in the run so far, in the order it
+    /// happened, and stay until the run is handed in: Ruin (with the waste taken out there), the stations where waste was delivered, and the pickups.
+    /// </summary>
     List<PlanRow> RunRows(string name)
     {
         var rows = new List<PlanRow>();
         foreach (var t in _trips.Where(x => SameName(x.Worker, name) && !x.End.HasValue).OrderBy(RunStartedAt))   // finished runs are only on Cargo Runs
         {
+            // a run with only waste in it: taking it out at Ruin is not a route yet (the plan still collects it), and a delivery from long ago is no run on the way
+            if (t.Pickups.Count == 0 && (t.Drops.Count == 0 || _log == null || _log.LastTime - RunLastActivity(t) > StaleLeg)) continue;
+
             var level = t.Manual ? "All" : LostLevel(t.Key);
             var stops = new List<string>();
-            var lines = new List<StopLine>();   // what is on board, stop by stop (pickups at the same place in a row are one line)
+            var lines = new List<StopLine>();   // what is done, stop by stop (things done at the same place in a row are one line)
+            var done = new Dictionary<StopLine, DoneAt>();
             var picked = 0;
             var drive = QtOf(name);
             var from = PyroDistances.Ruin;
-            foreach (var p in t.Pickups.OrderBy(x => x.Time))
+
+            // the run starts at Ruin: the waste taken out there is on this line
+            var home = new StopLine { Id = PyroDistances.Ruin, Name = "Ruin", Stop = false, Done = true };
+            lines.Add(home);
+            done[home] = new DoneAt();
+
+            StopLine LineFor(string? id, string shown, bool atRuin)
             {
-                var n = p.MissionIds.Count > 0 ? p.MissionIds.Count : p.Missions;
-                picked += n;
-                var shown = LocationName(p.Zone);
-                var id = StationOf(p.Zone);
-                if (id != null) stops.Add(id);
-                if (lines.Count > 0 && lines[^1].Name == shown)
-                {
-                    var same = lines[^1];
-                    same.Batches += n;
-                    same.Value += PickupValue(p);
-                    same.Actions[0] = "Collected \u00d7" + same.Batches + (t.End.HasValue ? "" : " \u2713");
-                    continue;
-                }
+                if (lines[^1].Name == shown) return lines[^1];   // the same place again: one line
                 var gm = id != null ? PyroDistances.Between(from, id) : 0;
                 if (id != null) from = id;
-                var line = new StopLine { Id = id ?? "", Name = shown, Done = true, Batches = n, Value = PickupValue(p), Gm = gm, Seconds = gm > 0 ? drive.Seconds(gm) : 0 };
-                line.Actions.Add("Collected \u00d7" + n + (t.End.HasValue ? "" : " \u2713"));   // the run in progress: what is already on board says so
+                var line = new StopLine { Id = id ?? "", Name = shown, Stop = !atRuin, Done = true, Gm = gm, Seconds = gm > 0 ? drive.Seconds(gm) : 0 };
                 lines.Add(line);
+                done[line] = new DoneAt();
+                return line;
+            }
+
+            var steps = new List<(DateTime Time, Action Do)>();
+            foreach (var cluster in Clusters(t.Collects, x => x.Time, x => x.Cargo))
+            {
+                var batch = cluster;
+                steps.Add((batch[0].Time, () =>
+                {
+                    var d = done[LineFor(PyroDistances.Ruin, "Ruin", true)];
+                    d.Taken += batch.Count;
+                    d.TakenCargo = batch[0].Cargo;
+                }));
+            }
+            foreach (var cluster in Clusters(t.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone))
+            {
+                var batch = cluster;
+                steps.Add((batch[0].Time, () =>
+                {
+                    var id = StationOf(batch[0].Zone);
+                    var line = LineFor(id, LocationName(batch[0].Zone), false);
+                    if (id != null && (stops.Count == 0 || stops[^1] != id)) stops.Add(id);
+                    var d = done[line];
+                    d.Delivered += batch.Count;
+                    d.DeliveredScu += batch.Sum(x => x.Scu);
+                    d.DeliveredCargo = batch[0].Cargo;
+                }));
+            }
+            foreach (var p in t.Pickups)
+            {
+                var pick = p;
+                steps.Add((pick.Time, () =>
+                {
+                    var n = pick.MissionIds.Count > 0 ? pick.MissionIds.Count : pick.Missions;
+                    picked += n;
+                    var id = StationOf(pick.Zone);
+                    var line = LineFor(id, LocationName(pick.Zone), false);
+                    if (id != null && (stops.Count == 0 || stops[^1] != id)) stops.Add(id);
+                    line.Batches += n;
+                    line.Value += PickupValue(pick);
+                    done[line].Picked += n;
+                }));
+            }
+            foreach (var step in steps.OrderBy(x => x.Time)) step.Do();
+
+            // the run in progress: what is already done says so
+            foreach (var line in lines)
+            {
+                var d = done[line];
+                if (d.Taken > 0) line.Actions.Add("Collected " + d.TakenCargo + (d.Taken > 1 ? " \u00d7" + d.Taken : "") + " \u2713");
+                if (d.Delivered > 0) line.Actions.Add("Dropped " + d.DeliveredCargo + (d.Delivered > 1 ? " \u00d7" + d.Delivered : "") + (d.DeliveredScu > 0 ? ", " + d.DeliveredScu + " SCU" : "") + " \u2713");
+                if (d.Picked > 0) line.Actions.Add("Collected \u00d7" + d.Picked + " \u2713");
             }
             rows.Add(new PlanRow
             {
@@ -686,22 +753,22 @@ public sealed partial class MainForm
         return seconds + drive.Seconds(PyroDistances.Between(from, PyroDistances.Ruin));
     }
 
-    /// <summary>The estimated flying time of a run on the Cargo Runs board: Ruin, its pickup stations in order, and back to Ruin.</summary>
+    /// <summary>The estimated flying time of a run on the Cargo Runs board: Ruin, the stations it went to (waste delivered, pickups) in order, and back to Ruin.</summary>
     string RunFlightText(WorkerTrip t)
     {
-        var stops = t.Pickups.Select(p => StationOf(p.Zone)).Where(id => id != null).Select(id => id!).ToList();
+        var stops = t.VisitedZones().Select(z => StationOf(z)).Where(id => id != null).Select(id => id!).ToList();
         var seconds = stops.Count > 0 ? FlightOf(t.Worker, stops) : 0;
         return seconds <= 0 ? "" : "~" + FlightSpan(seconds);
     }
 
-    /// <summary>The run the worker is flying (picked up, not handed in yet): the batches on board and the station of the last pickup, or null.</summary>
+    /// <summary>The run the worker is flying (picked up, not handed in yet): the batches on board and the station of the last pickup, or null. A run with only waste in it has no cargo of the plan on board.</summary>
     (int Loaded, string? From, DateTime Last)? ActiveRunOf(string name)
     {
         var loaded = 0;
         string? from = null;
         DateTime? latest = null;
         var any = false;
-        foreach (var t in _trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue))
+        foreach (var t in _trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue && t.Pickups.Count > 0))
         {
             any = true;
             foreach (var p in t.Pickups)

@@ -60,9 +60,9 @@ public sealed partial class MainForm
     /// <summary>The station of a pickup location: by its location id, or by the name you gave it. Null when the distance table does not know it.</summary>
     string? StationOf(string zone) => PyroDistances.IdOfTail(StationKey(zone)) ?? PyroDistances.IdOfName(LocationName(zone));
 
-    /// <summary>Gm flown in one run: Ruin, the pickup stations in the order they were visited, and back to Ruin. Locations missing from the table are skipped.</summary>
+    /// <summary>Gm flown in one run: Ruin, the stations it went to (waste delivered, pickups) in the order they were visited, and back to Ruin. Locations missing from the table are skipped.</summary>
     static double RunDistance(WorkerTrip t, Func<string, string?> stationOf) =>
-        PyroDistances.Run(t.Pickups.OrderBy(p => p.Time).Select(p => stationOf(p.Zone)).OfType<string>());
+        PyroDistances.Run(t.VisitedZones().Select(z => stationOf(z)).OfType<string>());
 
     static string GmPerHour(double gm, double seconds) =>
         gm > 0 && seconds > 0 ? (gm / (seconds / 3600.0)).ToString("N1", CultureInfo.InvariantCulture) : "";
@@ -79,7 +79,7 @@ public sealed partial class MainForm
             if (t.Worker == "Unassigned") continue;
             if (!result.TryGetValue(t.Worker, out var s)) result[t.Worker] = s = new WorkerStat();
             var missions = t.Pickups.Sum(p => p.Missions);
-            if (!t.End.HasValue || RunFailed(t, inp)) continue;   // nothing counts until the run is done, and a failed run never counts
+            if (!t.End.HasValue || RunFailed(t, inp) || t.Pickups.Count == 0) continue;   // nothing counts until the run is done, a failed run never counts, and a run with only waste in it (no cargo picked up) is no run of the board
             if (completed != null && !t.Pickups.All(p => p.MissionIds.All(completed.Contains))) continue;   // saved stats: only when the missions are completed
             s.Missions += missions;
             s.Runs++;
