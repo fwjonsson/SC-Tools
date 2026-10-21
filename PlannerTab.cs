@@ -1332,11 +1332,32 @@ public sealed partial class MainForm
         // tables need (or the map, when that is higher), so the Current Route of every worker is on the page: Cargo Runs moves down, and the page scrolls when the
         // window is too low for both.
         var fitting = false;
+        var again = false;   // a size changed while it was being fitted (setting the sizes below resizes the page, the map and the tables): fit once more
         void FitPage()
         {
-            if (fitting) return;
+            if (fitting)
+            {
+                again = true;
+                return;
+            }
             fitting = true;
             try
+            {
+                for (var pass = 0; pass < 4; pass++)
+                {
+                    again = false;
+                    FitPageOnce();
+                    if (!again) break;
+                }
+            }
+            finally
+            {
+                fitting = false;
+            }
+        }
+        void FitPageOnce()
+        {
+            if (t.ClientSize.Width < 100) return;   // not laid out yet (the page is built before it is shown): a size now would be the smallest map, and stay
             {
                 var page = _planPage;
                 var note = _planNote.Visible ? _planNote.Height : 0;
@@ -1352,13 +1373,13 @@ public sealed partial class MainForm
                     page.AutoScrollMinSize = new Size(0, need + TitleHeight + PlanRunsMin + page.Padding.Vertical + note);
                 }
             }
-            finally
-            {
-                fitting = false;
-            }
         }
         _fitPlanPage = FitPage;
         t.Resize += (_, _) => FitPage();
+        t.VisibleChanged += (_, _) =>
+        {
+            if (t.Visible) FitPage();   // the tab is shown again: its real size is known now
+        };
         foreach (Control b in host.Controls) b.SizeChanged += (_, _) => FitPage();
         FitPage();
         t.Controls.Add(left, 0, 0);
