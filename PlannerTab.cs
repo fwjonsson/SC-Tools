@@ -50,6 +50,7 @@ public sealed partial class MainForm
         public bool Hidden;              // a planned trip that is shown inside the Current row (the continuation of the run in progress), not as a row of its own
         public double Flight;            // the estimated flying time of the whole route (Ruin, the stops, back to Ruin) with the drive of the worker
         public bool Solid;               // a planned trip that is flown first (solid line on the map); the later ones are dotted
+        public int Passed;               // a run that is drawn on the map by itself: how many of its stops are done (the waves run on the leg after them)
         public string? From;             // a trip that continues a run in progress starts at this station
         public List<StopLine> Lines = new();   // the route one stop at a time (the Current Route table)
         public int Here = -1;            // the line where the worker is now (his Current location): the worker colour follows it
@@ -982,6 +983,7 @@ public sealed partial class MainForm
             {
                 runRow.OnMap = true;   // nothing is added to it (full ship): the run itself is his solid line
                 runRow.Solid = true;
+                runRow.Passed = runRow.Stops.Count;   // everything on it is picked up: he is on his way home
             }
             if (runRow != null && runRow.Lines.Count > 0)
             {
@@ -1099,7 +1101,7 @@ public sealed partial class MainForm
             var k = 0;
             foreach (var r in w.MapRows)
             {
-                map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, From = r.From, Bold = r.Solid, Dashed = !r.Solid, Tag = r });
+                map.Routes.Add(new MapRoute { Label = k == 0 ? w.Name : "", Color = w.Color, Stops = r.Stops, From = r.From, Passed = r.Passed, Bold = r.Solid, Dashed = !r.Solid, Tag = r });
                 k++;
             }
         }
