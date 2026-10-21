@@ -516,6 +516,13 @@ public sealed partial class MainForm
                     var run = ActiveRunOf(c.Name);
                     var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, From = run?.From ?? (run == null ? StartPointOf(c.Name) : null) };   // flying a run: from there, else from where he said he is
                     var lockKey = LockKey(c.Name);
+                    if (lockKey == null)
+                    {
+                        // everybody who flies has his next stop kept for him, without pressing Plan Trips: the first stop of his planned trip is where he is heading
+                        _inputs.LockedTrips[c.Name] = new List<LockedStop>();
+                        lockKey = c.Name;
+                        changed = true;
+                    }
                     if (lockKey != null)
                     {
                         var stored = _inputs.LockedTrips[lockKey];
