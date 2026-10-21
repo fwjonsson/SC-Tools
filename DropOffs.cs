@@ -11,7 +11,27 @@ public sealed partial class MainForm
         public string Objective = "";
         public string Zone = "";
         public string? Station;   // null = a location that is not in the distance table
+        public int Scu;           // the SCU to bring to this drop-off, from the game's "Deliver 0/147 SCU" popup (0 = not seen)
     }
+
+    /// <summary>
+    /// The containers of a load, as big as possible: 147 SCU is 4 x 32, then 16, 2 and 1 (the sizes are 32, 24, 16, 8, 4, 2 and 1).
+    /// </summary>
+    internal static string ContainersText(int scu)
+    {
+        var parts = new List<string>();
+        foreach (var size in new[] { 32, 24, 16, 8, 4, 2, 1 })
+        {
+            var n = scu / size;
+            if (n <= 0) continue;
+            parts.Add(n == 1 ? size.ToString(CultureInfo.InvariantCulture) : n + "\u00d7" + size);
+            scu -= n * size;
+        }
+        return string.Join(" + ", parts);
+    }
+
+    /// <summary>"147 SCU: 4×32 + 16 + 2 + 1", or an empty text when the SCU is not known.</summary>
+    internal static string ScuText(int scu) => scu <= 0 ? "" : scu + " SCU: " + ContainersText(scu);
 
     /// <summary>The drop-offs still to do: every drop-off objective of a from-Ruin mission that is running and not completed yet.</summary>
     List<DropBatch> OpenDrops()
@@ -25,7 +45,7 @@ public sealed partial class MainForm
             foreach (var kv in m.ObjZone.Where(o => o.Key.StartsWith("dropoff_")))
             {
                 if (m.Events.TryGetValue(kv.Key, out var ev) && ev.Any(e => e.State == "COMPLETED")) continue;
-                res.Add(new DropBatch { Mission = m, Objective = kv.Key, Zone = kv.Value, Station = StationOf(kv.Value) });
+                res.Add(new DropBatch { Mission = m, Objective = kv.Key, Zone = kv.Value, Station = StationOf(kv.Value), Scu = m.ObjScu.GetValueOrDefault(kv.Key) });
             }
         }
         return res;
@@ -44,12 +64,18 @@ public sealed partial class MainForm
             var mission = g.First().Mission;
             var can = flyers.Where(n => HasMission(mission, n)).ToArray();
             var allowed = can.Length == 0 || can.Length == flyers.Count ? Array.Empty<string>() : can;
-            var left = g.Count();
-            while (left > 0)
+            var scus = g.Select(d => d.Scu).ToList();
+            var done = 0;
+            while (done < scus.Count)
             {
-                var take = Math.Min(capacity, left);
-                chunks.Add(new DropChunk { Station = g.Key.Station, Cargo = mission.OutCargo ?? "Cargo", Batches = take, Allowed = allowed });
-                left -= take;
+                var take = Math.Min(capacity, scus.Count - done);
+                var scu = scus.Skip(done).Take(take).Sum();
+                done += take;
+                // a ship that holds fewer SCU than the load cannot take it (a worker without a ship set is assumed to manage)
+                var who = allowed.Length == 0 ? flyers : allowed.ToList();
+                var fits = scu <= 0 ? who : who.Where(n => ShipOf(n) is not { } ship || ship.Scu >= scu).ToList();
+                var set = fits.Count == 0 || fits.Count == flyers.Count ? allowed : fits.ToArray();
+                chunks.Add(new DropChunk { Station = g.Key.Station, Cargo = mission.OutCargo ?? "Cargo", Batches = take, Scu = scu, Allowed = set });
             }
         }
         return chunks;
@@ -62,7 +88,7 @@ public sealed partial class MainForm
         var drops = OpenDrops();
         foreach (var byStation in drops.GroupBy(d => d.Station ?? ("zone " + d.Zone)))
         {
-            var text = string.Join(", ", byStation.GroupBy(d => d.Mission.OutCargo ?? "Cargo").Select(g => g.Key + " \u00d7" + g.Count()));
+            var text = string.Join(", ", byStation.GroupBy(d => d.Mission.OutCargo ?? "Cargo").Select(g => g.Key + " \u00d7" + g.Count() + (g.Sum(d => d.Scu) > 0 ? " (" + ScuText(g.Sum(d => d.Scu)) + ")" : "")));
             var zone = byStation.First().Zone;
             DataGridViewRow? row = null;
             foreach (DataGridViewRow r in _logGrid.Rows)

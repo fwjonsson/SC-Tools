@@ -328,7 +328,7 @@ public sealed partial class MainForm
         {
             // the load from Ruin is for the first stop: it is unloaded there, then the pickups begin
             var d = trip.Drops[0];
-            var bring = "bring " + trip.DropCargo + " \u00d7" + d.Batches;
+            var bring = "bring " + trip.DropCargo + " \u00d7" + d.Batches + (trip.DropScu > 0 ? ", " + ScuText(trip.DropScu) : "");
             if (trip.Stops.Count > 0 && trip.Stops[0].Id == d.Id)
                 return PyroDistances.NameOf(d.Id) + " \u00d7" + trip.Stops[0].Batches + " (" + bring + ")" + (trip.Stops.Count > 1 ? "  →  " + string.Join("  →  ", trip.Stops.Skip(1).Select(s => PyroDistances.NameOf(s.Id) + " \u00d7" + s.Batches)) : "");
             return PyroDistances.NameOf(d.Id) + " (" + bring + ")" + (trip.Stops.Count > 0 ? "  →  " + StopsText(trip) : "");
@@ -597,7 +597,7 @@ public sealed partial class MainForm
             var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity + ":" + c.Drive.Key))
                 + "#" + string.Join("|", remaining.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + ":" + kv.Value))
                 + "#" + string.Join("|", unknown)
-                + "#" + string.Join("|", chunks.Select(x => x.Station + ":" + x.Batches + ":" + x.Cargo + ":" + string.Join(",", x.Allowed)))
+                + "#" + string.Join("|", chunks.Select(x => x.Station + ":" + x.Batches + ":" + x.Scu + ":" + x.Cargo + ":" + string.Join(",", x.Allowed)))
                 + "#" + string.Join("|", limits.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + "=" + string.Join(";", kv.Value.Select(g => string.Join(",", g.Workers) + "x" + g.Batches))))
                 + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "/" + t.Loaded + "@" + t.From));
             if (_planCore != null && _planCore.Key == key && waiting.All(n => _planCore.Settled.Contains(n))) return _planCore;
@@ -682,7 +682,7 @@ public sealed partial class MainForm
             var cap = flyers.Count == 0 ? 0 : crew.Where(c => c.Capacity > 0).Min(c => c.Capacity);
             chunks = DropChunks(drops, flyers, cap);
             var lost = drops.Count(d => d.Station == null);
-            dropNote = "From Ruin: " + drops.Count + " batches to bring out" + (lost > 0 ? " (" + lost + " to a place that is not in the distance table, left out)" : "") + ".";
+            if (lost > 0) dropNote = "From Ruin: " + lost + (lost == 1 ? " drop-off is" : " drop-offs are") + " to a place that is not in the distance table, so left out.";
         }
         var core = CoreFor(crew, remaining, unknown, limits, chunks);
         var dropTrips = core.Trips;

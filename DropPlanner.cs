@@ -8,6 +8,7 @@ public sealed class DropChunk
 {
     public string Station = "";
     public int Batches;
+    public int Scu;            // how many SCU the load is (0 = not known)
     public string Cargo = "";
     public string[] Allowed = Array.Empty<string>();   // the workers who have that mission (empty = everybody)
 }
