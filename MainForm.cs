@@ -634,6 +634,7 @@ public sealed partial class MainForm : Form
         _logGrid.Columns.Add(workerCol);
         _logGrid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
         _logGrid.Columns.Add(Col("Notes", 120, false, DataGridViewContentAlignment.MiddleLeft, true));
+        _logGrid.Columns.Add(Col("Drop-off", 120, true, DataGridViewContentAlignment.MiddleCenter));   // cargo to bring out from Ruin (from-Ruin contracts)
         AddNumberColumn(_logGrid);
         _logGrid.CellEndEdit += LogGrid_CellEndEdit;
         _logGrid.DataError += (_, e) => e.ThrowException = false;
@@ -1705,6 +1706,7 @@ public sealed partial class MainForm : Form
             row.Tag = r.Zone;
             ColorMissionsCell(row, r);
         }
+        FillDropOffs();
         NumberRows(_logGrid);
 
         // the finished stops: latest hand-in on top
