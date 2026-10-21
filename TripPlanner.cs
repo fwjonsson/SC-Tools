@@ -111,7 +111,9 @@ public static class TripPlanner
     /// <param name="remaining">station id (see PyroDistances) to the batches still to pick up there (without the batches of the locked stops)</param>
     /// <param name="crew">every worker with the batches his ship holds (0 = not flying) and his quantum drive</param>
     /// <param name="starts">what is decided already: a worker's locked next stop (his first trip goes there first, the rest of the trip is planned) and a run he is flying (his first trip continues it)</param>
-    public static List<PlannedTrip> Plan(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity, QtDrive Drive)> crew, IReadOnlyList<WorkerStart>? starts = null)
+    /// <param name="limits">batches only some of the crew can take, by station id: the workers who have that mission running and how many batches (the rest of the batches of the station is for everybody)</param>
+    public static List<PlannedTrip> Plan(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity, QtDrive Drive)> crew, IReadOnlyList<WorkerStart>? starts = null,
+        IReadOnlyDictionary<string, List<(string[] Workers, int Batches)>>? limits = null)
     {
         var workers = crew.Where(c => c.Capacity > 0).ToList();
         var w = workers.Count;
@@ -149,6 +151,33 @@ public static class TripPlanner
             if (reservedN[k] <= 0) reservedIdx[k] = -1;
         }
         var total = need.Sum() + reservedN.Sum();
+
+        // batches only some workers can take: per station the groups (a set of workers, as a bit mask, and the batches), the rest is for everybody
+        var allMask = (1 << w) - 1;
+        var groups = new List<(int Mask, int Count)>?[n];
+        var free = new int[n];
+        for (var i = 0; i < n; i++)
+        {
+            free[i] = need[i];
+            if (limits == null || !limits.TryGetValue(ids[i], out var gl)) continue;
+            var list = new List<(int Mask, int Count)>();
+            var left = need[i];
+            foreach (var (names, count) in gl)
+            {
+                var mask = 0;
+                for (var k = 0; k < w; k++)
+                {
+                    if (names.Contains(workers[k].Name)) mask |= 1 << k;
+                }
+                var c = Math.Min(count, left);
+                if (mask == 0 || mask == allMask || c <= 0) continue;
+                list.Add((mask, c));
+                left -= c;
+            }
+            if (list.Count == 0) continue;
+            groups[i] = list;
+            free[i] = left;
+        }
 
         var d0 = new double[n];
         var d = new double[n, n];
@@ -204,6 +233,34 @@ public static class TripPlanner
             if (st == null || (st.From == null && reservedIdx[k] < 0 && st.Loaded <= 0)) continue;
             special[k] = true;
             slotCapacity[k] = firstCapacity[k];
+        }
+
+        // is this division of a station over the workers possible with the batches they have (every set of workers can only take what at least one of them can)
+        bool Allowed(int[][] assign, int station)
+        {
+            var gs = groups[station];
+            if (gs == null) return true;
+            var x = new int[w];
+            for (var t = 0; t < slots; t++) x[slotWorker[t]] += assign[t][station];
+            for (var k = 0; k < w; k++)
+            {
+                if (reservedIdx[k] == station) x[k] -= reservedN[k];
+            }
+            for (var s = 1; s <= allMask; s++)
+            {
+                var take = 0;
+                for (var k = 0; k < w; k++)
+                {
+                    if (((s >> k) & 1) != 0) take += x[k];
+                }
+                var supply = free[station];
+                foreach (var (mask, count) in gs)
+                {
+                    if ((mask & s) != 0) supply += count;
+                }
+                if (take > supply) return false;
+            }
+            return true;
         }
 
         // the route of a special slot: from where he is, to his locked stop, through the rest in the cheapest order, back to Ruin
@@ -280,24 +337,27 @@ public static class TripPlanner
                         {
                             assign[a][i]--;
                             assign[b][i]++;
-                            var newA = SlotCost(assign[a], a);
-                            var newB = SlotCost(assign[b], b);
-                            var dA = newA - slotCost[a];
-                            var dB = newB - slotCost[b];
-                            totals[slotWorker[a]] += dA;
-                            totals[slotWorker[b]] += dB;
-                            var value = Objective(totals);
-                            if (value < current - 1e-9)
+                            if (Allowed(assign, i))
                             {
-                                current = value;
-                                slotCost[a] = newA;
-                                slotCost[b] = newB;
-                                loads[a]--;
-                                loads[b]++;
-                                return true;
+                                var newA = SlotCost(assign[a], a);
+                                var newB = SlotCost(assign[b], b);
+                                var dA = newA - slotCost[a];
+                                var dB = newB - slotCost[b];
+                                totals[slotWorker[a]] += dA;
+                                totals[slotWorker[b]] += dB;
+                                var value = Objective(totals);
+                                if (value < current - 1e-9)
+                                {
+                                    current = value;
+                                    slotCost[a] = newA;
+                                    slotCost[b] = newB;
+                                    loads[a]--;
+                                    loads[b]++;
+                                    return true;
+                                }
+                                totals[slotWorker[a]] -= dA;
+                                totals[slotWorker[b]] -= dB;
                             }
-                            totals[slotWorker[a]] -= dA;
-                            totals[slotWorker[b]] -= dB;
                             assign[a][i]++;
                             assign[b][i]--;
                         }
@@ -308,22 +368,25 @@ public static class TripPlanner
                             assign[b][i]++;
                             assign[b][j]--;
                             assign[a][j]++;
-                            var newA = SlotCost(assign[a], a);
-                            var newB = SlotCost(assign[b], b);
-                            var dA = newA - slotCost[a];
-                            var dB = newB - slotCost[b];
-                            totals[slotWorker[a]] += dA;
-                            totals[slotWorker[b]] += dB;
-                            var value = Objective(totals);
-                            if (value < current - 1e-9)
+                            if (Allowed(assign, i) && Allowed(assign, j))
                             {
-                                current = value;
-                                slotCost[a] = newA;
-                                slotCost[b] = newB;
-                                return true;
+                                var newA = SlotCost(assign[a], a);
+                                var newB = SlotCost(assign[b], b);
+                                var dA = newA - slotCost[a];
+                                var dB = newB - slotCost[b];
+                                totals[slotWorker[a]] += dA;
+                                totals[slotWorker[b]] += dB;
+                                var value = Objective(totals);
+                                if (value < current - 1e-9)
+                                {
+                                    current = value;
+                                    slotCost[a] = newA;
+                                    slotCost[b] = newB;
+                                    return true;
+                                }
+                                totals[slotWorker[a]] -= dA;
+                                totals[slotWorker[b]] -= dB;
                             }
-                            totals[slotWorker[a]] -= dA;
-                            totals[slotWorker[b]] -= dB;
                             assign[a][i]++;
                             assign[b][i]--;
                             assign[b][j]++;
@@ -361,11 +424,46 @@ public static class TripPlanner
                 assign[k][reservedIdx[k]] = reservedN[k];
                 loads[k] = reservedN[k];
             }
-            var slot = 0;
-            foreach (var unit in units)
+            // batches only some workers can take go first, to a trip of one of them with room (the first ones of a station in this order are the limited ones)
+            var isLimited = new bool[units.Count];
+            var seen = new int[n];
+            for (var u = 0; u < units.Count; u++)
             {
+                var i = units[u];
+                var gs = groups[i];
+                if (gs == null) continue;
+                var k = seen[i]++;
+                var at = 0;
+                foreach (var (mask, count) in gs)
+                {
+                    if (k < at + count)
+                    {
+                        isLimited[u] = true;
+                        var target = -1;
+                        for (var t = 0; t < slots && target < 0; t++)
+                        {
+                            if (((mask >> slotWorker[t]) & 1) != 0 && loads[t] < slotCapacity[t]) target = t;
+                        }
+                        if (target < 0)
+                        {
+                            for (var t = 0; t < slots && target < 0; t++)
+                            {
+                                if (((mask >> slotWorker[t]) & 1) != 0) target = t;
+                            }
+                        }
+                        assign[target][i]++;
+                        loads[target]++;
+                        break;
+                    }
+                    at += count;
+                }
+            }
+            var slot = 0;
+            for (var u = 0; u < units.Count; u++)
+            {
+                if (isLimited[u]) continue;
                 while (slot < slots - 1 && loads[slot] >= slotCapacity[slot]) slot++;
-                assign[slot][unit]++;
+                assign[slot][units[u]]++;
                 loads[slot]++;
             }
 

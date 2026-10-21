@@ -494,7 +494,7 @@ public sealed partial class MainForm
     /// while there is room, the next stop of that continuation is locked too (it is where he is heading). A lock ends when he picks up somewhere else, when its batches are picked up, and when he leaves the party; when his run
     /// is handed in, the first stop of his next planned trip is locked. Only worked out again when the batches, the crew or the locks change.
     /// </summary>
-    PlanCore CoreFor(List<(string Name, int Capacity, QtDrive Drive)> crew, Dictionary<string, int> open, List<string> unknown)
+    PlanCore CoreFor(List<(string Name, int Capacity, QtDrive Drive)> crew, Dictionary<string, int> open, List<string> unknown, Dictionary<string, List<(string[] Workers, int Batches)>> limits)
     {
         for (var pass = 0; ; pass++)
         {
@@ -548,14 +548,17 @@ public sealed partial class MainForm
             var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity + ":" + c.Drive.Key))
                 + "#" + string.Join("|", remaining.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + ":" + kv.Value))
                 + "#" + string.Join("|", unknown)
+                + "#" + string.Join("|", limits.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + "=" + string.Join(";", kv.Value.Select(g => string.Join(",", g.Workers) + "x" + g.Batches))))
                 + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "/" + t.Loaded + "@" + t.From));
             if (waiting.Count == 0 && _planCore != null && _planCore.Key == key) return _planCore;
 
             var note = unknown.Count > 0 ? "Not in the distance table, so left out: " + string.Join(", ", unknown) + "." : "";
+            var only = limits.SelectMany(kv => kv.Value.Select(g => PyroDistances.NameOf(kv.Key) + " ×" + g.Batches + " only " + string.Join(" / ", g.Workers))).ToList();
+            if (only.Count > 0) note = (note.Length > 0 ? note + "  " : "") + "Not everybody has every mission: " + string.Join(", ", only) + ".";
             var core = new PlanCore
             {
                 Key = key,
-                Trips = TripPlanner.Plan(remaining, crew, starts),
+                Trips = TripPlanner.Plan(remaining, crew, starts, limits),
                 Batches = remaining.Where(kv => kv.Value > 0).Sum(kv => kv.Value) + starts.Sum(t => t.FirstBatches),
                 Note = note,
             };
@@ -586,6 +589,8 @@ public sealed partial class MainForm
         var remaining = new Dictionary<string, int>();
         var unknown = new List<string>();
         var worth = new Dictionary<string, (decimal Value, int Batches)>();   // station -> what its batches are worth together (the value of a stop is reward / stops of its mission)
+        var limits = new Dictionary<string, List<(string[] Workers, int Batches)>>();   // station -> batches that only some of the crew can take (they have those missions running, the others do not)
+        var flyers = crew.Where(c => c.Capacity > 0).Select(c => c.Name).ToList();
         if (_inputs != null)
         {
             foreach (var r in _openRows)
@@ -604,10 +609,19 @@ public sealed partial class MainForm
                     continue;
                 }
                 remaining[id] = remaining.GetValueOrDefault(id) + left;
+                foreach (var (holders, count) in r.OpenHolders)
+                {
+                    var can = flyers.Where(n => holders.Count == 0 || holders.Any(h => SameName(h, n)) || _log == null || !_log.Players.Any(p => SameName(p, n))).ToArray();   // a worker without a log may have it: nobody can tell
+                    if (can.Length == 0 || can.Length == flyers.Count) continue;
+                    if (!limits.TryGetValue(id, out var gl)) limits[id] = gl = new List<(string[] Workers, int Batches)>();
+                    var same = gl.FindIndex(x => x.Workers.SequenceEqual(can));
+                    if (same >= 0) gl[same] = (can, gl[same].Batches + count);
+                    else gl.Add((can, count));
+                }
             }
         }
 
-        var core = CoreFor(crew, remaining, unknown);
+        var core = CoreFor(crew, remaining, unknown, limits);
         decimal PerBatch(string id) => worth.TryGetValue(id, out var x) && x.Batches > 0 ? x.Value / x.Batches : 0;   // the average batch at that station
 
         var plan = new PlanView { Note = core.Note };

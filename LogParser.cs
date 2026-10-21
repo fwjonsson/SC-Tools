@@ -40,6 +40,9 @@ public sealed class Mission
     public Dictionary<string, List<ObjEvent>> Events = new();          // objective id -> state changes
     public List<DeliverNote> Notes = new();
 
+    /// <summary>The players (characters of the logs) who have this mission running: the logs that know it and have not ended it. Only set on the missions of the merged log.</summary>
+    public HashSet<string> Holders = new(StringComparer.OrdinalIgnoreCase);
+
     public bool IsHauling => Cargo != null;
     public bool Completed => EndState == "COMPLETED";
     public bool Dead => EndState != null && EndState != "COMPLETED";
@@ -92,6 +95,9 @@ public sealed class HaulingLog
 
     public Dictionary<string, Mission> Missions { get; } = new();
 
+    /// <summary>The characters of the logs that were read (a party member without a log is not in it).</summary>
+    public HashSet<string> Players { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Money transfers seen in this log (sent by this player or received by him).</summary>
     public List<Transfer> Transfers { get; } = new();
 
@@ -143,12 +149,14 @@ public sealed class HaulingLog
     public static HaulingLog Merge(IEnumerable<HaulingLog> logs)
     {
         var res = new HaulingLog();
+        var holders = new Dictionary<string, HashSet<string>>();
         var ends = new Dictionary<string, MissionEnds>();
         foreach (var l in logs)
         {
             if (l.LastTime > res.LastTime) res.LastTime = l.LastTime;
 
             var who = l.Player ?? "Unknown player";
+            if (l.Player != null) res.Players.Add(l.Player);
             if (!res.UnstowByPlayer.TryGetValue(who, out var us)) res.UnstowByPlayer[who] = us = new List<DateTime>();
             us.AddRange(l.Unstows);
             if (!res.PlatformByPlayer.TryGetValue(who, out var ps)) res.PlatformByPlayer[who] = ps = new List<DateTime>();
@@ -179,7 +187,12 @@ public sealed class HaulingLog
                 if (m.FirstSeen.HasValue && (!t.FirstSeen.HasValue || m.FirstSeen < t.FirstSeen)) t.FirstSeen = m.FirstSeen;
                 // how the mission ended is decided after all logs are read (see below)
                 var st = ends.TryGetValue(m.Id, out var old) ? old : default;
-                if (m.EndState == null) st.Active = true;
+                if (m.EndState == null)
+                {
+                    st.Active = true;
+                    if (!holders.TryGetValue(m.Id, out var hs)) holders[m.Id] = hs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    hs.Add(who);
+                }
                 else if (m.EndState == "COMPLETED")
                 {
                     if (!st.Completed || m.EndedAt < st.CompletedAt) st.CompletedAt = m.EndedAt;
@@ -207,6 +220,11 @@ public sealed class HaulingLog
                 }
                 t.Notes.AddRange(m.Notes);
             }
+        }
+
+        foreach (var kv in holders)
+        {
+            if (res.Missions.TryGetValue(kv.Key, out var hm)) hm.Holders = kv.Value;
         }
 
         // A mission shared in a party is only abandoned or failed when every log that knows it ended it that way.
