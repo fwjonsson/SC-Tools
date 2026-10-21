@@ -770,12 +770,40 @@ public sealed partial class MainForm : Form
     static DateTime RunLastActivity(WorkerTrip t)
     {
         var last = t.End ?? t.Start;
-        if (t.Pickups.Count > 0) last = last > t.Pickups.Max(p => p.Time) ? last : t.Pickups.Max(p => p.Time);
+        if (t.LastEvent is DateTime latest && latest > last) last = latest;
         return last;
     }
 
-    /// <summary>When a run really started: the first pickup. A run begins at the previous hand-in, but the cargo run itself starts when cargo is picked up. Runs without a pickup use their start time.</summary>
-    static DateTime RunStartedAt(WorkerTrip t) => t.Pickups.Count > 0 ? t.Pickups.Min(p => p.Time) : t.Start;
+    /// <summary>When a run really started: the first thing done in it (cargo taken out at Ruin, delivered from there, or picked up). A run begins at the previous hand-in, but the cargo run itself starts when cargo is moved. A run with nothing in it uses its start time.</summary>
+    static DateTime RunStartedAt(WorkerTrip t) => t.FirstEvent ?? t.Start;
+
+    /// <summary>Groups things that happened close together (and are alike) into one: the three batches of waste taken out at Ruin at the same moment are one step.</summary>
+    static List<List<T>> Clusters<T>(IEnumerable<T> items, Func<T, DateTime> time, Func<T, string> key)
+    {
+        var all = new List<List<T>>();
+        foreach (var x in items.OrderBy(time))
+        {
+            var open = all.Count > 0 ? all[^1] : null;
+            if (open != null && key(open[0]) == key(x) && time(x) - time(open[0]) <= TimeSpan.FromMinutes(2)) open.Add(x);
+            else all.Add(new List<T> { x });
+        }
+        return all;
+    }
+
+    /// <summary>
+    /// What a run did, in the order it happened, for the Pickup Location &amp; Time column: waste taken out at Ruin ("Waste ×3 from Ruin 13:19"), waste delivered to a station
+    /// ("Waste → Rat's Nest 15:55") and the pickups ("Rod's Fuel 15:36").
+    /// </summary>
+    string RunStepsText(WorkerTrip t)
+    {
+        var steps = new List<(DateTime Time, string Text)>();
+        foreach (var c in Clusters(t.Collects, x => x.Time, x => x.Cargo))
+            steps.Add((c[0].Time, c[0].Cargo + (c.Count > 1 ? " ×" + c.Count : "") + " from Ruin " + FormatTime(c[0].Time)));
+        foreach (var c in Clusters(t.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone))
+            steps.Add((c[0].Time, c[0].Cargo + (c.Count > 1 ? " ×" + c.Count : "") + " → " + LocationName(c[0].Zone) + " " + FormatTime(c[0].Time)));
+        foreach (var p in t.Pickups) steps.Add((p.Time, LocationName(p.Zone) + " " + FormatTime(p.Time)));
+        return string.Join(",  ", steps.OrderBy(s => s.Time).Select(s => s.Text));
+    }
 
     /// <summary>The runs of a session: who did them comes from the logs and the Trip Planner (see WorkerTripBuilder.Build).</summary>
     List<WorkerTrip> BuildRuns(SessionGroup g, SessionInputs inp)
@@ -805,7 +833,7 @@ public sealed partial class MainForm : Form
 
             foreach (var t in _trips)
             {
-                var pickups = string.Join(",  ", t.Pickups.Select(p => LocationName(p.Zone) + " " + FormatTime(p.Time)));
+                var pickups = RunStepsText(t);
                 var level = LostLevel(t.Key);
                 var values = new object[]
                 {

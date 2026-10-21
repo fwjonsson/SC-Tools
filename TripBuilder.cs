@@ -10,6 +10,26 @@ public sealed class TripPickup
     public List<string> MissionIds = new();   // the missions loaded here (one batch each)
 }
 
+/// <summary>Cargo of a from-Ruin contract (waste) that a worker delivered to a station during a run.</summary>
+public sealed class TripDrop
+{
+    public string Zone = "";
+    public string MissionId = "";
+    public string Objective = "";
+    public string Cargo = "Cargo";
+    public DateTime Time;       // UTC
+    public int Scu;             // the load of this drop-off from the "Deliver 0/187 SCU" popup (0 = not seen)
+}
+
+/// <summary>Cargo of a from-Ruin contract that a worker took out at Ruin during a run (one entry for every batch).</summary>
+public sealed class TripCollect
+{
+    public string MissionId = "";
+    public string Objective = "";
+    public string Cargo = "Cargo";
+    public DateTime Time;       // UTC
+}
+
 /// <summary>One run: from the previous hand-in (or the first accepted contract) to a hand-in at Ruin.</summary>
 public sealed class Trip
 {
@@ -100,15 +120,98 @@ public sealed class WorkerTrip
     public int HandedIn;        // missions handed in at the end of this run
     public bool Manual;         // the run was ended by hand (failed)
     public bool Left;           // the run was ended because the worker left the party
+    public List<TripCollect> Collects = new();   // from-Ruin cargo (waste) he took out at Ruin in this run
+    public List<TripDrop> Drops = new();         // from-Ruin cargo he delivered to stations in this run
 
     /// <summary>Stable key for saving things you tick on the run.</summary>
     public string Key => Worker + "|" + (KeyTime == default ? Start : KeyTime).ToString("yyyyMMddHHmmss");
+
+    /// <summary>The first thing the worker did in this run: taking cargo out at Ruin, delivering it, or a pickup. Null when the run has nothing in it.</summary>
+    public DateTime? FirstEvent
+    {
+        get
+        {
+            DateTime? first = null;
+            foreach (var t in Collects.Select(c => c.Time).Concat(Drops.Select(d => d.Time)).Concat(Pickups.Select(p => p.Time)))
+            {
+                if (first == null || t < first) first = t;
+            }
+            return first;
+        }
+    }
+
+    /// <summary>The latest thing the worker did in this run (not the hand-in). Null when the run has nothing in it.</summary>
+    public DateTime? LastEvent
+    {
+        get
+        {
+            DateTime? last = null;
+            foreach (var t in Collects.Select(c => c.Time).Concat(Drops.Select(d => d.Time)).Concat(Pickups.Select(p => p.Time)))
+            {
+                if (last == null || t > last) last = t;
+            }
+            return last;
+        }
+    }
+
+    /// <summary>The places the run went to, in the order of the visits: where cargo from Ruin was delivered and where cargo was picked up (the same place twice in a row counts once).</summary>
+    public List<string> VisitedZones()
+    {
+        var zones = new List<string>();
+        foreach (var z in Drops.Select(d => (d.Time, d.Zone)).Concat(Pickups.Select(p => (p.Time, p.Zone))).OrderBy(x => x.Time).Select(x => x.Zone))
+        {
+            if (zones.Count == 0 || zones[^1] != z) zones.Add(z);
+        }
+        return zones;
+    }
+}
+
+/// <summary>One finished step of a from-Ruin contract: cargo taken out at Ruin (a pickup objective) or delivered at a station (a drop-off objective), and who did it.</summary>
+public sealed class OutStep
+{
+    public Mission Mission = null!;
+    public string Objective = "";
+    public bool Pickup;         // true = taken out at Ruin, false = delivered at a station
+    public string? Worker;      // who did it, from the logs; null = no log shows it
+    public DateTime Time;       // UTC, the earliest sign of it in the logs
 }
 
 public static class WorkerTripBuilder
 {
     static readonly TimeSpan HandInGap = TimeSpan.FromMinutes(3);
     static readonly Regex StopId = new(@"_\d+$", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Who did a step of a from-Ruin contract. A shared mission is in the log of everyone who has it, and every one of them gets the update when somebody takes cargo out or
+    /// delivers it, but only the player who did it has the elevator / loading platform lines of it. Several times (the same update in the logs of two players, a few seconds apart) are all tried.
+    /// </summary>
+    public static string? OutActor(HaulingLog log, bool pickup, IEnumerable<DateTime> times)
+    {
+        foreach (var t in times.OrderBy(x => x))
+        {
+            var who = ActorAt(log, pickup, t);
+            if (who != null) return who;
+        }
+        return null;
+    }
+
+    /// <summary>Every finished step (cargo taken out at Ruin, cargo delivered at a station) of the from-Ruin contracts in the log, with who did it. Missions marked as gone are left out.</summary>
+    public static List<OutStep> OutSteps(HaulingLog log)
+    {
+        var steps = new List<OutStep>();
+        foreach (var m in log.Missions.Values.Where(x => x.IsOut && !x.Dropped))
+        {
+            foreach (var kv in m.Events)
+            {
+                var pickup = kv.Key.StartsWith("pickup_", StringComparison.Ordinal);
+                if (!pickup && !kv.Key.StartsWith("dropoff_", StringComparison.Ordinal)) continue;
+                var times = kv.Value.Where(e => e.State == "COMPLETED").Select(e => e.Time).OrderBy(t => t).ToList();
+                if (times.Count == 0) continue;
+                steps.Add(new OutStep { Mission = m, Objective = kv.Key, Pickup = pickup, Worker = OutActor(log, pickup, times), Time = times[0] });
+            }
+        }
+        return steps;
+    }
 
     /// <summary>
     /// Who did it, taken from the logs: only the player who takes cargo out of a freight elevator (pickup)
@@ -276,23 +379,43 @@ public static class WorkerTripBuilder
         // players whose own log we have
         var logPlayers = new HashSet<string>(log.UnstowByPlayer.Keys.Concat(log.PlatformByPlayer.Keys), StringComparer.OrdinalIgnoreCase);
 
-        var result = new List<WorkerTrip>();
-        foreach (var wg in pickups.GroupBy(p => p.Worker, StringComparer.OrdinalIgnoreCase).OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+        // from-Ruin contracts (waste): who took the cargo out at Ruin and who delivered it at a station. Only what the logs show someone doing counts: a mission
+        // shared in the party is in everybody's log, but the elevator and loading platform lines are only in the log of the player who did it. Only while the session ran.
+        var collected = new List<(string Worker, TripCollect Item)>();
+        var delivered = new List<(string Worker, TripDrop Item)>();
+        foreach (var s in OutSteps(log))
         {
-            var worker = wg.Key;
-            var mine = wg.OrderBy(p => p.Time).ToList();
+            if (s.Worker == null || s.Time < g.Start || (g.Stop.HasValue && s.Time > g.Stop.Value)) continue;
+            var cargo = s.Mission.OutCargo ?? "Cargo";
+            if (s.Pickup)
+                collected.Add((s.Worker, new TripCollect { MissionId = s.Mission.Id, Objective = s.Objective, Cargo = cargo, Time = s.Time }));
+            else if (s.Mission.ObjZone.TryGetValue(s.Objective, out var zone))
+                delivered.Add((s.Worker, new TripDrop { Zone = zone, MissionId = s.Mission.Id, Objective = s.Objective, Cargo = cargo, Time = s.Time, Scu = s.Mission.ObjScu.GetValueOrDefault(s.Objective) }));
+        }
+
+        var workers = pickups.Select(p => p.Worker).Concat(collected.Select(c => c.Worker)).Concat(delivered.Select(d => d.Worker))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+
+        var result = new List<WorkerTrip>();
+        foreach (var worker in workers)
+        {
+            var mine = pickups.Where(p => string.Equals(p.Worker, worker, StringComparison.OrdinalIgnoreCase)).OrderBy(p => p.Time).ToList();
             var myMissions = new HashSet<string>(mine.Select(p => p.Mission));
 
-            // events in time order: his pickups, and the hand-ins that are his
-            var events = new List<(DateTime Time, bool IsPickup, string Mission, string Zone, bool ActorKnown)>();
-            foreach (var p in mine) events.Add((p.Time, true, p.Mission, p.Zone, true));
+            // events in time order: his pickups, the cargo he took out at Ruin and delivered from there, and the hand-ins that are his
+            var events = new List<(DateTime Time, bool IsPickup, string Mission, string Zone, bool ActorKnown, TripCollect? Collect, TripDrop? Drop)>();
+            foreach (var p in mine) events.Add((p.Time, true, p.Mission, p.Zone, true, null, null));
+            foreach (var c in collected.Where(x => string.Equals(x.Worker, worker, StringComparison.OrdinalIgnoreCase)))
+                events.Add((c.Item.Time, false, c.Item.MissionId, "", true, c.Item, null));
+            foreach (var d in delivered.Where(x => string.Equals(x.Worker, worker, StringComparison.OrdinalIgnoreCase)))
+                events.Add((d.Item.Time, false, d.Item.MissionId, d.Item.Zone, true, null, d.Item));
             foreach (var d in drops)
             {
                 if (d.Actor != null)
                 {
                     // the logs name who did the hand-in: it ends only his run, whatever missions it was for
                     if (string.Equals(d.Actor, worker, StringComparison.OrdinalIgnoreCase))
-                        events.Add((d.Time, false, d.Mission, "", true));
+                        events.Add((d.Time, false, d.Mission, "", true, null, null));
                     continue;
                 }
 
@@ -301,12 +424,12 @@ public static class WorkerTripBuilder
                 if (!carriers.TryGetValue(d.Mission, out var cs) || !cs.Contains(worker)) continue;
                 var someoneWithoutLog = cs.Any(c => !logPlayers.Contains(c));
                 if (someoneWithoutLog && logPlayers.Contains(worker)) continue;
-                events.Add((d.Time, false, d.Mission, "", false));
+                events.Add((d.Time, false, d.Mission, "", false, null, null));
             }
             foreach (var me in manual)
             {
                 if (string.Equals(me.Worker, worker, StringComparison.OrdinalIgnoreCase))
-                    events.Add((me.Time, false, me.Left ? LeftMission : ManualMission, "", true));
+                    events.Add((me.Time, false, me.Left ? LeftMission : ManualMission, "", true, null, null));
             }
             events = events.OrderBy(e => e.Time).ThenBy(e => e.IsPickup ? 1 : 0).ToList();
 
@@ -314,10 +437,22 @@ public static class WorkerTripBuilder
             var runStart = sessionStart;
             var carried = new HashSet<string>();
             var runPickups = new List<(string Zone, string Mission, DateTime Time)>();
+            var runCollects = new List<TripCollect>();
+            var runDrops = new List<TripDrop>();
             WorkerTrip? last = null;
 
             foreach (var e in events)
             {
+                if (e.Collect != null)
+                {
+                    runCollects.Add(e.Collect);
+                    continue;
+                }
+                if (e.Drop != null)
+                {
+                    runDrops.Add(e.Drop);
+                    continue;
+                }
                 if (e.IsPickup)
                 {
                     carried.Add(e.Mission);
@@ -326,10 +461,11 @@ public static class WorkerTripBuilder
                 }
 
                 var isManual = e.Mission == ManualMission || e.Mission == LeftMission;   // ended by hand, no hand-in
-                var ends = isManual ? carried.Count > 0 : (e.ActorKnown ? carried.Count > 0 : carried.Contains(e.Mission));
+                // a hand-in only ends a run that has cargo of his; a run by hand (or the worker leaving) can also end one that only has waste in it (nothing to hand in)
+                var ends = isManual ? carried.Count > 0 || runCollects.Count > 0 || runDrops.Count > 0 : (e.ActorKnown ? carried.Count > 0 : carried.Contains(e.Mission));
                 if (ends)
                 {
-                    var trip = NewTrip(worker, number++, runStart, e.Time, runPickups, isManual ? 0 : carried.Count, failedIds, acceptedAt, periods);
+                    var trip = NewTrip(worker, number++, runStart, e.Time, runPickups, runCollects, runDrops, isManual ? 0 : carried.Count, failedIds, acceptedAt, periods);
                     trip.Manual = e.Mission == ManualMission;
                     trip.Left = e.Mission == LeftMission;
                     result.Add(trip);
@@ -337,6 +473,8 @@ public static class WorkerTripBuilder
                     runStart = e.Time;
                     carried.Clear();
                     runPickups = new List<(string, string, DateTime)>();
+                    runCollects = new List<TripCollect>();
+                    runDrops = new List<TripDrop>();
                 }
                 else if (!isManual && last != null && !last.Manual && !last.Left && last.End.HasValue && e.Time - last.End.Value <= HandInGap)
                 {
@@ -346,8 +484,9 @@ public static class WorkerTripBuilder
                 }
             }
 
-            if (runPickups.Count > 0)
-                result.Add(NewTrip(worker, number, runStart, null, runPickups, 0, failedIds, acceptedAt, periods));
+            // what is left is the run on the way (also one with only waste in it: leaving Ruin with a load for a station is the start of a run)
+            if (runPickups.Count > 0 || runCollects.Count > 0 || runDrops.Count > 0)
+                result.Add(NewTrip(worker, number, runStart, null, runPickups, runCollects, runDrops, 0, failedIds, acceptedAt, periods));
         }
         return result;
     }
@@ -370,31 +509,38 @@ public static class WorkerTripBuilder
     }
 
     static WorkerTrip NewTrip(string worker, int number, DateTime start, DateTime? end,
-        List<(string Zone, string Mission, DateTime Time)> pickups, int handedIn, HashSet<string> failedIds,
+        List<(string Zone, string Mission, DateTime Time)> pickups, List<TripCollect> collects, List<TripDrop> drops, int handedIn, HashSet<string> failedIds,
         Dictionary<string, DateTime> acceptedAt, List<(DateTime Start, DateTime End)> periods)
     {
         // A run starts at the previous hand-in, unless the missions were accepted later (a worker's first run, or new
         // missions after a break with nothing going): then it starts when the first mission of that stretch was accepted,
         // whichever order the trips are flown in, so the break is not run time.
         var realStart = start;
-        if (pickups.Count > 0)
+        DateTime? firstEvent = null;   // the first thing done in the run: a pickup, or cargo from Ruin taken out or delivered
+        foreach (var time in pickups.Select(p => p.Time).Concat(collects.Select(c => c.Time)).Concat(drops.Select(d => d.Time)))
         {
-            var first = pickups.Min(p => p.Time);
+            if (firstEvent == null || time < firstEvent) firstEvent = time;
+        }
+        if (firstEvent.HasValue)
+        {
+            var first = firstEvent.Value;
             var period = periods.FirstOrDefault(p => p.Start <= first && first <= p.End);
             if (period.End != default)
             {
                 if (period.Start > realStart) realStart = period.Start;
             }
-            else
+            else if (pickups.Count > 0)
             {
                 var accepted = pickups.Where(p => acceptedAt.ContainsKey(p.Mission)).Select(p => acceptedAt[p.Mission]).ToList();
                 if (accepted.Count > 0 && accepted.Min() > realStart) realStart = accepted.Min();
             }
         }
-        if (pickups.Count > 0 && pickups.Min(p => p.Time) < realStart) realStart = pickups.Min(p => p.Time);   // never after the first pickup
+        if (firstEvent.HasValue && firstEvent.Value < realStart) realStart = firstEvent.Value;   // never after the first thing done
         if (end.HasValue && realStart > end.Value) realStart = start;
 
         var t = new WorkerTrip { Worker = worker, Number = number, Start = realStart, KeyTime = start, End = end, HandedIn = handedIn };
+        t.Collects.AddRange(collects.OrderBy(c => c.Time));
+        t.Drops.AddRange(drops.OrderBy(d => d.Time));
         foreach (var grp in pickups.GroupBy(p => p.Zone))
         {
             t.Pickups.Add(new TripPickup
