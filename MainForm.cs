@@ -718,7 +718,11 @@ public sealed partial class MainForm : Form
             Storage.Save(_data);
             BeginInvoke(new Action(() =>
             {
-                if (restart) FillTrips();
+                if (restart)
+                {
+                    FillTrips();
+                    if (_planBody.Visible && _planBody.IsHandleCreated) RefreshPlanner();   // a run that failed is not on the way any more
+                }
                 else RecomputeTimes();
                 UpdateSnapshots();
                 RefreshDebts();
@@ -1588,7 +1592,11 @@ public sealed partial class MainForm : Form
         }
 
         RecomputeRewards();
-        if (_inputs != null) GetPlan();   // keeps the plan and the locked Current trips up to date while the planner tab is closed
+        // The plan is worked out last, when the batches (FillLog) and the runs (FillTrips) are both up to date. Before, the page was built in the middle of this:
+        // with the batch you just picked up already gone from the open batches, but the run that carries it not there yet, so the plan sent you out with a whole new
+        // trip on top of it, and it stayed like that until the next change in the log.
+        if (_planBody.Visible && _planBody.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
+        else if (_inputs != null) GetPlan();   // keeps the plan and the locked Current trips up to date while the planner tab is closed
     }
 
     void ClearView()
@@ -1726,8 +1734,7 @@ public sealed partial class MainForm : Form
         NumberRows(_doneGrid);
         FitTopArea();
         RefreshPartyPanel();
-
-        if (_planBody.Visible && _planBody.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
+        // the plan is not refreshed here: the runs (_trips) are built after this, and a plan made from the new batches and the old runs is wrong (see ShowSession)
     }
 
     /// <summary>
