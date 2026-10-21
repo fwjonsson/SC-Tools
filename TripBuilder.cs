@@ -353,7 +353,7 @@ public static class WorkerTripBuilder
     }
 
     /// <summary>The stretches of the session with at least one mission going: from an accepted mission until the last one overlapping it has ended.</summary>
-    static List<(DateTime Start, DateTime End)> ActivePeriods(SessionGroup g)
+    public static List<(DateTime Start, DateTime End)> ActivePeriods(SessionGroup g)
     {
         var spans = g.Missions.Concat(g.Failed)
             .Select(m => (Start: m.Accepted ?? m.FirstSeen ?? g.Start, End: m.EndedAt ?? DateTime.MaxValue))
