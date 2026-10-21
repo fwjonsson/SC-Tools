@@ -1546,7 +1546,7 @@ public sealed partial class MainForm
         if (current)
         {
             grid.Columns.Add(Col("Stops", 120, true, DataGridViewContentAlignment.MiddleLeft));
-            action = Col("Collect/Drop", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
+            action = Col("Drop/Collect", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
             grid.Columns.Add(action);
             text = Col("Cargo", cargoWidth, true, DataGridViewContentAlignment.MiddleLeft);
             grid.Columns.Add(text);
