@@ -14,11 +14,12 @@ public sealed class PlannedTrip
     public int Room;          // how many batches this trip can hold (the ship, minus what a run in progress carries already)
     public List<(string Id, int Batches)> Drops = new();   // a from-Ruin contract: this trip leaves Ruin with the load for its FIRST stop (at most one entry) and unloads it there, before the pickups
     public string? DropCargo; // what it is (Waste ...)
+    public int DropScu;       // how many SCU the load is (0 = not known)
 
     public PlannedTrip Copy() => new()
     {
         Worker = Worker, Stops = new List<(string Id, int Batches)>(Stops), Distance = Distance, Seconds = Seconds, Locked = Locked,
-        Special = Special, From = From, Room = Room, Drops = new List<(string Id, int Batches)>(Drops), DropCargo = DropCargo,
+        Special = Special, From = From, Room = Room, Drops = new List<(string Id, int Batches)>(Drops), DropCargo = DropCargo, DropScu = DropScu,
     };
 }
 
@@ -611,6 +612,7 @@ public static class TripPlanner
                 {
                     trip.Drops.Add((ids[chunkStation[dropAt[t]]], chunks[dropAt[t]].Batches));
                     trip.DropCargo = chunks[dropAt[t]].Cargo;
+                    trip.DropScu = chunks[dropAt[t]].Scu;
                 }
             }
             else if (dropAt[t] >= 0)
@@ -621,6 +623,7 @@ public static class TripPlanner
                 trip.Seconds = SlotCost(row, t);
                 trip.Drops.Add((ids[chunkStation[chunk]], chunks[chunk].Batches));
                 trip.DropCargo = chunks[chunk].Cargo;
+                trip.DropScu = chunks[chunk].Scu;
                 foreach (var idx in route.Order)
                 {
                     if (row[idx] > 0) trip.Stops.Add((ids[idx], row[idx]));

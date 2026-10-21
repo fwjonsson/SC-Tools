@@ -328,7 +328,7 @@ public sealed partial class MainForm
         {
             // the load from Ruin is for the first stop: it is unloaded there, then the pickups begin
             var d = trip.Drops[0];
-            var bring = "bring " + trip.DropCargo + " \u00d7" + d.Batches;
+            var bring = "bring " + trip.DropCargo + " \u00d7" + d.Batches + (trip.DropScu > 0 ? ", " + ScuText(trip.DropScu) : "");
             if (trip.Stops.Count > 0 && trip.Stops[0].Id == d.Id)
                 return PyroDistances.NameOf(d.Id) + " \u00d7" + trip.Stops[0].Batches + " (" + bring + ")" + (trip.Stops.Count > 1 ? "  →  " + string.Join("  →  ", trip.Stops.Skip(1).Select(s => PyroDistances.NameOf(s.Id) + " \u00d7" + s.Batches)) : "");
             return PyroDistances.NameOf(d.Id) + " (" + bring + ")" + (trip.Stops.Count > 0 ? "  →  " + StopsText(trip) : "");
@@ -597,7 +597,7 @@ public sealed partial class MainForm
             var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity + ":" + c.Drive.Key))
                 + "#" + string.Join("|", remaining.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + ":" + kv.Value))
                 + "#" + string.Join("|", unknown)
-                + "#" + string.Join("|", chunks.Select(x => x.Station + ":" + x.Batches + ":" + x.Cargo + ":" + string.Join(",", x.Allowed)))
+                + "#" + string.Join("|", chunks.Select(x => x.Station + ":" + x.Batches + ":" + x.Scu + ":" + x.Cargo + ":" + string.Join(",", x.Allowed)))
                 + "#" + string.Join("|", limits.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + "=" + string.Join(";", kv.Value.Select(g => string.Join(",", g.Workers) + "x" + g.Batches))))
                 + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "/" + t.Loaded + "@" + t.From));
             if (_planCore != null && _planCore.Key == key && waiting.All(n => _planCore.Settled.Contains(n))) return _planCore;

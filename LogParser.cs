@@ -62,6 +62,9 @@ public sealed class Mission
     public int OutDrops;
     public bool IsOut => OutDrops > 0;
 
+    /// <summary>The SCU of every objective, from its "Deliver 0/147 SCU of Waste to ..." popup (objective id to the total SCU). For a from-Ruin contract that is the load for that drop-off.</summary>
+    public Dictionary<string, int> ObjScu = new();
+
     public bool IsHauling => Cargo != null;
     public bool Completed => EndState == "COMPLETED";
     public bool Dead => EndState != null && EndState != "COMPLETED";
@@ -97,7 +100,7 @@ public sealed class HaulingLog
         RegexOptions.Compiled);
 
     static readonly Regex Deliver = new(
-        @"Added notification ""New Objective: Deliver (?<x>\d+)/(?<n>\d+) SCU of (?<c>\w+) to [^""]*"" \[\d+\] to queue.*MissionId: \[(?<m>[0-9a-f-]{36})\]",
+        @"Added notification ""New Objective: Deliver (?<x>\d+)/(?<n>\d+) SCU of (?<c>\w+) to [^""]*"" \[\d+\] to queue.*MissionId: \[(?<m>[0-9a-f-]{36})\](?:, ObjectiveId: \[(?<o>[^\]]+)\])?",
         RegexOptions.Compiled);
 
     static readonly Regex Member = new(
@@ -234,6 +237,7 @@ public sealed class HaulingLog
                 t.Cargo ??= m.Cargo;
                 t.OutCargo ??= m.OutCargo;
                 if (t.OutDrops == 0) t.OutDrops = m.OutDrops;
+                foreach (var kv in m.ObjScu) t.ObjScu.TryAdd(kv.Key, kv.Value);
                 if (t.Multi == 0) t.Multi = m.Multi;
                 if (m.Accepted.HasValue && (!t.Accepted.HasValue || m.Accepted < t.Accepted)) t.Accepted = m.Accepted;
                 if (m.FirstSeen.HasValue && (!t.FirstSeen.HasValue || m.FirstSeen < t.FirstSeen)) t.FirstSeen = m.FirstSeen;
@@ -548,6 +552,7 @@ public sealed class HaulingLog
                 Delivered = int.Parse(x.Groups["x"].Value, CultureInfo.InvariantCulture),
                 Total = int.Parse(x.Groups["n"].Value, CultureInfo.InvariantCulture),
             });
+            if (x.Groups["o"].Success) m.ObjScu[x.Groups["o"].Value] = int.Parse(x.Groups["n"].Value, CultureInfo.InvariantCulture);
             Touch(t);
         }
     }
