@@ -703,6 +703,13 @@ public sealed partial class MainForm
                 runRow.OnMap = true;   // nothing is added to it (full ship): the run itself is his solid line
                 runRow.Solid = true;
             }
+            // the first line is his Current trip, the others are numbered 2, 3, ...
+            var number = 0;
+            foreach (var r in w.Rows.Where(x => !x.Hidden))
+            {
+                number++;
+                r.Label = number == 1 ? "Current" : number.ToString(CultureInfo.InvariantCulture);
+            }
             plan.Workers.Add(w);
         }
 
@@ -839,7 +846,7 @@ public sealed partial class MainForm
             grid.AllowUserToAddRows = false;
             grid.AllowUserToDeleteRows = false;
             grid.ScrollBars = ScrollBars.None;
-            grid.Columns.Add(Col("Trip", 110, true));
+            grid.Columns.Add(Col("#", 110, true));
             grid.Columns.Add(Col("Route (Ruin, then these, then back to Ruin)", 430, true, DataGridViewContentAlignment.MiddleLeft, true));
             grid.Columns.Add(Col("Batches", 80, true));
             grid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
