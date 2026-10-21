@@ -44,18 +44,20 @@ public sealed partial class MainForm
     }
 
     /// <summary>What the logs say: does this party member have the mission? A member with a log has it when his log has it (not ended it); one without a log (nobody can read his game) unless the others were told that he left it.</summary>
-    bool LogSaysHas(Mission m, string member)
+    bool LogSaysHas(Mission m, string member, DateTime? at = null)
     {
         if (_log == null) return true;
         if (_log.Players.Any(p => SameName(p, member))) return m.Holders.Any(h => SameName(h, member));
         var id = PlayerIdOf(member);
-        if (id == null) return true;   // nothing tells: he is in the party, so he is assumed to have it (untick it when he does not)
+        // nothing tells when it was shared with him: he is assumed to have it while he is in the party (click his box when he does not), and not when he is not
+        var inParty = at.HasValue ? IsActiveAt(member, at.Value) : !_data.InactiveParty.Any(x => SameName(x, member));
+        if (id == null) return inParty;
         var last = _log.MemberEvents.Where(e => e.Mission == m.Id && e.Player == id).OrderBy(e => e.Time).LastOrDefault();
-        return last == null || !last.Left;
+        return last == null ? inParty : !last.Left;
     }
 
     /// <summary>Does this member have the mission: what was ticked on the Contracts tab, else what the logs say.</summary>
-    bool HasMission(Mission m, string member)
+    bool HasMission(Mission m, string member, DateTime? at = null)
     {
         if (_data.MissionHolders.TryGetValue(m.Id, out var ticked))
         {
@@ -64,7 +66,7 @@ public sealed partial class MainForm
                 if (SameName(kv.Key, member)) return kv.Value;
             }
         }
-        return LogSaysHas(m, member);
+        return LogSaysHas(m, member, at);
     }
 
     void RefreshContracts()

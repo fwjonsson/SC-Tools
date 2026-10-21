@@ -344,7 +344,7 @@ public sealed partial class MainForm
             if (kept != null) members = kept.Members.Count > 0 ? new List<string>(kept.Members) : members;
             else
             {
-                var holders = members.Where(n => HasMission(m, n)).ToList();
+                var holders = members.Where(n => HasMission(m, n, m.EndedAt)).ToList();
                 if (holders.Count > 0) members = holders;
             }
             var share = pool / members.Count;
