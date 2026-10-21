@@ -15,7 +15,7 @@ public sealed partial class MainForm
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        t.Controls.Add(Caption("Contracts", "Every mission that is still going. Click a box to change who has the mission: green ✔ has it, red ✖ does not, gold marks the one who took the contract (his box can be changed too). The Trip Planner only plans a worker for missions he has."), 0, 0);
+        t.Controls.Add(Caption("Contracts", "Every mission that is still going. Click a box to change who has the mission: green ✔ has it, red ✖ does not, gold marks the one who took the contract (his box can be changed too). The Trip Planner only plans a worker for missions he has. A mission that is not in the game any more (the logs did not say so) can be dropped with its Gone button, and brought back with the same button."), 0, 0);
 
         StyleGrid(_contractGrid);
         _contractGrid.Dock = DockStyle.Fill;
@@ -31,6 +31,23 @@ public sealed partial class MainForm
     /// <summary>The missions of the selected session that are still going, oldest first.</summary>
     List<Mission> ActiveMissions() =>
         _current == null ? new List<Mission>() : _current.Missions.Where(m => m.EndState == null).OrderBy(m => m.Accepted ?? m.FirstSeen ?? DateTime.MaxValue).ThenBy(m => m.Id, StringComparer.Ordinal).ToList();
+
+    /// <summary>The missions still going and the ones marked as gone (so they can be brought back), oldest first.</summary>
+    List<Mission> ContractRows() =>
+        _current == null ? new List<Mission>() : _current.Missions.Where(m => m.EndState == null).Concat(_current.Failed.Where(m => m.Dropped))
+            .OrderBy(m => m.Accepted ?? m.FirstSeen ?? DateTime.MaxValue).ThenBy(m => m.Id, StringComparer.Ordinal).ToList();
+
+    /// <summary>The missions that were marked as gone count as abandoned everywhere (planner, session, payouts), unless the logs ended them already.</summary>
+    void ApplyDroppedMissions(HaulingLog log)
+    {
+        foreach (var kv in _data.DroppedMissions)
+        {
+            if (!log.Missions.TryGetValue(kv.Key, out var m) || m.EndState != null) continue;
+            m.EndState = "DROPPED";
+            m.EndedAt = kv.Value;
+            m.Dropped = true;
+        }
+    }
 
     /// <summary>The id of a player the logs name only by number: the one party member without a log (when there is exactly one such id and member).</summary>
     string? PlayerIdOf(string member)
@@ -72,10 +89,10 @@ public sealed partial class MainForm
     void RefreshContracts()
     {
         if (_contractsFilling || _contractGrid.IsCurrentCellInEditMode) return;
-        var missions = ActiveMissions();
+        var missions = ContractRows();
         var members = _data.Party.ToList();
         var sig = Theme.Dark + "¦" + string.Join("|", members) + "¦" + string.Join("¦", missions.Select(m =>
-            m.Id + "|" + m.Multi + "|" + m.Cargo + "|" + m.Taker + "|" + string.Join(",", members.Select(n => HasMission(m, n) ? "1" : "0"))));
+            m.Id + "|" + m.Multi + "|" + m.Cargo + "|" + m.Taker + "|" + m.Dropped + "|" + string.Join(",", members.Select(n => HasMission(m, n) ? "1" : "0"))));
         if (sig == _contractsShown && _contractGrid.Columns.Count > 0) return;
         _contractsShown = sig;
 
@@ -93,6 +110,9 @@ public sealed partial class MainForm
                 c.Name = "m:" + n;
                 _contractGrid.Columns.Add(c);
             }
+            var gone = Col("Gone", 130, true);
+            gone.Name = "gone";
+            _contractGrid.Columns.Add(gone);
             AddNumberColumn(_contractGrid);
             foreach (DataGridViewColumn c in _contractGrid.Columns)
             {
@@ -106,10 +126,24 @@ public sealed partial class MainForm
             {
                 var cells = new List<object?> { m.Multi > 0 ? m.Multi + " stops" : "?", string.IsNullOrEmpty(m.Cargo) ? "" : m.Cargo };
                 cells.AddRange(members.Select(_ => (object?)""));
+                cells.Add(m.Dropped ? "Bring back" : "Gone");
                 cells.Add("");   // the # column
                 var row = _contractGrid.Rows[_contractGrid.Rows.Add(cells.ToArray())];
                 row.Tag = m;
-                for (var k = 0; k < members.Count; k++) ShowHas(row.Cells[2 + k], m, members[k], HasMission(m, members[k]));
+                if (m.Dropped)
+                {
+                    // marked as gone: grey, the boxes do not count
+                    row.DefaultCellStyle.ForeColor = Theme.Muted;
+                    for (var k = 0; k < members.Count; k++) row.Cells[2 + k].Value = "";
+                }
+                else
+                {
+                    for (var k = 0; k < members.Count; k++) ShowHas(row.Cells[2 + k], m, members[k], HasMission(m, members[k]));
+                }
+                var goneCell = row.Cells[2 + members.Count];
+                goneCell.Style.ForeColor = Theme.Text;
+                goneCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                goneCell.ToolTipText = m.Dropped ? "Count this mission again" : "This mission is not in the game any more: do not plan or count it";
             }
             NumberRows(_contractGrid);
             if (firstShown >= 0 && firstShown < _contractGrid.Rows.Count) _contractGrid.FirstDisplayedScrollingRowIndex = firstShown;
@@ -141,7 +175,24 @@ public sealed partial class MainForm
     {
         if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
         var col = _contractGrid.Columns[e.ColumnIndex];
-        if (!col.Name.StartsWith("m:") || _contractGrid.Rows[e.RowIndex].Tag is not Mission m) return;
+        if (col.Name == "gone" && _contractGrid.Rows[e.RowIndex].Tag is Mission gm)
+        {
+            // drop the mission (or bring it back): it counts as abandoned everywhere, so the planner, the Session tab and the payouts forget it
+            if (gm.Dropped) _data.DroppedMissions.Remove(gm.Id);
+            else _data.DroppedMissions[gm.Id] = DateTime.UtcNow;
+            Storage.Save(_data);
+            BeginInvoke(new Action(() =>
+            {
+                _renderedVersion = -1;
+                _contractsShown = "";
+                _planShown = "";
+                _planCore = null;
+                RefreshFromLog();
+                RefreshContracts();
+            }));
+            return;
+        }
+        if (!col.Name.StartsWith("m:") || _contractGrid.Rows[e.RowIndex].Tag is not Mission m || m.Dropped) return;
         var member = col.Name[2..];
         var on = !HasMission(m, member);
         if (!_data.MissionHolders.TryGetValue(m.Id, out var ticked)) _data.MissionHolders[m.Id] = ticked = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);

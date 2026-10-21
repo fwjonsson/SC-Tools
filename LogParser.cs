@@ -54,6 +54,9 @@ public sealed class Mission
     /// <summary>The player who took the contract: the first log that shows it accepted (the others got it shared later). Only set on the missions of the merged log.</summary>
     public string? Taker;
 
+    /// <summary>The mission was marked as gone on the Contracts tab (it is not in the game any more, but the logs never said so). Only set on the missions of the merged log.</summary>
+    public bool Dropped;
+
     public bool IsHauling => Cargo != null;
     public bool Completed => EndState == "COMPLETED";
     public bool Dead => EndState != null && EndState != "COMPLETED";
