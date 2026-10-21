@@ -322,7 +322,8 @@ public sealed partial class MainForm
         var kv = _data.StartPoints.FirstOrDefault(k => SameName(k.Key, name));
         if (kv.Value == null) return null;
         var since = kv.Value.Since;
-        var used = _trips.Any(t => SameName(t.Worker, name) && ((t.End ?? DateTime.MinValue) > since || t.Pickups.Any(p => p.Time > since)));
+        var used = ActiveRunOf(name) != null   // he is flying a run: where he starts from is where that run is
+            || _trips.Any(t => SameName(t.Worker, name) && ((t.End ?? DateTime.MinValue) > since || t.Pickups.Any(p => p.Time > since)));
         if (used)
         {
             _data.StartPoints.Remove(kv.Key);
@@ -736,7 +737,7 @@ public sealed partial class MainForm
                 + longest.Name + " with " + Gm(longest.Planned.Sum(r => r.Gm)) + ", about " + FlightSpan(longest.Planned.Sum(r => r.Seconds)) + " of flying.";
         }
 
-        plan.Signature = plan.Summary + "¦" + (Theme.Dark ? "dark" : "light") + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
+        plan.Signature = plan.Summary + "¦" + (Theme.Dark ? "dark" : "light") + "¦" + string.Join("|", crew.Select(c => c.Name + "@" + StartPointOf(c.Name))) + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
             w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Flight.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + (r.RunStart.HasValue ? r.RunStart.Value.Ticks.ToString(CultureInfo.InvariantCulture) : "") + "|" + w.Drive + "|" + w.RunsSoFar)));
         return plan;
     }
@@ -744,20 +745,46 @@ public sealed partial class MainForm
     /// <summary>Shows the plan: the map on the left, the tables on the right. It only runs while the Trip Planner tab is on screen.</summary>
     void RefreshPlanner()
     {
-        var plan = GetPlan();
+        PlanView plan;
+        try
+        {
+            plan = GetPlan();
+        }
+        catch (Exception ex)
+        {
+            // the plan could not be worked out: say so (and try again on the next update), instead of leaving an old or empty page
+            _planNote.Text = "The plan could not be worked out: " + ex.Message;
+            _planNote.Visible = true;
+            _planShown = "";
+            _planCore = null;
+            return;
+        }
         _planNote.Text = plan.Note;
         _planNote.Visible = plan.Note.Length > 0;
         if (plan.Signature == _planShown) return;   // nothing changed, so nothing flickers
-        _planShown = plan.Signature;
 
         _planBody.SuspendLayout();
-        foreach (var old in _planBody.Controls.Cast<Control>().ToList())
+        try
         {
-            _planBody.Controls.Remove(old);
-            old.Dispose();
+            var page = PlanPage(plan);
+            foreach (var old in _planBody.Controls.Cast<Control>().ToList())
+            {
+                _planBody.Controls.Remove(old);
+                old.Dispose();
+            }
+            _planBody.Controls.Add(page);
+            _planShown = plan.Signature;   // only when the page really got built, so a failed build is tried again
         }
-        _planBody.Controls.Add(PlanPage(plan));
-        _planBody.ResumeLayout(true);
+        catch (Exception ex)
+        {
+            _planNote.Text = "The plan could not be shown: " + ex.Message;
+            _planNote.Visible = true;
+            _planShown = "";
+        }
+        finally
+        {
+            _planBody.ResumeLayout(true);
+        }
     }
 
     /// <summary>The map on the left, square and as large as the page allows, the tables of everybody on the right.</summary>
