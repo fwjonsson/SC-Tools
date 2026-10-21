@@ -104,6 +104,13 @@ public sealed class HaulingLog
         @"<Player(?<k>Joined|Left)> Received Player\k<k> push message for: mission_id (?<m>[0-9a-f-]{36}) - player_id (?<p>\d+)",
         RegexOptions.Compiled);
 
+    // the game names where the player is when he plans a quantum route: "Projected Start Location is Stanton Gateway for route to ..."
+    static readonly Regex StartLocation = new(
+        @"Projected Start Location is (?<n>Nyx Gateway|Stanton Gateway) for route to destination",
+        RegexOptions.Compiled);
+
+    (DateTime Time, string Zone)? _gateEvent;   // the latest thing that happened at a gateway (a pickup there), to match with the name the game gives next
+
     static readonly Regex PlayerIdA = new(@"Player\[(?<n>[^\]]+)\] PlayerId\[(?<id>\d+)\]", RegexOptions.Compiled);
     static readonly Regex PlayerIdB = new(@"Player: (?<n>[^\s\[\]]+)\[(?<id>\d{8,})\]", RegexOptions.Compiled);
 
@@ -391,6 +398,23 @@ public sealed class HaulingLog
             }
             return;
         }
+        if (line.Contains("Projected Start Location is "))
+        {
+            var sm2 = StartLocation.Match(line);
+            var st2 = Ts.Match(line);
+            if (sm2.Success && st2.Success && _gateEvent.HasValue)
+            {
+                var when = ParseTime(st2.Groups[1].Value);
+                // the two gateways have the same position in the log; the game names the one the player is at, a few minutes after he picked up there
+                if (when >= _gateEvent.Value.Time && when - _gateEvent.Value.Time < TimeSpan.FromMinutes(10))
+                {
+                    StationIds.NameGate(_gateEvent.Value.Zone, sm2.Groups["n"].Value == "Nyx Gateway");
+                    Version++;
+                }
+                _gateEvent = null;
+            }
+            return;
+        }
         if (line.Contains("FreightElevatorUIProvider::FillUnstowRequest"))
         {
             var um = Ts.Match(line);
@@ -468,6 +492,7 @@ public sealed class HaulingLog
                 m.Events[obj] = list;
             }
             list.Add(new ObjEvent { Time = t, State = x.Groups["s"].Value });
+            if (m.ObjZone.TryGetValue(obj, out var evZone) && StationIds.IsGate(evZone)) _gateEvent = (t, evZone);
             Touch(t);
             return;
         }
