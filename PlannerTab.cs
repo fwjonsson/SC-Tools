@@ -63,6 +63,7 @@ public sealed partial class MainForm
         public string Drive = "";        // the quantum drive, or that none is set
         public Color Color;
         public int RunsSoFar;            // all his runs of the session, also the finished ones that are no longer listed in his table
+        public DateTime? SetStart;       // while the missions are being flown: when the first of them was accepted (the Total time of his table counts from here)
         public List<PlanRow> Rows = new();
         public List<PlanRow> Planned => Rows.Where(r => r.IsPlan).ToList();
         public List<PlanRow> MapRows => Rows.Where(r => r.IsPlan || r.OnMap).ToList();   // the lines on the map: the planned trips, and the run in progress when the plan adds nothing to it
@@ -355,13 +356,13 @@ public sealed partial class MainForm
     static string PlanTitle(PlanWorkerView w) => w.Name;
 
     /// <summary>The Total line under a worker's table: the number of stops, batches, value, distance, flight time, time and Gm per batch of the rows above it.</summary>
-    static string[] PlanTotals(List<PlanRow> rows)
+    static string[] PlanTotals(List<PlanRow> rows, DateTime? setStart)
     {
         var stops = rows.Sum(r => r.Stops.Count);
         var batches = rows.Sum(r => r.BatchCount);
         var gm = rows.Sum(r => r.Gm);
         var flight = rows.Sum(r => r.Flight);
-        var seconds = rows.Where(r => !r.IsPlan || r.RunStart.HasValue).Sum(r => LiveSeconds(r));
+        var seconds = setStart.HasValue ? Math.Max(0, (DateTime.UtcNow - setStart.Value).TotalSeconds) : 0;   // the finished runs are not listed any more: the whole set counts from the first mission accepted
         return new[]
         {
             "Total",
@@ -645,6 +646,7 @@ public sealed partial class MainForm
             var drive = DriveOf(c.Name);
             var w = new PlanWorkerView
             {
+                SetStart = OpenSetStart(),
                 Name = c.Name,
                 Capacity = c.Capacity,
                 DriveNote = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : "",
@@ -903,7 +905,8 @@ public sealed partial class MainForm
                 };
             }
             // the Total line of everything above it
-            var totalRow = grid.Rows[grid.Rows.Add(PlanTotals(w.Rows.Where(x => !x.Hidden).ToList()))];
+            var totalRow = grid.Rows[grid.Rows.Add(PlanTotals(w.Rows.Where(x => !x.Hidden).ToList(), w.SetStart))];
+            totalRow.Tag = w.SetStart;   // the clock of the Total time
             totalRow.DefaultCellStyle.Font = boldFont;
             totalRow.DefaultCellStyle.BackColor = Theme.Calc;
             totalRow.DefaultCellStyle.ForeColor = Theme.Text;
@@ -954,11 +957,19 @@ public sealed partial class MainForm
     /// </summary>
     DateTime? IdleStart(string name)
     {
-        if (!RunCounting() || _current == null) return null;
-        var open = WorkerTripBuilder.ActivePeriods(_current).LastOrDefault(p => p.End == DateTime.MaxValue);
-        if (open.End == default) return null;
+        var setStart = OpenSetStart();
+        if (setStart == null) return null;
+        var open = (Start: setStart.Value, End: DateTime.MaxValue);
         var lastEnd = _trips.Where(x => SameName(x.Worker, name) && x.End.HasValue).Select(x => x.End!.Value).DefaultIfEmpty().Max();
         return lastEnd > open.Start ? lastEnd : open.Start;
+    }
+
+    /// <summary>When the first mission of the set that is going now was accepted (null when nothing is counting).</summary>
+    DateTime? OpenSetStart()
+    {
+        if (!RunCounting() || _current == null) return null;
+        var open = WorkerTripBuilder.ActivePeriods(_current).LastOrDefault(p => p.End == DateTime.MaxValue);
+        return open.End == default ? null : open.Start;
     }
 
     /// <summary>True while the latest session is watched live and a mission is going: only then a run on the way counts time.</summary>
