@@ -50,12 +50,18 @@ jobs:
             if ($id) { gh api -X DELETE "repos/${{ github.repository }}/releases/$id" 2>$null }
           }
           gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/latest" 2>$null
-          gh release create latest HaulingTracker.zip ScApiTool.zip --target ${{ github.sha }} --latest --title "Latest build" --notes "Newest build of main. Unzip and run HaulingTracker.exe. ScApiTool.zip is the small tool that downloads data from the Star Citizen Wiki API. The program checks this release at startup to update itself. build: ${{ github.sha }}"
-          # The program finds the release by its tag: make sure it is published and has the tag, otherwise fail loudly
-          $draft = gh api "repos/${{ github.repository }}/releases/tags/latest" --jq '.draft' 2>$null
-          if ($draft -ne 'false') {
+          # The release is made without its files first, so it is published at once (with files, gh makes a draft, uploads and publishes it at the end, and
+          # GitHub has left that draft unpublished: a draft has no public tag, so the updater said it could not read the newest version). The files come after.
+          gh release create latest --target ${{ github.sha }} --latest --title "Latest build" --notes "Newest build of main. Unzip and run HaulingTracker.exe. ScApiTool.zip is the small tool that downloads data from the Star Citizen Wiki API. The program checks this release at startup to update itself. build: ${{ github.sha }}"
+          gh release upload latest HaulingTracker.zip ScApiTool.zip --clobber
+          # The program finds the release by its tag: check a few times that it is published, has the tag and the exe; publish it when it is a draft, and fail loudly if that does not help
+          $ok = $false
+          for ($i = 0; $i -lt 6; $i++) {
+            Start-Sleep -Seconds 5
+            $rel = gh api "repos/${{ github.repository }}/releases/tags/latest" 2>$null | ConvertFrom-Json
+            if ($rel -and $rel.draft -eq $false -and ($rel.assets | Where-Object { $_.name -eq 'HaulingTracker.zip' })) { $ok = $true; break }
             $id = gh api "repos/${{ github.repository }}/releases" --jq '[.[] | select(.tag_name == "latest")][0].id'
-            gh api -X PATCH "repos/${{ github.repository }}/releases/$id" -F draft=false
-            $draft = gh api "repos/${{ github.repository }}/releases/tags/latest" --jq '.draft'
-            if ($draft -ne 'false') { throw "The latest release is not published." }
+            if ($id) { gh api -X PATCH "repos/${{ github.repository }}/releases/$id" -F draft=false | Out-Null }
           }
+          if (-not $ok) { throw "The latest release is not published." }
+          exit 0
