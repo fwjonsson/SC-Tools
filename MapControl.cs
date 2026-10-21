@@ -14,13 +14,14 @@ sealed class MapRoute
     public List<string> Stops = new();   // station ids
     public bool Bold;
     public string? From;   // a run in progress: the line starts at this station instead of at Ruin
+    public int Passed;   // a run that is drawn by itself: how many of its stops are done, so the waves run on the leg after them (0 = the first leg)
     public bool Dashed;   // a trip that is not the next one: dotted line
     public object? Tag;
 }
 
 /// <summary>
-/// A top-down map of Pyro with the routes of trips drawn as lines with arrows. On the first leg of every solid route (from where the worker is to his next stop)
-/// darker waves run in the direction of the arrow.
+/// A top-down map of Pyro with the routes of trips drawn as lines with arrows. On the leg of every solid route that goes from where the worker is to his next stop
+/// (the first leg, or the leg after the stops of a run that are done) darker waves run in the direction of the arrow.
 /// </summary>
 sealed class PyroMapView : Control
 {
@@ -32,7 +33,7 @@ sealed class PyroMapView : Control
 
     // the waves: darker bands that run along the leg, from the station where it starts to the station where it ends
     const float WaveLength = 28f;   // pixels from one dark band to the next
-    const float WaveSpeed = 34f;    // pixels per second
+    const float WaveSpeed = 20f;    // pixels per second
     const float WaveDark = 0.38f;   // the bands have the colour of the route times this
     const int WaveAlpha = 140;      // how dark the middle of a band is (of 255)
     const float WaveInset = 8f;     // the waves stay clear of the stations at both ends of the leg
@@ -93,7 +94,7 @@ sealed class PyroMapView : Control
         sb.Append(Width).Append('x').Append(Height).Append('@').Append(g.DpiX).Append('|');
         foreach (var r in Routes)
         {
-            sb.Append(r.Label).Append('~').Append(r.Color.ToArgb()).Append('~').Append(r.From).Append('~').Append(r.Bold ? 1 : 0).Append(r.Dashed ? 1 : 0).Append('~');
+            sb.Append(r.Label).Append('~').Append(r.Color.ToArgb()).Append('~').Append(r.From).Append('~').Append(r.Bold ? 1 : 0).Append(r.Dashed ? 1 : 0).Append('~').Append(r.Passed).Append('~');
             sb.AppendJoin(',', r.Stops).Append('|');
         }
         return sb.ToString();
@@ -230,7 +231,7 @@ sealed class PyroMapView : Control
                     ? new Pen(Color.FromArgb(235, route.Color), route.Bold ? 3.5f : 2.5f) { DashStyle = DashStyle.Dot }
                     : new Pen(Color.FromArgb(route.Bold ? 255 : 170, route.Color), route.Bold ? 3.5f : 2f);
                 using var fill = new SolidBrush(route.Color);
-                var waved = false;   // the waves run on the first leg of a solid route only: from where the worker is to his next stop
+                var waved = false;   // the waves run on one leg of a solid route only: from where the worker is to his next stop
                 for (var s = 0; s + 1 < ids.Count; s++)
                 {
                     if (ids[s] == ids[s + 1]) continue;
@@ -256,7 +257,7 @@ sealed class PyroMapView : Control
                         new PointF(c.X - ux * size * 0.7f - nx * size * 0.6f, c.Y - uy * size * 0.7f - ny * size * 0.6f),
                     };
                     g.FillPolygon(fill, head);
-                    if (route.Bold && !route.Dashed && !waved)
+                    if (route.Bold && !route.Dashed && !waved && s >= route.Passed)
                     {
                         waved = true;
                         _legs.Add(NewLeg(a, b, ux, uy, len, 3.5f, head, route.Color));

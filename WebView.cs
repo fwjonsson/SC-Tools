@@ -335,7 +335,7 @@ function signColors(box, col, d, rows) {
 }
 
 // The waves on the map move with the clock of the page, not with an SVG animation (that would start again every time the map is drawn anew).
-const WAVE_LEN = 28, WAVE_SPEED = 34;   // px from one dark band to the next, px per second
+const WAVE_LEN = 28, WAVE_SPEED = 20;   // px from one dark band to the next, px per second
 let waveGrads = [];
 function slideWave(w, now) {
   const shift = (now / 1000 * WAVE_SPEED) % WAVE_LEN;
@@ -372,7 +372,7 @@ function mapSvg(el, stations, routes, bg) {
     svg.appendChild(e);
     return e;
   }
-  // Darker waves that run along the first leg of a solid route (from where he is to his next stop), in the direction of the arrow.
+  // Darker waves that run along one leg of a solid route (from where he is to his next stop), in the direction of the arrow.
   function darker(hex, f) {
     const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
     if (!m) return '#000000';
@@ -409,7 +409,7 @@ function mapSvg(el, stations, routes, bg) {
       if (!!r.bold !== boldPass) return;
       const ids = [r.from || 'Ruin'].concat(r.stops, ['Ruin']);
       const shift = (i - (n - 1) / 2) * 3.5;
-      let waved = false;   // the waves run on the first leg only
+      let waved = false;   // the waves run on one leg only: the first, or the one after the stops of a run that are done
       for (let s = 0; s + 1 < ids.length; s++) {
         if (ids[s] === ids[s + 1]) continue;
         let a = pos[ids[s]], b = pos[ids[s + 1]];
@@ -421,7 +421,7 @@ function mapSvg(el, stations, routes, bg) {
         b = [b[0] + nx * shift, b[1] + ny * shift];
         if (r.dashed) add('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: r.color, 'stroke-width': r.bold ? 3.5 : 2.5, 'stroke-opacity': 0.92, 'stroke-dasharray': '1 5', 'stroke-linecap': 'round' });
         else add('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: r.color, 'stroke-width': r.bold ? 3.5 : 2, 'stroke-opacity': r.bold ? 1 : 0.67 });
-        if (r.bold && !r.dashed && !waved) { waved = true; wave(a, b, ux, uy, len, r.color, 3.5); }
+        if (r.bold && !r.dashed && !waved && s >= (r.passed || 0)) { waved = true; wave(a, b, ux, uy, len, r.color, 3.5); }
         const cx = a[0] + (b[0] - a[0]) * 0.62, cy = a[1] + (b[1] - a[1]) * 0.62, z = r.bold ? 8 : 6;
         const pts = [
           [cx + ux * z, cy + uy * z],
@@ -467,7 +467,7 @@ function renderPlanner() {
   wrap.appendChild(mapBox); wrap.appendChild(tables); body.appendChild(wrap);
   const routes = [];
   p.workers.forEach(function (w) {
-    w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, bold: !!r.solid, dashed: !r.solid }); });
+    w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, passed: r.passed || 0, bold: !!r.solid, dashed: !r.solid }); });
   });
   mapSvg(mapBox, p.stations, routes, p.backdrop);
   p.workers.forEach(function (w) {
@@ -846,7 +846,7 @@ public sealed partial class MainForm
             title = PlanTitle(w) + "   \u2013   Current location: " + PyroDistances.NameOf(w.LocationId) + (w.LocationByHand ? " (set by hand)" : ""),   // where he is now: the logs keep it up to date
             current = w.Rows.FirstOrDefault(r => !r.Hidden) is { } first ? CurrentGrid(w, first) : null,
             queued = w.Rows.Any(r => !r.Hidden) ? QueuedGrid(w.Rows.Where(r => !r.Hidden).Skip(1).ToList()) : null,
-            routes = w.MapRows.Select(r => new { label = (r.Label.Length > 0 && char.IsDigit(r.Label[0]) ? "Trip " : "") + r.Label + "  " + Gm(r.Gm), stops = r.Stops, from = r.From, solid = r.Solid }).ToList(),
+            routes = w.MapRows.Select(r => new { label = (r.Label.Length > 0 && char.IsDigit(r.Label[0]) ? "Trip " : "") + r.Label + "  " + Gm(r.Gm), stops = r.Stops, from = r.From, passed = r.Passed, solid = r.Solid }).ToList(),
         }).ToList();
         return new
         {
