@@ -1389,7 +1389,7 @@ public sealed partial class MainForm : Form
     /// another window) is finished here (what was typed is kept), so a forgotten edit can never stop the window from following the log.
     /// </summary>
     bool IsEditing() =>
-        EditingIn(_logGrid) || EditingIn(_rewards) || EditingIn(_balanceGrid) || (_startBox.Focused && _startBox.Modified) || (_endBox.Focused && _endBox.Modified);
+        EditingIn(_logGrid) || EditingIn(_rewards) || EditingIn(_balanceGrid) || EditingIn(_payoutGrid) || (_startBox.Focused && _startBox.Modified) || (_endBox.Focused && _endBox.Modified);
 
     static bool EditingIn(DataGridView g)
     {
