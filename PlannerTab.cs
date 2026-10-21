@@ -1394,21 +1394,20 @@ public sealed partial class MainForm
                 var total = ColumnHeadersHeight + Rows.GetRowsHeight(DataGridViewElementStates.Visible) + 3;
                 if (Height != total) Height = total;
             }
+            catch (InvalidOperationException)
+            {
+                // the table is busy sizing its own columns, when no row may change its height: the next resize, or the refit after the page is shown, does it
+            }
             finally
             {
                 _fitting = false;
             }
         }
 
+        // Not from OnColumnWidthChanged: the table raises that while it sizes its Fill column (when the page opens), and then the height of a row may not be changed.
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
-            FitHeight();
-        }
-
-        protected override void OnColumnWidthChanged(DataGridViewColumnEventArgs e)
-        {
-            base.OnColumnWidthChanged(e);
             FitHeight();
         }
     }
