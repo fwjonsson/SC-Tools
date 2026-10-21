@@ -59,6 +59,15 @@ static class StationIds
         }
     }
 
+    /// <summary>True for a location id that sits at the position of the gateways (it is one of the two, which one is not known from the position).</summary>
+    public static bool IsGate(string zone)
+    {
+        lock (Gates) return Gates.Contains(zone);
+    }
+
+    /// <summary>The game itself named this gateway (a quantum route that started right after something was picked up there): it is the Nyx or the Stanton Gateway.</summary>
+    public static void NameGate(string zone, bool nyx) => ByZone[zone] = nyx ? NyxId : StantonId;
+
     /// <summary>The station id (last 5 digits as in the table) for a location id the position of which has been seen, or null.</summary>
     public static string? Of(string zone)
     {
@@ -66,6 +75,12 @@ static class StationIds
         lock (Gates)
         {
             if (!Gates.Contains(zone) || !long.TryParse(zone, out var me)) return null;
+            // the other gateway of the same server was named by the game: this one is the other of the two
+            foreach (var g in Gates)
+            {
+                if (g != zone && long.TryParse(g, out var gn) && Math.Abs(gn - me) < 1000 && ByZone.TryGetValue(g, out var named))
+                    return named == NyxId ? StantonId : named == StantonId ? NyxId : null;
+            }
             // the gateways of the same server (ids close together), lowest first: Nyx Gateway, then Stanton Gateway.
             // With only one of them seen so far it cannot be told which it is, so it stays unknown (the last digits may still know it)
             var group = Gates.Where(g => long.TryParse(g, out var n) && Math.Abs(n - me) < 1000).Select(g => long.Parse(g)).OrderBy(n => n).ToList();
