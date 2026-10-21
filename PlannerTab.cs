@@ -543,7 +543,7 @@ public sealed partial class MainForm
     }
 
     /// <summary>A guessed amount of SCU, like "~392 SCU".</summary>
-    static string ScuGuess(double scu) => "~" + Math.Round(scu).ToString(CultureInfo.InvariantCulture) + " SCU";
+    static string ScuGuess(double scu) => Math.Round(scu) < 1 ? "? SCU" : "~" + ContainersText((int)Math.Round(scu));
 
     /// <summary>The latest time the logs show the worker picking up, handing in or delivering a load from Ruin (the minimum time = nothing yet).</summary>
     DateTime LastMoveOf(string name)
