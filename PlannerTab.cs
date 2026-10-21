@@ -498,7 +498,7 @@ public sealed partial class MainForm
             var at = running ? lines.FindLastIndex(l => l.Id == location) : lines.FindIndex(l => l.Id == location);
             if (at >= 0) return at;
         }
-        // what is done at the last stop he got to is finished (Collected / Dropped Waste): his colour moves on to the next step, the one he is on his way to;
+        // what is done at the last stop he got to is finished (Collected, Delivered Waste): his colour moves on to the next step, the one he is on his way to;
         // while he is still at it (Collecting, Dropping) it stays on that stop
         var lastDone = lines.FindLastIndex(l => l.Done);
         if (lastDone < 0) return 0;
@@ -787,7 +787,8 @@ public sealed partial class MainForm
             foreach (var line in lines)
             {
                 var d = done[line];
-                var busy = ReferenceEquals(line, lines[^1]) && StillLoading(name, d.Last);
+                // waste sent down the elevator is delivered at once; only what still has to go into the ship (taken out at Ruin, picked up) keeps him busy
+                var busy = ReferenceEquals(line, lines[^1]) && (d.Taken > 0 || d.Picked > 0) && StillLoading(name, d.Last);
                 var tick = busy ? "" : " \u2713";
                 line.Busy = busy;
                 if (d.Taken > 0)
@@ -802,7 +803,7 @@ public sealed partial class MainForm
                 }
                 if (d.Delivered > 0)
                 {
-                    line.Actions.Add((busy ? "Dropping " : "Dropped ") + d.DeliveredCargo + (d.Delivered > 1 ? " \u00d7" + d.Delivered : "") + tick);
+                    line.Actions.Add("Delivered " + d.DeliveredCargo + (d.Delivered > 1 ? " \u00d7" + d.Delivered : "") + " \u2713");
                     line.Loads.Add(LoadText(d.DeliveredScu));
                 }
                 if (d.Picked > 0) line.Actions.Add((busy ? "Collecting \u00d7" : "Collected \u00d7") + d.Picked + tick);
