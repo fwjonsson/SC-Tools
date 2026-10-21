@@ -197,7 +197,7 @@ public sealed partial class MainForm
                 news.Add(new StatusItem
                 {
                     Key = key,
-                    Text = Const(Pick(key, who + " is loading " + cargo + " at Ruin", who + " took " + cargo + (cluster.Count > 1 ? " ×" + cluster.Count : "") + " out of the elevator at Ruin")),
+                    Text = Const(Pick(key, who + " is loading " + cargo + " at Ruin", who + " took " + cargo + " out of the elevator at Ruin")),
                 });
             }
             foreach (var cluster in Clusters(run.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone))

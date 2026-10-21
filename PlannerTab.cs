@@ -82,7 +82,6 @@ public sealed partial class MainForm
     {
         public int Taken;                  // batches of waste taken out at Ruin
         public string? TakenCargo;
-        public List<int> TakenScu = new(); // the SCU of every one of them (0 = not known)
         public int Delivered;              // batches of waste delivered here
         public List<int> DeliveredScu = new();   // the SCU of every one of them (0 = not known)
         public string? DeliveredCargo;
@@ -744,9 +743,7 @@ public sealed partial class MainForm
                 {
                     var ruinLine = LineFor(PyroDistances.Ruin, "Ruin", true);
                     var d = done[ruinLine];
-                    ruinLine.Unknown.AddRange(batch.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
-                    d.Taken += batch.Count;
-                    d.TakenScu.AddRange(batch.Select(x => x.Scu));
+                    d.Taken += 1;   // the game completes every pickup of the contract at once, however much is taken out: one take-out, how much is not known
                     d.TakenCargo = batch[0].Cargo;
                     d.Last = batch.Max(x => x.Time);
                 }));
@@ -795,8 +792,13 @@ public sealed partial class MainForm
                 line.Busy = busy;
                 if (d.Taken > 0)
                 {
-                    line.Actions.Add((busy ? "Collecting " : "Collected ") + d.TakenCargo + (d.Taken > 1 ? " \u00d7" + d.Taken : "") + tick);
-                    line.Loads.Add(LoadText(d.TakenScu));
+                    line.Actions.Add((busy ? "Collecting " : "Collected ") + d.TakenCargo + tick);
+                    // what was taken out is only known from what was delivered since: those loads, with their containers
+                    if (t.Drops.Count > 0)
+                    {
+                        line.Loads.Add(LoadText(t.Drops.Select(x => x.Scu)));
+                        line.Unknown.AddRange(t.Drops.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
+                    }
                 }
                 if (d.Delivered > 0)
                 {
@@ -1173,6 +1175,27 @@ public sealed partial class MainForm
             {
                 AddRuinLine(runRow.Lines, c.Name, runRow.BatchCount);   // the run ends at Ruin
                 runRow.Route = string.Join("  \u2192  ", runRow.Lines.Select(l => l.Name));
+            }
+            // he has taken the waste out at Ruin already (his run has nothing else in it yet): the Ruin line of his first trip says so. "Loading Waste" while he is
+            // still at it (he has not set his next quantum destination, only known from his own log), then "Collected Waste ✓" and his colour moves on to the next stop
+            if (runRow == null && mine.Count > 0 && mine[0].From == null && mine[0].Drops.Count > 0)
+            {
+                var takenRun = _trips.Where(x => SameName(x.Worker, c.Name) && !x.End.HasValue && x.Pickups.Count == 0 && x.Drops.Count == 0 && x.Collects.Count > 0)
+                    .OrderBy(x => x.Start).LastOrDefault();
+                var firstRow = w.Rows.FirstOrDefault(r => r.Trip == mine[0]);
+                var startLine = firstRow?.Lines.FirstOrDefault(l => l.Id == PyroDistances.Ruin && !l.Stop);
+                var loadedAt = takenRun?.Collects.Max(x => x.Time) ?? DateTime.MinValue;
+                if (takenRun != null && startLine != null && _log != null && _log.LastTime - loadedAt <= StaleLeg)
+                {
+                    // the game completes every pickup of the contract at once, however much is taken out, so the load of this trip is taken to be what he took
+                    // (its SCU and containers stay as planned)
+                    var stillLoading = StillLoading(c.Name, loadedAt);
+                    var loads = mine[0].Drops[0].Batches;
+                    startLine.Actions.Clear();
+                    startLine.Actions.Add((stillLoading ? "Loading " : "Collected ") + (mine[0].DropCargo ?? takenRun.Collects[0].Cargo) + (loads > 1 ? " \u00d7" + loads : "") + (stillLoading ? "" : " \u2713"));
+                    startLine.Done = true;
+                    startLine.Busy = stillLoading;
+                }
             }
             // the first line is his Current trip (the Current Route table), the others are his Queued routes, numbered 1, 2, ...
             var number = 0;
