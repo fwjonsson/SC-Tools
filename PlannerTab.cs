@@ -65,6 +65,7 @@ public sealed partial class MainForm
         public List<string> Actions = new();   // Collect ×2, Drop Waste, Collected ×1 ✓ ... (the Collect/Drop column)
         public bool Stop = true;         // false: the start or the end at Ruin (or where he starts from): not counted as a stop
         public bool Done;                // collected already (it is on board)
+        public bool Busy;                // done here, but he is still at it (Collecting, Dropping: he has not set his next destination yet)
         public int Batches;              // batches collected, or still to collect, here
         public decimal Value;
         public double Gm;                // the leg from the line before it
@@ -482,8 +483,8 @@ public sealed partial class MainForm
     }
 
     /// <summary>
-    /// The line of the Current Route where the worker is: the station of his Current location. A run in progress: the last stop he collected at (or the stop
-    /// he set by hand); a trip that has not started: the line it starts from.
+    /// The line of the Current Route that has the worker colour: the step he is doing. A run in progress: the stop he is still busy at (Collecting), else the
+    /// stop after the last one that is done (he is on his way there), or the stop he set by hand; a trip that has not started: the line it starts from.
     /// </summary>
     static int HereLine(List<StopLine> lines, string location, bool byHand)
     {
@@ -494,8 +495,11 @@ public sealed partial class MainForm
             var at = running ? lines.FindLastIndex(l => l.Id == location) : lines.FindIndex(l => l.Id == location);
             if (at >= 0) return at;
         }
+        // what is done at the last stop he got to is finished (Collected / Dropped Waste): his colour moves on to the next step, the one he is on his way to;
+        // while he is still at it (Collecting, Dropping) it stays on that stop
         var lastDone = lines.FindLastIndex(l => l.Done);
-        return lastDone >= 0 ? lastDone : 0;
+        if (lastDone < 0) return 0;
+        return !lines[lastDone].Busy && lastDone + 1 < lines.Count ? lastDone + 1 : lastDone;
     }
 
     /// <summary>What the batches of one pickup are worth: every mission pays its reward split over its stops (the same sum as the value of a run).</summary>
@@ -784,6 +788,7 @@ public sealed partial class MainForm
                 var d = done[line];
                 var busy = ReferenceEquals(line, lines[^1]) && StillLoading(name, d.Last);
                 var tick = busy ? "" : " \u2713";
+                line.Busy = busy;
                 if (d.Taken > 0)
                 {
                     line.Actions.Add((busy ? "Collecting " : "Collected ") + d.TakenCargo + (d.Taken > 1 ? " \u00d7" + d.Taken : "") + tick);
