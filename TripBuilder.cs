@@ -228,6 +228,7 @@ public static class WorkerTripBuilder
         var failedIds = g.Failed.Select(m => m.Id).ToHashSet();
         var sessionStart = g.Missions.Select(m => m.Accepted ?? m.FirstSeen ?? g.Start).DefaultIfEmpty(g.Start).Min();
         var acceptedAt = g.Missions.Concat(g.Failed).GroupBy(m => m.Id).ToDictionary(x => x.Key, x => x.First().Accepted ?? x.First().FirstSeen ?? g.Start);
+        var periods = ActivePeriods(g);   // the stretches with at least one mission going: the clock of a run starts with the first mission accepted in one
 
         var pickups = new List<(string Worker, string Zone, string Mission, DateTime Time)>();
         var drops = new List<(string Mission, DateTime Time, string? Actor)>();
@@ -328,7 +329,7 @@ public static class WorkerTripBuilder
                 var ends = isManual ? carried.Count > 0 : (e.ActorKnown ? carried.Count > 0 : carried.Contains(e.Mission));
                 if (ends)
                 {
-                    var trip = NewTrip(worker, number++, runStart, e.Time, runPickups, isManual ? 0 : carried.Count, failedIds, acceptedAt);
+                    var trip = NewTrip(worker, number++, runStart, e.Time, runPickups, isManual ? 0 : carried.Count, failedIds, acceptedAt, periods);
                     trip.Manual = e.Mission == ManualMission;
                     trip.Left = e.Mission == LeftMission;
                     result.Add(trip);
@@ -346,20 +347,50 @@ public static class WorkerTripBuilder
             }
 
             if (runPickups.Count > 0)
-                result.Add(NewTrip(worker, number, runStart, null, runPickups, 0, failedIds, acceptedAt));
+                result.Add(NewTrip(worker, number, runStart, null, runPickups, 0, failedIds, acceptedAt, periods));
+        }
+        return result;
+    }
+
+    /// <summary>The stretches of the session with at least one mission going: from an accepted mission until the last one overlapping it has ended.</summary>
+    static List<(DateTime Start, DateTime End)> ActivePeriods(SessionGroup g)
+    {
+        var spans = g.Missions.Concat(g.Failed)
+            .Select(m => (Start: m.Accepted ?? m.FirstSeen ?? g.Start, End: m.EndedAt ?? DateTime.MaxValue))
+            .OrderBy(s => s.Start).ToList();
+        var result = new List<(DateTime Start, DateTime End)>();
+        foreach (var s in spans)
+        {
+            if (result.Count > 0 && s.Start <= result[^1].End)
+                result[^1] = (result[^1].Start, s.End > result[^1].End ? s.End : result[^1].End);
+            else
+                result.Add(s);
         }
         return result;
     }
 
     static WorkerTrip NewTrip(string worker, int number, DateTime start, DateTime? end,
         List<(string Zone, string Mission, DateTime Time)> pickups, int handedIn, HashSet<string> failedIds,
-        Dictionary<string, DateTime> acceptedAt)
+        Dictionary<string, DateTime> acceptedAt, List<(DateTime Start, DateTime End)> periods)
     {
-        // A run starts at the previous hand-in, unless its missions were accepted later (a worker's first run, or new
-        // missions after a break): then it starts when the first of them was accepted, so the break is not run time.
+        // A run starts at the previous hand-in, unless the missions were accepted later (a worker's first run, or new
+        // missions after a break with nothing going): then it starts when the first mission of that stretch was accepted,
+        // whichever order the trips are flown in, so the break is not run time.
         var realStart = start;
-        var accepted = pickups.Where(p => acceptedAt.ContainsKey(p.Mission)).Select(p => acceptedAt[p.Mission]).ToList();
-        if (accepted.Count > 0 && accepted.Min() > realStart) realStart = accepted.Min();
+        if (pickups.Count > 0)
+        {
+            var first = pickups.Min(p => p.Time);
+            var period = periods.FirstOrDefault(p => p.Start <= first && first <= p.End);
+            if (period.End != default)
+            {
+                if (period.Start > realStart) realStart = period.Start;
+            }
+            else
+            {
+                var accepted = pickups.Where(p => acceptedAt.ContainsKey(p.Mission)).Select(p => acceptedAt[p.Mission]).ToList();
+                if (accepted.Count > 0 && accepted.Min() > realStart) realStart = accepted.Min();
+            }
+        }
         if (pickups.Count > 0 && pickups.Min(p => p.Time) < realStart) realStart = pickups.Min(p => p.Time);   // never after the first pickup
         if (end.HasValue && realStart > end.Value) realStart = start;
 

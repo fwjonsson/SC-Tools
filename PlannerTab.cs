@@ -40,6 +40,7 @@ public sealed partial class MainForm
         public int BatchCount;           // batches picked up or planned, for Gm per batch
         public double Gm;
         public double Seconds;           // a run: the time it really took; a planned trip: the estimated flight time
+        public DateTime? RunStart;       // a run still on the way (while watching live): its time counts from here until now
         public string Level = "plan";    // done, little, all, active, plan
         public List<string> Stops = new();   // station ids in flying order
         public PlannedTrip? Trip;
@@ -360,7 +361,7 @@ public sealed partial class MainForm
         var batches = rows.Sum(r => r.BatchCount);
         var gm = rows.Sum(r => r.Gm);
         var flight = rows.Sum(r => r.Flight);
-        var seconds = rows.Where(r => !r.IsPlan).Sum(r => r.Seconds);
+        var seconds = rows.Where(r => !r.IsPlan).Sum(r => LiveSeconds(r));
         return new[]
         {
             "Total",
@@ -412,6 +413,7 @@ public sealed partial class MainForm
                 BatchCount = picked,
                 Gm = stops.Count > 0 ? PyroDistances.Run(stops) : 0,
                 Seconds = t.End.HasValue ? Math.Max(0, (t.End.Value - t.Start).TotalSeconds) : 0,
+                RunStart = !t.End.HasValue && RunCounting() ? t.Start : null,
                 Level = level == "All" ? "all" : level == "Little" ? "little" : t.End.HasValue ? "done" : "active",
                 Stops = stops,
                 Value = RunValue(t),
@@ -908,7 +910,18 @@ public sealed partial class MainForm
     static string ValueText(decimal v) => v <= 0 ? "" : Math.Round(v).ToString("N0");
 
     /// <summary>How long a run really took (a planned trip has not been flown yet).</summary>
-    static string TimeText(PlanRow r) => r.IsPlan || r.Seconds <= 0 ? "" : FlightSpan(r.Seconds);
+    static string TimeText(PlanRow r)
+    {
+        if (r.IsPlan) return "";
+        var s = LiveSeconds(r);
+        return s <= 0 ? "" : FlightSpan(s);
+    }
+
+    /// <summary>The time of a run: what it took, or while it is on the way (watching live) what has passed since it started.</summary>
+    static double LiveSeconds(PlanRow r) => r.RunStart.HasValue ? Math.Max(0, (DateTime.UtcNow - r.RunStart.Value).TotalSeconds) : r.Seconds;
+
+    /// <summary>True while the latest session is watched live and a mission is going: only then a run on the way counts time.</summary>
+    bool RunCounting() => _live && _current != null && _sessions.Count > 0 && _current.Key == _sessions[^1].Key && HasOpenContracts();
 
     /// <summary>The estimated flying time of the route, spool time and jumps with the drive of the worker, no loading.</summary>
     static string FlightText(PlanRow r) => r.Flight <= 0 ? "" : "~" + FlightSpan(r.Flight);
