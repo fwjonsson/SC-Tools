@@ -306,7 +306,14 @@ public static class TripPlanner
         double SlotCost(int[] row, int slot)
         {
             var mask = MaskOf(row);
-            if (mask == 0) return 0;
+            if (mask == 0)
+            {
+                // a run in progress has to fly home to Ruin even when nothing is added to it: that leg is part of his time, so adding a close stop
+                // to the run is compared with the trip home it already needs, and not with nothing
+                if (special[slot] && startOf[slot]!.Loaded > 0)
+                    return workers[slotWorker[slot]].Drive.Seconds(PyroDistances.Between(startOf[slot]!.From ?? PyroDistances.Ruin, PyroDistances.Ruin));
+                return 0;
+            }
             if (special[slot]) return SpecialSeconds(slot, Special(slot, mask).Order);
             var drive = workers[slotWorker[slot]].Drive;
             var order = Tour(mask).Order;
