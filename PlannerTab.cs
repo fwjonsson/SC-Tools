@@ -126,18 +126,22 @@ public sealed partial class MainForm
     // the button sits in the top bar of the window, level with Options and Stop Session, while the Trip Planner tab is shown
     readonly ToolStripButton _lockBtn = new() { DisplayStyle = ToolStripItemDisplayStyle.Text, Text = "Next Stops: Unlocked", Padding = new Padding(8, 0, 8, 0), Visible = false };
     readonly Label _planNote = new();
+    TableLayoutPanel? _planPage;                   // the whole Trip Planner page (the row of the map and the tables is sized to fit everybody)
+    Action? _fitPlanPage;                          // sizes that row for the page shown now
     readonly Panel _planBody = new();              // the page: the map and the tables (rebuilt when the plan changes)
     string _planShown = "";                        // what the pages show now, so they are only rebuilt when it changes
     PlanCore? _planCore;
 
     Control BuildPlannerPage()
     {
-        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(12) };
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(12), AutoScroll = true };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.AutoSize));        // a warning, only when there is one
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 62));     // the map and the tables
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 500));   // the map and the tables: as high as everybody's tables need (PlanPage sets it)
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));   // Cargo Runs
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 38));     // the copy of Cargo Runs
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // the copy of Cargo Runs: the room that is left (the page scrolls when there is too little)
+        _planPage = t;
+        t.Resize += (_, _) => _fitPlanPage?.Invoke();   // a taller or lower window changes how big the map can be
 
         // Next Stops: Locked / Unlocked is in the top bar of the window (AddSessionControlsToMenu); hold the mouse over it for the explanation
         _lockBtn.ToolTipText = "Unlocked: the plan is free, and is worked out again whenever something changes (someone joins, more contracts, a pickup).\n\n"
@@ -622,8 +626,8 @@ public sealed partial class MainForm
         var flight = rows.Sum(r => r.Flight);
         return new[]
         {
-            "",
-            "Total: " + stops + (stops == 1 ? " stop" : " stops"),
+            "\u03a3",
+            stops.ToString(CultureInfo.InvariantCulture),
             rows.Sum(r => r.BatchCount).ToString(CultureInfo.InvariantCulture),
             ValueText(rows.Sum(r => r.Value)),
             gm > 0 ? Gm(gm) : "",
@@ -676,7 +680,7 @@ public sealed partial class MainForm
     static string[] QueuedCells(PlanRow r) => new[]
     {
         RowLabel(r),
-        r.Route,
+        r.Stops.Count.ToString(CultureInfo.InvariantCulture),
         r.BatchCount.ToString(CultureInfo.InvariantCulture),
         ValueText(r.Value),
         r.Gm > 0 ? Gm(r.Gm) : "",
@@ -1283,7 +1287,7 @@ public sealed partial class MainForm
         var left = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0), Padding = new Padding(0, 0, 12, 0) };
         left.Controls.Add(status);   // added first, so it sits under the map
         left.Controls.Add(map);
-        var host = new PlanHost { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
+        var host = new PlanHost { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = false, Margin = new Padding(0) };   // never scrolls: the row is as high as everybody's tables
         host.Resize += (_, _) => FitPlanBlocks(host);
 
         // one colour per worker, his current trip in bold and solid, the later ones dotted
@@ -1300,16 +1304,39 @@ public sealed partial class MainForm
         foreach (var w in plan.Workers) host.Controls.Add(PlanBlock(w, widths));
         FitPlanBlocks(host);
 
-        // the map is a square: as high as the page, but at most half of its width (the tables keep the rest)
-        void FitMap()
+        // The map is a square, 40% of the width (and no higher than the page leaves above Cargo Runs). The row of the map and the tables is as high as everybody's
+        // tables need (or the map, when that is higher), so the Current Route of every worker is on the page: Cargo Runs moves down, and the page scrolls when the
+        // window is too low for both.
+        var fitting = false;
+        void FitPage()
         {
-            var room = Math.Max(320, t.ClientSize.Height - t.Padding.Vertical);
-            var side = Math.Max(320, Math.Min(room, (int)(t.ClientSize.Width * 0.4)));
-            t.ColumnStyles[0].Width = side + left.Padding.Horizontal;
-            map.Height = side;
+            if (fitting) return;
+            fitting = true;
+            try
+            {
+                var page = _planPage;
+                var note = _planNote.Visible ? _planNote.Height : 0;
+                var above = page != null ? page.ClientSize.Height - page.Padding.Vertical - TitleHeight - PlanRunsMin - note : t.ClientSize.Height;
+                var side = Math.Max(320, Math.Min((int)(t.ClientSize.Width * 0.4), above - status.Height - t.Padding.Vertical));
+                if ((int)t.ColumnStyles[0].Width != side + left.Padding.Horizontal) t.ColumnStyles[0].Width = side + left.Padding.Horizontal;
+                if (map.Height != side) map.Height = side;
+                var blocks = host.Controls.Cast<Control>().Sum(c => c.Height + c.Margin.Vertical);
+                var need = Math.Max(side + status.Height, blocks) + t.Padding.Vertical + 4;
+                if (page != null && Math.Abs(page.RowStyles[1].Height - need) > 0.5f)
+                {
+                    page.RowStyles[1].Height = need;
+                    page.AutoScrollMinSize = new Size(0, need + TitleHeight + PlanRunsMin + page.Padding.Vertical + note);
+                }
+            }
+            finally
+            {
+                fitting = false;
+            }
         }
-        t.Resize += (_, _) => FitMap();
-        FitMap();
+        _fitPlanPage = FitPage;
+        t.Resize += (_, _) => FitPage();
+        foreach (Control b in host.Controls) b.SizeChanged += (_, _) => FitPage();
+        FitPage();
         t.Controls.Add(left, 0, 0);
         t.Controls.Add(host, 1, 0);
         return t;
@@ -1336,7 +1363,7 @@ public sealed partial class MainForm
         }
     }
 
-    /// <summary>A title and the two tables of one crew member: the Current Route and, under it, the Queued routes. Both are as wide as the page.</summary>
+    /// <summary>A title and the two tables of one crew member: the Current Route, and right of it the narrow Queued routes (under it when the window is too narrow for both).</summary>
     Control PlanBlock(PlanWorkerView w, (int Current, int Queued, int Cargo) widths)
     {
         var block = new Panel { Margin = new Padding(0, 0, 0, 14) };
@@ -1387,24 +1414,26 @@ public sealed partial class MainForm
             pair.Controls.Add(currentBox);
             pair.Controls.Add(queuedBox);
 
-            // The Current Route on top and the Queued routes under it, each as wide as the page. Their Value, Distance and In flight columns have the same
-            // widths, so they line up under each other.
+            // The Current Route takes the room, and the Queued routes (a narrow table: just the numbers of every trip) sit right of it; when the window is too
+            // narrow for both, the Queued routes go under the Current Route.
             var fitting = false;
-            void FitStack()
+            void FitPair()
             {
                 if (fitting) return;   // setting the sizes below changes the heights of the tables, which comes back here
                 fitting = true;
                 try
                 {
-                    var room = Math.Max(PlanCurrentFixed(widths.Current) + PlanMinText, pair.ClientSize.Width);
-                    currentBox.Width = room;
-                    queuedBox.Width = room;
+                    var minCurrent = PlanCurrentFixed(widths.Current) + PlanMinText;
+                    var room = Math.Max(minCurrent, pair.ClientSize.Width);
+                    var side = room >= minCurrent + PlanGap + PlanQueuedWidth;
+                    currentBox.Width = side ? room - PlanGap - PlanQueuedWidth : room;
+                    queuedBox.Width = PlanQueuedWidth;
                     // the tables are as high as their rows (a long text takes two lines), the boxes follow them, and the block follows the boxes
                     currentBox.Height = PlanTitleHeight + currentGrid.Height;
                     queuedBox.Height = PlanTitleHeight + queuedGrid.Height;
                     currentBox.Location = new Point(0, 0);
-                    queuedBox.Location = new Point(0, currentBox.Height + PlanGap);
-                    var tall = queuedBox.Bottom;
+                    queuedBox.Location = side ? new Point(currentBox.Width + PlanGap, 0) : new Point(0, currentBox.Height + PlanGap);
+                    var tall = side ? Math.Max(currentBox.Height, queuedBox.Height) : queuedBox.Bottom;
                     if (pair.Height != tall) pair.Height = tall;
                     if (block.Height != label.Height + tall) block.Height = label.Height + tall;
                 }
@@ -1413,10 +1442,10 @@ public sealed partial class MainForm
                     fitting = false;
                 }
             }
-            currentGrid.SizeChanged += (_, _) => FitStack();
-            queuedGrid.SizeChanged += (_, _) => FitStack();
-            pair.Resize += (_, _) => FitStack();
-            FitStack();
+            currentGrid.SizeChanged += (_, _) => FitPair();
+            queuedGrid.SizeChanged += (_, _) => FitPair();
+            pair.Resize += (_, _) => FitPair();
+            FitPair();
             height += pair.Height;
             block.Controls.Add(pair);   // added first, so the title sits above it
         }
@@ -1428,8 +1457,9 @@ public sealed partial class MainForm
 
     const int PlanTitleHeight = 26;
     const int PlanMinText = 110;                            // the text column of a table (Cargo, Route) is never narrower than this
-    const int PlanQueuedFixed = 36 + 64 + 80 + 74 + 68;     // the Queued routes without its text column: #, Batches, Value, Distance, In flight
-    const int PlanGap = 8;                                  // between the Current Route and the Queued routes
+    const int PlanQueuedWidth = 36 + 64 + 64 + 80 + 74 + 68 + 3;   // the Queued routes: #, Stops, Batches, Value, Distance, In flight (and the border)
+    const int PlanGap = 12;                                 // between the Current Route and the Queued routes
+    const int PlanRunsMin = 160;                            // Cargo Runs under the planner is never lower than this (the page scrolls instead)
 
     /// <summary>The Current Route without its Cargo column (the one that takes the room that is left): #, Stops, Collect/Drop, Value, Distance, In flight.</summary>
     static int PlanCurrentFixed(int action) => 36 + 120 + action + 80 + 74 + 68;
@@ -1500,7 +1530,7 @@ public sealed partial class MainForm
         }
         else
         {
-            text = Col("Route", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
+            text = Col("Stops", 64, true);   // how many stops the trip has (the route is in the tooltip and on the map)
             grid.Columns.Add(text);
             grid.Columns.Add(Col("Batches", 64, true));
         }
@@ -1510,12 +1540,12 @@ public sealed partial class MainForm
         foreach (DataGridViewColumn c in grid.Columns)
         {
             c.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-            c.MinimumWidth = c == text ? PlanMinText : 30;
+            c.MinimumWidth = current && c == text ? PlanMinText : 30;
         }
         text.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
         if (action != null) action.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
-        grid.TextColumn = text;
-        grid.Width = current ? PlanCurrentFixed(textWidth) + cargoWidth : PlanQueuedFixed + textWidth;   // the width it is expected to get, so the first measure of its rows is about right
+        grid.TextColumn = current ? text : null;   // the Queued routes have no column that stretches
+        grid.Width = current ? PlanCurrentFixed(textWidth) + cargoWidth : PlanQueuedWidth;   // the width it is expected to get, so the first measure of its rows is about right
         return grid;
     }
 
@@ -1555,14 +1585,16 @@ public sealed partial class MainForm
     PlanGridView QueuedRoutesGrid(List<PlanRow> queued, int textWidth)
     {
         var grid = NewPlanGrid(false, textWidth, 0);
+        grid.ShowCellToolTips = true;   // the route of a trip is in the tooltip of its Stops
         if (queued.Count == 0)
         {
-            var none = grid.Rows[grid.Rows.Add("", "Nothing queued", "", "", "", "")];
+            var none = grid.Rows[grid.Rows.Add("", "none", "", "", "", "")];
             none.DefaultCellStyle.ForeColor = Theme.Muted;
         }
         foreach (var r in queued)
         {
             var row = grid.Rows[grid.Rows.Add(QueuedCells(r))];
+            foreach (DataGridViewCell cell in row.Cells) cell.ToolTipText = r.Route;
             if (RowColor(r) is { } color) row.DefaultCellStyle.BackColor = color;
         }
         if (queued.Count > 0) AddTotalRow(grid, PlanTotals(queued));

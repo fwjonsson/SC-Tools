@@ -208,14 +208,15 @@ sealed class LiveWebServer : IDisposable
   .plancur th:nth-child(1) { width:36px; } .plancur th:nth-child(2) { width:120px; } .plancur th:nth-child(3) { width:200px; } .plancur th:nth-child(5) { width:80px; }
   .plancur th:nth-child(6) { width:74px; } .plancur th:nth-child(7) { width:68px; }
   .plancur td:nth-child(3), .plancur td:nth-child(4) { white-space:normal; }
-  /* Queued routes: #, Route (takes the rest), Batches, Value, Distance, In flight */
-  .planque th:nth-child(1) { width:36px; } .planque th:nth-child(3) { width:64px; } .planque th:nth-child(4) { width:80px; }
+  /* Queued routes: a narrow table, #, Stops (how many), Batches, Value, Distance, In flight */
+  .planque th:nth-child(1) { width:36px; } .planque th:nth-child(2) { width:64px; } .planque th:nth-child(3) { width:64px; } .planque th:nth-child(4) { width:80px; }
   .planque th:nth-child(5) { width:74px; } .planque th:nth-child(6) { width:68px; }
-  .planque td:nth-child(2) { white-space:normal; }
-  /* every worker: the Current Route on top and the Queued routes under it, both as wide as the page (their Value, Distance and In flight columns line up) */
-  .planque { margin-top:8px; }
-  .plancur table { min-width:700px; }
-  .planque table { min-width:432px; }
+  /* every worker: the Current Route, and right of it the narrow Queued routes (under it when the window is too narrow) */
+  .planpair { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+  .plancur { flex:1 1 640px; min-width:0; }
+  .planque { flex:0 0 400px; }
+  .plancur table { min-width:640px; }
+  .planque table { width:400px; }
   .planpair h3 { margin:6px 0 4px; }
   .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
   .mapbox { flex:0 0 520px; max-width:100%; background:var(--cell); border:1px solid var(--line); }
@@ -806,7 +807,7 @@ public sealed partial class MainForm
         object QueuedHeaders() => new[]
         {
             new { text = "#", align = "center" },
-            new { text = "Route", align = "left" },
+            new { text = "Stops", align = "center" },
             new { text = "Batches", align = "center" },
             new { text = "Value", align = "right" },
             new { text = "Distance", align = "right" },
@@ -842,7 +843,7 @@ public sealed partial class MainForm
         object QueuedGrid(List<PlanRow> queued)
         {
             var rows = new List<object>();
-            if (queued.Count == 0) rows.Add(PlainRow(new[] { "", "Nothing queued", "", "", "", "" }, cell, WebColor(Theme.Muted), false));
+            if (queued.Count == 0) rows.Add(PlainRow(new[] { "", "none", "", "", "", "" }, cell, WebColor(Theme.Muted), false));
             foreach (var r in queued) rows.Add(PlainRow(QueuedCells(r), RowColor(r) is { } c ? WebColor(c) : cell, text, false));
             if (queued.Count > 0) rows.Add(PlainRow(PlanTotals(queued), calc, text, true));
             return new { headers = QueuedHeaders(), rows };
