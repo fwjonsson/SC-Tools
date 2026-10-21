@@ -204,14 +204,20 @@ sealed class LiveWebServer : IDisposable
   .plantables { flex:1 1 520px; min-width:0; }
   .plantables h2:first-child { margin-top:0; }
   .plantables table { table-layout:fixed; }
-  .plantables th:nth-child(1) { width:40px; } .plantables th:nth-child(3) { width:68px; } .plantables th:nth-child(4) { width:86px; }
-  .plantables th:nth-child(5) { width:80px; } .plantables th:nth-child(6) { width:88px; }
-  .plantables td:nth-child(2) { white-space:normal; }
+  /* Current Route: #, Stops, Collect/Drop (takes the rest), Value, Distance, In flight */
+  .plancur th:nth-child(1) { width:36px; } .plancur th:nth-child(2) { width:120px; } .plancur th:nth-child(4) { width:80px; }
+  .plancur th:nth-child(5) { width:74px; } .plancur th:nth-child(6) { width:68px; }
+  .plancur td:nth-child(3) { white-space:normal; }
+  /* Queued routes: #, Route (takes the rest), Batches, Value, Distance, In flight */
+  .planque th:nth-child(1) { width:36px; } .planque th:nth-child(3) { width:64px; } .planque th:nth-child(4) { width:80px; }
+  .planque th:nth-child(5) { width:74px; } .planque th:nth-child(6) { width:68px; }
+  .planque td:nth-child(2) { white-space:normal; }
   /* every worker: the Current Route on the left, the Queued routes on the right */
   .planpair { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; }   /* too narrow for both: the Queued routes go under the Current Route */
-  .plancur { flex:1 1 480px; min-width:0; }
-  .planque { flex:1.4 1 480px; min-width:0; }
-  .planpair table { min-width:470px; }
+  .plancur { flex:1 1 490px; min-width:0; }
+  .planque { flex:1 1 430px; min-width:0; }
+  .plancur table { min-width:488px; }
+  .planque table { min-width:432px; }
   .planpair h3 { margin:6px 0 4px; }
   .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
   .mapbox { flex:0 0 520px; max-width:100%; background:var(--cell); border:1px solid var(--line); }
@@ -738,14 +744,24 @@ public sealed partial class MainForm
     /// <summary>The Trip Planner tab as data: the stations for the map and, for every crew member, his Current Route and Queued routes tables and his planned routes.</summary>
     static object WebPlan(PlanView plan)
     {
-        object Headers(string textHeader) => new[]
+        // the Current Route: what is done at every stop; the Queued routes: the trips after it
+        object CurrentHeaders() => new[]
         {
             new { text = "#", align = "center" },
-            new { text = textHeader, align = "left" },
+            new { text = "Stops", align = "left" },
+            new { text = "Collect/Drop", align = "left" },
+            new { text = "Value", align = "right" },
+            new { text = "Distance", align = "right" },
+            new { text = "In flight", align = "right" },
+        };
+        object QueuedHeaders() => new[]
+        {
+            new { text = "#", align = "center" },
+            new { text = "Route", align = "left" },
             new { text = "Batches", align = "center" },
             new { text = "Value", align = "right" },
             new { text = "Distance", align = "right" },
-            new { text = "Flight time", align = "right" },
+            new { text = "In flight", align = "right" },
         };
         var cell = WebColor(Theme.Cell);
         var text = WebColor(Theme.Text);
@@ -770,7 +786,7 @@ public sealed partial class MainForm
                 rows.Add(PlainRow(cells[i], here ? WebColor(w.Color) : cell, here ? WebColor(TextOn(w.Color)) : text, here));
             }
             rows.Add(PlainRow(LineTotals(current.Lines), calc, text, true));
-            return new { headers = Headers("Stops"), rows };
+            return new { headers = CurrentHeaders(), rows };
         }
 
         // the Queued routes: the trips after it, each with a short route tag
@@ -780,7 +796,7 @@ public sealed partial class MainForm
             if (queued.Count == 0) rows.Add(PlainRow(new[] { "", "Nothing queued", "", "", "", "" }, cell, WebColor(Theme.Muted), false));
             foreach (var r in queued) rows.Add(PlainRow(QueuedCells(r), RowColor(r) is { } c ? WebColor(c) : cell, text, false));
             if (queued.Count > 0) rows.Add(PlainRow(PlanTotals(queued), calc, text, true));
-            return new { headers = Headers("Route"), rows };
+            return new { headers = QueuedHeaders(), rows };
         }
 
         var workers = plan.Workers.Select(w => new
