@@ -609,14 +609,14 @@ public sealed partial class MainForm
                     continue;
                 }
                 remaining[id] = remaining.GetValueOrDefault(id) + left;
-                foreach (var (holders, count) in r.OpenHolders)
+                foreach (var m in r.OpenMissions)
                 {
-                    var can = flyers.Where(n => holders.Count == 0 || holders.Any(h => SameName(h, n)) || _log == null || !_log.Players.Any(p => SameName(p, n))).ToArray();   // a worker without a log may have it: nobody can tell
+                    var can = flyers.Where(n => HasMission(m, n)).ToArray();   // the Contracts tab: who has this mission
                     if (can.Length == 0 || can.Length == flyers.Count) continue;
                     if (!limits.TryGetValue(id, out var gl)) limits[id] = gl = new List<(string[] Workers, int Batches)>();
                     var same = gl.FindIndex(x => x.Workers.SequenceEqual(can));
-                    if (same >= 0) gl[same] = (can, gl[same].Batches + count);
-                    else gl.Add((can, count));
+                    if (same >= 0) gl[same] = (can, gl[same].Batches + 1);
+                    else gl.Add((can, 1));
                 }
             }
         }

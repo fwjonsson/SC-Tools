@@ -97,7 +97,7 @@ public sealed partial class MainForm
 
         // the money transfers on the left, the payout of every finished mission on the right
         t.Controls.Add(Caption("Money Transfers", "Of the selected member. Tick Payment when a transfer pays off a debt."), 0, 3);
-        t.Controls.Add(Caption("Mission Payouts", "Every finished mission: its payout and the members who were active and shared it."), 1, 3);
+        t.Controls.Add(Caption("Mission Payouts", "Every finished mission: its payout and the members who had the mission and shared it."), 1, 3);
         StyleGrid(_txGrid);
         _txGrid.Dock = DockStyle.Fill;
         _txGrid.Margin = new Padding(0, 3, 8, 3);
@@ -337,6 +337,15 @@ public sealed partial class MainForm
             {
                 members = PartyAt(m.EndedAt.Value);
                 if (members.Count == 0) members = kv.Value.Keys.ToList();   // nobody was marked active: the ones who carried it share it
+            }
+            // the ones who have the mission share it (what the logs say about who took part, or what was ticked on the Contracts tab);
+            // a mission that already has its payout kept keeps its members, so earlier sessions do not change
+            var kept = _data.Payouts.FirstOrDefault(x => x.MissionId == m.Id);
+            if (kept != null) members = kept.Members.Count > 0 ? new List<string>(kept.Members) : members;
+            else
+            {
+                var holders = members.Where(n => HasMission(m, n)).ToList();
+                if (holders.Count > 0) members = holders;
             }
             var share = pool / members.Count;
             if (records != null && m.EndedAt.HasValue)

@@ -38,7 +38,7 @@ public sealed class LocationRow
     public int Partial;         // stops where only part is picked up so far
     public int Delivered;       // stops whose cargo has been handed in at Ruin
     public int Missing;         // of those missions, the ones whose cargo is all handed in but that never completed (cargo missing)
-    public List<(HashSet<string> Holders, int Count)> OpenHolders = new();   // the stops not picked up yet, by the players who have their mission running
+    public List<Mission> OpenMissions = new();   // the missions of the stops that are not picked up yet (a mission twice when two of its stops are here)
     public DateTime? LoadedTime;     // latest pickup event here (UTC)
     public DateTime? DeliveredTime;  // set when every stop here has been handed in (UTC)
 }
@@ -306,10 +306,7 @@ public static class SessionBuilder
                 Partial = infos.Count(i => i.State == "partial"),
                 Delivered = delivered.Count,
                 Missing = missing == null ? 0 : kv.Value.Count(i => missing.Contains(i.Mission.Id)),
-                OpenHolders = kv.Value.Select((i, k) => (i.Mission.Holders, Info: infos[k]))
-                    .Where(x => !x.Info.State.StartsWith("loaded"))
-                    .GroupBy(x => string.Join(",", x.Holders.OrderBy(h => h, StringComparer.OrdinalIgnoreCase)))
-                    .Select(gr => (gr.First().Holders, gr.Count())).ToList(),
+                OpenMissions = kv.Value.Where((i, k) => !infos[k].State.StartsWith("loaded")).Select(i => i.Mission).ToList(),
                 LoadedTime = lasts.Count > 0 ? lasts.Max() : (DateTime?)null,
                 DeliveredTime = delivered.Count == infos.Count && delivered.Count > 0 ? delivered.Max() : (DateTime?)null,
             });

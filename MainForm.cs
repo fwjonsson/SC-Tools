@@ -142,10 +142,16 @@ public sealed partial class MainForm : Form
         var plannerPage = new TabPage("Trip Planner") { BackColor = Color.White };
         tabs.TabPages.Insert(1, plannerPage);   // Session, Trip Planner, Debts, History: the same order as the web view
         plannerPage.Controls.Add(BuildPlannerPage());
+        var contractsPage = new TabPage("Contracts") { BackColor = Color.White };
+        tabs.TabPages.Insert(2, contractsPage);   // Session, Trip Planner, Contracts, Debts, History
+        contractsPage.Controls.Add(BuildContractsPage());
+        _contractsPage = contractsPage;
+        _tabs = tabs;
         tabs.SelectedIndexChanged += (_, _) =>
         {
             _planBtn.Visible = _resetTripsBtn.Visible = tabs.SelectedTab == plannerPage;
             if (tabs.SelectedTab == plannerPage) RefreshPlanner();
+            else if (tabs.SelectedTab == contractsPage) RefreshContracts();
             else if (tabs.SelectedTab != sessionPage) RefreshDebts();
         };
 
@@ -265,6 +271,8 @@ public sealed partial class MainForm : Form
     }
 
     TableLayoutPanel? _root, _left, _main;
+    TabPage? _contractsPage;
+    TabControl? _tabs;
     bool _fitPending;
 
     /// <summary>
@@ -1408,6 +1416,7 @@ public sealed partial class MainForm : Form
         ShowSession();
         UpdateSnapshots();
         RefreshDebts();
+        if (_tabs != null && _tabs.SelectedTab == _contractsPage) RefreshContracts();
     }
 
     static string DescribeSession(SessionGroup g)

@@ -27,6 +27,14 @@ public sealed class Transfer
     public decimal Amount;
 }
 
+public sealed class MemberEvent
+{
+    public string Mission = "";
+    public string Player = "";   // the player id
+    public DateTime Time;
+    public bool Left;
+}
+
 public sealed class Mission
 {
     public string Id = "";
@@ -42,6 +50,9 @@ public sealed class Mission
 
     /// <summary>The players (characters of the logs) who have this mission running: the logs that know it and have not ended it. Only set on the missions of the merged log.</summary>
     public HashSet<string> Holders = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The player who took the contract: the first log that shows it accepted (the others got it shared later). Only set on the missions of the merged log.</summary>
+    public string? Taker;
 
     public bool IsHauling => Cargo != null;
     public bool Completed => EndState == "COMPLETED";
@@ -81,6 +92,13 @@ public sealed class HaulingLog
         @"Added notification ""New Objective: Deliver (?<x>\d+)/(?<n>\d+) SCU of (?<c>\w+) to [^""]*"" \[\d+\] to queue.*MissionId: \[(?<m>[0-9a-f-]{36})\]",
         RegexOptions.Compiled);
 
+    static readonly Regex Member = new(
+        @"<Player(?<k>Joined|Left)> Received Player\k<k> push message for: mission_id (?<m>[0-9a-f-]{36}) - player_id (?<p>\d+)",
+        RegexOptions.Compiled);
+
+    static readonly Regex PlayerIdA = new(@"Player\[(?<n>[^\]]+)\] PlayerId\[(?<id>\d+)\]", RegexOptions.Compiled);
+    static readonly Regex PlayerIdB = new(@"Player: (?<n>[^\s\[\]]+)\[(?<id>\d{8,})\]", RegexOptions.Compiled);
+
     static readonly Regex Character = new(
         @"<AccountLoginCharacterStatus_Character> Character: .* - name (?<n>\S+) - state",
         RegexOptions.Compiled);
@@ -94,6 +112,12 @@ public sealed class HaulingLog
         RegexOptions.Compiled);
 
     public Dictionary<string, Mission> Missions { get; } = new();
+
+    /// <summary>Somebody joined a mission (it was shared with him, or he took it) or left it, as the game told this player. The player is an id, see IdNames.</summary>
+    public List<MemberEvent> MemberEvents { get; } = new();
+
+    /// <summary>Player id to the name of the character, as far as the logs show it.</summary>
+    public Dictionary<string, string> IdNames { get; } = new();
 
     /// <summary>The characters of the logs that were read (a party member without a log is not in it).</summary>
     public HashSet<string> Players { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -150,6 +174,7 @@ public sealed class HaulingLog
     {
         var res = new HaulingLog();
         var holders = new Dictionary<string, HashSet<string>>();
+        var takers = new Dictionary<string, (DateTime At, string Who)>();
         var ends = new Dictionary<string, MissionEnds>();
         foreach (var l in logs)
         {
@@ -157,6 +182,12 @@ public sealed class HaulingLog
 
             var who = l.Player ?? "Unknown player";
             if (l.Player != null) res.Players.Add(l.Player);
+            foreach (var kv in l.IdNames) res.IdNames[kv.Key] = kv.Value;
+            foreach (var e in l.MemberEvents)
+            {
+                if (!res.MemberEvents.Any(x => x.Mission == e.Mission && x.Player == e.Player && x.Left == e.Left && Math.Abs((x.Time - e.Time).TotalSeconds) < 5))
+                    res.MemberEvents.Add(e);
+            }
             if (!res.UnstowByPlayer.TryGetValue(who, out var us)) res.UnstowByPlayer[who] = us = new List<DateTime>();
             us.AddRange(l.Unstows);
             if (!res.PlatformByPlayer.TryGetValue(who, out var ps)) res.PlatformByPlayer[who] = ps = new List<DateTime>();
@@ -187,12 +218,13 @@ public sealed class HaulingLog
                 if (m.FirstSeen.HasValue && (!t.FirstSeen.HasValue || m.FirstSeen < t.FirstSeen)) t.FirstSeen = m.FirstSeen;
                 // how the mission ended is decided after all logs are read (see below)
                 var st = ends.TryGetValue(m.Id, out var old) ? old : default;
-                if (m.EndState == null)
+                if (m.EndState == null || m.EndState == "COMPLETED")
                 {
-                    st.Active = true;
                     if (!holders.TryGetValue(m.Id, out var hs)) holders[m.Id] = hs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    hs.Add(who);
+                    hs.Add(who);   // has it running, or finished it with the party
                 }
+                if (m.Accepted.HasValue && (!takers.TryGetValue(m.Id, out var tk) || m.Accepted.Value < tk.At)) takers[m.Id] = (m.Accepted.Value, who);
+                if (m.EndState == null) st.Active = true;
                 else if (m.EndState == "COMPLETED")
                 {
                     if (!st.Completed || m.EndedAt < st.CompletedAt) st.CompletedAt = m.EndedAt;
@@ -225,6 +257,10 @@ public sealed class HaulingLog
         foreach (var kv in holders)
         {
             if (res.Missions.TryGetValue(kv.Key, out var hm)) hm.Holders = kv.Value;
+        }
+        foreach (var kv in takers)
+        {
+            if (res.Missions.TryGetValue(kv.Key, out var tm)) tm.Taker = kv.Value.Who;
         }
 
         // A mission shared in a party is only abandoned or failed when every log that knows it ended it that way.
@@ -358,7 +394,26 @@ public sealed class HaulingLog
         if (!tm.Success) return;
         var t = ParseTime(tm.Groups[1].Value);
 
-        var x = Marker.Match(line);
+        if (line.Contains("PlayerId["))
+        {
+            var pa = PlayerIdA.Match(line);
+            if (pa.Success) IdNames[pa.Groups["id"].Value] = pa.Groups["n"].Value;
+        }
+        else if (line.Contains("Player: "))
+        {
+            var pb = PlayerIdB.Match(line);
+            if (pb.Success) IdNames[pb.Groups["id"].Value] = pb.Groups["n"].Value;
+        }
+
+        var x = Member.Match(line);
+        if (x.Success)
+        {
+            MemberEvents.Add(new MemberEvent { Mission = x.Groups["m"].Value, Player = x.Groups["p"].Value, Time = t, Left = x.Groups["k"].Value == "Left" });
+            Touch(t);
+            return;
+        }
+
+        x = Marker.Match(line);
         if (x.Success)
         {
             var m = Get(x.Groups["m"].Value);
