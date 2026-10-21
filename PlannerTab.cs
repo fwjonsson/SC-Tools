@@ -62,7 +62,7 @@ public sealed partial class MainForm
     {
         public string Id = "";           // station id ("" = a place that is not in the distance table)
         public string Name = "";
-        public List<string> Actions = new();   // Collect ×2, Drop Waste, Collected ×1 ✓ ... (the Collect/Drop column)
+        public List<string> Actions = new();   // Collect ×2, Drop Waste, Collected ×1 ✓ ... (the Drop/Collect column)
         public bool Stop = true;         // false: the start or the end at Ruin (or where he starts from): not counted as a stop
         public bool Done;                // collected already (it is on board)
         public bool Busy;                // done here, but he is still at it (Collecting, Dropping: he has not set his next destination yet)
@@ -77,7 +77,7 @@ public sealed partial class MainForm
         public string CargoText => string.Join(" | ", Scu > 0 ? Loads.Append(ScuGuess(Scu)) : Loads);
     }
 
-    /// <summary>What was done at one line of a run in progress (for the text of its Collect/Drop column).</summary>
+    /// <summary>What was done at one line of a run in progress (for the text of its Drop/Collect column).</summary>
     sealed class DoneAt
     {
         public int Taken;                  // batches of waste taken out at Ruin
@@ -1485,13 +1485,13 @@ public sealed partial class MainForm
     const int PlanGap = 12;                                 // between the Current Route and the Queued routes
     const int PlanRunsMin = 160;                            // Cargo Runs under the planner is never lower than this (the page scrolls instead)
 
-    /// <summary>The Current Route without its Cargo column (the one that takes the room that is left): #, Stops, Collect/Drop, Value, Distance, In flight.</summary>
+    /// <summary>The Current Route without its Cargo column (the one that takes the room that is left): #, Stops, Drop/Collect, Value, Distance, In flight.</summary>
     static int PlanCurrentFixed(int action) => 36 + 120 + action + 80 + 74 + 68;
 
     static readonly Font PlanBoldFont = new("Segoe UI", 10f, FontStyle.Bold);
 
     /// <summary>
-    /// The width that the Collect/Drop column of the Current Route (what is done at a stop) needs for its longest line, the width of its Cargo column, and the width that the
+    /// The width that the Drop/Collect column of the Current Route (what is done at a stop) needs for its longest line, the width of its Cargo column, and the width that the
     /// route of the Queued routes needs, over all the workers: every worker gets the same tables, so they line up, and a row stays one line high when there is room.
     /// </summary>
     static (int Current, int Queued, int Cargo) PlanTextWidths(PlanView plan)
@@ -1528,7 +1528,7 @@ public sealed partial class MainForm
     };
 
     /// <summary>
-    /// A table of the Trip Planner. Current Route: #, Stops (just the station), Collect/Drop (what is done there), Cargo (the SCU, and the containers of a load; this column
+    /// A table of the Trip Planner. Current Route: #, Stops (just the station), Drop/Collect (what is done there), Cargo (the SCU, and the containers of a load; this column
     /// takes the room that is left), Value, Distance, In flight. Queued routes: #, Route (the stations; takes the room that is left), Batches, Value, Distance, In flight.
     /// A text column wraps onto a second line only when it has to.
     /// </summary>
@@ -1547,7 +1547,7 @@ public sealed partial class MainForm
         if (current)
         {
             grid.Columns.Add(Col("Stops", 120, true, DataGridViewContentAlignment.MiddleLeft));
-            action = Col("Collect/Drop", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
+            action = Col("Drop/Collect", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
             grid.Columns.Add(action);
             text = Col("Cargo", cargoWidth, true, DataGridViewContentAlignment.MiddleLeft);
             grid.Columns.Add(text);

@@ -204,7 +204,7 @@ sealed class LiveWebServer : IDisposable
   .plantables { flex:1 1 520px; min-width:0; }
   .plantables h2:first-child { margin-top:0; }
   .plantables table { table-layout:fixed; }
-  /* Current Route: #, Stops, Collect/Drop, Cargo (takes the rest), Value, Distance, In flight */
+  /* Current Route: #, Stops, Drop/Collect, Cargo (takes the rest), Value, Distance, In flight */
   .plancur th:nth-child(1) { width:36px; } .plancur th:nth-child(2) { width:120px; } .plancur th:nth-child(3) { width:200px; } .plancur th:nth-child(5) { width:80px; }
   .plancur th:nth-child(6) { width:74px; } .plancur th:nth-child(7) { width:68px; }
   .plancur td:nth-child(3), .plancur td:nth-child(4) { white-space:normal; }
@@ -798,7 +798,7 @@ public sealed partial class MainForm
         {
             new { text = "#", align = "center" },
             new { text = "Stops", align = "left" },
-            new { text = "Collect/Drop", align = "left" },
+            new { text = "Drop/Collect", align = "left" },
             new { text = "Cargo", align = "left" },
             new { text = "Value", align = "right" },
             new { text = "Distance", align = "right" },
