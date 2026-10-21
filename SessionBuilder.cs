@@ -270,6 +270,10 @@ public static class SessionBuilder
         return result;
     }
 
+    /// <summary>The pickup stops of a mission (their zone and whether the cargo there is picked up), in the order the game made them.</summary>
+    public static List<(string Zone, bool PickedUp)> StopsOf(Mission m) =>
+        m.ObjZone.Where(kv => IsStop(kv.Key)).Select(kv => (kv.Value, StopInfo(m, kv.Key).State.StartsWith("loaded"))).ToList();
+
     /// <summary>The pickup locations of the session. openOnly leaves out the missions that are already completed.</summary>
     public static List<LocationRow> Locations(SessionGroup g, bool openOnly = false, ISet<string>? missing = null)
     {

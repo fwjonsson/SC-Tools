@@ -1410,6 +1410,7 @@ public sealed partial class MainForm : Form
 
         // the logs of all accounts are merged, a mission shared in the party appears once
         _log = HaulingLog.Merge(_logs);
+        ApplyDroppedMissions(_log);
 
         var keep = _forceKey ?? _current?.Key;
         _forceKey = null;

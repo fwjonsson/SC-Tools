@@ -148,6 +148,7 @@ public sealed class AppData
     public List<PayoutRecord> Payouts { get; set; } = new();   // the completed missions and who shared their payout
     public Dictionary<string, Dictionary<string, bool>> MissionHolders { get; set; } = new();   // mission id -> member -> has the mission (ticked on the Contracts tab, wins over what the logs say)
     public Dictionary<string, decimal> PayoutOverrides { get; set; } = new();   // mission id -> what it really paid (typed in the Mission Payouts list), instead of the reward of its contract
+    public Dictionary<string, DateTime> DroppedMissions { get; set; } = new();   // mission id -> when it was marked as gone on the Contracts tab (treated like an abandoned mission)
     public Dictionary<string, StartPoint> StartPoints { get; set; } = new();   // worker -> where he starts his next trip
     public Dictionary<string, decimal> PairAdjust { get; set; } = new();   // "a|b" (a before b) -> amount b owes a, typed by you
 }
