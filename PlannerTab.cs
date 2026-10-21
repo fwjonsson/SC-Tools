@@ -1174,6 +1174,29 @@ public sealed partial class MainForm
                 AddRuinLine(runRow.Lines, c.Name, runRow.BatchCount);   // the run ends at Ruin
                 runRow.Route = string.Join("  \u2192  ", runRow.Lines.Select(l => l.Name));
             }
+            // he has taken the waste out at Ruin already (his run has nothing else in it yet): the Ruin line of his first trip says so. "Loading Waste" while he is
+            // still at it (he has not set his next quantum destination, only known from his own log), then "Collected Waste ✓" and his colour moves on to the next stop
+            if (runRow == null && mine.Count > 0 && mine[0].From == null && mine[0].Drops.Count > 0)
+            {
+                var takenRun = _trips.Where(x => SameName(x.Worker, c.Name) && !x.End.HasValue && x.Pickups.Count == 0 && x.Drops.Count == 0 && x.Collects.Count > 0)
+                    .OrderBy(x => x.Start).LastOrDefault();
+                var firstRow = w.Rows.FirstOrDefault(r => r.Trip == mine[0]);
+                var startLine = firstRow?.Lines.FirstOrDefault(l => l.Id == PyroDistances.Ruin && !l.Stop);
+                var loadedAt = takenRun?.Collects.Max(x => x.Time) ?? DateTime.MinValue;
+                if (takenRun != null && startLine != null && _log != null && _log.LastTime - loadedAt <= StaleLeg)
+                {
+                    var stillLoading = StillLoading(c.Name, loadedAt);
+                    var takenCount = takenRun.Collects.Count;
+                    startLine.Actions.Clear();
+                    startLine.Actions.Add((stillLoading ? "Loading " : "Collected ") + takenRun.Collects[0].Cargo + (takenCount > 1 ? " \u00d7" + takenCount : "") + (stillLoading ? "" : " \u2713"));
+                    startLine.Loads.Clear();
+                    startLine.Loads.Add(LoadText(takenRun.Collects.Select(x => x.Scu)));
+                    startLine.Unknown.Clear();
+                    startLine.Unknown.AddRange(takenRun.Collects.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
+                    startLine.Done = true;
+                    startLine.Busy = stillLoading;
+                }
+            }
             // the first line is his Current trip (the Current Route table), the others are his Queued routes, numbered 1, 2, ...
             var number = 0;
             foreach (var r in w.Rows.Where(x => !x.Hidden))
