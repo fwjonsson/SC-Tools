@@ -931,6 +931,20 @@ public sealed partial class MainForm
                         }
                         if (start.FirstId == null && (run == null || run.Value.Loaded < c.Capacity)) waiting.Add(c.Name);   // a run with room left locks the next stop of its continuation too
                     }
+                    // his own log shows the station he is flying to (or has arrived at) since his last pickup or delivery: what he can take there stays his,
+                    // locked or not, so planning again for somebody else never takes it away from him while he is on his way or about to load
+                    var heading = start.FirstId == null ? HeadingFor(c.Name) : null;
+                    if (heading != null && remaining.GetValueOrDefault(heading) > 0)
+                    {
+                        var notHis = limits.TryGetValue(heading, out var hl) ? hl.Where(x => !x.Workers.Contains(c.Name)).Sum(x => x.Batches) : 0;
+                        var take = Math.Min(remaining[heading] - notHis, Math.Max(0, c.Capacity - start.Loaded));
+                        if (take > 0)
+                        {
+                            start.FirstId = heading;
+                            start.FirstBatches = take;
+                            remaining[heading] -= take;
+                        }
+                    }
                     if (start.FirstId == null && run == null && start.From != null && remaining.GetValueOrDefault(start.From) > 0)
                     {
                         // he said where he is: what is left at that station is right there, so his first trip takes it first (what only the others have is left to them)

@@ -83,6 +83,22 @@ public sealed partial class MainForm
         return now - since < TimeSpan.FromMinutes(15);   // somebody who stopped playing is not loading for hours
     }
 
+    /// <summary>
+    /// The station a worker is flying to, or has arrived at and is loading at: the latest quantum destination in his own log, when he set it after his last pickup,
+    /// delivery or hand-in. Null when there is no log of him, when it is Ruin or a place that is not in the distance table, or when it was set long ago.
+    /// </summary>
+    string? HeadingFor(string name)
+    {
+        if (_log == null) return null;
+        var travel = TravelOf(name);
+        var last = travel?.Where(e => e.Kind == QtKind.Selected).OrderBy(e => e.Time).LastOrDefault();
+        if (last == null || last.Time <= LastMoveOf(name)) return null;
+        var now = _live ? DateTime.UtcNow : _log.LastTime;
+        if (now - last.Time > TimeSpan.FromHours(1)) return null;   // somebody who stopped playing is not on his way any more
+        var id = PyroDistances.IdOfQuantumTarget(last.Destination);
+        return id == null || id == PyroDistances.Ruin ? null : id;
+    }
+
     // ------------------------------------------------------------------ what is happening now
 
     /// <summary>The members of the crew the line can talk about.</summary>
