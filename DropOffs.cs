@@ -31,30 +31,24 @@ public sealed partial class MainForm
         return res;
     }
 
-    /// <summary>The cargo that goes out, cut into loads for one stop each: no more than a ship holds, and only for the workers who have those missions.</summary>
+    /// <summary>
+    /// The cargo that goes out, cut into loads of one mission for one station (no more than a ship holds). The waste of different missions looks the same, so a trip only
+    /// leaves Ruin with the load for its first stop, and only the workers who have that mission can take it.
+    /// </summary>
     List<DropChunk> DropChunks(List<DropBatch> drops, List<string> flyers, int capacity)
     {
         var chunks = new List<DropChunk>();
         if (capacity <= 0) return chunks;
-        var groups = drops.Where(d => d.Station != null).GroupBy(d =>
+        foreach (var g in drops.Where(d => d.Station != null).GroupBy(d => (Mission: d.Mission.Id, Station: d.Station!)))
         {
-            var can = flyers.Where(n => HasMission(d.Mission, n)).ToArray();
-            var allowed = can.Length == 0 || can.Length == flyers.Count ? "" : string.Join(",", can);
-            return (d.Station!, d.Mission.OutCargo ?? "Cargo", allowed);
-        });
-        foreach (var g in groups)
-        {
+            var mission = g.First().Mission;
+            var can = flyers.Where(n => HasMission(mission, n)).ToArray();
+            var allowed = can.Length == 0 || can.Length == flyers.Count ? Array.Empty<string>() : can;
             var left = g.Count();
             while (left > 0)
             {
                 var take = Math.Min(capacity, left);
-                chunks.Add(new DropChunk
-                {
-                    Station = g.Key.Item1,
-                    Cargo = g.Key.Item2,
-                    Batches = take,
-                    Allowed = g.Key.Item3.Length == 0 ? Array.Empty<string>() : g.Key.Item3.Split(','),
-                });
+                chunks.Add(new DropChunk { Station = g.Key.Station, Cargo = mission.OutCargo ?? "Cargo", Batches = take, Allowed = allowed });
                 left -= take;
             }
         }

@@ -79,6 +79,7 @@ public sealed class SessionInputs
     public List<ManualEnd> ManualEnds { get; set; } = new();
     public Dictionary<string, RowInputs> Rows { get; set; } = new();   // key = pickup location id
     public Dictionary<string, string> PickupClaims { get; set; } = new();   // "mission|objective" -> the worker the Trip Planner credited a pickup to (only where no log names who did it)
+    public bool NextStopsLocked { get; set; }   // the "Next Stops: Locked" button of the Trip Planner: only while it is on is the next stop of everybody kept for him (off = the plan is free)
     public Dictionary<string, List<LockedStop>> LockedTrips { get; set; } = new();   // worker -> his Current trip: the Trip Planner leaves it as it is (set by Assign Workers to Stops or by assigning stops by hand)
     public List<WorkerEra> PastWorkers { get; set; } = new();   // assigned workers of earlier sets of missions (frozen when the table was reset)
     public DateTime? WorkersResetAt { get; set; }               // when the last set of missions began: the assigned workers were cleared then

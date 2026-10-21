@@ -12,14 +12,13 @@ public sealed class PlannedTrip
     public bool Special;      // his first trip: it continues a run in progress and/or starts at his locked stop
     public string? From;      // a run in progress: the trip continues from this station (null = it starts at Ruin)
     public int Room;          // how many batches this trip can hold (the ship, minus what a run in progress carries already)
-    public string? DropId;    // a from-Ruin contract: this trip takes cargo out from Ruin first and unloads all of it at this station, before the pickups
-    public int DropBatches;   // how many batches of it
+    public List<(string Id, int Batches)> Drops = new();   // a from-Ruin contract: this trip leaves Ruin with the load for its FIRST stop (at most one entry) and unloads it there, before the pickups
     public string? DropCargo; // what it is (Waste ...)
 
     public PlannedTrip Copy() => new()
     {
         Worker = Worker, Stops = new List<(string Id, int Batches)>(Stops), Distance = Distance, Seconds = Seconds, Locked = Locked,
-        Special = Special, From = From, Room = Room, DropId = DropId, DropBatches = DropBatches, DropCargo = DropCargo,
+        Special = Special, From = From, Room = Room, Drops = new List<(string Id, int Batches)>(Drops), DropCargo = DropCargo,
     };
 }
 
@@ -43,6 +42,7 @@ public static class TripPlanner
 {
     const int Restarts = 30;
     const double TotalWeight = 0.25;   // how much the combined Gm counts next to the longest worker total
+    const double SyncSeconds = 240;    // unloading cargo from Ruin and loading a pickup at the SAME station saves a landing and a take-off: that many seconds are taken off such a trip when comparing plans (not in the times shown)
 
     /// <summary>The cheapest way from a start through these stations and back to Ruin (exact for up to 12 stations): the cost in Gm and the order (indexes into ids).</summary>
     internal static (double Cost, int[] Order) Cheapest(string start, IReadOnlyList<string> ids)
@@ -121,8 +121,9 @@ public static class TripPlanner
     /// <param name="crew">every worker with the batches his ship holds (0 = not flying) and his quantum drive</param>
     /// <param name="starts">what is decided already: a worker's locked next stop (his first trip goes there first, the rest of the trip is planned) and a run he is flying (his first trip continues it)</param>
     /// <param name="limits">batches only some of the crew can take, by station id: the workers who have that mission running and how many batches (the rest of the batches of the station is for everybody)</param>
+    /// <param name="drops">cargo that goes out from Ruin (from-Ruin contracts), one load per mission and station: a trip takes at most one load, for its FIRST stop, and unloads it there before it picks anything up</param>
     public static List<PlannedTrip> Plan(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity, QtDrive Drive)> crew, IReadOnlyList<WorkerStart>? starts = null,
-        IReadOnlyDictionary<string, List<(string[] Workers, int Batches)>>? limits = null)
+        IReadOnlyDictionary<string, List<(string[] Workers, int Batches)>>? limits = null, IReadOnlyList<DropChunk>? drops = null)
     {
         var workers = crew.Where(c => c.Capacity > 0).ToList();
         var w = workers.Count;
@@ -137,6 +138,8 @@ public static class TripPlanner
         }
 
         var idSet = remaining.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToHashSet();
+        var chunks = (drops ?? Array.Empty<DropChunk>()).Where(c => c.Batches > 0).ToList();
+        foreach (var c in chunks) idSet.Add(c.Station);
         foreach (var st in startOf)
         {
             if (st?.FirstId != null && st.FirstBatches > 0) idSet.Add(st.FirstId);
@@ -226,7 +229,7 @@ public static class TripPlanner
         // The first slot of a worker (slot k) can be special: it continues a run in progress (less room, starts where he is)
         // and/or starts at his locked stop.
         var sumCapacity = Math.Max(1, workers.Sum(c => c.Capacity));
-        var perWorker = (total + sumCapacity - 1) / sumCapacity + 2;
+        var perWorker = (total + sumCapacity - 1) / sumCapacity + 2 + chunks.Count;
         var slots = perWorker * w;
         var slotWorker = new int[slots];
         var slotCapacity = new int[slots];
@@ -243,6 +246,24 @@ public static class TripPlanner
             special[k] = true;
             slotCapacity[k] = firstCapacity[k];
         }
+
+        // the loads from Ruin: where they go (an index into ids), how many batches, and which workers can take them (as a bit mask)
+        var chunkStation = chunks.Select(c => ids.IndexOf(c.Station)).ToArray();
+        var chunkMask = chunks.Select(c =>
+        {
+            var mask = 0;
+            for (var k = 0; k < w; k++)
+            {
+                if (c.Allowed.Length == 0 || c.Allowed.Contains(workers[k].Name)) mask |= 1 << k;
+            }
+            return mask == 0 ? allMask : mask;
+        }).ToArray();
+        var dropAt = new int[slots];   // the load (index into chunks) a trip slot takes out from Ruin, -1 = none
+        Array.Fill(dropAt, -1);
+        // a trip slot takes a load when the worker can have it and the ship holds it; a slot that continues a run (or starts elsewhere) cannot, but a locked first stop at the very station of the load can (the load is unloaded there, then the locked batches are taken)
+        bool CanDrop(int chunk, int slot) =>
+            ((chunkMask[chunk] >> slotWorker[slot]) & 1) != 0 && chunks[chunk].Batches <= slotCapacity[slot]
+            && (!special[slot] || (startOf[slot]!.From == null && startOf[slot]!.Loaded <= 0 && reservedIdx[slot] == chunkStation[chunk]));
 
         // is this division of a station over the workers possible with the batches they have (every set of workers can only take what at least one of them can)
         bool Allowed(int[][] assign, int station)
@@ -298,6 +319,25 @@ public static class TripPlanner
             return result;
         }
 
+        // a trip with a load from Ruin: Ruin, the station of the load first, the other stops in the cheapest order, back to Ruin
+        var dropRoutes = new Dictionary<(int Mask, int Stop), (double Cost, int[] Order)>();
+        (double Cost, int[] Order) DropRoute(int mask, int stop)
+        {
+            if (dropRoutes.TryGetValue((mask, stop), out var known)) return known;
+            var rest = new List<int>();
+            for (var i = 0; i < n; i++)
+            {
+                if (((mask >> i) & 1) != 0 && i != stop) rest.Add(i);
+            }
+            var r = Cheapest(ids[stop], rest.Select(i => ids[i]).ToList());
+            var order = new int[rest.Count + 1];
+            order[0] = stop;
+            for (var k = 0; k < rest.Count; k++) order[k + 1] = rest[r.Order[k]];
+            var result = (d0[stop] + r.Cost, order);
+            dropRoutes[(mask, stop)] = result;
+            return result;
+        }
+
         double SpecialSeconds(int slot, List<int> order)
         {
             var drive = workers[slotWorker[slot]].Drive;
@@ -315,6 +355,14 @@ public static class TripPlanner
         double SlotCost(int[] row, int slot)
         {
             var mask = MaskOf(row);
+            if (dropAt[slot] >= 0 && !special[slot])
+            {
+                var viaDrop = DropRoute(mask, chunkStation[dropAt[slot]]).Order;
+                var dropDrive = workers[slotWorker[slot]].Drive;
+                var dropSeconds = dropDrive.Seconds(d0[viaDrop[0]]);
+                for (var i = 1; i < viaDrop.Length; i++) dropSeconds += dropDrive.Seconds(d[viaDrop[i - 1], viaDrop[i]]);
+                return dropSeconds + dropDrive.Seconds(d0[viaDrop[^1]]);
+            }
             if (mask == 0)
             {
                 // a run in progress has to fly home to Ruin even when nothing is added to it: that leg is part of his time, so adding a close stop
@@ -331,6 +379,13 @@ public static class TripPlanner
             return seconds + drive.Seconds(d0[order[^1]]);
         }
 
+        // what the search compares: the flight time, less the saving of unloading and loading at the same station
+        double Cost(int[] row, int slot)
+        {
+            var drop = dropAt[slot];
+            return SlotCost(row, slot) - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
+        }
+
         // the number to beat: the longest worker total, plus a part of the combined time (all in seconds)
         static double Objective(double[] totals) => totals.Max() + TotalWeight * totals.Sum();
 
@@ -341,6 +396,38 @@ public static class TripPlanner
         // one improving move: take a batch to another trip with room, or swap two batches between two trips
         bool Improve(int[][] assign, int[] loads, double[] slotCost, double[] totals, ref double current)
         {
+            // a load from Ruin to another trip (or swapped with that trip's load)
+            for (var a = 0; a < slots; a++)
+            {
+                var ca = dropAt[a];
+                if (ca < 0) continue;
+                for (var b = 0; b < slots; b++)
+                {
+                    if (a == b) continue;
+                    var cb = dropAt[b];
+                    if (!CanDrop(ca, b) || (cb >= 0 && !CanDrop(cb, a))) continue;
+                    dropAt[a] = cb;
+                    dropAt[b] = ca;
+                    var newA = Cost(assign[a], a);
+                    var newB = Cost(assign[b], b);
+                    var dA = newA - slotCost[a];
+                    var dB = newB - slotCost[b];
+                    totals[slotWorker[a]] += dA;
+                    totals[slotWorker[b]] += dB;
+                    var value = Objective(totals);
+                    if (value < current - 1e-9)
+                    {
+                        current = value;
+                        slotCost[a] = newA;
+                        slotCost[b] = newB;
+                        return true;
+                    }
+                    totals[slotWorker[a]] -= dA;
+                    totals[slotWorker[b]] -= dB;
+                    dropAt[a] = ca;
+                    dropAt[b] = cb;
+                }
+            }
             for (var a = 0; a < slots; a++)
             {
                 for (var i = 0; i < n; i++)
@@ -355,8 +442,8 @@ public static class TripPlanner
                             assign[b][i]++;
                             if (Allowed(assign, i))
                             {
-                                var newA = SlotCost(assign[a], a);
-                                var newB = SlotCost(assign[b], b);
+                                var newA = Cost(assign[a], a);
+                                var newB = Cost(assign[b], b);
                                 var dA = newA - slotCost[a];
                                 var dB = newB - slotCost[b];
                                 totals[slotWorker[a]] += dA;
@@ -386,8 +473,8 @@ public static class TripPlanner
                             assign[a][j]++;
                             if (Allowed(assign, i) && Allowed(assign, j))
                             {
-                                var newA = SlotCost(assign[a], a);
-                                var newB = SlotCost(assign[b], b);
+                                var newA = Cost(assign[a], a);
+                                var newB = Cost(assign[b], b);
                                 var dA = newA - slotCost[a];
                                 var dB = newB - slotCost[b];
                                 totals[slotWorker[a]] += dA;
@@ -418,6 +505,7 @@ public static class TripPlanner
         var rng = new Random(20261020);
         var bestValue = double.MaxValue;
         int[][]? bestPlan = null;
+        var bestDrop = (int[])dropAt.Clone();
         for (var restart = 0; restart < Restarts; restart++)
         {
             var units = new List<int>();
@@ -483,7 +571,14 @@ public static class TripPlanner
                 loads[slot]++;
             }
 
-            var slotCost = assign.Select((row, t) => SlotCost(row, t)).ToArray();
+            Array.Fill(dropAt, -1);
+            foreach (var c in Enumerable.Range(0, chunks.Count).OrderBy(_ => rng.Next()).ToList())
+            {
+                var options = Enumerable.Range(0, slots).Where(t => dropAt[t] < 0 && CanDrop(c, t)).ToList();
+                if (options.Count > 0) dropAt[options[rng.Next(options.Count)]] = c;
+            }
+
+            var slotCost = assign.Select((row, t) => Cost(row, t)).ToArray();
             var totals = new double[w];
             for (var t = 0; t < slots; t++) totals[slotWorker[t]] += slotCost[t];
             var current = Objective(totals);
@@ -492,14 +587,16 @@ public static class TripPlanner
             {
                 bestValue = current;
                 bestPlan = assign.Select(row => (int[])row.Clone()).ToArray();
+                bestDrop = (int[])dropAt.Clone();
             }
         }
+        Array.Copy(bestDrop, dropAt, slots);
 
         for (var t = 0; t < slots; t++)
         {
             var row = bestPlan![t];
             var mask = MaskOf(row);
-            if (mask == 0) continue;
+            if (mask == 0 && dropAt[t] < 0) continue;
             var trip = new PlannedTrip { Worker = workers[slotWorker[t]].Name, Room = slotCapacity[t] };
             if (special[t])
             {
@@ -510,6 +607,24 @@ public static class TripPlanner
                 trip.From = startOf[t]!.From;
                 trip.Locked = reservedIdx[t] >= 0 && route.Order.Count > 0 && route.Order[0] == reservedIdx[t];
                 foreach (var idx in route.Order) trip.Stops.Add((ids[idx], row[idx]));
+                if (dropAt[t] >= 0)
+                {
+                    trip.Drops.Add((ids[chunkStation[dropAt[t]]], chunks[dropAt[t]].Batches));
+                    trip.DropCargo = chunks[dropAt[t]].Cargo;
+                }
+            }
+            else if (dropAt[t] >= 0)
+            {
+                var chunk = dropAt[t];
+                var route = DropRoute(mask, chunkStation[chunk]);
+                trip.Distance = route.Cost;
+                trip.Seconds = SlotCost(row, t);
+                trip.Drops.Add((ids[chunkStation[chunk]], chunks[chunk].Batches));
+                trip.DropCargo = chunks[chunk].Cargo;
+                foreach (var idx in route.Order)
+                {
+                    if (row[idx] > 0) trip.Stops.Add((ids[idx], row[idx]));
+                }
             }
             else
             {
@@ -525,6 +640,7 @@ public static class TripPlanner
         return trips
             .OrderBy(tp => order2.IndexOf(tp.Worker))
             .ThenBy(tp => tp.Special ? 0 : 1)   // his first trip: the one he is flying or heading for
+            .ThenBy(tp => tp.Drops.Count > 0 ? 0 : 1)   // then the trips that take cargo out from Ruin, so he is rid of it (and can take a new from-Ruin contract) as soon as possible
             .ThenByDescending(tp => tp.Batches)
             .ThenBy(tp => tp.Distance)
             .ToList();
