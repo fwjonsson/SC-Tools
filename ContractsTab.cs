@@ -15,7 +15,7 @@ public sealed partial class MainForm
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        t.Controls.Add(Caption("Contracts", "Every mission that is still going. Click a box to change who has the mission: green ✔ has it, red ✖ does not, gold marks the one who took the contract (his box can be changed too). The Trip Planner only plans a worker for missions he has. A mission that is not in the game any more (the logs did not say so) can be dropped with its Gone button, and brought back with the same button."), 0, 0);
+        t.Controls.Add(Caption("Contracts", "Every mission that is still going, with the stops it has (✓ = picked up), so you can tell it from the missions in your game. Click a box to change who has the mission: green ✔ has it, red ✖ does not, gold marks the one who took the contract (his box can be changed too). The Trip Planner only plans a worker for missions he has. A mission that is not in the game any more (the logs did not say so) can be dropped with its Gone button, and brought back with the same button."), 0, 0);
 
         StyleGrid(_contractGrid);
         _contractGrid.Dock = DockStyle.Fill;
@@ -104,6 +104,7 @@ public sealed partial class MainForm
             _contractGrid.Columns.Clear();
             _contractGrid.Columns.Add(Col("Contract", 130, true));
             _contractGrid.Columns.Add(Col("Cargo", 130, true));
+            _contractGrid.Columns.Add(Col("Pickups (\u2713 = picked up)", 300, true, DataGridViewContentAlignment.MiddleLeft));
             foreach (var n in members)
             {
                 var c = Col(n, 130, true);
@@ -124,7 +125,8 @@ public sealed partial class MainForm
 
             foreach (var m in missions)
             {
-                var cells = new List<object?> { m.Multi > 0 ? m.Multi + " stops" : "?", string.IsNullOrEmpty(m.Cargo) ? "" : m.Cargo };
+                var cells = new List<object?> { m.Multi > 0 ? m.Multi + " stops" : "?", string.IsNullOrEmpty(m.Cargo) ? "" : m.Cargo,
+                    string.Join(",  ", SessionBuilder.StopsOf(m).Select(s => LocationName(s.Zone) + (s.PickedUp ? " \u2713" : ""))) };
                 cells.AddRange(members.Select(_ => (object?)""));
                 cells.Add(m.Dropped ? "Bring back" : "Gone");
                 cells.Add("");   // the # column
@@ -134,13 +136,13 @@ public sealed partial class MainForm
                 {
                     // marked as gone: grey, the boxes do not count
                     row.DefaultCellStyle.ForeColor = Theme.Muted;
-                    for (var k = 0; k < members.Count; k++) row.Cells[2 + k].Value = "";
+                    for (var k = 0; k < members.Count; k++) row.Cells[3 + k].Value = "";
                 }
                 else
                 {
-                    for (var k = 0; k < members.Count; k++) ShowHas(row.Cells[2 + k], m, members[k], HasMission(m, members[k]));
+                    for (var k = 0; k < members.Count; k++) ShowHas(row.Cells[3 + k], m, members[k], HasMission(m, members[k]));
                 }
-                var goneCell = row.Cells[2 + members.Count];
+                var goneCell = row.Cells[3 + members.Count];
                 goneCell.Style.ForeColor = Theme.Text;
                 goneCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 goneCell.ToolTipText = m.Dropped ? "Count this mission again" : "This mission is not in the game any more: do not plan or count it";
