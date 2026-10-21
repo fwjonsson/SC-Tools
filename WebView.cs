@@ -725,7 +725,7 @@ public sealed partial class MainForm
         var headers = new[]
         {
             new { text = "#", align = "center" },
-            new { text = "Route (Ruin, then these, then back to Ruin)", align = "left" },
+            new { text = "Route", align = "left" },
             new { text = "Batches", align = "center" },
             new { text = "Value", align = "right" },
             new { text = "Distance", align = "right" },

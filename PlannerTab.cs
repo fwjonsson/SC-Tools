@@ -322,19 +322,52 @@ public sealed partial class MainForm
 
     List<string> ActiveCrew() => _data.Party.Where(n => !_data.InactiveParty.Any(x => SameName(x, n))).ToList();
 
+    /// <summary>
+    /// The route of a planned trip with Ruin as the first and the last stop and what is done at every stop:
+    /// <c>Ruin (collect Waste, 152 SCU: 4×32 + 24) → Rod's Fuel (drop Waste | collect ×2) → Endgame (collect ×1) → Ruin (drop all)</c>.
+    /// A trip that continues from a station (<c>From</c>) has no Ruin at the start.
+    /// </summary>
     static string RouteText(PlannedTrip trip)
     {
-        if (trip.Drops.Count > 0)
+        var parts = new List<string>();
+        var hasDrop = trip.Drops.Count > 0;
+        var drop = hasDrop ? trip.Drops[0] : default;
+        var cargo = trip.DropCargo ?? "cargo";
+        if (trip.From != null)
         {
-            // the load from Ruin is for the first stop: it is unloaded there, then the pickups begin
-            var d = trip.Drops[0];
-            var bring = "bring " + trip.DropCargo + " \u00d7" + d.Batches + (trip.DropScu > 0 ? ", " + ScuText(trip.DropScu) : "");
-            if (trip.Stops.Count > 0 && trip.Stops[0].Id == d.Id)
-                return PyroDistances.NameOf(d.Id) + " \u00d7" + trip.Stops[0].Batches + " (" + bring + ")" + (trip.Stops.Count > 1 ? "  →  " + string.Join("  →  ", trip.Stops.Skip(1).Select(s => PyroDistances.NameOf(s.Id) + " \u00d7" + s.Batches)) : "");
-            return PyroDistances.NameOf(d.Id) + " (" + bring + ")" + (trip.Stops.Count > 0 ? "  →  " + StopsText(trip) : "");
+            if (!(trip.Stops.Count > 0 && trip.Stops[0].Id == trip.From)) parts.Add("From " + PyroDistances.NameOf(trip.From));
         }
-        return (trip.From != null && !(trip.Stops.Count > 0 && trip.Stops[0].Id == trip.From) ? "From " + PyroDistances.NameOf(trip.From) + "  →  " : "") + StopsText(trip);
+        else if (hasDrop)
+        {
+            // the load for the first stop is collected at Ruin
+            parts.Add("Ruin (collect " + cargo + (drop.Batches > 1 ? " \u00d7" + drop.Batches : "") + (trip.DropScu > 0 ? ", " + ScuText(trip.DropScu) : "") + ")");
+        }
+        else parts.Add("Ruin");
+
+        var dropShown = !hasDrop;
+        if (hasDrop && (trip.Stops.Count == 0 || trip.Stops[0].Id != drop.Id))
+        {
+            parts.Add(PyroDistances.NameOf(drop.Id) + " (drop " + cargo + ")");   // a stop with only the drop-off
+            dropShown = true;
+        }
+        for (var i = 0; i < trip.Stops.Count; i++)
+        {
+            var (id, batches) = trip.Stops[i];
+            var actions = new List<string>();
+            if (!dropShown && i == 0 && id == drop.Id)
+            {
+                actions.Add("drop " + cargo);   // the load is unloaded first, then the pickups at that station are collected
+                dropShown = true;
+            }
+            if (batches > 0) actions.Add("collect \u00d7" + batches);
+            parts.Add(StopWithActions(id, actions));
+        }
+        parts.Add("Ruin (drop all)");
+        return string.Join("  \u2192  ", parts);
     }
+
+    static string StopWithActions(string id, IReadOnlyList<string> actions) =>
+        PyroDistances.NameOf(id) + (actions.Count == 0 ? "" : " (" + string.Join(" | ", actions) + ")");
 
     /// <summary>The station a worker said he starts from (null = Ruin Station). It only lasts until he picks up or hands in something after he set it.</summary>
     string? StartPointOf(string name)
@@ -378,7 +411,7 @@ public sealed partial class MainForm
     }
 
     static string StopsText(PlannedTrip trip) =>
-        string.Join("  →  ", trip.Stops.Select(s => PyroDistances.NameOf(s.Id) + " ×" + s.Batches));   // a locked stop is not marked: the planner just keeps it quietly
+        string.Join("  \u2192  ", trip.Stops.Select(s => StopWithActions(s.Id, new[] { "collect \u00d7" + s.Batches })));   // a locked stop is not marked: the planner just keeps it quietly
 
     /// <summary>The title of a worker's table: just his name.</summary>
     static string PlanTitle(PlanWorkerView w) => w.Name;
@@ -436,7 +469,7 @@ public sealed partial class MainForm
             rows.Add(new PlanRow
             {
                 Label = "Run #" + t.Number,
-                Route = string.Join("  →  ", parts.Select(x => x.Name + " ×" + x.N + (t.End.HasValue ? "" : " \u2713"))),   // the run in progress: what is already on board says so
+                Route = string.Join("  \u2192  ", parts.Select(x => x.Name + " (collected \u00d7" + x.N + (t.End.HasValue ? "" : " \u2713") + ")")),   // the run in progress: what is already on board says so
                 Batches = level == "All" ? "failed" : t.Left ? "left" : t.End.HasValue ? t.HandedIn.ToString(CultureInfo.InvariantCulture) : picked.ToString(CultureInfo.InvariantCulture),
                 BatchCount = picked,
                 Gm = stops.Count > 0 ? PyroDistances.Run(stops) : 0,
@@ -759,6 +792,7 @@ public sealed partial class MainForm
                 runRow.OnMap = true;   // nothing is added to it (full ship): the run itself is his solid line
                 runRow.Solid = true;
             }
+            if (runRow != null && runRow.Stops.Count > 0) runRow.Route += "  \u2192  Ruin (drop all)";   // the run ends at Ruin
             // the first line is his Current trip, the others are numbered 2, 3, ...
             var number = 0;
             foreach (var r in w.Rows.Where(x => !x.Hidden))
@@ -930,7 +964,7 @@ public sealed partial class MainForm
             grid.AllowUserToDeleteRows = false;
             grid.ScrollBars = ScrollBars.None;
             grid.Columns.Add(Col("#", 110, true));
-            grid.Columns.Add(Col("Route (Ruin, then these, then back to Ruin)", 430, true, DataGridViewContentAlignment.MiddleLeft, true));
+            grid.Columns.Add(Col("Route", 430, true, DataGridViewContentAlignment.MiddleLeft, true));
             grid.Columns.Add(Col("Batches", 80, true));
             grid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
             grid.Columns.Add(Col("Distance", 110, true, DataGridViewContentAlignment.MiddleRight));
