@@ -15,19 +15,14 @@ public sealed partial class MainForm
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        t.Controls.Add(Caption("Contracts", "Every mission that is still going. Tick who has it (the contract is shared with him); the one who took it is greyed (and can be unticked too). The Trip Planner only plans a worker for missions he has."), 0, 0);
+        t.Controls.Add(Caption("Contracts", "Every mission that is still going. Click a box to change who has the mission: green ✔ has it, red ✖ does not, gold marks the one who took the contract (his box can be changed too). The Trip Planner only plans a worker for missions he has."), 0, 0);
 
         StyleGrid(_contractGrid);
         _contractGrid.Dock = DockStyle.Fill;
         _contractGrid.Margin = new Padding(0, 3, 0, 3);
         _contractGrid.AllowUserToAddRows = false;
         _contractGrid.AllowUserToDeleteRows = false;
-        _contractGrid.CurrentCellDirtyStateChanged += (_, _) =>
-        {
-            if (_contractGrid.IsCurrentCellDirty && _contractGrid.CurrentCell is DataGridViewCheckBoxCell)
-                _contractGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
-        };
-        _contractGrid.CellValueChanged += ContractTicked;
+        _contractGrid.CellClick += ContractClicked;   // a click on a member's box turns it on or off
         _contractGrid.DataError += (_, e) => e.ThrowException = false;
         t.Controls.Add(_contractGrid, 0, 1);
         return t;
@@ -92,8 +87,8 @@ public sealed partial class MainForm
             _contractGrid.Columns.Add(Col("Cargo", 130, true));
             foreach (var n in members)
             {
-                var c = new DataGridViewCheckBoxColumn { HeaderText = n, Name = "m:" + n, Width = 130, SortMode = DataGridViewColumnSortMode.NotSortable, FlatStyle = FlatStyle.Flat };
-                c.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                var c = Col(n, 130, true);
+                c.Name = "m:" + n;
                 _contractGrid.Columns.Add(c);
             }
             AddNumberColumn(_contractGrid);
@@ -108,17 +103,11 @@ public sealed partial class MainForm
             foreach (var m in missions)
             {
                 var cells = new List<object?> { m.Multi > 0 ? m.Multi + " stops" : "?", string.IsNullOrEmpty(m.Cargo) ? "" : m.Cargo };
-                cells.AddRange(members.Select(n => (object?)HasMission(m, n)));
+                cells.AddRange(members.Select(_ => (object?)""));
                 cells.Add("");   // the # column
                 var row = _contractGrid.Rows[_contractGrid.Rows.Add(cells.ToArray())];
                 row.Tag = m;
-                for (var k = 0; k < members.Count; k++)
-                {
-                    if (m.Taker == null || !SameName(m.Taker, members[k])) continue;
-                    var cell = row.Cells[2 + k];   // the taker is marked, but can be unticked (he may have lost the mission while the others still have it)
-                    cell.Style.BackColor = Theme.Window;
-                    cell.ToolTipText = members[k] + " took this contract";
-                }
+                for (var k = 0; k < members.Count; k++) ShowHas(row.Cells[2 + k], m, members[k], HasMission(m, members[k]));
             }
             NumberRows(_contractGrid);
             if (firstShown >= 0 && firstShown < _contractGrid.Rows.Count) _contractGrid.FirstDisplayedScrollingRowIndex = firstShown;
@@ -129,19 +118,36 @@ public sealed partial class MainForm
         }
     }
 
-    /// <summary>A box was ticked: it is kept (so it wins over the logs) until it is the same as what the logs say.</summary>
-    void ContractTicked(object? sender, DataGridViewCellEventArgs e)
+    static readonly Font HasFont = new("Segoe UI", 12f, FontStyle.Bold);
+
+    /// <summary>Colours a box: green with a tick when he has the mission, red with a cross when he has not; gold for the one who took the contract (a tick or a cross).</summary>
+    static void ShowHas(DataGridViewCell cell, Mission m, string member, bool on)
     {
-        if (_contractsFilling || e.RowIndex < 0 || e.ColumnIndex < 0) return;
+        var taker = m.Taker != null && SameName(m.Taker, member);
+        cell.Value = (on ? "\u2714" : "\u2716") + (taker ? "  took it" : "");
+        var back = taker ? (on ? Theme.Gold : Theme.Orange) : on ? Theme.Green : Theme.Red;
+        cell.Style.BackColor = back;
+        cell.Style.SelectionBackColor = back;   // a click does not change the colour
+        cell.Style.ForeColor = Theme.Text;
+        cell.Style.SelectionForeColor = Theme.Text;
+        cell.Style.Font = HasFont;
+        cell.ToolTipText = taker ? member + " took this contract" : "";
+    }
+
+    /// <summary>A box was clicked: the choice is kept (so it wins over the logs) until it is the same as what the logs say.</summary>
+    void ContractClicked(object? sender, DataGridViewCellEventArgs e)
+    {
+        if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
         var col = _contractGrid.Columns[e.ColumnIndex];
         if (!col.Name.StartsWith("m:") || _contractGrid.Rows[e.RowIndex].Tag is not Mission m) return;
         var member = col.Name[2..];
-        var on = _contractGrid.Rows[e.RowIndex].Cells[e.ColumnIndex].Value is true;
+        var on = !HasMission(m, member);
         if (!_data.MissionHolders.TryGetValue(m.Id, out var ticked)) _data.MissionHolders[m.Id] = ticked = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         if (on == LogSaysHas(m, member)) ticked.Remove(member);
         else ticked[member] = on;
         if (ticked.Count == 0) _data.MissionHolders.Remove(m.Id);
         Storage.Save(_data);
-        _contractsShown = "";   // the plan and the payouts use it: show again with the new state
+        ShowHas(_contractGrid.Rows[e.RowIndex].Cells[e.ColumnIndex], m, member, on);
+        _contractsShown = "";   // the plan and the payouts use it
     }
 }
