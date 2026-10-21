@@ -15,7 +15,7 @@ public sealed partial class MainForm
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        t.Controls.Add(Caption("Contracts", "Every mission that is still going, with the stops it has (✓ = picked up), so you can tell it from the missions in your game. Click a box to change who has the mission: green ✔ has it, red ✖ does not, gold marks the one who took the contract (his box can be changed too). The Trip Planner only plans a worker for missions he has. A mission that is not in the game any more (the logs did not say so) can be dropped with its Gone button, and brought back with the same button."), 0, 0);
+        t.Controls.Add(Caption("Contracts", "Every mission that is still going, with the stops it has (✓ = picked up or delivered), so you can tell it from the missions in your game. The from-Ruin contracts (waste) are here too, with their drop-offs and SCU. Click a box to change who has the mission: green ✔ has it, red ✖ does not, gold marks the one who took the contract (his box can be changed too). The Trip Planner only plans a worker for missions he has. A mission that is not in the game any more (the logs did not say so) can be dropped with its Gone button, and brought back with the same button."), 0, 0);
 
         StyleGrid(_contractGrid);
         _contractGrid.Dock = DockStyle.Fill;
@@ -32,10 +32,34 @@ public sealed partial class MainForm
     List<Mission> ActiveMissions() =>
         _current == null ? new List<Mission>() : _current.Missions.Where(m => m.EndState == null).OrderBy(m => m.Accepted ?? m.FirstSeen ?? DateTime.MaxValue).ThenBy(m => m.Id, StringComparer.Ordinal).ToList();
 
-    /// <summary>The missions still going and the ones marked as gone (so they can be brought back), oldest first.</summary>
+    /// <summary>The missions still going and the ones marked as gone (so they can be brought back), oldest first. The from-Ruin contracts come with the newest session.</summary>
     List<Mission> ContractRows() =>
-        _current == null ? new List<Mission>() : _current.Missions.Where(m => m.EndState == null).Concat(_current.Failed.Where(m => m.Dropped))
+        _current == null ? new List<Mission>() : _current.Missions.Where(m => m.EndState == null).Concat(_current.Failed.Where(m => m.Dropped)).Concat(OutContracts())
             .OrderBy(m => m.Accepted ?? m.FirstSeen ?? DateTime.MaxValue).ThenBy(m => m.Id, StringComparer.Ordinal).ToList();
+
+    /// <summary>
+    /// The from-Ruin contracts (waste) still going, and the ones marked as gone: the same ones the Trip Planner plans (OpenDrops), so only with the newest session,
+    /// and not one that was accepted more than 12 hours ago and never ended.
+    /// </summary>
+    List<Mission> OutContracts()
+    {
+        if (_log == null || _current == null || _sessions.Count == 0 || _current.Key != _sessions[^1].Key) return new List<Mission>();
+        var log = _log;
+        return log.Missions.Values.Where(m => m.IsOut && (m.EndState == null || m.Dropped)
+            && !((m.Accepted ?? m.FirstSeen) is { } seen && log.LastTime - seen > TimeSpan.FromHours(12))).ToList();
+    }
+
+    /// <summary>The Stops cell of a contract: its pickups (✓ = picked up), or for a from-Ruin contract its drop-offs with their SCU (✓ = delivered).</summary>
+    string ContractStopsText(Mission m)
+    {
+        if (!m.IsOut) return string.Join(",  ", SessionBuilder.StopsOf(m).Select(s => LocationName(s.Zone) + (s.PickedUp ? " \u2713" : "")));
+        return string.Join(",  ", m.ObjZone.Where(kv => kv.Key.StartsWith("dropoff_")).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv =>
+        {
+            var scu = m.ObjScu.GetValueOrDefault(kv.Key);
+            var delivered = m.Events.TryGetValue(kv.Key, out var ev) && ev.Any(e => e.State == "COMPLETED");
+            return LocationName(kv.Value) + (scu > 0 ? " " + scu + " SCU" : "") + (delivered ? " \u2713" : "");
+        }));
+    }
 
     /// <summary>The missions that were marked as gone count as abandoned everywhere (planner, session, payouts), unless the logs ended them already.</summary>
     void ApplyDroppedMissions(HaulingLog log)
@@ -92,7 +116,7 @@ public sealed partial class MainForm
         var missions = ContractRows();
         var members = _data.Party.ToList();
         var sig = Theme.Dark + "¦" + string.Join("|", members) + "¦" + string.Join("¦", missions.Select(m =>
-            m.Id + "|" + m.Multi + "|" + m.Cargo + "|" + m.Taker + "|" + m.Dropped + "|" + string.Join(",", members.Select(n => HasMission(m, n) ? "1" : "0"))));
+            m.Id + "|" + m.Multi + "|" + m.Cargo + "|" + m.Taker + "|" + m.Dropped + "|" + ContractStopsText(m) + "|" + string.Join(",", members.Select(n => HasMission(m, n) ? "1" : "0"))));
         if (sig == _contractsShown && _contractGrid.Columns.Count > 0) return;
         _contractsShown = sig;
 
@@ -104,7 +128,7 @@ public sealed partial class MainForm
             _contractGrid.Columns.Clear();
             _contractGrid.Columns.Add(Col("Contract", 130, true));
             _contractGrid.Columns.Add(Col("Cargo", 130, true));
-            _contractGrid.Columns.Add(Col("Pickups (\u2713 = picked up)", 300, true, DataGridViewContentAlignment.MiddleLeft));
+            _contractGrid.Columns.Add(Col("Stops (\u2713 = picked up / delivered)", 300, true, DataGridViewContentAlignment.MiddleLeft));
             foreach (var n in members)
             {
                 var c = Col(n, 130, true);
@@ -125,8 +149,8 @@ public sealed partial class MainForm
 
             foreach (var m in missions)
             {
-                var cells = new List<object?> { m.Multi > 0 ? m.Multi + " stops" : "?", string.IsNullOrEmpty(m.Cargo) ? "" : m.Cargo,
-                    string.Join(",  ", SessionBuilder.StopsOf(m).Select(s => LocationName(s.Zone) + (s.PickedUp ? " \u2713" : ""))) };
+                var contract = m.IsOut ? "From Ruin, " + m.OutDrops + (m.OutDrops == 1 ? " drop-off" : " drop-offs") : m.Multi > 0 ? m.Multi + " stops" : "?";
+                var cells = new List<object?> { contract, m.IsOut ? m.OutCargo ?? "Cargo" : string.IsNullOrEmpty(m.Cargo) ? "" : m.Cargo, ContractStopsText(m) };
                 cells.AddRange(members.Select(_ => (object?)""));
                 cells.Add(m.Dropped ? "Bring back" : "Gone");
                 cells.Add("");   // the # column
