@@ -204,9 +204,15 @@ sealed class LiveWebServer : IDisposable
   .plantables { flex:1 1 520px; min-width:0; }
   .plantables h2:first-child { margin-top:0; }
   .plantables table { table-layout:fixed; }
-  .plantables th:nth-child(1) { width:78px; } .plantables th:nth-child(3) { width:66px; } .plantables th:nth-child(4) { width:96px; }
-  .plantables th:nth-child(5) { width:82px; } .plantables th:nth-child(6) { width:90px; } .plantables th:nth-child(7) { width:76px; }
+  .plantables th:nth-child(1) { width:40px; } .plantables th:nth-child(3) { width:68px; } .plantables th:nth-child(4) { width:86px; }
+  .plantables th:nth-child(5) { width:80px; } .plantables th:nth-child(6) { width:88px; }
   .plantables td:nth-child(2) { white-space:normal; }
+  /* every worker: the Current Route on the left, the Queued routes on the right */
+  .planpair { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; }   /* too narrow for both: the Queued routes go under the Current Route */
+  .plancur { flex:1 1 480px; min-width:0; }
+  .planque { flex:1.4 1 480px; min-width:0; }
+  .planpair table { min-width:470px; }
+  .planpair h3 { margin:6px 0 4px; }
   .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
   .mapbox { flex:0 0 520px; max-width:100%; background:var(--cell); border:1px solid var(--line); }
 </style>
@@ -418,7 +424,17 @@ function renderPlanner() {
     w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, bold: !!r.solid, dashed: !r.solid }); });
   });
   mapSvg(mapBox, p.stations, routes, p.backdrop);
-  p.workers.forEach(function (w) { section(tables, 'h2', w.title, w.grid); });
+  p.workers.forEach(function (w) {
+    const h = document.createElement('h2'); h.textContent = w.title; tables.appendChild(h);
+    if (!w.current) return;   // nothing to do for him
+    const pair = document.createElement('div'); pair.className = 'planpair'; tables.appendChild(pair);
+    [['plancur', 'Current Route', w.current], ['planque', 'Queued routes', w.queued]].forEach(function (x) {
+      const col = document.createElement('div'); col.className = x[0]; pair.appendChild(col);
+      const t = document.createElement('h3'); t.textContent = x[1]; col.appendChild(t);
+      const box = document.createElement('div'); box.className = 'scroll'; col.appendChild(box);
+      table(box, x[2]);
+    });
+  });
   // a copy of Cargo Runs under the planner
   section(body, 'h2', 'Cargo Runs', last.runs);
   if (last.runsLive) {
@@ -719,74 +735,52 @@ public sealed partial class MainForm
         };
     }
 
-    /// <summary>The Trip Planner tab as data: the stations for the map and, for every crew member, his table and his planned routes.</summary>
+    /// <summary>The Trip Planner tab as data: the stations for the map and, for every crew member, his Current Route and Queued routes tables and his planned routes.</summary>
     static object WebPlan(PlanView plan)
     {
-        var headers = new[]
+        object Headers(string textHeader) => new[]
         {
             new { text = "#", align = "center" },
-            new { text = "Route", align = "left" },
+            new { text = textHeader, align = "left" },
             new { text = "Batches", align = "center" },
             new { text = "Value", align = "right" },
             new { text = "Distance", align = "right" },
             new { text = "Flight time", align = "right" },
-            new { text = "Time", align = "right" },
         };
         var cell = WebColor(Theme.Cell);
         var text = WebColor(Theme.Text);
+        var calc = WebColor(Theme.Calc);
 
-        // the whole Current row of a worker has his colour
-        object Grid(PlanWorkerView w)
+        object PlainRow(string[] cells, string back, string fore, bool bold) => new
         {
-            return new
+            cells,
+            back = Enumerable.Repeat(back, cells.Length).ToArray(),
+            fore = Enumerable.Repeat(fore, cells.Length).ToArray(),
+            bold,
+        };
+
+        // the Current Route: one stop per line, the worker colour on the line where he is
+        object CurrentGrid(PlanWorkerView w, PlanRow current)
+        {
+            var cells = LineCells(current.Lines);
+            var rows = new List<object>();
+            for (var i = 0; i < cells.Count; i++)
             {
-                headers,
-                rows = w.Rows.Where(r => !r.Hidden).Select(r =>
-                {
-                    var back = RowColor(r) is { } c ? WebColor(c) : cell;
-                    var backs = new[] { back, back, back, back, back, back, back };
-                    var fores = new[] { text, text, text, text, text, text, text };
-                    if (r.First)
-                    {
-                        for (var i = 0; i < backs.Length; i++)
-                        {
-                            backs[i] = WebColor(w.Color);
-                            fores[i] = WebColor(TextOn(w.Color));
-                        }
-                    }
-                    return new
-                    {
-                        cells = new[]
-                        {
-                            RowLabel(r),
-                            r.Route,
-                            r.Batches,
-                            ValueText(r.Value),
-                            r.Gm > 0 ? Gm(r.Gm) : "",
-                            FlightText(r),
-                            TimeText(r),
-                        },
-                        back = backs,
-                        fore = fores,
-                        bold = r.First,
-                    };
-                }).Cast<object>().Concat(TotalRow(w)).ToList(),
-            };
+                var here = i == current.Here;
+                rows.Add(PlainRow(cells[i], here ? WebColor(w.Color) : cell, here ? WebColor(TextOn(w.Color)) : text, here));
+            }
+            rows.Add(PlainRow(LineTotals(current.Lines), calc, text, true));
+            return new { headers = Headers("Stops"), rows };
         }
 
-        // the Total line under a worker's table, like in the program
-        IEnumerable<object> TotalRow(PlanWorkerView w)
+        // the Queued routes: the trips after it, each with a short route tag
+        object QueuedGrid(List<PlanRow> queued)
         {
-            var visible = w.Rows.Where(r => !r.Hidden).ToList();
-            if (visible.Count == 0) yield break;
-            var calc = WebColor(Theme.Calc);
-            yield return new
-            {
-                cells = PlanTotals(visible, w.SetStart),
-                back = Enumerable.Repeat(calc, 7).ToArray(),
-                fore = Enumerable.Repeat(text, 7).ToArray(),
-                bold = true,
-            };
+            var rows = new List<object>();
+            if (queued.Count == 0) rows.Add(PlainRow(new[] { "", "Nothing queued", "", "", "", "" }, cell, WebColor(Theme.Muted), false));
+            foreach (var r in queued) rows.Add(PlainRow(QueuedCells(r), RowColor(r) is { } c ? WebColor(c) : cell, text, false));
+            if (queued.Count > 0) rows.Add(PlainRow(PlanTotals(queued), calc, text, true));
+            return new { headers = Headers("Route"), rows };
         }
 
         var workers = plan.Workers.Select(w => new
@@ -794,7 +788,8 @@ public sealed partial class MainForm
             name = w.Name,
             color = WebColor(w.Color),
             title = PlanTitle(w) + "   \u2013   Current location: " + PyroDistances.NameOf(w.LocationId) + (w.LocationByHand ? " (set by hand)" : ""),   // where he is now: the logs keep it up to date
-            grid = Grid(w),
+            current = w.Rows.FirstOrDefault(r => !r.Hidden) is { } first ? CurrentGrid(w, first) : null,
+            queued = w.Rows.Any(r => !r.Hidden) ? QueuedGrid(w.Rows.Where(r => !r.Hidden).Skip(1).ToList()) : null,
             routes = w.MapRows.Select(r => new { label = (r.Label.Length > 0 && char.IsDigit(r.Label[0]) ? "Trip " : "") + r.Label + "  " + Gm(r.Gm), stops = r.Stops, from = r.From, solid = r.Solid }).ToList(),
         }).ToList();
         return new
