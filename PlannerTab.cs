@@ -540,6 +540,19 @@ public sealed partial class MainForm
                         }
                         if (start.FirstId == null && (run == null || run.Value.Loaded < c.Capacity)) waiting.Add(c.Name);   // a run with room left locks the next stop of its continuation too
                     }
+                    if (start.FirstId == null && run == null && start.From != null && remaining.GetValueOrDefault(start.From) > 0)
+                    {
+                        // he said where he is: what is left at that station is right there, so his first trip takes it first (what only the others have is left to them)
+                        var here = start.From;
+                        var onlyOthers = limits.TryGetValue(here, out var gl) ? gl.Where(x => !x.Workers.Contains(c.Name)).Sum(x => x.Batches) : 0;
+                        var take = Math.Min(Math.Min(remaining[here] - onlyOthers, remaining[here]), c.Capacity);
+                        if (take > 0)
+                        {
+                            start.FirstId = here;
+                            start.FirstBatches = take;
+                            remaining[here] -= take;
+                        }
+                    }
                     if (start.FirstId != null || start.Loaded > 0 || start.From != null) starts.Add(start);
                 }
                 if (changed) Storage.Save(_data);
