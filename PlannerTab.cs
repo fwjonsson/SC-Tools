@@ -148,9 +148,16 @@ public sealed partial class MainForm
             SetStatus("There is no session to plan.");
             return;
         }
+        var lockedNow = _inputs.NextStopsLocked;
+        var answer = MessageBox.Show(this,
+            lockedNow
+                ? "Unlock the next stops?\n\nThe plan is free again, so it can change while people are on their way to a stop."
+                : "Lock the next stops?\n\nThe plan is worked out now and the next stop of everybody is locked to him. Planning again later only changes the other trips.",
+            "Next Stops", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+        if (answer != DialogResult.Yes) return;
         _planCore = null;
         _planShown = "";
-        if (_inputs.NextStopsLocked)
+        if (lockedNow)
         {
             _inputs.NextStopsLocked = false;
             _inputs.LockedTrips.Clear();
