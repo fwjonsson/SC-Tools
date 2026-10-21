@@ -69,7 +69,10 @@ public sealed partial class MainForm
         public decimal Value;
         public double Gm;                // the leg from the line before it
         public double Seconds;           // the estimated flying time of that leg
+        public List<string> Loads = new();   // the Cargo column: a load that goes out from Ruin or is dropped here, with the containers it is cut into (152 SCU: 4×32 + 24)
+        public double Scu;               // SCU picked up here: a guess, the log only knows the SCU of a whole mission, so every stop of it counts as an equal share
         public string ActionText => string.Join(" | ", Actions);
+        public string CargoText => string.Join(" | ", Scu > 0 ? Loads.Append(ScuGuess(Scu)) : Loads);
     }
 
     /// <summary>What was done at one line of a run in progress (for the text of its Collect/Drop column).</summary>
@@ -77,10 +80,12 @@ public sealed partial class MainForm
     {
         public int Taken;                  // batches of waste taken out at Ruin
         public string? TakenCargo;
+        public List<int> TakenScu = new(); // the SCU of every one of them (0 = not known)
         public int Delivered;              // batches of waste delivered here
-        public int DeliveredScu;
+        public List<int> DeliveredScu = new();   // the SCU of every one of them (0 = not known)
         public string? DeliveredCargo;
         public int Picked;                 // batches picked up here
+        public DateTime Last;              // when the latest of these was done (UTC)
     }
 
     sealed class PlanWorkerView
@@ -374,20 +379,20 @@ public sealed partial class MainForm
     /// The stops of a planned trip one by one, for the Current Route table: where it starts (Ruin, collecting the load from Ruin if there is one, or the station he is at),
     /// what is done at every stop, and the way back to Ruin. Every line has the leg that leads to it, so the legs add up to the whole route.
     /// </summary>
-    List<StopLine> LinesOf(PlannedTrip trip, string worker, Func<string, decimal> perBatch)
+    List<StopLine> LinesOf(PlannedTrip trip, string worker, Func<string, decimal> perBatch, Func<string, double> scuPerBatch, string? at = null)
     {
         var drive = QtOf(worker);
         var lines = new List<StopLine>();
-        var prev = trip.From ?? PyroDistances.Ruin;
+        var prev = trip.From ?? at ?? PyroDistances.Ruin;
         var hasDrop = trip.Drops.Count > 0;
         var drop = hasDrop ? trip.Drops[0] : default;
         var cargo = trip.DropCargo ?? "cargo";
         var firstStop = trip.Stops.Count > 0 ? trip.Stops[0].Id : null;
 
-        StopLine Add(string id, string name, bool stop, IEnumerable<string> actions, int batches = 0, decimal value = 0)
+        StopLine Add(string id, string name, bool stop, IEnumerable<string> actions, int batches = 0, decimal value = 0, double scu = 0)
         {
             var gm = PyroDistances.Between(prev, id);
-            var line = new StopLine { Id = id, Name = name, Stop = stop, Batches = batches, Value = value, Gm = gm, Seconds = gm > 0 ? drive.Seconds(gm) : 0 };
+            var line = new StopLine { Id = id, Name = name, Stop = stop, Batches = batches, Value = value, Scu = scu, Gm = gm, Seconds = gm > 0 ? drive.Seconds(gm) : 0 };
             line.Actions.AddRange(actions);
             lines.Add(line);
             prev = id;
@@ -396,37 +401,45 @@ public sealed partial class MainForm
 
         if (trip.From == null)
         {
+            // his first trip starts at Ruin but he is somewhere else: first the flight back to Ruin
+            if (at != null && at != PyroDistances.Ruin) Add(at, PyroDistances.NameOf(at), false, Array.Empty<string>());
             // the load for the first stop is collected at Ruin
             var collect = hasDrop
-                ? new[] { "Collect " + cargo + (drop.Batches > 1 ? " \u00d7" + drop.Batches : "") + (trip.DropScu > 0 ? ", " + ScuText(trip.DropScu) : "") }
+                ? new[] { "Collect " + cargo + (drop.Batches > 1 ? " \u00d7" + drop.Batches : "") }
                 : Array.Empty<string>();
-            Add(PyroDistances.Ruin, "Ruin", false, collect);
+            var ruin = Add(PyroDistances.Ruin, "Ruin", false, collect);
+            if (hasDrop) ruin.Loads.Add(LoadText(trip.DropParts));   // the SCU of the load and the containers it is cut into
         }
         else if (firstStop != trip.From) Add(trip.From, PyroDistances.NameOf(trip.From), false, Array.Empty<string>());   // where he is now
 
         var dropShown = !hasDrop;
         if (hasDrop && firstStop != drop.Id)
         {
-            Add(drop.Id, PyroDistances.NameOf(drop.Id), true, new[] { "Drop " + cargo });   // a stop with only the drop-off
+            Add(drop.Id, PyroDistances.NameOf(drop.Id), true, new[] { "Drop " + cargo }).Loads.Add(LoadText(trip.DropParts));   // a stop with only the drop-off
             dropShown = true;
         }
         foreach (var (id, batches) in trip.Stops)
         {
             var actions = new List<string>();
+            var unloads = false;
             if (!dropShown && id == drop.Id)
             {
                 actions.Add("Drop " + cargo);
                 dropShown = true;
+                unloads = true;
             }
             if (batches > 0) actions.Add("Collect \u00d7" + batches);
-            Add(id, PyroDistances.NameOf(id), true, actions, batches, batches * perBatch(id));
+            var stopLine = Add(id, PyroDistances.NameOf(id), true, actions, batches, batches * perBatch(id), batches * scuPerBatch(id));
+            if (unloads) stopLine.Loads.Add(LoadText(trip.DropParts));
         }
-        Add(PyroDistances.Ruin, "Ruin", false, trip.Batches > 0 ? new[] { "Drop \u00d7" + trip.Batches } : Array.Empty<string>());
+        var home = Add(PyroDistances.Ruin, "Ruin", false, trip.Batches > 0 ? new[] { "Drop \u00d7" + trip.Batches } : Array.Empty<string>());
+        var handedIn = lines.Sum(l => l.Scu);
+        if (handedIn > 0) home.Loads.Add(ScuGuess(handedIn));   // everything picked up is handed in here
         return lines;
     }
 
     /// <summary>Puts what the plan still collects at a station after the lines of a run in progress (at the station where the last pickup was it joins that line).</summary>
-    void AddCollectLine(List<StopLine> lines, string worker, string id, int batches, decimal perBatch)
+    void AddCollectLine(List<StopLine> lines, string worker, string id, int batches, decimal perBatch, double scuPerBatch)
     {
         var last = lines.Count > 0 ? lines[^1] : null;
         if (last != null && last.Id == id)
@@ -434,11 +447,12 @@ public sealed partial class MainForm
             last.Actions.Add("Collect \u00d7" + batches);
             last.Batches += batches;
             last.Value += batches * perBatch;
+            last.Scu += batches * scuPerBatch;
             return;
         }
         var prev = lines.LastOrDefault(l => l.Id.Length > 0)?.Id ?? PyroDistances.Ruin;
         var gm = PyroDistances.Between(prev, id);
-        var line = new StopLine { Id = id, Name = PyroDistances.NameOf(id), Batches = batches, Value = batches * perBatch, Gm = gm, Seconds = gm > 0 ? QtOf(worker).Seconds(gm) : 0 };
+        var line = new StopLine { Id = id, Name = PyroDistances.NameOf(id), Batches = batches, Value = batches * perBatch, Scu = batches * scuPerBatch, Gm = gm, Seconds = gm > 0 ? QtOf(worker).Seconds(gm) : 0 };
         line.Actions.Add("Collect \u00d7" + batches);
         lines.Add(line);
     }
@@ -450,6 +464,8 @@ public sealed partial class MainForm
         var gm = PyroDistances.Between(prev, PyroDistances.Ruin);
         var line = new StopLine { Id = PyroDistances.Ruin, Name = "Ruin", Stop = false, Gm = gm, Seconds = gm > 0 ? QtOf(worker).Seconds(gm) : 0 };
         if (batches > 0) line.Actions.Add("Drop \u00d7" + batches);
+        var handedIn = lines.Sum(l => l.Scu);
+        if (handedIn > 0) line.Loads.Add(ScuGuess(handedIn));   // everything picked up is handed in here
         lines.Add(line);
     }
 
@@ -483,6 +499,32 @@ public sealed partial class MainForm
         }
         return total;
     }
+
+    /// <summary>
+    /// One stop's share of the SCU of a hauling mission: the SCU of the whole mission (the "Deliver 0/490 SCU of Carbon to Ruin Station" popup) divided by its pickup stops.
+    /// The log does not say how much is loaded at each stop, so this is a guess; 0 when the SCU of the mission is not known.
+    /// </summary>
+    static double StopScu(Mission m)
+    {
+        var all = m.ObjScu.Values.Sum();
+        return all > 0 && m.Multi > 0 ? all / (double)m.Multi : 0;
+    }
+
+    /// <summary>The SCU of the batches of one pickup (a guess, see StopScu).</summary>
+    double PickupScu(TripPickup p)
+    {
+        if (_current == null) return 0;
+        double total = 0;
+        foreach (var id in p.MissionIds)
+        {
+            var m = _current.Missions.FirstOrDefault(x => x.Id == id) ?? _current.Failed.FirstOrDefault(x => x.Id == id);
+            if (m != null) total += StopScu(m);
+        }
+        return total;
+    }
+
+    /// <summary>A guessed amount of SCU, like "~392 SCU".</summary>
+    static string ScuGuess(double scu) => "~" + Math.Round(scu).ToString(CultureInfo.InvariantCulture) + " SCU";
 
     /// <summary>The latest time the logs show the worker picking up, handing in or delivering a load from Ruin (the minimum time = nothing yet).</summary>
     DateTime LastMoveOf(string name)
@@ -585,6 +627,7 @@ public sealed partial class MainForm
                 (i + 1).ToString(CultureInfo.InvariantCulture),
                 l.Name,
                 l.ActionText,
+                l.CargoText,
                 ValueText(l.Value),
                 l.Gm > 0 ? Gm(l.Gm) : "",
                 l.Seconds > 0 ? "~" + FlightSpan(l.Seconds) : "",
@@ -598,6 +641,7 @@ public sealed partial class MainForm
     {
         var stops = lines.Count(l => l.Stop);
         var batches = lines.Sum(l => l.Batches);
+        var scu = lines.Sum(l => l.Scu);
         var gm = lines.Sum(l => l.Gm);
         var flight = lines.Sum(l => l.Seconds);
         return new[]
@@ -605,6 +649,7 @@ public sealed partial class MainForm
             "",
             "Total: " + stops + (stops == 1 ? " stop" : " stops"),
             batches > 0 ? "Collect \u00d7" + batches : "",
+            scu > 0 ? ScuGuess(scu) : "",
             ValueText(lines.Sum(l => l.Value)),
             gm > 0 ? Gm(gm) : "",
             flight > 0 ? "~" + FlightSpan(flight) : "",
@@ -679,7 +724,9 @@ public sealed partial class MainForm
                 {
                     var d = done[LineFor(PyroDistances.Ruin, "Ruin", true)];
                     d.Taken += batch.Count;
+                    d.TakenScu.AddRange(batch.Select(x => x.Scu));
                     d.TakenCargo = batch[0].Cargo;
+                    d.Last = batch.Max(x => x.Time);
                 }));
             }
             foreach (var cluster in Clusters(t.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone))
@@ -692,8 +739,9 @@ public sealed partial class MainForm
                     if (id != null && (stops.Count == 0 || stops[^1] != id)) stops.Add(id);
                     var d = done[line];
                     d.Delivered += batch.Count;
-                    d.DeliveredScu += batch.Sum(x => x.Scu);
+                    d.DeliveredScu.AddRange(batch.Select(x => x.Scu));
                     d.DeliveredCargo = batch[0].Cargo;
+                    d.Last = batch.Max(x => x.Time);
                 }));
             }
             foreach (var p in t.Pickups)
@@ -708,18 +756,30 @@ public sealed partial class MainForm
                     if (id != null && (stops.Count == 0 || stops[^1] != id)) stops.Add(id);
                     line.Batches += n;
                     line.Value += PickupValue(pick);
+                    line.Scu += PickupScu(pick);
                     done[line].Picked += n;
+                    done[line].Last = pick.Time;
                 }));
             }
             foreach (var step in steps.OrderBy(x => x.Time)) step.Do();
 
-            // the run in progress: what is already done says so
+            // the run in progress: what is already done says so. At the line where he is, it says "Collecting" until he selects the next destination (only when his log shows that)
             foreach (var line in lines)
             {
                 var d = done[line];
-                if (d.Taken > 0) line.Actions.Add("Collected " + d.TakenCargo + (d.Taken > 1 ? " \u00d7" + d.Taken : "") + " \u2713");
-                if (d.Delivered > 0) line.Actions.Add("Dropped " + d.DeliveredCargo + (d.Delivered > 1 ? " \u00d7" + d.Delivered : "") + (d.DeliveredScu > 0 ? ", " + d.DeliveredScu + " SCU" : "") + " \u2713");
-                if (d.Picked > 0) line.Actions.Add("Collected \u00d7" + d.Picked + " \u2713");
+                var busy = ReferenceEquals(line, lines[^1]) && StillLoading(name, d.Last);
+                var tick = busy ? "" : " \u2713";
+                if (d.Taken > 0)
+                {
+                    line.Actions.Add((busy ? "Collecting " : "Collected ") + d.TakenCargo + (d.Taken > 1 ? " \u00d7" + d.Taken : "") + tick);
+                    line.Loads.Add(LoadText(d.TakenScu));
+                }
+                if (d.Delivered > 0)
+                {
+                    line.Actions.Add((busy ? "Dropping " : "Dropped ") + d.DeliveredCargo + (d.Delivered > 1 ? " \u00d7" + d.Delivered : "") + tick);
+                    line.Loads.Add(LoadText(d.DeliveredScu));
+                }
+                if (d.Picked > 0) line.Actions.Add((busy ? "Collecting \u00d7" : "Collected \u00d7") + d.Picked + tick);
             }
             rows.Add(new PlanRow
             {
@@ -871,6 +931,20 @@ public sealed partial class MainForm
                         }
                         if (start.FirstId == null && (run == null || run.Value.Loaded < c.Capacity)) waiting.Add(c.Name);   // a run with room left locks the next stop of its continuation too
                     }
+                    // his own log shows the station he is flying to (or has arrived at) since his last pickup or delivery: what he can take there stays his,
+                    // locked or not, so planning again for somebody else never takes it away from him while he is on his way or about to load
+                    var heading = start.FirstId == null ? HeadingFor(c.Name) : null;
+                    if (heading != null && remaining.GetValueOrDefault(heading) > 0)
+                    {
+                        var notHis = limits.TryGetValue(heading, out var hl) ? hl.Where(x => !x.Workers.Contains(c.Name)).Sum(x => x.Batches) : 0;
+                        var take = Math.Min(remaining[heading] - notHis, Math.Max(0, c.Capacity - start.Loaded));
+                        if (take > 0)
+                        {
+                            start.FirstId = heading;
+                            start.FirstBatches = take;
+                            remaining[heading] -= take;
+                        }
+                    }
                     if (start.FirstId == null && run == null && start.From != null && remaining.GetValueOrDefault(start.From) > 0)
                     {
                         // he said where he is: what is left at that station is right there, so his first trip takes it first (what only the others have is left to them)
@@ -936,6 +1010,7 @@ public sealed partial class MainForm
         var remaining = new Dictionary<string, int>();
         var unknown = new List<string>();
         var worth = new Dictionary<string, (decimal Value, int Batches)>();   // station -> what its batches are worth together (the value of a stop is reward / stops of its mission)
+        var volume = new Dictionary<string, (double Scu, int Stops)>();   // station -> the SCU of its open stops together (a guess, see StopScu) and how many stops that is
         var limits = new Dictionary<string, List<(string[] Workers, int Batches)>>();   // station -> batches that only some of the crew can take (they have those missions running, the others do not)
         var flyers = crew.Where(c => c.Capacity > 0).Select(c => c.Name).ToList();
         if (_inputs != null)
@@ -956,6 +1031,13 @@ public sealed partial class MainForm
                     continue;
                 }
                 remaining[id] = remaining.GetValueOrDefault(id) + left;
+                foreach (var open in r.OpenMissions)
+                {
+                    var share = StopScu(open);
+                    if (share <= 0) continue;
+                    var had = volume.GetValueOrDefault(id);
+                    volume[id] = (had.Scu + share, had.Stops + 1);
+                }
                 foreach (var m in r.OpenMissions)
                 {
                     var can = flyers.Where(n => HasMission(m, n)).ToArray();   // the Contracts tab: who has this mission
@@ -981,7 +1063,18 @@ public sealed partial class MainForm
         }
         var core = CoreFor(crew, remaining, unknown, limits, chunks);
         var dropTrips = core.Trips;
+        // the waste only rides along on the pickup trips: a load that none of them can take along waits (the note says so)
+        var carried = dropTrips.SelectMany(pt => pt.Drops.Select(dd => dd.Id)).ToList();
+        var waits = new List<string>();
+        foreach (var load in chunks)
+        {
+            var at = carried.IndexOf(load.Station);
+            if (at >= 0) carried.RemoveAt(at);
+            else waits.Add(load.Cargo + " for " + PyroDistances.NameOf(load.Station));
+        }
+        if (waits.Count > 0) dropNote = (dropNote + "  Waiting to go along on a pickup trip: " + string.Join(", ", waits) + ".").Trim();
         decimal PerBatch(string id) => worth.TryGetValue(id, out var x) && x.Batches > 0 ? x.Value / x.Batches : 0;   // the average batch at that station
+        double ScuPerBatch(string id) => volume.TryGetValue(id, out var y) && y.Stops > 0 ? y.Scu / y.Stops : 0;   // the average stop at that station, in SCU
 
         var plan = new PlanView { Note = (core.Note + "  " + dropNote).Trim() };
         var flying = crew.Where(c => c.Capacity > 0).ToList();
@@ -1030,7 +1123,7 @@ public sealed partial class MainForm
                     Stops = mine[k].Drops.Select(d => d.Id).Concat(mine[k].Stops.Select(s => s.Id)).Aggregate(new List<string>(), (l, id) => { if (l.Count == 0 || l[^1] != id) l.Add(id); return l; }),
                     From = mine[k].From,
                     Trip = mine[k],
-                    Lines = LinesOf(mine[k], c.Name, PerBatch),
+                    Lines = LinesOf(mine[k], c.Name, PerBatch, ScuPerBatch, k == 0 && runRow == null ? w.LocationId : null),
                 });
             }
             // what the plan adds to the run in progress is part of his Current row: the stops already picked up, then the ones still to pick up
@@ -1043,7 +1136,7 @@ public sealed partial class MainForm
                 runRow.Stops = runRow.Stops.Concat(cont.Stops.Select(s => s.Id)).ToList();
                 runRow.Gm = PyroDistances.Run(runRow.Stops);
                 runRow.Flight = FlightOf(c.Name, runRow.Stops);   // the whole run, Ruin to Ruin
-                foreach (var (stopId, stopBatches) in cont.Stops) AddCollectLine(runRow.Lines, c.Name, stopId, stopBatches, PerBatch(stopId));
+                foreach (var (stopId, stopBatches) in cont.Stops) AddCollectLine(runRow.Lines, c.Name, stopId, stopBatches, PerBatch(stopId), ScuPerBatch(stopId));
                 w.Rows.First(r => r.Trip == cont).Hidden = true;
             }
             else if (runRow != null && runRow.Stops.Count > 0)
@@ -1087,7 +1180,7 @@ public sealed partial class MainForm
         }
 
         plan.Signature = plan.Summary + "¦" + (Theme.Dark ? "dark" : "light") + "¦" + string.Join("|", plan.Workers.Select(x => x.Name + "@" + x.LocationId + (x.LocationByHand ? "!" : "") + ">" + x.AutoLocationId)) + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
-            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Flight.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Here + "|" + string.Join(";", r.Lines.Select(l => l.Name + "~" + l.ActionText + "~" + l.Batches + "~" + l.Value.ToString("F0", CultureInfo.InvariantCulture) + "~" + l.Gm.ToString("F1", CultureInfo.InvariantCulture) + "~" + l.Seconds.ToString("F0", CultureInfo.InvariantCulture))) + "|" + w.Drive + "|" + w.RunsSoFar)));
+            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Flight.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Here + "|" + string.Join(";", r.Lines.Select(l => l.Name + "~" + l.ActionText + "~" + l.CargoText + "~" + l.Batches + "~" + l.Value.ToString("F0", CultureInfo.InvariantCulture) + "~" + l.Gm.ToString("F1", CultureInfo.InvariantCulture) + "~" + l.Seconds.ToString("F0", CultureInfo.InvariantCulture))) + "|" + w.Drive + "|" + w.RunsSoFar)));
         return plan;
     }
 
@@ -1158,7 +1251,18 @@ public sealed partial class MainForm
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var map = new PyroMapView { Dock = DockStyle.Top, Margin = new Padding(0, 0, 12, 0) };
+        var map = new PyroMapView { Dock = DockStyle.Top };
+        // under the map: the small team status line (a text that changes every few seconds)
+        var status = new StatusLine { Dock = DockStyle.Top };
+        status.ShowText(_statusText, false);
+        _statusLine = status;
+        status.Disposed += (_, _) =>
+        {
+            if (ReferenceEquals(_statusLine, status)) _statusLine = null;
+        };
+        var left = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0), Padding = new Padding(0, 0, 12, 0) };
+        left.Controls.Add(status);   // added first, so it sits under the map
+        left.Controls.Add(map);
         var host = new PlanHost { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
         host.Resize += (_, _) => FitPlanBlocks(host);
 
@@ -1181,12 +1285,12 @@ public sealed partial class MainForm
         {
             var room = Math.Max(320, t.ClientSize.Height - t.Padding.Vertical);
             var side = Math.Max(320, Math.Min(room, (int)(t.ClientSize.Width * 0.4)));
-            t.ColumnStyles[0].Width = side + map.Margin.Horizontal;
+            t.ColumnStyles[0].Width = side + left.Padding.Horizontal;
             map.Height = side;
         }
         t.Resize += (_, _) => FitMap();
         FitMap();
-        t.Controls.Add(map, 0, 0);
+        t.Controls.Add(left, 0, 0);
         t.Controls.Add(host, 1, 0);
         return t;
     }
@@ -1212,8 +1316,8 @@ public sealed partial class MainForm
         }
     }
 
-    /// <summary>A title and the two tables of one crew member: the Current Route, and to the right of it the Queued routes (under it when the window is too narrow for both).</summary>
-    Control PlanBlock(PlanWorkerView w, (int Current, int Queued) widths)
+    /// <summary>A title and the two tables of one crew member: the Current Route and, under it, the Queued routes. Both are as wide as the page.</summary>
+    Control PlanBlock(PlanWorkerView w, (int Current, int Queued, int Cargo) widths)
     {
         var block = new Panel { Margin = new Padding(0, 0, 0, 14) };
         // the title: his name, and right of it where he is now (his Current location: the logs keep it up to date, and here it can be set by hand)
@@ -1246,7 +1350,7 @@ public sealed partial class MainForm
         {
             var current = visible[0];
             var queued = visible.Skip(1).ToList();
-            var currentGrid = CurrentRouteGrid(w, current, widths.Current);
+            var currentGrid = CurrentRouteGrid(w, current, widths.Current, widths.Cargo);
             var queuedGrid = QueuedRoutesGrid(queued, widths.Queued);
 
             // each table with its small title above it
@@ -1263,40 +1367,24 @@ public sealed partial class MainForm
             pair.Controls.Add(currentBox);
             pair.Controls.Add(queuedBox);
 
-            // The Current Route on the left, the Queued routes on the right, each as wide as its longest line needs (the same for every worker, so the tables line up);
-            // the rest of the room is shared in that proportion, and when there is less the Queued routes give way first. A window too narrow for both puts the
-            // Queued routes under the Current Route instead.
-            var wantCurrent = PlanCurrentFixed + widths.Current;
-            var wantQueued = PlanQueuedFixed + widths.Queued;
-            var minCurrent = PlanCurrentFixed + PlanMinText;
-            var minQueued = PlanQueuedFixed + PlanMinText;
+            // The Current Route on top and the Queued routes under it, each as wide as the page. Their Value, Distance and In flight columns have the same
+            // widths, so they line up under each other.
             var fitting = false;
-            void FitPair()
+            void FitStack()
             {
                 if (fitting) return;   // setting the sizes below changes the heights of the tables, which comes back here
                 fitting = true;
                 try
                 {
-                    var room = Math.Max(minCurrent, pair.ClientSize.Width);
-                    var side = room >= minCurrent + minQueued + PlanGap;
-                    var widthCurrent = room;
-                    var widthQueued = room;
-                    if (side)
-                    {
-                        var shared = room - PlanGap;
-                        widthCurrent = shared >= wantCurrent + wantQueued
-                            ? wantCurrent + (shared - wantCurrent - wantQueued) * wantCurrent / (wantCurrent + wantQueued)
-                            : shared - Math.Max(minQueued, shared - wantCurrent);
-                        widthQueued = shared - widthCurrent;
-                    }
-                    currentBox.Width = widthCurrent;
-                    queuedBox.Width = widthQueued;
+                    var room = Math.Max(PlanCurrentFixed(widths.Current) + PlanMinText, pair.ClientSize.Width);
+                    currentBox.Width = room;
+                    queuedBox.Width = room;
                     // the tables are as high as their rows (a long text takes two lines), the boxes follow them, and the block follows the boxes
                     currentBox.Height = PlanTitleHeight + currentGrid.Height;
                     queuedBox.Height = PlanTitleHeight + queuedGrid.Height;
                     currentBox.Location = new Point(0, 0);
-                    queuedBox.Location = side ? new Point(widthCurrent + PlanGap, 0) : new Point(0, currentBox.Height + PlanGap);
-                    var tall = side ? Math.Max(currentBox.Height, queuedBox.Height) : queuedBox.Bottom;
+                    queuedBox.Location = new Point(0, currentBox.Height + PlanGap);
+                    var tall = queuedBox.Bottom;
                     if (pair.Height != tall) pair.Height = tall;
                     if (block.Height != label.Height + tall) block.Height = label.Height + tall;
                 }
@@ -1305,10 +1393,10 @@ public sealed partial class MainForm
                     fitting = false;
                 }
             }
-            currentGrid.SizeChanged += (_, _) => FitPair();
-            queuedGrid.SizeChanged += (_, _) => FitPair();
-            pair.Resize += (_, _) => FitPair();
-            FitPair();
+            currentGrid.SizeChanged += (_, _) => FitStack();
+            queuedGrid.SizeChanged += (_, _) => FitStack();
+            pair.Resize += (_, _) => FitStack();
+            FitStack();
             height += pair.Height;
             block.Controls.Add(pair);   // added first, so the title sits above it
         }
@@ -1319,30 +1407,37 @@ public sealed partial class MainForm
     }
 
     const int PlanTitleHeight = 26;
-    const int PlanMinText = 110;                            // the text column of a table is never narrower than this
-    const int PlanCurrentFixed = 36 + 120 + 80 + 74 + 68;   // the Current Route without its text column: #, Stops, Value, Distance, In flight
+    const int PlanMinText = 110;                            // the text column of a table (Cargo, Route) is never narrower than this
     const int PlanQueuedFixed = 36 + 64 + 80 + 74 + 68;     // the Queued routes without its text column: #, Batches, Value, Distance, In flight
-    const int PlanGap = 14;                                 // between the Current Route and the Queued routes
+    const int PlanGap = 8;                                  // between the Current Route and the Queued routes
+
+    /// <summary>The Current Route without its Cargo column (the one that takes the room that is left): #, Stops, Collect/Drop, Value, Distance, In flight.</summary>
+    static int PlanCurrentFixed(int action) => 36 + 120 + action + 80 + 74 + 68;
 
     static readonly Font PlanBoldFont = new("Segoe UI", 10f, FontStyle.Bold);
 
     /// <summary>
-    /// The width that the text column of the Current Route (what is done at a stop) and of the Queued routes (the route) needs for its longest line, over all the workers:
-    /// every worker gets the same tables, so they line up, and a row stays one line high when there is room.
+    /// The width that the Collect/Drop column of the Current Route (what is done at a stop) needs for its longest line, the width of its Cargo column, and the width that the
+    /// route of the Queued routes needs, over all the workers: every worker gets the same tables, so they line up, and a row stays one line high when there is room.
     /// </summary>
-    static (int Current, int Queued) PlanTextWidths(PlanView plan)
+    static (int Current, int Queued, int Cargo) PlanTextWidths(PlanView plan)
     {
         int Measure(string text) => TextRenderer.MeasureText(text, PlanBoldFont).Width;   // bold: the widest it gets
         var current = 0;
         var queued = 0;
+        var cargo = 0;
         foreach (var w in plan.Workers)
         {
             var visible = w.Rows.Where(r => !r.Hidden).ToList();
             if (visible.Count == 0) continue;
-            foreach (var l in visible[0].Lines) current = Math.Max(current, Measure(l.ActionText));
+            foreach (var l in visible[0].Lines)
+            {
+                current = Math.Max(current, Measure(l.ActionText));
+                cargo = Math.Max(cargo, Measure(l.CargoText));
+            }
             foreach (var r in visible.Skip(1)) queued = Math.Max(queued, Measure(r.Route));
         }
-        return (Math.Clamp(current + 20, 150, 420), Math.Clamp(queued + 20, 150, 700));
+        return (Math.Clamp(current + 20, 150, 420), Math.Clamp(queued + 20, 150, 700), Math.Clamp(cargo + 20, 110, 420));
     }
 
     /// <summary>The small title above one of the two tables of a worker.</summary>
@@ -1359,11 +1454,11 @@ public sealed partial class MainForm
     };
 
     /// <summary>
-    /// A table of the Trip Planner. Current Route: #, Stops (just the station), Collect/Drop (what is done there; this column takes the room that is left), Value,
-    /// Distance, In flight. Queued routes: #, Route (the stations; takes the room that is left), Batches, Value, Distance, In flight. The text column wraps onto a
-    /// second line only when it has to.
+    /// A table of the Trip Planner. Current Route: #, Stops (just the station), Collect/Drop (what is done there), Cargo (the SCU, and the containers of a load; this column
+    /// takes the room that is left), Value, Distance, In flight. Queued routes: #, Route (the stations; takes the room that is left), Batches, Value, Distance, In flight.
+    /// A text column wraps onto a second line only when it has to.
     /// </summary>
-    PlanGridView NewPlanGrid(bool current, int textWidth)
+    PlanGridView NewPlanGrid(bool current, int textWidth, int cargoWidth)
     {
         var grid = new PlanGridView();
         StyleGrid(grid);
@@ -1373,11 +1468,14 @@ public sealed partial class MainForm
         grid.ScrollBars = ScrollBars.None;
         grid.ShowCellToolTips = false;   // a pop-up with the value of a cell that is a bit tight is only in the way
         grid.Columns.Add(Col("#", 36, true));
-        DataGridViewColumn text;
+        DataGridViewColumn text;          // the column that takes the room that is left
+        DataGridViewColumn? action = null;
         if (current)
         {
             grid.Columns.Add(Col("Stops", 120, true, DataGridViewContentAlignment.MiddleLeft));
-            text = Col("Collect/Drop", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
+            action = Col("Collect/Drop", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
+            grid.Columns.Add(action);
+            text = Col("Cargo", cargoWidth, true, DataGridViewContentAlignment.MiddleLeft);
             grid.Columns.Add(text);
         }
         else
@@ -1395,15 +1493,16 @@ public sealed partial class MainForm
             c.MinimumWidth = c == text ? PlanMinText : 30;
         }
         text.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+        if (action != null) action.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
         grid.TextColumn = text;
-        grid.Width = (current ? PlanCurrentFixed : PlanQueuedFixed) + textWidth;   // the width it is expected to get, so the first measure of its rows is about right
+        grid.Width = current ? PlanCurrentFixed(textWidth) + cargoWidth : PlanQueuedFixed + textWidth;   // the width it is expected to get, so the first measure of its rows is about right
         return grid;
     }
 
     /// <summary>The Current Route of a worker: the run he is flying (or the trip he starts with), one stop per line. The worker colour is on the line where he is.</summary>
-    PlanGridView CurrentRouteGrid(PlanWorkerView w, PlanRow current, int textWidth)
+    PlanGridView CurrentRouteGrid(PlanWorkerView w, PlanRow current, int textWidth, int cargoWidth)
     {
-        var grid = NewPlanGrid(true, textWidth);
+        var grid = NewPlanGrid(true, textWidth, cargoWidth);
         var cells = LineCells(current.Lines);
         for (var i = 0; i < cells.Count; i++)
         {
@@ -1424,7 +1523,7 @@ public sealed partial class MainForm
     /// <summary>The Queued routes of a worker: the trips after his current one, each with a short route tag (just the stations).</summary>
     PlanGridView QueuedRoutesGrid(List<PlanRow> queued, int textWidth)
     {
-        var grid = NewPlanGrid(false, textWidth);
+        var grid = NewPlanGrid(false, textWidth, 0);
         if (queued.Count == 0)
         {
             var none = grid.Rows[grid.Rows.Add("", "Nothing queued", "", "", "", "")];

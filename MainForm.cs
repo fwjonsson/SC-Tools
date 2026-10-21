@@ -92,6 +92,7 @@ public sealed partial class MainForm : Form
         {
             UpdateSessionClock();
             UpdateLiveDurations();
+            AdvanceStatus();
         };
         _clock.Start();
         _timer.Interval = 1500;

@@ -165,6 +165,29 @@ static class PyroDistances
         return null;
     }
 
+    // The destinations of the quantum map as the logs write them ("rs_ext_pyro6_leo") and the station each one is. Seen in the logs by flying there: Ruin, Orbituary, Starlight, Dudley,
+    // Patch City, Checkmate, Rod's Fuel, Rat's Nest and both gateways. Megumi (the other Lagrange point of Terminus), Gaslight and Endgame are named by the same pattern
+    // (planet, Lagrange point) from their positions on the map; if one is not right the destination just shows up as unknown.
+    static readonly Dictionary<string, string> QuantumTargets = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["rs_ext_pyro6_leo"] = Ruin,
+        ["rs_ext_pyro3_leo"] = "73041",        // Orbituary
+        ["rs_ext_pyro3_l1"] = "70053",         // Starlight
+        ["rs_ext_pyro6_l4"] = "72785",         // Dudley
+        ["rs_ext_pyro3_l3"] = "70120",         // Patch City
+        ["rs_ext_pyro2_l4"] = "72952",         // Checkmate
+        ["rs_ext_pyro5_l4"] = "72645",         // Rod's Fuel
+        ["rs_ext_pyro5_l5"] = "73791",         // Rat's Nest
+        ["rs_ext_pyro6_l5"] = "70269",         // Megumi
+        ["rs_ext_pyro5_l2"] = "69936",         // Gaslight
+        ["rs_ext_pyro6_l3"] = "70273",         // Endgame
+        ["rs_ext_pyro-nyx_jp"] = "74320",      // Nyx Gateway
+        ["rs_ext_pyro-stan_jp1"] = "74325",    // Stanton Gateway
+    };
+
+    /// <summary>The station (Ruin included) for the destination of a quantum travel in the log, or null when it is not known.</summary>
+    public static string? IdOfQuantumTarget(string target) => QuantumTargets.TryGetValue(target, out var id) ? id : null;
+
     static string Normalize(string s) =>
         new string(s.ToLowerInvariant().Replace("service station", "").Replace("station", "").Where(char.IsLetterOrDigit).ToArray());
 
