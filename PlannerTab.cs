@@ -315,7 +315,7 @@ public sealed partial class MainForm
 
     static string RouteText(PlannedTrip trip)
     {
-        var drop = trip.DropId == null ? "" : "Bring " + trip.DropCargo + " \u00d7" + trip.DropBatches + " to " + PyroDistances.NameOf(trip.DropId) + (trip.Stops.Count > 0 ? "  →  " : "");
+        var drop = trip.Drops.Count == 0 ? "" : "Bring " + trip.DropCargo + ": " + string.Join(", ", trip.Drops.Select(d => PyroDistances.NameOf(d.Id) + " \u00d7" + d.Batches)) + (trip.Stops.Count > 0 ? "  →  Pick up: " : "");
         return drop + (trip.From != null && !(trip.Stops.Count > 0 && trip.Stops[0].Id == trip.From) ? "From " + PyroDistances.NameOf(trip.From) + "  →  " : "") + StopsText(trip);
     }
 
@@ -702,7 +702,7 @@ public sealed partial class MainForm
                     Flight = mine[k].Seconds,
                     RunStart = k == 0 && runRow == null ? IdleStart(c.Name) : null,   // his next trip is already counting: from his last hand-in
                     Level = "plan",
-                    Stops = (mine[k].DropId != null ? new[] { mine[k].DropId! } : Array.Empty<string>()).Concat(mine[k].Stops.Select(s => s.Id)).ToList(),
+                    Stops = mine[k].Drops.Select(d => d.Id).Concat(mine[k].Stops.Select(s => s.Id)).ToList(),
                     From = mine[k].From,
                     Trip = mine[k],
                 });

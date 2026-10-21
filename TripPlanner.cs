@@ -12,14 +12,13 @@ public sealed class PlannedTrip
     public bool Special;      // his first trip: it continues a run in progress and/or starts at his locked stop
     public string? From;      // a run in progress: the trip continues from this station (null = it starts at Ruin)
     public int Room;          // how many batches this trip can hold (the ship, minus what a run in progress carries already)
-    public string? DropId;    // a from-Ruin contract: this trip takes cargo out from Ruin first and unloads all of it at this station, before the pickups
-    public int DropBatches;   // how many batches of it
+    public List<(string Id, int Batches)> Drops = new();   // a from-Ruin contract: this trip takes cargo out from Ruin first and unloads all of it at these stations (in this order), before the pickups
     public string? DropCargo; // what it is (Waste ...)
 
     public PlannedTrip Copy() => new()
     {
         Worker = Worker, Stops = new List<(string Id, int Batches)>(Stops), Distance = Distance, Seconds = Seconds, Locked = Locked,
-        Special = Special, From = From, Room = Room, DropId = DropId, DropBatches = DropBatches, DropCargo = DropCargo,
+        Special = Special, From = From, Room = Room, Drops = new List<(string Id, int Batches)>(Drops), DropCargo = DropCargo,
     };
 }
 

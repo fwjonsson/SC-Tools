@@ -31,31 +31,35 @@ public sealed partial class MainForm
         return res;
     }
 
-    /// <summary>The cargo that goes out, cut into loads for one stop each: no more than a ship holds, and only for the workers who have those missions.</summary>
+    /// <summary>
+    /// The cargo that goes out, cut into loads. The waste of different missions looks the same, so a load is always the drop-offs of ONE mission (all its stops,
+    /// as long as they fit in a ship; else it is cut by station), and only the workers who have that mission can take it.
+    /// </summary>
     List<DropChunk> DropChunks(List<DropBatch> drops, List<string> flyers, int capacity)
     {
         var chunks = new List<DropChunk>();
         if (capacity <= 0) return chunks;
-        var groups = drops.Where(d => d.Station != null).GroupBy(d =>
+        foreach (var byMission in drops.Where(d => d.Station != null).GroupBy(d => d.Mission.Id))
         {
-            var can = flyers.Where(n => HasMission(d.Mission, n)).ToArray();
-            var allowed = can.Length == 0 || can.Length == flyers.Count ? "" : string.Join(",", can);
-            return (d.Station!, d.Mission.OutCargo ?? "Cargo", allowed);
-        });
-        foreach (var g in groups)
-        {
-            var left = g.Count();
-            while (left > 0)
+            var can = flyers.Where(n => HasMission(byMission.First().Mission, n)).ToArray();
+            var allowed = can.Length == 0 || can.Length == flyers.Count ? Array.Empty<string>() : can;
+            var cargo = byMission.First().Mission.OutCargo ?? "Cargo";
+            var perStation = byMission.GroupBy(d => d.Station!).Select(g => (Station: g.Key, Batches: g.Count())).ToList();
+            DropChunk? open = null;
+            foreach (var st in perStation)
             {
-                var take = Math.Min(capacity, left);
-                chunks.Add(new DropChunk
+                var left = st.Batches;
+                while (left > 0)
                 {
-                    Station = g.Key.Item1,
-                    Cargo = g.Key.Item2,
-                    Batches = take,
-                    Allowed = g.Key.Item3.Length == 0 ? Array.Empty<string>() : g.Key.Item3.Split(','),
-                });
-                left -= take;
+                    if (open == null || open.Batches >= capacity)
+                    {
+                        open = new DropChunk { Cargo = cargo, Allowed = allowed };
+                        chunks.Add(open);
+                    }
+                    var take = Math.Min(capacity - open.Batches, left);
+                    open.Drops.Add((st.Station, take));
+                    left -= take;
+                }
             }
         }
         return chunks;
