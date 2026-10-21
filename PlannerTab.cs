@@ -682,7 +682,7 @@ public sealed partial class MainForm
             var cap = flyers.Count == 0 ? 0 : crew.Where(c => c.Capacity > 0).Min(c => c.Capacity);
             chunks = DropChunks(drops, flyers, cap);
             var lost = drops.Count(d => d.Station == null);
-            dropNote = "From Ruin: " + drops.Count + " batches to bring out" + (lost > 0 ? " (" + lost + " to a place that is not in the distance table, left out)" : "") + ".";
+            if (lost > 0) dropNote = "From Ruin: " + lost + (lost == 1 ? " drop-off is" : " drop-offs are") + " to a place that is not in the distance table, so left out.";
         }
         var core = CoreFor(crew, remaining, unknown, limits, chunks);
         var dropTrips = core.Trips;
