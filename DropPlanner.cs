@@ -1,21 +1,22 @@
 namespace HaulingTracker;
 
 /// <summary>
-/// The cargo of ONE from-Ruin mission that goes out together: its drop stations with the batches for each (no more than a ship holds).
-/// The waste of different missions looks the same, so loads of different missions are never mixed.
+/// The load of ONE from-Ruin mission for ONE station (no more than a ship holds). The waste of different missions looks the same, so a trip only ever leaves Ruin
+/// with the load for its first stop.
 /// </summary>
 public sealed class DropChunk
 {
-    public List<(string Station, int Batches)> Drops = new();
-    public int Batches => Drops.Sum(d => d.Batches);
+    public string Station = "";
+    public int Batches;
     public string Cargo = "";
     public string[] Allowed = Array.Empty<string>();   // the workers who have that mission (empty = everybody)
 }
 
 /// <summary>
-/// Puts the cargo that goes out from Ruin into the trips of the pickup plan. A trip with outgoing cargo leaves Ruin with the load of one mission, flies to its drop
-/// stations (the cheapest order) and unloads everything there, and only then takes on pickups (the rest of the trip is the cheapest way over its stops). A load goes
-/// into the trip where it adds the least to the crew's flying time; when no trip suits it (for example at the end of a session) it gets a trip of its own.
+/// Puts the cargo that goes out from Ruin into the trips of the pickup plan, which stays the priority: the load of a trip is only for ITS FIRST STOP, so the
+/// ship is empty again when the pickups begin. A station with a drop-off therefore becomes the first stop of a trip (a trip that already goes there gets that stop
+/// moved to the front, the rest of the trip is the cheapest way from there); when no trip goes there, the drop is an extra first stop before the pickups of a trip
+/// (or a trip of its own at the end of a session). Every trip takes at most one load. The loads go to the trips where they cost the crew the least flying time.
 /// </summary>
 public static class DropPlanner
 {
@@ -25,25 +26,6 @@ public static class DropPlanner
     {
         var list = totals.ToList();
         return list.Count == 0 ? 0 : list.Max() + TotalWeight * list.Sum();
-    }
-
-    static IEnumerable<List<T>> Permutations<T>(List<T> items)
-    {
-        if (items.Count <= 1)
-        {
-            yield return new List<T>(items);
-            yield break;
-        }
-        for (var i = 0; i < items.Count; i++)
-        {
-            var rest = new List<T>(items);
-            rest.RemoveAt(i);
-            foreach (var p in Permutations(rest))
-            {
-                p.Insert(0, items[i]);
-                yield return p;
-            }
-        }
     }
 
     public static List<PlannedTrip> Attach(IReadOnlyList<PlannedTrip> planned, IReadOnlyList<DropChunk> chunks, IReadOnlyList<(string Name, int Capacity, QtDrive Drive)> crew)
@@ -66,98 +48,79 @@ public static class DropPlanner
             return seconds + drive.Seconds(PyroDistances.Between(from, PyroDistances.Ruin));
         }
 
-        // the trip with this load dropped first: the drops in their best order, then the pickups, with the Gm and the flying time
-        (List<(string Id, int Batches)> Drops, List<(string Id, int Batches)> Stops, double Gm, double Seconds) Route(PlannedTrip t, DropChunk c)
+        // the trip with this load first: the station of the drop is the first stop, the other stops follow in the cheapest order
+        (List<(string Id, int Batches)> Stops, double Gm, double Seconds) Route(PlannedTrip t, DropChunk c)
         {
-            // a locked first pickup stays the first pickup (he goes there right after the drops)
-            var locked = t.Locked && t.Stops.Count > 0 ? t.Stops[0] : ((string Id, int Batches)?)null;
-            var rest = locked == null ? t.Stops : t.Stops.Skip(1).ToList();
-            var bestGm = double.MaxValue;
-            List<(string Id, int Batches)>? bestDrops = null;
-            List<(string Id, int Batches)>? bestStops = null;
-            foreach (var order in Permutations(c.Drops.Select(d => (d.Station, d.Batches)).ToList()))
-            {
-                double gm = 0;
-                var from = PyroDistances.Ruin;
-                foreach (var d in order)
-                {
-                    gm += PyroDistances.Between(from, d.Station);
-                    from = d.Station;
-                }
-                List<(string Id, int Batches)> ordered;
-                if (locked != null)
-                {
-                    var cheapest = TripPlanner.Cheapest(locked.Value.Id, rest.Select(x => x.Id).ToList());
-                    gm += PyroDistances.Between(from, locked.Value.Id) + cheapest.Cost;
-                    ordered = new List<(string Id, int Batches)> { locked.Value };
-                    ordered.AddRange(cheapest.Order.Select(o => rest[o]));
-                }
-                else
-                {
-                    var cheapest = TripPlanner.Cheapest(from, rest.Select(x => x.Id).ToList());
-                    gm += cheapest.Cost;
-                    ordered = cheapest.Order.Select(o => rest[o]).ToList();
-                }
-                if (gm < bestGm - 1e-9)
-                {
-                    bestGm = gm;
-                    bestDrops = order.Select(d => (d.Station, d.Batches)).ToList();
-                    bestStops = ordered;
-                }
-            }
-            var route = bestDrops!.Select(d => d.Id).Concat(bestStops!.Select(s => s.Id)).ToList();
-            return (bestDrops!, bestStops!, bestGm, SecondsOf(t.Worker, route));
+            var s = c.Station;
+            var here = t.Stops.Where(x => x.Id == s).ToList();
+            var rest = t.Stops.Where(x => x.Id != s).ToList();
+            var cheapest = TripPlanner.Cheapest(s, rest.Select(x => x.Id).ToList());
+            var ordered = new List<(string Id, int Batches)>();
+            ordered.AddRange(here);   // the pickups at the drop station (if any) come first: the load is unloaded, then they are taken
+            ordered.AddRange(cheapest.Order.Select(o => rest[o]));
+            var gm = PyroDistances.Between(PyroDistances.Ruin, s) + cheapest.Cost;
+            var route = new List<string> { s };
+            route.AddRange(ordered.Select(x => x.Id));
+            return (ordered, gm, SecondsOf(t.Worker, route));
         }
 
         double Total(string worker, PlannedTrip? replaced = null, double replacedSeconds = 0, double added = 0) =>
             trips.Where(t => t.Worker == worker).Sum(t => ReferenceEquals(t, replaced) ? replacedSeconds : t.Seconds) + added;
 
-        foreach (var c in chunks.OrderByDescending(x => x.Drops.Max(d => PyroDistances.Between(PyroDistances.Ruin, d.Station))))
+        var open = chunks.ToList();
+        while (open.Count > 0)
         {
-            var allowed = flyers.Where(f => c.Allowed.Length == 0 || c.Allowed.Contains(f.Name)).ToList();
-            if (allowed.Count == 0) allowed = flyers;
             var bestScore = double.MaxValue;
+            DropChunk? bestChunk = null;
             PlannedTrip? bestTrip = null;
-            (List<(string Id, int Batches)> Drops, List<(string Id, int Batches)> Stops, double Gm, double Seconds) bestRoute = default;
             string? standaloneWorker = null;
+            (List<(string Id, int Batches)> Stops, double Gm, double Seconds) bestRoute = default;
 
-            foreach (var t in trips)
+            foreach (var c in open)
             {
-                if (t.Drops.Count > 0 || (t.Special && (t.From != null || !t.Locked))) continue;   // a run in progress (or a start elsewhere) cannot take cargo from Ruin
-                var cap = flyers.FirstOrDefault(f => f.Name == t.Worker).Capacity;
-                if (!allowed.Any(a => a.Name == t.Worker) || c.Batches > cap) continue;
-                var r = Route(t, c);
-                var score = Objective(flyers.Select(f => f.Name == t.Worker ? Total(f.Name, t, r.Seconds) : Total(f.Name)));
-                if (score < bestScore - 1e-9)
+                var allowed = flyers.Where(f => c.Allowed.Length == 0 || c.Allowed.Contains(f.Name)).ToList();
+                if (allowed.Count == 0) allowed = flyers;
+                foreach (var t in trips)
                 {
-                    bestScore = score;
-                    bestTrip = t;
-                    bestRoute = r;
-                    standaloneWorker = null;
+                    if (t.Drops.Count > 0 || (t.Special && (t.From != null || !t.Locked))) continue;   // a run in progress (or a start elsewhere) cannot take cargo from Ruin; one load per trip
+                    var cap = flyers.FirstOrDefault(f => f.Name == t.Worker).Capacity;
+                    if (!allowed.Any(a => a.Name == t.Worker) || c.Batches > cap) continue;
+                    var r = Route(t, c);
+                    var score = Objective(flyers.Select(f => f.Name == t.Worker ? Total(f.Name, t, r.Seconds) : Total(f.Name)));
+                    if (score < bestScore - 1e-9)
+                    {
+                        bestScore = score;
+                        bestChunk = c;
+                        bestTrip = t;
+                        bestRoute = r;
+                        standaloneWorker = null;
+                    }
+                }
+                foreach (var f in allowed)
+                {
+                    if (c.Batches > f.Capacity) continue;
+                    var r = Route(new PlannedTrip { Worker = f.Name, Room = f.Capacity }, c);   // a trip of its own: Ruin, the station, back to Ruin
+                    var score = Objective(flyers.Select(g => g.Name == f.Name ? Total(g.Name, null, 0, r.Seconds) : Total(g.Name)));
+                    if (score < bestScore - 1e-9)
+                    {
+                        bestScore = score;
+                        bestChunk = c;
+                        bestTrip = null;
+                        standaloneWorker = f.Name;
+                        bestRoute = r;
+                    }
                 }
             }
-            foreach (var f in allowed)
-            {
-                if (c.Batches > f.Capacity) continue;
-                var empty = new PlannedTrip { Worker = f.Name, Room = f.Capacity };
-                var r = Route(empty, c);
-                var score = Objective(flyers.Select(g => g.Name == f.Name ? Total(g.Name, null, 0, r.Seconds) : Total(g.Name)));
-                if (score < bestScore - 1e-9)
-                {
-                    bestScore = score;
-                    bestTrip = null;
-                    standaloneWorker = f.Name;
-                    bestRoute = r;
-                }
-            }
+            if (bestChunk == null) break;   // nobody can take the rest of the loads
 
+            var drops = new List<(string Id, int Batches)> { (bestChunk.Station, bestChunk.Batches) };
             if (bestTrip != null)
             {
-                bestTrip.Drops = bestRoute.Drops;
+                bestTrip.Drops = drops;
                 bestTrip.Stops = bestRoute.Stops;
                 bestTrip.Distance = bestRoute.Gm;
                 bestTrip.Seconds = bestRoute.Seconds;
-                bestTrip.DropCargo = c.Cargo;
+                bestTrip.DropCargo = bestChunk.Cargo;
             }
             else if (standaloneWorker != null)
             {
@@ -166,13 +129,14 @@ public static class DropPlanner
                 {
                     Worker = f.Name,
                     Room = f.Capacity,
-                    Drops = bestRoute.Drops,
+                    Drops = drops,
                     Stops = bestRoute.Stops,
                     Distance = bestRoute.Gm,
                     Seconds = bestRoute.Seconds,
-                    DropCargo = c.Cargo,
+                    DropCargo = bestChunk.Cargo,
                 });
             }
+            open.Remove(bestChunk);
         }
         return trips;
     }

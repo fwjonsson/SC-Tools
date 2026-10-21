@@ -315,8 +315,16 @@ public sealed partial class MainForm
 
     static string RouteText(PlannedTrip trip)
     {
-        var drop = trip.Drops.Count == 0 ? "" : "Bring " + trip.DropCargo + ": " + string.Join(", ", trip.Drops.Select(d => PyroDistances.NameOf(d.Id) + " \u00d7" + d.Batches)) + (trip.Stops.Count > 0 ? "  →  Pick up: " : "");
-        return drop + (trip.From != null && !(trip.Stops.Count > 0 && trip.Stops[0].Id == trip.From) ? "From " + PyroDistances.NameOf(trip.From) + "  →  " : "") + StopsText(trip);
+        if (trip.Drops.Count > 0)
+        {
+            // the load from Ruin is for the first stop: it is unloaded there, then the pickups begin
+            var d = trip.Drops[0];
+            var bring = "bring " + trip.DropCargo + " \u00d7" + d.Batches;
+            if (trip.Stops.Count > 0 && trip.Stops[0].Id == d.Id)
+                return PyroDistances.NameOf(d.Id) + " \u00d7" + trip.Stops[0].Batches + " (" + bring + ")" + (trip.Stops.Count > 1 ? "  →  " + string.Join("  →  ", trip.Stops.Skip(1).Select(s => PyroDistances.NameOf(s.Id) + " \u00d7" + s.Batches)) : "");
+            return PyroDistances.NameOf(d.Id) + " (" + bring + ")" + (trip.Stops.Count > 0 ? "  →  " + StopsText(trip) : "");
+        }
+        return (trip.From != null && !(trip.Stops.Count > 0 && trip.Stops[0].Id == trip.From) ? "From " + PyroDistances.NameOf(trip.From) + "  →  " : "") + StopsText(trip);
     }
 
     /// <summary>The station a worker said he starts from (null = Ruin Station). It only lasts until he picks up or hands in something after he set it.</summary>
@@ -702,7 +710,7 @@ public sealed partial class MainForm
                     Flight = mine[k].Seconds,
                     RunStart = k == 0 && runRow == null ? IdleStart(c.Name) : null,   // his next trip is already counting: from his last hand-in
                     Level = "plan",
-                    Stops = mine[k].Drops.Select(d => d.Id).Concat(mine[k].Stops.Select(s => s.Id)).ToList(),
+                    Stops = mine[k].Drops.Select(d => d.Id).Concat(mine[k].Stops.Select(s => s.Id)).Aggregate(new List<string>(), (l, id) => { if (l.Count == 0 || l[^1] != id) l.Add(id); return l; }),
                     From = mine[k].From,
                     Trip = mine[k],
                 });
