@@ -1265,7 +1265,20 @@ public sealed partial class MainForm : Form
         _liveBtn.Text = "Stop Watching";
         _timer.Start();
         PollLive();
-        SetStatus("Watching " + string.Join(", ", active));
+        _watchText = "Watching " + string.Join(", ", active);
+        SetStatus(_watchText);
+    }
+
+    string _watchText = "";
+
+    /// <summary>Shows the time of the last line read from the logs next to the sources, so it can be seen at a glance that the window follows the game.</summary>
+    void ShowLastLine()
+    {
+        if (!_live || _watchText.Length == 0 || _logs.Count == 0 || !_status.Text.StartsWith(_watchText, StringComparison.Ordinal)) return;   // a message in the status line stays
+        var last = _logs.Max(l => l.LastTime);
+        if (last == DateTime.MinValue) return;
+        var text = _watchText + "   ·   last log line " + last.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture);
+        if (_status.Text != text) _status.Text = text;
     }
 
     void StopLive()
@@ -1327,6 +1340,7 @@ public sealed partial class MainForm : Form
         }
         RefreshFromLog();
         UpdateLiveDurations();
+        ShowLastLine();
     }
 
     static readonly TimeSpan BackupAge = TimeSpan.FromHours(24);
@@ -1370,8 +1384,20 @@ public sealed partial class MainForm : Form
 
     // ------------------------------------------------------------------ showing a session
 
+    /// <summary>
+    /// True while somebody is really typing: the updates wait for him. A cell that is still in edit mode while the user is somewhere else (another tab,
+    /// another window) is finished here (what was typed is kept), so a forgotten edit can never stop the window from following the log.
+    /// </summary>
     bool IsEditing() =>
-        _logGrid.IsCurrentCellInEditMode || _rewards.IsCurrentCellInEditMode || _balanceGrid.IsCurrentCellInEditMode || _startBox.Focused || _endBox.Focused;
+        EditingIn(_logGrid) || EditingIn(_rewards) || EditingIn(_balanceGrid) || (_startBox.Focused && _startBox.Modified) || (_endBox.Focused && _endBox.Modified);
+
+    static bool EditingIn(DataGridView g)
+    {
+        if (!g.IsCurrentCellInEditMode) return false;
+        if (g.ContainsFocus) return true;
+        g.EndEdit();
+        return false;
+    }
 
     void RefreshFromLog()
     {
@@ -1966,6 +1992,14 @@ public sealed partial class MainForm : Form
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
+        // coming back to the window (from behind a full-screen video, from the game, or from the taskbar) shows the latest log and repaints everything
+        Activated += (_, _) =>
+        {
+            if (!_live) return;
+            RefreshFromLog();
+            UpdateLiveDurations();
+            Invalidate(true);
+        };
         _startBox.TextChanged += TimeBoxChanged;
         _endBox.TextChanged += TimeBoxChanged;
         _startBox.Leave += (_, _) => Storage.Save(_data);
