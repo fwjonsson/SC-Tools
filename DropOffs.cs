@@ -39,8 +39,95 @@ public sealed partial class MainForm
     /// </summary>
     internal static string LoadText(IEnumerable<int> parts)
     {
-        var known = parts.Where(p => p > 0).Select(ScuText).ToList();
-        return known.Count > 0 ? string.Join(" | ", known) : "? SCU";
+        var all = parts.ToList();
+        return all.Any(p => p > 0) ? string.Join(" | ", all.Select(p => p > 0 ? ScuText(p) : "? SCU")) : "? SCU";
+    }
+
+    /// <summary>The SCU you typed for drop-offs the game did not tell the size of: added to the missions of the merged log, where the game's own number is missing.</summary>
+    void ApplyTypedScu(HaulingLog log)
+    {
+        foreach (var kv in _data.TypedScu)
+        {
+            var bar = kv.Key.IndexOf('|');
+            if (bar <= 0 || kv.Value <= 0) continue;
+            if (log.Missions.TryGetValue(kv.Key[..bar], out var m)) m.ObjScu.TryAdd(kv.Key[(bar + 1)..], kv.Value);
+        }
+    }
+
+    /// <summary>What a drop-off is, for the dialog where its SCU is typed: "Waste for Patch City".</summary>
+    string DropLabel(string key)
+    {
+        var bar = key.IndexOf('|');
+        if (_log == null || bar <= 0 || !_log.Missions.TryGetValue(key[..bar], out var m)) return "Drop-off";
+        var place = m.ObjZone.TryGetValue(key[(bar + 1)..], out var zone) ? LocationName(zone) : "a station";
+        return (m.OutCargo ?? "Cargo") + " for " + place;
+    }
+
+    /// <summary>
+    /// Asks the SCU of drop-offs the game did not tell the size of (the "? SCU" of the Cargo column): type what the contract says, and the program works out the
+    /// containers. Saved with your data; the game's own number wins once it writes it. 0 clears it.
+    /// </summary>
+    void AskScu(List<string> keys)
+    {
+        using var f = new Form
+        {
+            Text = "SCU of the load",
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ShowInTaskbar = false,
+            Font = Font,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Padding = new Padding(12),
+        };
+        var table = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Dock = DockStyle.Fill };
+        var intro = new Label
+        {
+            Text = "The game has not said how many SCU this is. Type the SCU from the contract, and the program works out the containers.",
+            AutoSize = true,
+            MaximumSize = new Size(380, 0),
+            Margin = new Padding(0, 0, 0, 10),
+        };
+        table.Controls.Add(intro, 0, 0);
+        table.SetColumnSpan(intro, 2);
+        var inputs = new List<NumericUpDown>();
+        for (var i = 0; i < keys.Count; i++)
+        {
+            table.Controls.Add(new Label { Text = DropLabel(keys[i]) + ":", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 6, 10, 6) }, 0, i + 1);
+            var input = new NumericUpDown { Minimum = 0, Maximum = 10000, Width = 90, Value = _data.TypedScu.GetValueOrDefault(keys[i]) };
+            inputs.Add(input);
+            table.Controls.Add(input, 1, i + 1);
+        }
+        var ok = new Button { Text = "Save", AutoSize = true, DialogResult = DialogResult.OK };
+        var cancel = new Button { Text = "Cancel", AutoSize = true, DialogResult = DialogResult.Cancel };
+        var bar = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0, 10, 0, 0) };
+        bar.Controls.Add(cancel);
+        bar.Controls.Add(ok);
+        table.Controls.Add(bar, 0, keys.Count + 1);
+        table.SetColumnSpan(bar, 2);
+        f.Controls.Add(table);
+        f.AcceptButton = ok;
+        f.CancelButton = cancel;
+        ApplyTheme(f);
+        if (f.ShowDialog(this) != DialogResult.OK) return;
+
+        for (var i = 0; i < keys.Count; i++)
+        {
+            var typed = (int)inputs[i].Value;
+            if (typed > 0) _data.TypedScu[keys[i]] = typed;
+            else _data.TypedScu.Remove(keys[i]);
+        }
+        Storage.Save(_data);
+        BeginInvoke(new Action(() =>
+        {
+            _renderedVersion = -1;   // the logs are merged again, with the SCU you typed
+            _planShown = "";
+            _planCore = null;
+            RefreshFromLog();
+            RefreshPlanner();
+        }));
     }
 
     /// <summary>The drop-offs still to do: every drop-off objective of a from-Ruin mission that is running and not completed yet.</summary>
@@ -107,18 +194,20 @@ public sealed partial class MainForm
             var can = flyers.Where(n => HasMission(mission, n)).ToArray();
             var allowed = can.Length == 0 || can.Length == flyers.Count ? Array.Empty<string>() : can;
             var scus = g.Select(d => d.Scu).ToList();
+            var keys = g.Select(d => d.Mission.Id + "|" + d.Objective).ToList();
             var done = 0;
             while (done < scus.Count)
             {
                 var take = Math.Min(capacity, scus.Count - done);
                 var part = scus.Skip(done).Take(take).ToList();
+                var partKeys = keys.Skip(done).Take(take).ToList();
                 var scu = part.Sum();
                 done += take;
                 // a ship that holds fewer SCU than the load cannot take it (a worker without a ship set is assumed to manage)
                 var who = allowed.Length == 0 ? flyers : allowed.ToList();
                 var fits = scu <= 0 ? who : who.Where(n => ShipOf(n) is not { } ship || ship.Total >= scu).ToList();
                 var set = fits.Count == 0 || fits.Count == flyers.Count ? allowed : fits.ToArray();
-                chunks.Add(new DropChunk { Station = g.Key.Station, Cargo = mission.OutCargo ?? "Cargo", Batches = take, Scu = scu, Parts = part, Allowed = set });
+                chunks.Add(new DropChunk { Station = g.Key.Station, Cargo = mission.OutCargo ?? "Cargo", Batches = take, Scu = scu, Parts = part, Keys = partKeys, Allowed = set });
             }
         }
         return chunks;

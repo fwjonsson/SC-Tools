@@ -70,6 +70,7 @@ public sealed partial class MainForm
         public double Gm;                // the leg from the line before it
         public double Seconds;           // the estimated flying time of that leg
         public List<string> Loads = new();   // the Cargo column: a load that goes out from Ruin or is dropped here, with the containers it is cut into (152 SCU: 4×32 + 24)
+        public List<string> Unknown = new();   // drop-offs on this line whose SCU nobody knows ("mission id|objective id"): clicking the Cargo cell lets you type it
         public double Scu;               // SCU picked up here: a guess, the log only knows the SCU of a whole mission, so every stop of it counts as an equal share
         public string ActionText => string.Join(" | ", Actions);
         public string CargoText => string.Join(" | ", Scu > 0 ? Loads.Append(ScuGuess(Scu)) : Loads);
@@ -388,6 +389,7 @@ public sealed partial class MainForm
         var drop = hasDrop ? trip.Drops[0] : default;
         var cargo = trip.DropCargo ?? "cargo";
         var firstStop = trip.Stops.Count > 0 ? trip.Stops[0].Id : null;
+        var unknownKeys = trip.DropKeys.Where((k, i) => i < trip.DropParts.Count && trip.DropParts[i] <= 0).ToList();   // drop-offs the game did not tell the SCU of
 
         StopLine Add(string id, string name, bool stop, IEnumerable<string> actions, int batches = 0, decimal value = 0, double scu = 0)
         {
@@ -408,14 +410,20 @@ public sealed partial class MainForm
                 ? new[] { "Collect " + cargo + (drop.Batches > 1 ? " \u00d7" + drop.Batches : "") }
                 : Array.Empty<string>();
             var ruin = Add(PyroDistances.Ruin, "Ruin", false, collect);
-            if (hasDrop) ruin.Loads.Add(LoadText(trip.DropParts));   // the SCU of the load and the containers it is cut into
+            if (hasDrop)
+            {
+                ruin.Loads.Add(LoadText(trip.DropParts));   // the SCU of the load and the containers it is cut into
+                ruin.Unknown.AddRange(unknownKeys);
+            }
         }
         else if (firstStop != trip.From) Add(trip.From, PyroDistances.NameOf(trip.From), false, Array.Empty<string>());   // where he is now
 
         var dropShown = !hasDrop;
         if (hasDrop && firstStop != drop.Id)
         {
-            Add(drop.Id, PyroDistances.NameOf(drop.Id), true, new[] { "Drop " + cargo }).Loads.Add(LoadText(trip.DropParts));   // a stop with only the drop-off
+            var only = Add(drop.Id, PyroDistances.NameOf(drop.Id), true, new[] { "Drop " + cargo });   // a stop with only the drop-off
+            only.Loads.Add(LoadText(trip.DropParts));
+            only.Unknown.AddRange(unknownKeys);
             dropShown = true;
         }
         foreach (var (id, batches) in trip.Stops)
@@ -430,7 +438,11 @@ public sealed partial class MainForm
             }
             if (batches > 0) actions.Add("Collect \u00d7" + batches);
             var stopLine = Add(id, PyroDistances.NameOf(id), true, actions, batches, batches * perBatch(id), batches * scuPerBatch(id));
-            if (unloads) stopLine.Loads.Add(LoadText(trip.DropParts));
+            if (unloads)
+            {
+                stopLine.Loads.Add(LoadText(trip.DropParts));
+                stopLine.Unknown.AddRange(unknownKeys);
+            }
         }
         var home = Add(PyroDistances.Ruin, "Ruin", false, trip.Batches > 0 ? new[] { "Drop \u00d7" + trip.Batches } : Array.Empty<string>());
         var handedIn = lines.Sum(l => l.Scu);
@@ -722,7 +734,9 @@ public sealed partial class MainForm
                 var batch = cluster;
                 steps.Add((batch[0].Time, () =>
                 {
-                    var d = done[LineFor(PyroDistances.Ruin, "Ruin", true)];
+                    var ruinLine = LineFor(PyroDistances.Ruin, "Ruin", true);
+                    var d = done[ruinLine];
+                    ruinLine.Unknown.AddRange(batch.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
                     d.Taken += batch.Count;
                     d.TakenScu.AddRange(batch.Select(x => x.Scu));
                     d.TakenCargo = batch[0].Cargo;
@@ -740,6 +754,7 @@ public sealed partial class MainForm
                     var d = done[line];
                     d.Delivered += batch.Count;
                     d.DeliveredScu.AddRange(batch.Select(x => x.Scu));
+                    line.Unknown.AddRange(batch.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
                     d.DeliveredCargo = batch[0].Cargo;
                     d.Last = batch.Max(x => x.Time);
                 }));
@@ -1516,6 +1531,17 @@ public sealed partial class MainForm
             st.SelectionForeColor = TextOn(w.Color);
         }
         AddTotalRow(grid, LineTotals(current.Lines));
+        // a load the game did not tell the SCU of: click its Cargo cell to type it (the program works out the containers)
+        bool Typable(int row, int col) => col == 3 && row >= 0 && row < current.Lines.Count && current.Lines[row].Unknown.Count > 0;
+        for (var i = 0; i < current.Lines.Count; i++)
+        {
+            if (Typable(i, 3)) grid.Rows[i].Cells[3].Value = current.Lines[i].CargoText + "  (click to type)";
+        }
+        grid.CellMouseEnter += (_, e) => grid.Cursor = Typable(e.RowIndex, e.ColumnIndex) ? Cursors.Hand : Cursors.Default;
+        grid.CellClick += (_, e) =>
+        {
+            if (Typable(e.RowIndex, e.ColumnIndex)) AskScu(current.Lines[e.RowIndex].Unknown.Distinct().ToList());
+        };
         grid.FitHeight();
         return grid;
     }
