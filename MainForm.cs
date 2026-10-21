@@ -149,7 +149,7 @@ public sealed partial class MainForm : Form
         _tabs = tabs;
         tabs.SelectedIndexChanged += (_, _) =>
         {
-            _planBtn.Visible = _resetTripsBtn.Visible = tabs.SelectedTab == plannerPage;
+            _lockBtn.Visible = tabs.SelectedTab == plannerPage;
             if (tabs.SelectedTab == plannerPage) RefreshPlanner();
             else if (tabs.SelectedTab == contractsPage) RefreshContracts();
             else if (tabs.SelectedTab != sessionPage) RefreshDebts();
@@ -392,15 +392,12 @@ public sealed partial class MainForm : Form
         _menu.Items.Add(_sessionToggleBtn);
         _menu.Items.Add(new ToolStripControlHost(_sessionBox) { Alignment = ToolStripItemAlignment.Right, Margin = new Padding(0, 0, 0, 0) });
 
-        // the Trip Planner buttons, left of the session picker (Plan Trips left of Reset Trips), only while that tab is shown
+        // the Trip Planner button (Next Stops: Locked / Unlocked), left of the session picker, only while that tab is shown
         _menu.ShowItemToolTips = true;
-        _planBtn.Alignment = _resetTripsBtn.Alignment = ToolStripItemAlignment.Right;
-        _planBtn.Margin = new Padding(6, 1, 0, 1);
-        _resetTripsBtn.Margin = new Padding(6, 1, 6, 1);
-        _planBtn.Click += (_, _) => PlanTrips();
-        _resetTripsBtn.Click += (_, _) => ResetTrips();
-        _menu.Items.Add(_resetTripsBtn);
-        _menu.Items.Add(_planBtn);
+        _lockBtn.Alignment = ToolStripItemAlignment.Right;
+        _lockBtn.Margin = new Padding(6, 1, 6, 1);
+        _lockBtn.Click += (_, _) => ToggleLocks();
+        _menu.Items.Add(_lockBtn);
     }
 
     readonly MenuStrip _menu = new();

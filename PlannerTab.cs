@@ -83,11 +83,11 @@ public sealed partial class MainForm
         public List<PlannedTrip> Trips = new();
         public int Batches;
         public string Note = "";
+        public HashSet<string> Settled = new();   // workers whose next trip has no pickup stop to lock (drop-off first, or nothing to do): no reason to plan again just for them
     }
 
-    // the two buttons sit in the top bar of the window, level with Options and Stop Session, while the Trip Planner tab is shown
-    readonly ToolStripButton _planBtn = new() { DisplayStyle = ToolStripItemDisplayStyle.Text, Text = "Plan Trips", Padding = new Padding(8, 0, 8, 0), Visible = false };
-    readonly ToolStripButton _resetTripsBtn = new() { DisplayStyle = ToolStripItemDisplayStyle.Text, Text = "Reset Trips", Padding = new Padding(8, 0, 8, 0), Visible = false };
+    // the button sits in the top bar of the window, level with Options and Stop Session, while the Trip Planner tab is shown
+    readonly ToolStripButton _lockBtn = new() { DisplayStyle = ToolStripItemDisplayStyle.Text, Text = "Next Stops: Unlocked", Padding = new Padding(8, 0, 8, 0), Visible = false };
     readonly Label _planNote = new();
     readonly Panel _planBody = new();              // the page: the map and the tables (rebuilt when the plan changes)
     string _planShown = "";                        // what the pages show now, so they are only rebuilt when it changes
@@ -102,12 +102,12 @@ public sealed partial class MainForm
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));   // Cargo Runs
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 38));     // the copy of Cargo Runs
 
-        // Plan Trips and Reset Trips are in the top bar of the window (AddSessionControlsToMenu); hold the mouse over them for the explanation
-        _planBtn.ToolTipText = "Divides the open batches over the crew, so everybody flies as little as possible and you finish together.\n\n"
+        // Next Stops: Locked / Unlocked is in the top bar of the window (AddSessionControlsToMenu); hold the mouse over it for the explanation
+        _lockBtn.ToolTipText = "Unlocked: the plan is free, and is worked out again whenever something changes (someone joins, more contracts, a pickup).\n\n"
+            + "Locked: the next stop of everybody is kept for him. Planning again leaves those alone and plans the rest around them, and a run in progress counts in the ship. "
+            + "Press it again to unlock. Nothing is locked until you press it.\n\n"
             + "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log.\n\n"
-            + "Flight time is the estimated flying time of that whole route with the drive of the worker (~, no loading); Time is how long a run really took. Green = done, orange = some cargo lost, red = all lost. The run you are flying is your Current row, in your colour.\n\n"
-            + "Plan Trips locks the next stop of everybody: planning again (for example when someone joins) leaves those alone and plans the rest around them, and a run in progress counts in the ship. Reset Trips takes the locks away. Both ask first.";
-        _resetTripsBtn.ToolTipText = "Takes the locked stops away, so the trips can be planned from scratch. Asks first.";
+            + "Flight time is the estimated flying time of that whole route with the drive of the worker (~, no loading); Time is how long a run really took. Green = done, orange = some cargo lost, red = all lost. The run you are flying is your Current row, in your colour.";
 
         _planNote.Dock = DockStyle.Fill;
         _planNote.AutoSize = true;
@@ -126,49 +126,67 @@ public sealed partial class MainForm
         return t;
     }
 
+    /// <summary>The first stop of a trip that only has a drop-off there (or nothing to pick up) is not a pickup, so there is nothing to lock.</summary>
+    static bool NothingToLock(PlannedTrip t) => t.Stops.Count == 0 || (t.Drops.Count > 0 && t.Stops[0].Id != t.Drops[0].Id);
+
+    /// <summary>The text of the button follows the session: Unlocked (the plan is free) or Locked (the next stop of everybody is kept for him).</summary>
+    void UpdateLockButton()
+    {
+        var on = _inputs?.NextStopsLocked == true;
+        _lockBtn.Text = on ? "Next Stops: Locked" : "Next Stops: Unlocked";
+        if (_lockBtn.Font.Bold != on) _lockBtn.Font = new Font(_lockBtn.Font, on ? FontStyle.Bold : FontStyle.Regular);
+    }
+
     /// <summary>
-    /// Plan Trips: asks first, then works the plan out again and locks every worker's Current trip to him. Locked trips are never changed by
-    /// planning again (someone joining, more contracts), only the trips after them are.
+    /// Next Stops: Locked / Unlocked. Unlocked (the start) the plan is free. Pressing it works the plan out and locks the next stop of everybody to him:
+    /// planning again later only changes the other trips, so someone who joins gets his share of the rest. Pressing it again takes the locks away.
     /// </summary>
-    void PlanTrips()
+    void ToggleLocks()
     {
         if (_inputs == null)
         {
             SetStatus("There is no session to plan.");
             return;
         }
-        var answer = MessageBox.Show(this,
-            "Plan the trips now?\n\nThe next stop of everyone is locked to him from now on. Planning again later only changes the other trips, so someone who joins gets his share of the rest.",
-            "Plan Trips", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
-        if (answer != DialogResult.Yes) return;
-
         _planCore = null;
         _planShown = "";
-        GetPlan();
-        var core = _planCore;
-        if (core == null || core.Trips.Count == 0)
+        if (_inputs.NextStopsLocked)
         {
-            SetStatus("Nothing is planned: no open batches, or nobody is flying.");
+            _inputs.NextStopsLocked = false;
+            _inputs.LockedTrips.Clear();
+            Storage.Save(_data);
+            SetStatus("The next stops are unlocked: the plan is free.");
+            UpdateLockButton();
             RefreshPlanner();
             return;
         }
+
+        _inputs.LockedTrips.Clear();
+        GetPlan();   // nothing is locked yet, so this is the free plan
+        var core = _planCore;
+        _inputs.NextStopsLocked = true;
         var locked = 0;
-        var seen = new HashSet<string>();
-        foreach (var trip in core.Trips)
+        if (core != null)
         {
-            if (!seen.Add(trip.Worker)) continue;   // the first trip of a worker is his Current
-            if (HasActiveRun(trip.Worker))
+            var seen = new HashSet<string>();
+            foreach (var trip in core.Trips)
             {
-                // he is flying a run now: the next stop of its continuation gets locked as soon as the plan is shown (see CoreFor)
-                if (LockKey(trip.Worker) == null) _inputs.LockedTrips[trip.Worker] = new List<LockedStop>();
-                continue;
+                if (!seen.Add(trip.Worker)) continue;   // the first trip of a worker is his Current
+                if (HasActiveRun(trip.Worker))
+                {
+                    // he is flying a run now: the next stop of its continuation gets locked as soon as the plan is shown (see CoreFor)
+                    if (LockKey(trip.Worker) == null) _inputs.LockedTrips[trip.Worker] = new List<LockedStop>();
+                    continue;
+                }
+                if (NothingToLock(trip)) continue;
+                _inputs.LockedTrips[LockKey(trip.Worker) ?? trip.Worker] = new List<LockedStop> { new() { Id = trip.Stops[0].Id, Batches = trip.Stops[0].Batches } };   // only his next stop
+                locked++;
             }
-            if (trip.Stops.Count == 0) continue;
-            _inputs.LockedTrips[LockKey(trip.Worker) ?? trip.Worker] = new List<LockedStop> { new() { Id = trip.Stops[0].Id, Batches = trip.Stops[0].Batches } };   // only his next stop
-            locked++;
         }
+        _planCore = null;
         Storage.Save(_data);
-        SetStatus("Planned the trips and locked the next stop of " + locked + (locked == 1 ? " worker." : " workers."));
+        SetStatus("The next stops are locked" + (locked > 0 ? " (" + locked + (locked == 1 ? " worker)." : " workers).") : "."));
+        UpdateLockButton();
         RefreshPlanner();
     }
 
@@ -263,22 +281,6 @@ public sealed partial class MainForm
             }
         }
         if (changed) Storage.Save(_data);
-    }
-
-    /// <summary>Clears all locked Current trips (asks first). The plan is free again until you press Plan Trips.</summary>
-    void ResetTrips()
-    {
-        if (_inputs == null) return;
-        var answer = MessageBox.Show(this,
-            "Reset the trips?\n\nThe locked Current trips are cleared, so nobody has a trip of his own until you press Plan Trips again. Runs that are done or on the way are not touched.",
-            "Reset Trips", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
-        if (answer != DialogResult.Yes) return;
-        _inputs.LockedTrips.Clear();
-        Storage.Save(_data);
-        SetStatus("Reset the trips: no Current trip is locked.");
-        _planCore = null;
-        _planShown = "";
-        RefreshPlanner();
     }
 
     /// <summary>A copy of Cargo Runs for the Trip Planner tab, so the runs are in view while you plan. It cannot be edited (do that on the Session tab).</summary>
@@ -507,8 +509,9 @@ public sealed partial class MainForm
     /// while there is room, the next stop of that continuation is locked too (it is where he is heading). A lock ends when he picks up somewhere else, when its batches are picked up, and when he leaves the party; when his run
     /// is handed in, the first stop of his next planned trip is locked. Only worked out again when the batches, the crew or the locks change.
     /// </summary>
-    PlanCore CoreFor(List<(string Name, int Capacity, QtDrive Drive)> crew, Dictionary<string, int> open, List<string> unknown, Dictionary<string, List<(string[] Workers, int Batches)>> limits)
+    PlanCore CoreFor(List<(string Name, int Capacity, QtDrive Drive)> crew, Dictionary<string, int> open, List<string> unknown, Dictionary<string, List<(string[] Workers, int Batches)>> limits, IReadOnlyList<DropChunk> chunks)
     {
+        var settled = new HashSet<string>();
         for (var pass = 0; ; pass++)
         {
             var remaining = new Dictionary<string, int>(open);
@@ -517,6 +520,12 @@ public sealed partial class MainForm
             if (_inputs != null)
             {
                 var changed = false;
+                var locking = _inputs.NextStopsLocked;
+                if (!locking && _inputs.LockedTrips.Count > 0)
+                {
+                    _inputs.LockedTrips.Clear();   // the button says Unlocked: the plan is free
+                    changed = true;
+                }
                 // somebody who left the party (or does not fly) has no locked stop: his batches go back to the others
                 foreach (var gone in _inputs.LockedTrips.Keys.Where(k => !crew.Any(c => c.Capacity > 0 && SameName(c.Name, k))).ToList())
                 {
@@ -528,9 +537,9 @@ public sealed partial class MainForm
                     var run = ActiveRunOf(c.Name);
                     var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, From = run?.From ?? (run == null ? StartPointOf(c.Name) : null) };   // flying a run: from there, else from where he said he is
                     var lockKey = LockKey(c.Name);
-                    if (lockKey == null)
+                    if (lockKey == null && locking)
                     {
-                        // everybody who flies has his next stop kept for him, without pressing Plan Trips: the first stop of his planned trip is where he is heading
+                        // with the button on Locked everybody who flies has his next stop kept for him: the first stop of his planned trip is where he is heading
                         _inputs.LockedTrips[c.Name] = new List<LockedStop>();
                         lockKey = c.Name;
                         changed = true;
@@ -581,9 +590,10 @@ public sealed partial class MainForm
             var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity + ":" + c.Drive.Key))
                 + "#" + string.Join("|", remaining.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + ":" + kv.Value))
                 + "#" + string.Join("|", unknown)
+                + "#" + string.Join("|", chunks.Select(x => x.Station + ":" + x.Batches + ":" + x.Cargo + ":" + string.Join(",", x.Allowed)))
                 + "#" + string.Join("|", limits.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + "=" + string.Join(";", kv.Value.Select(g => string.Join(",", g.Workers) + "x" + g.Batches))))
                 + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "/" + t.Loaded + "@" + t.From));
-            if (waiting.Count == 0 && _planCore != null && _planCore.Key == key) return _planCore;
+            if (_planCore != null && _planCore.Key == key && waiting.All(n => _planCore.Settled.Contains(n))) return _planCore;
 
             var note = unknown.Count > 0 ? "Not in the distance table, so left out: " + string.Join(", ", unknown) + "." : "";
             var only = limits.SelectMany(kv => kv.Value.Select(g => PyroDistances.NameOf(kv.Key) + " ×" + g.Batches + " only " + string.Join(" / ", g.Workers))).ToList();
@@ -591,9 +601,10 @@ public sealed partial class MainForm
             var core = new PlanCore
             {
                 Key = key,
-                Trips = TripPlanner.Plan(remaining, crew, starts, limits),
+                Trips = TripPlanner.Plan(remaining, crew, starts, limits, chunks),
                 Batches = remaining.Where(kv => kv.Value > 0).Sum(kv => kv.Value) + starts.Sum(t => t.FirstBatches),
                 Note = note,
+                Settled = settled,
             };
             _planCore = core;
             if (waiting.Count == 0 || pass > 0 || _inputs == null) return core;
@@ -605,8 +616,9 @@ public sealed partial class MainForm
                 if (lockKey == null) continue;
                 var next = core.Trips.FirstOrDefault(t => t.Worker == name);
                 var flying = ActiveRunOf(name);
-                if (next == null || next.Stops.Count == 0)
+                if (next == null || NothingToLock(next))
                 {
+                    settled.Add(name);
                     if (flying == null) _inputs.LockedTrips.Remove(lockKey);   // with a run in progress the marker stays: his next trip is locked once the run is handed in
                 }
                 else _inputs.LockedTrips[lockKey] = new List<LockedStop> { new() { Id = next.Stops[0].Id, Batches = next.Stops[0].Batches, Since = flying?.Last } };
@@ -654,18 +666,19 @@ public sealed partial class MainForm
             }
         }
 
-        var core = CoreFor(crew, remaining, unknown, limits);
-        // cargo that goes out from Ruin (from-Ruin contracts): one drop stop first in a trip, unloaded fully before the pickups
+        // cargo that goes out from Ruin (from-Ruin contracts): the planner gives every worker the loads of his missions, each in a trip of its own that unloads at its first stop
         var drops = OpenDrops();
-        var dropTrips = core.Trips;
+        var chunks = new List<DropChunk>();
         var dropNote = "";
         if (drops.Count > 0)
         {
             var cap = flyers.Count == 0 ? 0 : crew.Where(c => c.Capacity > 0).Min(c => c.Capacity);
-            dropTrips = DropPlanner.Attach(core.Trips, DropChunks(drops, flyers, cap), crew);
+            chunks = DropChunks(drops, flyers, cap);
             var lost = drops.Count(d => d.Station == null);
             dropNote = "From Ruin: " + drops.Count + " batches to bring out" + (lost > 0 ? " (" + lost + " to a place that is not in the distance table, left out)" : "") + ".";
         }
+        var core = CoreFor(crew, remaining, unknown, limits, chunks);
+        var dropTrips = core.Trips;
         decimal PerBatch(string id) => worth.TryGetValue(id, out var x) && x.Batches > 0 ? x.Value / x.Batches : 0;   // the average batch at that station
 
         var plan = new PlanView { Note = (core.Note + "  " + dropNote).Trim() };
@@ -767,6 +780,7 @@ public sealed partial class MainForm
     /// <summary>Shows the plan: the map on the left, the tables on the right. It only runs while the Trip Planner tab is on screen.</summary>
     void RefreshPlanner()
     {
+        UpdateLockButton();
         PlanView plan;
         try
         {
