@@ -118,7 +118,7 @@ public sealed class PayoutRecord
     public decimal Each { get; set; }
 }
 
-/// <summary>Where a worker starts his next trip when he is not at Ruin Station (set on the Trip Planner). It ends when he picks up or hands in something.</summary>
+/// <summary>Where a worker is, when you set his Current location by hand on the Trip Planner. It ends when the logs show him picking up, delivering a load from Ruin or handing in something after that.</summary>
 public sealed class StartPoint
 {
     public string Id { get; set; } = "";
@@ -151,7 +151,7 @@ public sealed class AppData
     public Dictionary<string, Dictionary<string, bool>> MissionHolders { get; set; } = new();   // mission id -> member -> has the mission (ticked on the Contracts tab, wins over what the logs say)
     public Dictionary<string, decimal> PayoutOverrides { get; set; } = new();   // mission id -> what it really paid (typed in the Mission Payouts list), instead of the reward of its contract
     public Dictionary<string, DateTime> DroppedMissions { get; set; } = new();   // mission id -> when it was marked as gone on the Contracts tab (treated like an abandoned mission)
-    public Dictionary<string, StartPoint> StartPoints { get; set; } = new();   // worker -> where he starts his next trip
+    public Dictionary<string, StartPoint> StartPoints { get; set; } = new();   // worker -> his Current location, when set by hand (otherwise the logs know)
     public Dictionary<string, decimal> PairAdjust { get; set; } = new();   // "a|b" (a before b) -> amount b owes a, typed by you
 }
 
