@@ -1,5 +1,8 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Text;
 
 namespace HaulingTracker;
 
@@ -15,7 +18,10 @@ sealed class MapRoute
     public object? Tag;
 }
 
-/// <summary>A top-down map of Pyro with the routes of trips drawn as lines with arrows.</summary>
+/// <summary>
+/// A top-down map of Pyro with the routes of trips drawn as lines with arrows. On the first leg of every solid route (from where the worker is to his next stop)
+/// darker waves run in the direction of the arrow.
+/// </summary>
 sealed class PyroMapView : Control
 {
     [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -24,15 +30,141 @@ sealed class PyroMapView : Control
     const float LegendRow = 16f;
     static readonly Color Space = Color.FromArgb(8, 8, 12);
 
+    // the waves: darker bands that run along the leg, from the station where it starts to the station where it ends
+    const float WaveLength = 28f;   // pixels from one dark band to the next
+    const float WaveSpeed = 34f;    // pixels per second
+    const float WaveDark = 0.38f;   // the bands have the colour of the route times this
+    const int WaveAlpha = 140;      // how dark the middle of a band is (of 255)
+    const float WaveInset = 8f;     // the waves stay clear of the stations at both ends of the leg
+    static readonly Stopwatch WaveClock = Stopwatch.StartNew();   // one clock for every map: a map that is built anew goes on with the waves where the old one was
+
+    /// <summary>The leg that has waves: where it is, and what is needed to draw the waves on it.</summary>
+    sealed class WaveLeg
+    {
+        public PointF A, B;   // the ends of the leg, moved to the side like the line itself
+        public float Ux, Uy;   // the direction of flight
+        public float Length;   // of the leg
+        public float Width;
+        public PointF[] Head = Array.Empty<PointF>();   // the arrow head, which is drawn again on top of the waves
+        public Color Color;
+        public ColorBlend Blend = new();   // the shape of one wave: from clear, to dark, to clear
+        public Rectangle Bounds;   // the part of the map that is painted again for every frame
+    }
+
+    readonly List<WaveLeg> _legs = new();
+    readonly System.Windows.Forms.Timer _timer = new() { Interval = 40 };
+    Bitmap? _scene;   // the map without the waves: it is painted again only when the size or the routes change
+    string _sceneKey = "";
+
     public PyroMapView()
     {
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
         MinimumSize = new Size(320, 320);
+        _timer.Tick += (_, _) =>
+        {
+            if (!IsHandleCreated) return;
+            foreach (var leg in _legs) Invalidate(leg.Bounds);   // only the waves move, so only their part of the map is painted again
+        };
+    }
+
+    // the waves only run while the map is on screen
+    void UpdateTimer() => _timer.Enabled = Visible && _legs.Count > 0;
+
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+        UpdateTimer();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _timer.Dispose();
+            _scene?.Dispose();
+        }
+        base.Dispose(disposing);
+    }
+
+    /// <summary>What the map without the waves looks like: if it is the same as the last time, the picture of that time is used again.</summary>
+    string SceneKey(Graphics g)
+    {
+        var sb = new StringBuilder();
+        sb.Append(Width).Append('x').Append(Height).Append('@').Append(g.DpiX).Append('|');
+        foreach (var r in Routes)
+        {
+            sb.Append(r.Label).Append('~').Append(r.Color.ToArgb()).Append('~').Append(r.From).Append('~').Append(r.Bold ? 1 : 0).Append(r.Dashed ? 1 : 0).Append('~');
+            sb.AppendJoin(',', r.Stops).Append('|');
+        }
+        return sb.ToString();
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
+        if (Width < 1 || Height < 1) return;
+        var key = SceneKey(g);
+        if (_scene == null || key != _sceneKey)
+        {
+            _scene?.Dispose();
+            _scene = new Bitmap(Width, Height, PixelFormat.Format32bppRgb);
+            _scene.SetResolution(g.DpiX, g.DpiY);   // the text gets the same size as on the screen
+            _legs.Clear();
+            using (var sg = Graphics.FromImage(_scene)) DrawScene(sg);
+            _sceneKey = key;
+            UpdateTimer();
+        }
+        g.DrawImage(_scene, new Rectangle(0, 0, Width, Height), 0, 0, Width, Height, GraphicsUnit.Pixel);
+        DrawWaves(g);
+    }
+
+    /// <summary>The waves of this moment: dark bands over the line of each leg that has them, moving in the direction of the arrow.</summary>
+    void DrawWaves(Graphics g)
+    {
+        if (_legs.Count == 0) return;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        var phase = (float)(WaveClock.Elapsed.TotalSeconds * WaveSpeed % WaveLength);   // how far the bands have moved from the start of the leg
+        foreach (var leg in _legs)
+        {
+            if (leg.Length <= 2 * WaveInset + 2) continue;   // a leg that short is hardly more than its two stations
+            var a = new PointF(leg.A.X + leg.Ux * WaveInset, leg.A.Y + leg.Uy * WaveInset);
+            var b = new PointF(leg.B.X - leg.Ux * WaveInset, leg.B.Y - leg.Uy * WaveInset);
+            // one wave goes from p0 to p1 along the leg, it repeats all along it, and p0 moves on towards the end of the leg
+            var p0 = new PointF(leg.A.X + leg.Ux * phase, leg.A.Y + leg.Uy * phase);
+            var p1 = new PointF(p0.X + leg.Ux * WaveLength, p0.Y + leg.Uy * WaveLength);
+            using var brush = new LinearGradientBrush(p0, p1, Color.Black, Color.Black) { WrapMode = WrapMode.Tile, InterpolationColors = leg.Blend };
+            using var pen = new Pen(brush, leg.Width) { StartCap = LineCap.Flat, EndCap = LineCap.Flat };
+            g.DrawLine(pen, a, b);
+            using var headBrush = new SolidBrush(leg.Color);
+            g.FillPolygon(headBrush, leg.Head);   // the arrow head itself has no waves
+        }
+    }
+
+    static WaveLeg NewLeg(PointF a, PointF b, float ux, float uy, float length, float width, PointF[] head, Color color)
+    {
+        var shade = Color.FromArgb((int)(color.R * WaveDark), (int)(color.G * WaveDark), (int)(color.B * WaveDark));
+        const int steps = 9;
+        var blend = new ColorBlend(steps);
+        for (var i = 0; i < steps; i++)
+        {
+            var t = i / (float)(steps - 1);
+            blend.Positions[i] = t;
+            blend.Colors[i] = Color.FromArgb((int)(WaveAlpha * (1 - Math.Cos(2 * Math.PI * t)) / 2), shade);   // clear, dark in the middle, clear again
+        }
+        var left = (int)Math.Floor(Math.Min(a.X, b.X)) - 14;
+        var top = (int)Math.Floor(Math.Min(a.Y, b.Y)) - 14;
+        var right = (int)Math.Ceiling(Math.Max(a.X, b.X)) + 14;
+        var bottom = (int)Math.Ceiling(Math.Max(a.Y, b.Y)) + 14;
+        return new WaveLeg
+        {
+            A = a, B = b, Ux = ux, Uy = uy, Length = length, Width = width, Head = head, Color = color, Blend = blend,
+            Bounds = Rectangle.FromLTRB(left, top, right, bottom),
+        };
+    }
+
+    /// <summary>Paints the map without the waves (and notes which legs get waves).</summary>
+    void DrawScene(Graphics g)
+    {
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.Clear(Space);
 
@@ -98,6 +230,7 @@ sealed class PyroMapView : Control
                     ? new Pen(Color.FromArgb(235, route.Color), route.Bold ? 3.5f : 2.5f) { DashStyle = DashStyle.Dot }
                     : new Pen(Color.FromArgb(route.Bold ? 255 : 170, route.Color), route.Bold ? 3.5f : 2f);
                 using var fill = new SolidBrush(route.Color);
+                var waved = false;   // the waves run on the first leg of a solid route only: from where the worker is to his next stop
                 for (var s = 0; s + 1 < ids.Count; s++)
                 {
                     if (ids[s] == ids[s + 1]) continue;
@@ -116,12 +249,18 @@ sealed class PyroMapView : Control
                     g.DrawLine(pen, a, b);
                     var c = new PointF(a.X + (b.X - a.X) * 0.62f, a.Y + (b.Y - a.Y) * 0.62f);   // arrow head: the direction of flight
                     var size = route.Bold ? 8f : 6f;
-                    g.FillPolygon(fill, new[]
+                    var head = new[]
                     {
                         new PointF(c.X + ux * size, c.Y + uy * size),
                         new PointF(c.X - ux * size * 0.7f + nx * size * 0.6f, c.Y - uy * size * 0.7f + ny * size * 0.6f),
                         new PointF(c.X - ux * size * 0.7f - nx * size * 0.6f, c.Y - uy * size * 0.7f - ny * size * 0.6f),
-                    });
+                    };
+                    g.FillPolygon(fill, head);
+                    if (route.Bold && !route.Dashed && !waved)
+                    {
+                        waved = true;
+                        _legs.Add(NewLeg(a, b, ux, uy, len, 3.5f, head, route.Color));
+                    }
                 }
             }
         }

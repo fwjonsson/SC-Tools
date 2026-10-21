@@ -334,8 +334,22 @@ function signColors(box, col, d, rows) {
   });
 }
 
+// The waves on the map move with the clock of the page, not with an SVG animation (that would start again every time the map is drawn anew).
+const WAVE_LEN = 28, WAVE_SPEED = 34;   // px from one dark band to the next, px per second
+let waveGrads = [];
+function slideWave(w, now) {
+  const shift = (now / 1000 * WAVE_SPEED) % WAVE_LEN;
+  w.el.setAttribute('gradientTransform', 'translate(' + (w.ux * shift).toFixed(2) + ' ' + (w.uy * shift).toFixed(2) + ')');
+}
+function moveWaves(now) {
+  if (waveGrads.length && !document.hidden && !document.getElementById('viewP').classList.contains('hidden')) waveGrads.forEach(function (w) { slideWave(w, now); });
+  requestAnimationFrame(moveWaves);
+}
+requestAnimationFrame(moveWaves);
+
 function mapSvg(el, stations, routes, bg) {
   el.textContent = '';
+  waveGrads = [];
   const NS = 'http://www.w3.org/2000/svg';
   const W = 520, H = 560, L = 40, R = 150, B = 24;
   const legend = routes.filter(function (r) { return r.label; });
@@ -358,6 +372,30 @@ function mapSvg(el, stations, routes, bg) {
     svg.appendChild(e);
     return e;
   }
+  // Darker waves that run along the first leg of a solid route (from where he is to his next stop), in the direction of the arrow.
+  function darker(hex, f) {
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
+    if (!m) return '#000000';
+    return '#' + [1, 2, 3].map(function (k) { return Math.round(parseInt(m[k], 16) * f).toString(16).padStart(2, '0'); }).join('');
+  }
+  function wave(a, b, ux, uy, len, color, width) {
+    const ALPHA = 140 / 255, INSET = 8;   // how dark the middle of a band is, and clear of the stations at both ends of the leg
+    if (len <= 2 * INSET + 2) return;   // a leg that short is hardly more than its two stations
+    const id = 'wave' + waveGrads.length, shade = darker(color, 0.38);
+    // one wave goes from a to a + WAVE_LEN along the leg and repeats all along it; moveWaves() slides the pattern on towards the end of the leg
+    const grad = add('linearGradient', { id: id, gradientUnits: 'userSpaceOnUse', x1: a[0], y1: a[1], x2: a[0] + ux * WAVE_LEN, y2: a[1] + uy * WAVE_LEN, spreadMethod: 'repeat' });
+    for (let k = 0; k <= 8; k++) {
+      const t = k / 8;
+      const stop = document.createElementNS(NS, 'stop');
+      stop.setAttribute('offset', t);
+      stop.setAttribute('stop-color', shade);
+      stop.setAttribute('stop-opacity', (ALPHA * (1 - Math.cos(2 * Math.PI * t)) / 2).toFixed(3));   // clear, dark in the middle, clear again
+      grad.appendChild(stop);
+    }
+    waveGrads.push({ el: grad, ux: ux, uy: uy });
+    slideWave(waveGrads[waveGrads.length - 1], performance.now());
+    add('line', { x1: a[0] + ux * INSET, y1: a[1] + uy * INSET, x2: b[0] - ux * INSET, y2: b[1] - uy * INSET, stroke: 'url(#' + id + ')', 'stroke-width': width });
+  }
   add('rect', { x: 0, y: 0, width: W, height: H, fill: '#08080c' });
   const sx = ox + (bg.sun[0] - minX) * sc, sy = oy + (bg.sun[1] - minY) * sc;
   bg.orbits.forEach(function (r) { add('circle', { cx: sx, cy: sy, r: r * sc, fill: 'none', stroke: '#ebebf5', 'stroke-opacity': 0.37, 'stroke-width': 1 }); });
@@ -371,6 +409,7 @@ function mapSvg(el, stations, routes, bg) {
       if (!!r.bold !== boldPass) return;
       const ids = [r.from || 'Ruin'].concat(r.stops, ['Ruin']);
       const shift = (i - (n - 1) / 2) * 3.5;
+      let waved = false;   // the waves run on the first leg only
       for (let s = 0; s + 1 < ids.length; s++) {
         if (ids[s] === ids[s + 1]) continue;
         let a = pos[ids[s]], b = pos[ids[s + 1]];
@@ -382,6 +421,7 @@ function mapSvg(el, stations, routes, bg) {
         b = [b[0] + nx * shift, b[1] + ny * shift];
         if (r.dashed) add('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: r.color, 'stroke-width': r.bold ? 3.5 : 2.5, 'stroke-opacity': 0.92, 'stroke-dasharray': '1 5', 'stroke-linecap': 'round' });
         else add('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: r.color, 'stroke-width': r.bold ? 3.5 : 2, 'stroke-opacity': r.bold ? 1 : 0.67 });
+        if (r.bold && !r.dashed && !waved) { waved = true; wave(a, b, ux, uy, len, r.color, 3.5); }
         const cx = a[0] + (b[0] - a[0]) * 0.62, cy = a[1] + (b[1] - a[1]) * 0.62, z = r.bold ? 8 : 6;
         const pts = [
           [cx + ux * z, cy + uy * z],
