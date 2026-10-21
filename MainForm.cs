@@ -792,14 +792,14 @@ public sealed partial class MainForm : Form
     }
 
     /// <summary>
-    /// What a run did, in the order it happened, for the Pickup Location &amp; Time column: waste taken out at Ruin ("Waste ×3 from Ruin 13:19"), waste delivered to a station
+    /// What a run did, in the order it happened, for the Pickup Location &amp; Time column: waste taken out at Ruin ("Waste from Ruin 13:19"), waste delivered to a station
     /// ("Waste → Rat's Nest 15:55") and the pickups ("Rod's Fuel 15:36").
     /// </summary>
     string RunStepsText(WorkerTrip t)
     {
         var steps = new List<(DateTime Time, string Text)>();
         foreach (var c in Clusters(t.Collects, x => x.Time, x => x.Cargo))
-            steps.Add((c[0].Time, c[0].Cargo + (c.Count > 1 ? " ×" + c.Count : "") + " from Ruin " + FormatTime(c[0].Time)));
+            steps.Add((c[0].Time, c[0].Cargo + " from Ruin " + FormatTime(c[0].Time)));   // the game completes every pickup of the contract at once, however much is taken: no count
         foreach (var c in Clusters(t.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone))
             steps.Add((c[0].Time, c[0].Cargo + (c.Count > 1 ? " ×" + c.Count : "") + " → " + LocationName(c[0].Zone) + " " + FormatTime(c[0].Time)));
         foreach (var p in t.Pickups) steps.Add((p.Time, LocationName(p.Zone) + " " + FormatTime(p.Time)));

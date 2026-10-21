@@ -82,7 +82,6 @@ public sealed partial class MainForm
     {
         public int Taken;                  // batches of waste taken out at Ruin
         public string? TakenCargo;
-        public List<int> TakenScu = new(); // the SCU of every one of them (0 = not known)
         public int Delivered;              // batches of waste delivered here
         public List<int> DeliveredScu = new();   // the SCU of every one of them (0 = not known)
         public string? DeliveredCargo;
@@ -744,9 +743,7 @@ public sealed partial class MainForm
                 {
                     var ruinLine = LineFor(PyroDistances.Ruin, "Ruin", true);
                     var d = done[ruinLine];
-                    ruinLine.Unknown.AddRange(batch.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
-                    d.Taken += batch.Count;
-                    d.TakenScu.AddRange(batch.Select(x => x.Scu));
+                    d.Taken += 1;   // the game completes every pickup of the contract at once, however much is taken out: one take-out, how much is not known
                     d.TakenCargo = batch[0].Cargo;
                     d.Last = batch.Max(x => x.Time);
                 }));
@@ -795,8 +792,13 @@ public sealed partial class MainForm
                 line.Busy = busy;
                 if (d.Taken > 0)
                 {
-                    line.Actions.Add((busy ? "Collecting " : "Collected ") + d.TakenCargo + (d.Taken > 1 ? " \u00d7" + d.Taken : "") + tick);
-                    line.Loads.Add(LoadText(d.TakenScu));
+                    line.Actions.Add((busy ? "Collecting " : "Collected ") + d.TakenCargo + tick);
+                    // what was taken out is only known from what was delivered since: those loads, with their containers
+                    if (t.Drops.Count > 0)
+                    {
+                        line.Loads.Add(LoadText(t.Drops.Select(x => x.Scu)));
+                        line.Unknown.AddRange(t.Drops.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
+                    }
                 }
                 if (d.Delivered > 0)
                 {
@@ -1185,14 +1187,12 @@ public sealed partial class MainForm
                 var loadedAt = takenRun?.Collects.Max(x => x.Time) ?? DateTime.MinValue;
                 if (takenRun != null && startLine != null && _log != null && _log.LastTime - loadedAt <= StaleLeg)
                 {
+                    // the game completes every pickup of the contract at once, however much is taken out, so the load of this trip is taken to be what he took
+                    // (its SCU and containers stay as planned)
                     var stillLoading = StillLoading(c.Name, loadedAt);
-                    var takenCount = takenRun.Collects.Count;
+                    var loads = mine[0].Drops[0].Batches;
                     startLine.Actions.Clear();
-                    startLine.Actions.Add((stillLoading ? "Loading " : "Collected ") + takenRun.Collects[0].Cargo + (takenCount > 1 ? " \u00d7" + takenCount : "") + (stillLoading ? "" : " \u2713"));
-                    startLine.Loads.Clear();
-                    startLine.Loads.Add(LoadText(takenRun.Collects.Select(x => x.Scu)));
-                    startLine.Unknown.Clear();
-                    startLine.Unknown.AddRange(takenRun.Collects.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
+                    startLine.Actions.Add((stillLoading ? "Loading " : "Collected ") + (mine[0].DropCargo ?? takenRun.Collects[0].Cargo) + (loads > 1 ? " \u00d7" + loads : "") + (stillLoading ? "" : " \u2713"));
                     startLine.Done = true;
                     startLine.Busy = stillLoading;
                 }
