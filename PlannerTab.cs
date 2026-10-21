@@ -379,11 +379,11 @@ public sealed partial class MainForm
     /// The stops of a planned trip one by one, for the Current Route table: where it starts (Ruin, collecting the load from Ruin if there is one, or the station he is at),
     /// what is done at every stop, and the way back to Ruin. Every line has the leg that leads to it, so the legs add up to the whole route.
     /// </summary>
-    List<StopLine> LinesOf(PlannedTrip trip, string worker, Func<string, decimal> perBatch, Func<string, double> scuPerBatch)
+    List<StopLine> LinesOf(PlannedTrip trip, string worker, Func<string, decimal> perBatch, Func<string, double> scuPerBatch, string? at = null)
     {
         var drive = QtOf(worker);
         var lines = new List<StopLine>();
-        var prev = trip.From ?? PyroDistances.Ruin;
+        var prev = trip.From ?? at ?? PyroDistances.Ruin;
         var hasDrop = trip.Drops.Count > 0;
         var drop = hasDrop ? trip.Drops[0] : default;
         var cargo = trip.DropCargo ?? "cargo";
@@ -401,6 +401,8 @@ public sealed partial class MainForm
 
         if (trip.From == null)
         {
+            // his first trip starts at Ruin but he is somewhere else: first the flight back to Ruin
+            if (at != null && at != PyroDistances.Ruin) Add(at, PyroDistances.NameOf(at), false, Array.Empty<string>());
             // the load for the first stop is collected at Ruin
             var collect = hasDrop
                 ? new[] { "Collect " + cargo + (drop.Batches > 1 ? " \u00d7" + drop.Batches : "") }
@@ -1107,7 +1109,7 @@ public sealed partial class MainForm
                     Stops = mine[k].Drops.Select(d => d.Id).Concat(mine[k].Stops.Select(s => s.Id)).Aggregate(new List<string>(), (l, id) => { if (l.Count == 0 || l[^1] != id) l.Add(id); return l; }),
                     From = mine[k].From,
                     Trip = mine[k],
-                    Lines = LinesOf(mine[k], c.Name, PerBatch, ScuPerBatch),
+                    Lines = LinesOf(mine[k], c.Name, PerBatch, ScuPerBatch, k == 0 && runRow == null ? w.LocationId : null),
                 });
             }
             // what the plan adds to the run in progress is part of his Current row: the stops already picked up, then the ones still to pick up

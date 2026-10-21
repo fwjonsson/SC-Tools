@@ -369,9 +369,10 @@ public static class TripPlanner
             }
             if (mask == 0)
             {
-                // a run in progress has to fly home to Ruin even when nothing is added to it: that leg is part of his time, so adding a close stop
-                // to the run is compared with the trip home it already needs, and not with nothing
-                if (special[slot] && startOf[slot]!.Loaded > 0)
+                // a run in progress, or a worker who is at a station (he dropped off a load there), has to fly home to Ruin even when nothing is added to
+                // his first trip: that leg is part of his time, so a stop on the way home is compared with the flight home he needs anyway, and not with
+                // nothing (else a trip that starts at Ruin looks free to him, as if he were at Ruin already)
+                if (special[slot])
                     return workers[slotWorker[slot]].Drive.Seconds(PyroDistances.Between(startOf[slot]!.From ?? PyroDistances.Ruin, PyroDistances.Ruin));
                 return 0;
             }
