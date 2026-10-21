@@ -313,8 +313,11 @@ public sealed partial class MainForm
 
     List<string> ActiveCrew() => _data.Party.Where(n => !_data.InactiveParty.Any(x => SameName(x, n))).ToList();
 
-    static string RouteText(PlannedTrip trip) =>
-        (trip.From != null && !(trip.Stops.Count > 0 && trip.Stops[0].Id == trip.From) ? "From " + PyroDistances.NameOf(trip.From) + "  →  " : "") + StopsText(trip);
+    static string RouteText(PlannedTrip trip)
+    {
+        var drop = trip.DropId == null ? "" : "Bring " + trip.DropCargo + " \u00d7" + trip.DropBatches + " to " + PyroDistances.NameOf(trip.DropId) + (trip.Stops.Count > 0 ? "  →  " : "");
+        return drop + (trip.From != null && !(trip.Stops.Count > 0 && trip.Stops[0].Id == trip.From) ? "From " + PyroDistances.NameOf(trip.From) + "  →  " : "") + StopsText(trip);
+    }
 
     /// <summary>The station a worker said he starts from (null = Ruin Station). It only lasts until he picks up or hands in something after he set it.</summary>
     string? StartPointOf(string name)
@@ -644,9 +647,20 @@ public sealed partial class MainForm
         }
 
         var core = CoreFor(crew, remaining, unknown, limits);
+        // cargo that goes out from Ruin (from-Ruin contracts): one drop stop first in a trip, unloaded fully before the pickups
+        var drops = OpenDrops();
+        var dropTrips = core.Trips;
+        var dropNote = "";
+        if (drops.Count > 0)
+        {
+            var cap = flyers.Count == 0 ? 0 : crew.Where(c => c.Capacity > 0).Min(c => c.Capacity);
+            dropTrips = DropPlanner.Attach(core.Trips, DropChunks(drops, flyers, cap), crew);
+            var lost = drops.Count(d => d.Station == null);
+            dropNote = "From Ruin: " + drops.Count + " batches to bring out" + (lost > 0 ? " (" + lost + " to a place that is not in the distance table, left out)" : "") + ".";
+        }
         decimal PerBatch(string id) => worth.TryGetValue(id, out var x) && x.Batches > 0 ? x.Value / x.Batches : 0;   // the average batch at that station
 
-        var plan = new PlanView { Note = core.Note };
+        var plan = new PlanView { Note = (core.Note + "  " + dropNote).Trim() };
         var flying = crew.Where(c => c.Capacity > 0).ToList();
         for (var i = 0; i < flying.Count; i++)
         {
@@ -670,7 +684,7 @@ public sealed partial class MainForm
                 runRow.Label = "Current";
                 runRow.First = true;
             }
-            var mine = core.Trips.Where(t => t.Worker == c.Name).ToList();
+            var mine = dropTrips.Where(t => t.Worker == c.Name).ToList();
             for (var k = 0; k < mine.Count; k++)
             {
                 w.Rows.Add(new PlanRow
@@ -688,7 +702,7 @@ public sealed partial class MainForm
                     Flight = mine[k].Seconds,
                     RunStart = k == 0 && runRow == null ? IdleStart(c.Name) : null,   // his next trip is already counting: from his last hand-in
                     Level = "plan",
-                    Stops = mine[k].Stops.Select(s => s.Id).ToList(),
+                    Stops = (mine[k].DropId != null ? new[] { mine[k].DropId! } : Array.Empty<string>()).Concat(mine[k].Stops.Select(s => s.Id)).ToList(),
                     From = mine[k].From,
                     Trip = mine[k],
                 });

@@ -57,6 +57,11 @@ public sealed class Mission
     /// <summary>The mission was marked as gone on the Contracts tab (it is not in the game any more, but the logs never said so). Only set on the missions of the merged log.</summary>
     public bool Dropped;
 
+    /// <summary>A from-Ruin contract ("Single to Multi"): the cargo is loaded at Ruin and dropped off at 2 to 4 stations. Its cargo and the number of drop-offs.</summary>
+    public string? OutCargo;
+    public int OutDrops;
+    public bool IsOut => OutDrops > 0;
+
     public bool IsHauling => Cargo != null;
     public bool Completed => EndState == "COMPLETED";
     public bool Dead => EndState != null && EndState != "COMPLETED";
@@ -112,6 +117,10 @@ public sealed class HaulingLog
 
     static readonly Regex HaulingContract = new(
         @"_StationToRuin_(?<cargo>[A-Za-z]+)_CargoHauling_Multi(?<n>\d)ToSingle",
+        RegexOptions.Compiled);
+
+    static readonly Regex OutContract = new(
+        @"_RuinToStation_(?<cargo>[A-Za-z]+)_CargoHauling_SingleToMulti(?<n>\d)",
         RegexOptions.Compiled);
 
     public Dictionary<string, Mission> Missions { get; } = new();
@@ -216,6 +225,8 @@ public sealed class HaulingLog
                     res.Missions[m.Id] = t;
                 }
                 t.Cargo ??= m.Cargo;
+                t.OutCargo ??= m.OutCargo;
+                if (t.OutDrops == 0) t.OutDrops = m.OutDrops;
                 if (t.Multi == 0) t.Multi = m.Multi;
                 if (m.Accepted.HasValue && (!t.Accepted.HasValue || m.Accepted < t.Accepted)) t.Accepted = m.Accepted;
                 if (m.FirstSeen.HasValue && (!t.FirstSeen.HasValue || m.FirstSeen < t.FirstSeen)) t.FirstSeen = m.FirstSeen;
@@ -425,6 +436,15 @@ public sealed class HaulingLog
             {
                 m.Cargo = c.Groups["cargo"].Value;
                 m.Multi = int.Parse(c.Groups["n"].Value, CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                var o = OutContract.Match(x.Groups["c"].Value);
+                if (o.Success)
+                {
+                    m.OutCargo = o.Groups["cargo"].Value;
+                    m.OutDrops = int.Parse(o.Groups["n"].Value, CultureInfo.InvariantCulture);
+                }
             }
             m.ObjZone[x.Groups["o"].Value] = x.Groups["z"].Value;
             if (x.Groups["px"].Success
