@@ -754,6 +754,40 @@ public sealed partial class MainForm : Form
                 if (!Equals(row.Cells[7].Value, text)) row.Cells[7].Value = text;
             }
         }
+        UpdateLivePlanTimes();
+    }
+
+    /// <summary>The Time of the run on the way in the Trip Planner tables (and the Total under them) keeps counting between log updates.</summary>
+    void UpdateLivePlanTimes()
+    {
+        if (!_planBody.Visible) return;
+        var stack = new Stack<Control>(_planBody.Controls.Cast<Control>());
+        while (stack.Count > 0)
+        {
+            var c = stack.Pop();
+            foreach (Control child in c.Controls) stack.Push(child);
+            if (c is not DataGridView grid || grid.Columns.Count < 8 || grid.Columns[6].HeaderText != "Time") continue;
+            var rows = new List<PlanRow>();
+            DataGridViewRow? total = null;
+            foreach (DataGridViewRow row in grid.Rows)
+            {
+                if (row.Tag is PlanRow pr)
+                {
+                    rows.Add(pr);
+                    if (pr.RunStart.HasValue)
+                    {
+                        var text = TimeText(pr);
+                        if (!Equals(row.Cells[6].Value, text)) row.Cells[6].Value = text;
+                    }
+                }
+                else total = row;
+            }
+            if (total != null && rows.Any(r => r.RunStart.HasValue))
+            {
+                var text = PlanTotals(rows)[6];
+                if (!Equals(total.Cells[6].Value, text)) total.Cells[6].Value = text;
+            }
+        }
     }
 
     /// <summary>The latest thing that happened in a run: its hand-in when it is completed, otherwise the last pickup. A run that gets completed jumps to the top.</summary>
