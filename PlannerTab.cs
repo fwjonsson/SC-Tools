@@ -361,7 +361,7 @@ public sealed partial class MainForm
         var batches = rows.Sum(r => r.BatchCount);
         var gm = rows.Sum(r => r.Gm);
         var flight = rows.Sum(r => r.Flight);
-        var seconds = rows.Where(r => !r.IsPlan).Sum(r => LiveSeconds(r));
+        var seconds = rows.Where(r => !r.IsPlan || r.RunStart.HasValue).Sum(r => LiveSeconds(r));
         return new[]
         {
             "Total",
@@ -649,6 +649,7 @@ public sealed partial class MainForm
                     Gm = mine[k].Distance,
                     Seconds = mine[k].Seconds,
                     Flight = mine[k].Seconds,
+                    RunStart = k == 0 && runRow == null ? IdleStart(c.Name) : null,   // his next trip is already counting: from his last hand-in
                     Level = "plan",
                     Stops = mine[k].Stops.Select(s => s.Id).ToList(),
                     From = mine[k].From,
@@ -693,7 +694,7 @@ public sealed partial class MainForm
         }
 
         plan.Signature = plan.Summary + "¦" + (Theme.Dark ? "dark" : "light") + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
-            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Flight.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + w.Drive + "|" + w.RunsSoFar)));
+            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Flight.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + (r.RunStart.HasValue ? r.RunStart.Value.Ticks.ToString(CultureInfo.InvariantCulture) : "") + "|" + w.Drive + "|" + w.RunsSoFar)));
         return plan;
     }
 
@@ -912,13 +913,26 @@ public sealed partial class MainForm
     /// <summary>How long a run really took (a planned trip has not been flown yet).</summary>
     static string TimeText(PlanRow r)
     {
-        if (r.IsPlan) return "";
+        if (r.IsPlan && !r.RunStart.HasValue) return "";
         var s = LiveSeconds(r);
         return s <= 0 ? "" : FlightSpan(s);
     }
 
     /// <summary>The time of a run: what it took, or while it is on the way (watching live) what has passed since it started.</summary>
     static double LiveSeconds(PlanRow r) => r.RunStart.HasValue ? Math.Max(0, (DateTime.UtcNow - r.RunStart.Value).TotalSeconds) : r.Seconds;
+
+    /// <summary>
+    /// When the next trip of a worker who has nothing on board starts counting: his last hand-in, but never before the missions
+    /// of the stretch that is going were accepted. Null when nothing is counting (no mission going).
+    /// </summary>
+    DateTime? IdleStart(string name)
+    {
+        if (!RunCounting() || _current == null) return null;
+        var open = WorkerTripBuilder.ActivePeriods(_current).LastOrDefault(p => p.End == DateTime.MaxValue);
+        if (open.End == default) return null;
+        var lastEnd = _trips.Where(x => SameName(x.Worker, name) && x.End.HasValue).Select(x => x.End!.Value).DefaultIfEmpty().Max();
+        return lastEnd > open.Start ? lastEnd : open.Start;
+    }
 
     /// <summary>True while the latest session is watched live and a mission is going: only then a run on the way counts time.</summary>
     bool RunCounting() => _live && _current != null && _sessions.Count > 0 && _current.Key == _sessions[^1].Key && HasOpenContracts();
