@@ -15,12 +15,13 @@ public sealed class PlannedTrip
     public List<(string Id, int Batches)> Drops = new();   // a from-Ruin contract: this trip leaves Ruin with the load for its FIRST stop (at most one entry) and unloads it there, before the pickups
     public string? DropCargo; // what it is (Waste ...)
     public int DropScu;       // how many SCU the load is (0 = not known)
-    public List<int> DropParts = new();   // the SCU of every drop-off in it, one by one (0 = not known)
+    public List<int> DropParts = new();
+    public List<string> DropKeys = new();   // "mission id|objective id" of every drop-off in it, in the same order   // the SCU of every drop-off in it, one by one (0 = not known)
 
     public PlannedTrip Copy() => new()
     {
         Worker = Worker, Stops = new List<(string Id, int Batches)>(Stops), Distance = Distance, Seconds = Seconds, Locked = Locked,
-        Special = Special, From = From, Room = Room, Drops = new List<(string Id, int Batches)>(Drops), DropCargo = DropCargo, DropScu = DropScu, DropParts = new List<int>(DropParts),
+        Special = Special, From = From, Room = Room, Drops = new List<(string Id, int Batches)>(Drops), DropCargo = DropCargo, DropScu = DropScu, DropParts = new List<int>(DropParts), DropKeys = new List<string>(DropKeys),
     };
 }
 
@@ -716,6 +717,7 @@ public static class TripPlanner
                     trip.DropCargo = chunks[dropAt[t]].Cargo;
                     trip.DropScu = chunks[dropAt[t]].Scu;
                     trip.DropParts = new List<int>(chunks[dropAt[t]].Parts);
+                    trip.DropKeys = new List<string>(chunks[dropAt[t]].Keys);
                 }
             }
             else if (dropAt[t] >= 0)
@@ -728,6 +730,7 @@ public static class TripPlanner
                 trip.DropCargo = chunks[chunk].Cargo;
                 trip.DropScu = chunks[chunk].Scu;
                 trip.DropParts = new List<int>(chunks[chunk].Parts);
+                trip.DropKeys = new List<string>(chunks[chunk].Keys);
                 foreach (var idx in route.Order)
                 {
                     if (row[idx] > 0) trip.Stops.Add((ids[idx], row[idx]));

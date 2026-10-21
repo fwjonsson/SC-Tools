@@ -152,6 +152,7 @@ public sealed class AppData
     public Dictionary<string, decimal> PayoutOverrides { get; set; } = new();   // mission id -> what it really paid (typed in the Mission Payouts list), instead of the reward of its contract
     public Dictionary<string, DateTime> DroppedMissions { get; set; } = new();   // mission id -> when it was marked as gone on the Contracts tab (treated like an abandoned mission)
     public Dictionary<string, StartPoint> StartPoints { get; set; } = new();   // worker -> his Current location, when set by hand (otherwise the logs know)
+    public Dictionary<string, int> TypedScu { get; set; } = new();   // "mission id|objective id" -> the SCU of that drop-off of a from-Ruin contract, typed by you when the game did not say (its own number wins once it does)
     public Dictionary<string, decimal> PairAdjust { get; set; } = new();   // "a|b" (a before b) -> amount b owes a, typed by you
 }
 
