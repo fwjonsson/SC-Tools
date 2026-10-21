@@ -481,6 +481,11 @@ public sealed class HaulingLog
         {
             var m = Get(x.Groups["m"].Value);
             m.Accepted ??= t;
+            if (m.EndState != null && m.EndState != "COMPLETED")
+            {
+                m.EndState = null;   // abandoned (or lost) before, and now accepted again (shared with this player again): it is running for him again
+                m.EndedAt = null;
+            }
             Touch(t);
             return;
         }
