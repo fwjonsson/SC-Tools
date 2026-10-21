@@ -63,6 +63,9 @@ public sealed partial class MainForm
         public string Drive = "";        // the quantum drive, or that none is set
         public Color Color;
         public int RunsSoFar;            // all his runs of the session, also the finished ones that are no longer listed in his table
+        public string LocationId = PyroDistances.Ruin;   // his Current location (station id): where he is now
+        public bool LocationByHand;      // set in the drop-down (the logs take over again at his next pickup, delivery or hand-in)
+        public string AutoLocationId = PyroDistances.Ruin;   // where the logs say he is
         public DateTime? SetStart;       // while the missions are being flown: when the first of them was accepted (the Total time of his table counts from here)
         public List<PlanRow> Rows = new();
         public List<PlanRow> Planned => Rows.Where(r => r.IsPlan).ToList();
@@ -369,35 +372,63 @@ public sealed partial class MainForm
     static string StopWithActions(string id, IReadOnlyList<string> actions) =>
         PyroDistances.NameOf(id) + (actions.Count == 0 ? "" : " (" + string.Join(" | ", actions) + ")");
 
-    /// <summary>The station a worker said he starts from (null = Ruin Station). It only lasts until he picks up or hands in something after he set it.</summary>
-    string? StartPointOf(string name)
+    /// <summary>The latest time the logs show the worker picking up, handing in or delivering a load from Ruin (the minimum time = nothing yet).</summary>
+    DateTime LastMoveOf(string name)
+    {
+        var last = DateTime.MinValue;
+        foreach (var t in _trips.Where(t => SameName(t.Worker, name)))
+        {
+            if (t.End.HasValue && t.End.Value > last) last = t.End.Value;
+            foreach (var p in t.Pickups)
+            {
+                if (p.Time > last) last = p.Time;
+            }
+        }
+        var drop = LastDropOf(name);
+        return drop != null && drop.Value.Time > last ? drop.Value.Time : last;
+    }
+
+    /// <summary>
+    /// Where the logs say the worker is: at the station of his last pickup (a run in progress), or of the last load of a from-Ruin mission he delivered, whichever
+    /// is later; else at Ruin Station (nothing yet, or his run is handed in).
+    /// </summary>
+    string AutoLocationOf(string name)
+    {
+        var run = ActiveRunOf(name);
+        var drop = DropStartOf(name);
+        if (run?.From != null && (drop == null || run.Value.Last >= drop.Value.Time)) return run.Value.From!;
+        return drop?.Station ?? PyroDistances.Ruin;
+    }
+
+    /// <summary>
+    /// The Current location of a worker: where he is now, and where the plan starts his next trip. The logs keep it up to date (AutoLocationOf: every pickup, every
+    /// delivery from Ruin, every hand-in). A station set by hand (for example at the start of a session, or when the logs miss something) holds until the logs
+    /// show him doing something after that, then the logs take over again.
+    /// </summary>
+    (string Id, bool ByHand) LocationOf(string name)
     {
         var kv = _data.StartPoints.FirstOrDefault(k => SameName(k.Key, name));
         if (kv.Value != null)
         {
-            var since = kv.Value.Since;
-            var used = ActiveRunOf(name) != null   // he is flying a run: where he starts from is where that run is
-                || _trips.Any(t => SameName(t.Worker, name) && ((t.End ?? DateTime.MinValue) > since || t.Pickups.Any(p => p.Time > since)));
-            if (used)
+            if (LastMoveOf(name) > kv.Value.Since)
             {
-                _data.StartPoints.Remove(kv.Key);
+                _data.StartPoints.Remove(kv.Key);   // he has picked up, delivered or handed in since: the logs know better
                 Storage.Save(_data);
             }
-            else
+            else if (PyroDistances.Points.Any(s => s.Id == kv.Value.Id))
             {
-                // what he chose himself wins over what the log says (Ruin Station chosen by hand is a choice too)
-                return PyroDistances.Points.Any(s => s.Id == kv.Value.Id && s.Id != PyroDistances.Ruin) ? kv.Value.Id : null;
+                return (kv.Value.Id, true);
             }
         }
-        return DropStartOf(name)?.Station;   // he delivered a load from Ruin and has not picked up yet: he is at that station
+        return (AutoLocationOf(name), false);
     }
 
-    /// <summary>Sets (or clears, with null) where a worker starts from. His locked next stop is released, so the plan is free to start with a stop near him.</summary>
-    void SetStartPoint(string name, string? stationId)
+    /// <summary>Sets (or, with null, clears) where a worker is by hand. His locked next stop is released, so the plan is free to start with a stop near him.</summary>
+    void SetLocation(string name, string? stationId)
     {
         foreach (var k in _data.StartPoints.Keys.Where(k => SameName(k, name)).ToList()) _data.StartPoints.Remove(k);
-        // Ruin Station chosen by hand is kept as a choice, so the station of his last delivery from Ruin does not take over again
-        _data.StartPoints[name] = new StartPoint { Id = stationId ?? PyroDistances.Ruin, Since = DateTime.UtcNow };
+        // the same station as the logs say is no choice at all; Ruin Station by hand is one (the station of his last delivery from Ruin does not take over then)
+        if (stationId != null && stationId != AutoLocationOf(name)) _data.StartPoints[name] = new StartPoint { Id = stationId, Since = DateTime.UtcNow };
         var lockKey = LockKey(name);
         if (lockKey != null) _inputs!.LockedTrips.Remove(lockKey);
         Storage.Save(_data);
@@ -581,7 +612,8 @@ public sealed partial class MainForm
                 foreach (var c in crew.Where(x => x.Capacity > 0))
                 {
                     var run = ActiveRunOf(c.Name);
-                    var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, From = run?.From ?? (run == null ? StartPointOf(c.Name) : null) };   // flying a run: from there, else from where he said he is
+                    var loc = LocationOf(c.Name).Id;   // where he is: the station of his last pickup or delivery (the logs), or the one set by hand
+                    var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, From = loc == PyroDistances.Ruin ? null : loc };
                     var lockKey = LockKey(c.Name);
                     if (lockKey == null && locking)
                     {
@@ -743,6 +775,10 @@ public sealed partial class MainForm
                 Color = WorkerColor(c.Name),
             };
             w.RunsSoFar = _trips.Count(x => SameName(x.Worker, c.Name));
+            var standing = LocationOf(c.Name);
+            w.LocationId = standing.Id;
+            w.LocationByHand = standing.ByHand;
+            w.AutoLocationId = AutoLocationOf(c.Name);
             w.Rows.AddRange(RunRows(c.Name));
             // the run in progress is his Current trip (a locked stop is marked in the Route cell of a planned trip)
             var runRow = w.Rows.LastOrDefault(r => r.Level == "active");
@@ -819,7 +855,7 @@ public sealed partial class MainForm
                 + longest.Name + " with " + Gm(longest.Planned.Sum(r => r.Gm)) + ", about " + FlightSpan(longest.Planned.Sum(r => r.Seconds)) + " of flying.";
         }
 
-        plan.Signature = plan.Summary + "¦" + (Theme.Dark ? "dark" : "light") + "¦" + string.Join("|", crew.Select(c => c.Name + "@" + StartPointOf(c.Name))) + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
+        plan.Signature = plan.Summary + "¦" + (Theme.Dark ? "dark" : "light") + "¦" + string.Join("|", plan.Workers.Select(x => x.Name + "@" + x.LocationId + (x.LocationByHand ? "!" : "") + ">" + x.AutoLocationId)) + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
             w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Flight.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + (r.RunStart.HasValue ? r.RunStart.Value.Ticks.ToString(CultureInfo.InvariantCulture) : "") + "|" + w.Drive + "|" + w.RunsSoFar)));
         return plan;
     }
@@ -935,24 +971,29 @@ public sealed partial class MainForm
     Control PlanBlock(PlanWorkerView w, Action<PlanRow>? onSelect)
     {
         var block = new Panel { Margin = new Padding(0, 0, 0, 14) };
-        // the title: his name, and right of it where he starts from (Ruin Station, or the station he is at now: the plan then begins with the stops near him)
+        // the title: his name, and right of it where he is now (his Current location: the logs keep it up to date, and here it can be set by hand)
         var label = new Panel { Dock = DockStyle.Top, Height = 34 };
         var titleFont = new Font("Segoe UI", 11f, FontStyle.Bold);
         var nameWidth = TextRenderer.MeasureText(PlanTitle(w), titleFont).Width;
         label.Controls.Add(new Label { Text = PlanTitle(w), AutoSize = true, Font = titleFont, ForeColor = Theme.Text, Location = new Point(0, 6) });
         var hintFont = new Font("Segoe UI", 9.5f);
-        var hintText = "Starting point:";
+        var hintText = "Current location:";
         var hintX = nameWidth + 30;
         label.Controls.Add(new Label { Text = hintText, AutoSize = true, Font = hintFont, ForeColor = Theme.Muted, Location = new Point(hintX, 9) });
-        var combo = new ThemedCombo { Width = 230, Location = new Point(hintX + TextRenderer.MeasureText(hintText, hintFont).Width + 12, 5), Font = hintFont };
-        var stations = PyroDistances.Points.Where(s => s.Id != PyroDistances.Ruin).OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToList();
-        combo.Items.Add("Ruin Station (default)");
+        var comboX = hintX + TextRenderer.MeasureText(hintText, hintFont).Width + 12;
+        var combo = new ThemedCombo { Width = 250, Location = new Point(comboX, 5), Font = hintFont };
+        var stations = PyroDistances.Points.OrderBy(s => s.Id == PyroDistances.Ruin ? 0 : 1).ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToList();   // Ruin Station first
+        combo.Items.Add("Automatic: " + PyroDistances.NameOf(w.AutoLocationId));   // the logs: his last pickup, delivery or hand-in
         foreach (var s in stations) combo.Items.Add(s.Name);
-        var current = StartPointOf(w.Name);
-        combo.SelectedIndex = current == null ? 0 : Math.Max(0, stations.FindIndex(s => s.Id == current) + 1);
+        combo.SelectedIndex = w.LocationByHand ? Math.Max(0, stations.FindIndex(s => s.Id == w.LocationId) + 1) : 0;
         combo.SelectedIndexChanged += (_, _) =>
-            SetStartPoint(w.Name, combo.SelectedIndex <= 0 ? null : stations[combo.SelectedIndex - 1].Id);
+            SetLocation(w.Name, combo.SelectedIndex <= 0 ? null : stations[combo.SelectedIndex - 1].Id);
         label.Controls.Add(combo);
+        label.Controls.Add(new Label
+        {
+            Text = w.LocationByHand ? "set by you, until his next pickup, delivery or hand-in" : "follows his pickups, deliveries and hand-ins",
+            AutoSize = true, Font = new Font("Segoe UI", 9f), ForeColor = Theme.Muted, Location = new Point(comboX + combo.Width + 12, 10),
+        });
         var height = label.Height;
 
         if (w.Rows.Count > 0)

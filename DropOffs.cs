@@ -57,8 +57,19 @@ public sealed partial class MainForm
     /// </summary>
     (string Station, DateTime Time)? DropStartOf(string name)
     {
+        var best = LastDropOf(name);
+        if (_log == null || best == null || best.Value.Station == null || best.Value.Station == PyroDistances.Ruin) return null;
+        if (_log.LastTime - best.Value.Time > TimeSpan.FromHours(3)) return null;
+        var at = best.Value.Time;
+        var moved = _trips.Any(t => SameName(t.Worker, name) && ((t.End ?? DateTime.MinValue) > at || t.Pickups.Any(p => p.Time > at)));
+        return moved ? null : (best.Value.Station!, at);
+    }
+
+    /// <summary>The latest drop-off of a from-Ruin mission he holds that is completed: the station (null = a place that is not in the distance table) and when.</summary>
+    (string? Station, DateTime Time)? LastDropOf(string name)
+    {
         if (_log == null) return null;
-        (string Station, DateTime Time)? best = null;
+        (string? Station, DateTime Time)? best = null;
         foreach (var m in _log.Missions.Values.Where(x => x.IsOut && !x.Dropped))
         {
             if (!HasMission(m, name)) continue;
@@ -67,15 +78,10 @@ public sealed partial class MainForm
                 if (!m.Events.TryGetValue(kv.Key, out var ev)) continue;
                 var done = ev.Where(e => e.State == "COMPLETED").Select(e => e.Time).DefaultIfEmpty(DateTime.MinValue).Min();
                 if (done == DateTime.MinValue) continue;
-                var station = StationOf(kv.Value);
-                if (station == null || station == PyroDistances.Ruin) continue;
-                if (best == null || done > best.Value.Time) best = (station, done);
+                if (best == null || done > best.Value.Time) best = (StationOf(kv.Value), done);
             }
         }
-        if (best == null || _log.LastTime - best.Value.Time > TimeSpan.FromHours(3)) return null;
-        var at = best.Value.Time;
-        var moved = _trips.Any(t => SameName(t.Worker, name) && ((t.End ?? DateTime.MinValue) > at || t.Pickups.Any(p => p.Time > at)));
-        return moved ? null : best;
+        return best;
     }
 
     /// <summary>

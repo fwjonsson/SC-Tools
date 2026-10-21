@@ -793,7 +793,7 @@ public sealed partial class MainForm
         {
             name = w.Name,
             color = WebColor(w.Color),
-            title = PlanTitle(w),
+            title = PlanTitle(w) + "   \u2013   Current location: " + PyroDistances.NameOf(w.LocationId) + (w.LocationByHand ? " (set by hand)" : ""),   // where he is now: the logs keep it up to date
             grid = Grid(w),
             routes = w.MapRows.Select(r => new { label = (r.Label.Length > 0 && char.IsDigit(r.Label[0]) ? "Trip " : "") + r.Label + "  " + Gm(r.Gm), stops = r.Stops, from = r.From, solid = r.Solid }).ToList(),
         }).ToList();
