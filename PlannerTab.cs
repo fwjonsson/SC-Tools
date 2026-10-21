@@ -1047,6 +1047,16 @@ public sealed partial class MainForm
         }
         var core = CoreFor(crew, remaining, unknown, limits, chunks);
         var dropTrips = core.Trips;
+        // the waste only rides along on the pickup trips: a load that none of them can take along waits (the note says so)
+        var carried = dropTrips.SelectMany(pt => pt.Drops.Select(dd => dd.Id)).ToList();
+        var waits = new List<string>();
+        foreach (var load in chunks)
+        {
+            var at = carried.IndexOf(load.Station);
+            if (at >= 0) carried.RemoveAt(at);
+            else waits.Add(load.Cargo + " for " + PyroDistances.NameOf(load.Station));
+        }
+        if (waits.Count > 0) dropNote = (dropNote + "  Waiting to go along on a pickup trip: " + string.Join(", ", waits) + ".").Trim();
         decimal PerBatch(string id) => worth.TryGetValue(id, out var x) && x.Batches > 0 ? x.Value / x.Batches : 0;   // the average batch at that station
         double ScuPerBatch(string id) => volume.TryGetValue(id, out var y) && y.Stops > 0 ? y.Scu / y.Stops : 0;   // the average stop at that station, in SCU
 

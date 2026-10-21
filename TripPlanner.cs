@@ -123,7 +123,9 @@ public static class TripPlanner
     /// <param name="crew">every worker with the batches his ship holds (0 = not flying) and his quantum drive</param>
     /// <param name="starts">what is decided already: a worker's locked next stop (his first trip goes there first, the rest of the trip is planned) and a run he is flying (his first trip continues it)</param>
     /// <param name="limits">batches only some of the crew can take, by station id: the workers who have that mission running and how many batches (the rest of the batches of the station is for everybody)</param>
-    /// <param name="drops">cargo that goes out from Ruin (from-Ruin contracts), one load per mission and station: a trip takes at most one load, for its FIRST stop, and unloads it there before it picks anything up</param>
+    /// <param name="drops">cargo that goes out from Ruin (from-Ruin contracts), one load per mission and station: a trip takes at most one load, for its FIRST stop, and unloads it there before it picks anything up.
+    /// The pickups come first: the trips are planned for the pickups alone, then the loads ride along on them. Only a worker with nothing to pick up and no run in progress gets a trip just
+    /// for a load; a load that no trip can take along is left out (it waits).</param>
     public static List<PlannedTrip> Plan(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity, QtDrive Drive)> crew, IReadOnlyList<WorkerStart>? starts = null,
         IReadOnlyDictionary<string, List<(string[] Workers, int Batches)>>? limits = null, IReadOnlyList<DropChunk>? drops = null)
     {
@@ -507,7 +509,6 @@ public static class TripPlanner
         var rng = new Random(20261020);
         var bestValue = double.MaxValue;
         int[][]? bestPlan = null;
-        var bestDrop = (int[])dropAt.Clone();
         for (var restart = 0; restart < Restarts; restart++)
         {
             var units = new List<int>();
@@ -573,12 +574,7 @@ public static class TripPlanner
                 loads[slot]++;
             }
 
-            Array.Fill(dropAt, -1);
-            foreach (var c in Enumerable.Range(0, chunks.Count).OrderBy(_ => rng.Next()).ToList())
-            {
-                var options = Enumerable.Range(0, slots).Where(t => dropAt[t] < 0 && CanDrop(c, t)).ToList();
-                if (options.Count > 0) dropAt[options[rng.Next(options.Count)]] = c;
-            }
+            Array.Fill(dropAt, -1);   // the loads from Ruin are not part of this search: they are put on the trips afterwards (below)
 
             var slotCost = assign.Select((row, t) => Cost(row, t)).ToArray();
             var totals = new double[w];
@@ -589,14 +585,118 @@ public static class TripPlanner
             {
                 bestValue = current;
                 bestPlan = assign.Select(row => (int[])row.Clone()).ToArray();
-                bestDrop = (int[])dropAt.Clone();
             }
         }
-        Array.Copy(bestDrop, dropAt, slots);
+
+        // The loads from Ruin ride along on the trips planned for the pickups (those stay as they are: the pickups are the priority). A trip takes at most one load,
+        // for its first stop. Only a worker with nothing at all to pick up and no run in progress may get a trip just for a load (the last resort). Every load goes
+        // where it adds the least, as long as there is a trip that can take it; a load that no trip can take along waits.
+        var picks = bestPlan!;
+        var picksUp = new bool[w];
+        for (var t = 0; t < slots; t++)
+        {
+            if (picks[t].Any(x => x > 0)) picksUp[slotWorker[t]] = true;
+        }
+        bool MayCarry(int slot) =>
+            picks[slot].Any(x => x > 0) || (!picksUp[slotWorker[slot]] && (startOf[slotWorker[slot]]?.Loaded ?? 0) <= 0);
+        var tripCost = picks.Select((row, t) => Cost(row, t)).ToArray();
+        var workerTotals = new double[w];
+        for (var t = 0; t < slots; t++) workerTotals[slotWorker[t]] += tripCost[t];
+        var objective = Objective(workerTotals);
+        var placed = new bool[chunks.Count];
+
+        // the value of the plan when this slot takes this load (-1 = none) instead of the one it has
+        (double Value, double SlotCost) With(int slot, int chunk)
+        {
+            var had = dropAt[slot];
+            dropAt[slot] = chunk;
+            var cost = Cost(picks[slot], slot);
+            dropAt[slot] = had;
+            workerTotals[slotWorker[slot]] += cost - tripCost[slot];
+            var value = Objective(workerTotals);
+            workerTotals[slotWorker[slot]] -= cost - tripCost[slot];
+            return (value, cost);
+        }
+        void Set(int slot, int chunk, double cost)
+        {
+            if (dropAt[slot] >= 0) placed[dropAt[slot]] = false;
+            if (chunk >= 0) placed[chunk] = true;
+            dropAt[slot] = chunk;
+            workerTotals[slotWorker[slot]] += cost - tripCost[slot];
+            tripCost[slot] = cost;
+            objective = Objective(workerTotals);
+        }
+
+        // every load that can go somewhere is put on a trip, the cheapest one first
+        void PlaceAll()
+        {
+            while (true)
+            {
+                var pick = (Chunk: -1, Slot: -1, Value: double.MaxValue, Cost: 0.0);
+                for (var c = 0; c < chunks.Count; c++)
+                {
+                    if (placed[c]) continue;
+                    for (var t = 0; t < slots; t++)
+                    {
+                        if (dropAt[t] >= 0 || !MayCarry(t) || !CanDrop(c, t)) continue;
+                        var (value, cost) = With(t, c);
+                        if (value < pick.Value - 1e-9) pick = (c, t, value, cost);
+                    }
+                }
+                if (pick.Chunk < 0) return;
+                Set(pick.Slot, pick.Chunk, pick.Cost);
+            }
+        }
+        // then better places for them: another trip (or swapped with its load), or a load that waits instead of this one when that is cheaper
+        var better = true;
+        while (better)
+        {
+            better = false;
+            PlaceAll();
+            for (var a = 0; a < slots && !better; a++)
+            {
+                var ca = dropAt[a];
+                if (ca < 0) continue;
+                for (var b = 0; b < slots && !better; b++)
+                {
+                    var cb = dropAt[b];
+                    if (a == b || !MayCarry(b) || !CanDrop(ca, b) || (cb >= 0 && !CanDrop(cb, a))) continue;
+                    var oldA = tripCost[a];
+                    var oldB = tripCost[b];
+                    dropAt[a] = cb;
+                    dropAt[b] = ca;
+                    var newA = Cost(picks[a], a);
+                    var newB = Cost(picks[b], b);
+                    workerTotals[slotWorker[a]] += newA - oldA;
+                    workerTotals[slotWorker[b]] += newB - oldB;
+                    var value = Objective(workerTotals);
+                    if (value < objective - 1e-9)
+                    {
+                        tripCost[a] = newA;
+                        tripCost[b] = newB;
+                        objective = value;
+                        better = true;
+                        break;
+                    }
+                    workerTotals[slotWorker[a]] -= newA - oldA;
+                    workerTotals[slotWorker[b]] -= newB - oldB;
+                    dropAt[a] = ca;
+                    dropAt[b] = cb;
+                }
+                for (var c = 0; c < chunks.Count && !better; c++)
+                {
+                    if (placed[c] || !CanDrop(c, a)) continue;
+                    var (value, cost) = With(a, c);
+                    if (value >= objective - 1e-9) continue;
+                    Set(a, c, cost);
+                    better = true;
+                }
+            }
+        }
 
         for (var t = 0; t < slots; t++)
         {
-            var row = bestPlan![t];
+            var row = picks[t];
             var mask = MaskOf(row);
             if (mask == 0 && dropAt[t] < 0) continue;
             var trip = new PlannedTrip { Worker = workers[slotWorker[t]].Name, Room = slotCapacity[t] };
