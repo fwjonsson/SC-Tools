@@ -97,7 +97,7 @@ public sealed partial class MainForm
 
         // the money transfers on the left, the payout of every finished mission on the right
         t.Controls.Add(Caption("Money Transfers", "Of the selected member. Tick Payment when a transfer pays off a debt."), 0, 3);
-        t.Controls.Add(Caption("Mission Payouts", "Every finished mission: its payout and the members who had the mission and shared it."), 1, 3);
+        t.Controls.Add(Caption("Mission Payouts", "Every finished mission: its payout and the members who had the mission and shared it. Type in the Payout box what a mission really paid (a short delivery pays less); an empty box goes back to the contract's reward."), 1, 3);
         StyleGrid(_txGrid);
         _txGrid.Dock = DockStyle.Fill;
         _txGrid.Margin = new Padding(0, 3, 8, 3);
@@ -128,14 +128,15 @@ public sealed partial class MainForm
         _payoutGrid.Margin = new Padding(8, 3, 0, 3);
         _payoutGrid.AllowUserToAddRows = false;
         _payoutGrid.AllowUserToDeleteRows = false;
-        _payoutGrid.ReadOnly = true;
         _payoutGrid.Columns.Add(Col("Time", 110, true));
         _payoutGrid.Columns.Add(Col("Mission", 140, true, DataGridViewContentAlignment.MiddleLeft));
-        _payoutGrid.Columns.Add(Col("Payout", 110, true, DataGridViewContentAlignment.MiddleRight));
+        _payoutGrid.Columns.Add(Col("Payout", 110, false, DataGridViewContentAlignment.MiddleRight));   // the only box you can type in: what the mission really paid
         _payoutGrid.Columns.Add(Col("Shared Between", 220, true, DataGridViewContentAlignment.MiddleLeft, true));
         _payoutGrid.Columns.Add(Col("Each", 110, true, DataGridViewContentAlignment.MiddleRight));
         FitColumns(_payoutGrid);
         _payoutGrid.ScrollBars = ScrollBars.Vertical;
+        _payoutGrid.CellEndEdit += PayoutEdited;
+        _payoutGrid.DataError += (_, e) => e.ThrowException = false;
         t.Controls.Add(_payoutGrid, 1, 4);
 
         var note = new Label
@@ -318,6 +319,20 @@ public sealed partial class MainForm
             }
         }
 
+        // a mission that paid less (or more) than its contract: what was typed in the Mission Payouts list, spread over the batches that were carried
+        foreach (var kv in byMission)
+        {
+            var sum = kv.Value.Values.Sum();
+            if (!_data.PayoutOverrides.TryGetValue(kv.Key, out var real) || real <= 0 || sum <= 0) continue;
+            var f = real / sum;
+            foreach (var w in kv.Value.Keys.ToList())
+            {
+                var was = kv.Value[w];
+                kv.Value[w] = was * f;
+                carried[w] += was * (f - 1m);
+            }
+        }
+
         var sessionMembers = new List<string>(inp.Party ?? new List<string>());
         foreach (var k in carried.Keys)
         {
@@ -355,7 +370,7 @@ public sealed partial class MainForm
                     MissionId = m.Id,
                     Time = m.EndedAt.Value,
                     Contract = (string.IsNullOrEmpty(m.Cargo) ? "Cargo" : m.Cargo) + ", " + m.Multi + " stops",
-                    Payout = RewardOf(m, inp),
+                    Payout = _data.PayoutOverrides.TryGetValue(m.Id, out var typed) && typed > 0 ? typed : RewardOf(m, inp),
                     Members = new List<string>(members),
                     Each = share,
                 });
@@ -514,7 +529,7 @@ public sealed partial class MainForm
 
     void RefreshDebts()
     {
-        if (_debtUpdating || _balanceGrid.IsCurrentCellInEditMode) return;
+        if (_debtUpdating || _balanceGrid.IsCurrentCellInEditMode || _payoutGrid.IsCurrentCellInEditMode) return;
         _debtUpdating = true;
         try
         {
@@ -582,12 +597,18 @@ public sealed partial class MainForm
             _payoutGrid.Rows.Clear();
             foreach (var r in _data.Payouts.OrderByDescending(x => x.Time))
             {
-                _payoutGrid.Rows.Add(
+                var pi = _payoutGrid.Rows.Add(
                     r.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture),
                     r.Contract,
                     r.Payout.ToString("N0", CultureInfo.InvariantCulture),
                     string.Join(", ", r.Members),
                     r.Each.ToString("N0", CultureInfo.InvariantCulture));
+                _payoutGrid.Rows[pi].Tag = r;
+                if (_data.PayoutOverrides.ContainsKey(r.MissionId))
+                {
+                    _payoutGrid.Rows[pi].Cells[2].Style.ForeColor = Theme.Gold;   // typed by you
+                    _payoutGrid.Rows[pi].Cells[2].ToolTipText = "Typed by you. Empty the box to use the reward of the contract again.";
+                }
             }
         }
         finally
@@ -735,6 +756,24 @@ public sealed partial class MainForm
         SetAdj(_debtSelected, other, ParseSigned(row.Cells[1].Value) - calc);
         Storage.Save(_data);
         BeginInvoke(new Action(RefreshDebts));
+    }
+
+    /// <summary>The Payout of a mission was typed: it is what the mission really paid, so the shares and the debts follow it (empty = the reward of the contract again).</summary>
+    void PayoutEdited(object? sender, DataGridViewCellEventArgs e)
+    {
+        if (_debtUpdating || e.RowIndex < 0 || e.ColumnIndex != 2) return;
+        var row = _payoutGrid.Rows[e.RowIndex];
+        if (row.Tag is not PayoutRecord r) return;
+        var typed = ParseNumber(row.Cells[2].Value);
+        if (typed > 0) _data.PayoutOverrides[r.MissionId] = typed;
+        else _data.PayoutOverrides.Remove(r.MissionId);
+        Storage.Save(_data);
+        BeginInvoke(new Action(() =>
+        {
+            _renderedVersion = -1;   // worked out again with the new payout
+            RefreshFromLog();
+            RefreshDebts();
+        }));
     }
 
     void TxChanged(object? sender, DataGridViewCellEventArgs e)
