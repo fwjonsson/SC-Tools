@@ -33,6 +33,16 @@ public sealed partial class MainForm
     /// <summary>"147 SCU: 4×32 + 16 + 2 + 1", or an empty text when the SCU is not known.</summary>
     internal static string ScuText(int scu) => scu <= 0 ? "" : scu + " SCU: " + ContainersText(scu);
 
+    /// <summary>
+    /// The Cargo cell of a load that goes out from Ruin: the SCU of every drop-off in it with the containers it is cut into ("152 SCU: 4×32 + 24"), one part for
+    /// each drop-off; "? SCU" when the game never said how big the load is.
+    /// </summary>
+    internal static string LoadText(IEnumerable<int> parts)
+    {
+        var known = parts.Where(p => p > 0).Select(ScuText).ToList();
+        return known.Count > 0 ? string.Join(" | ", known) : "? SCU";
+    }
+
     /// <summary>The drop-offs still to do: every drop-off objective of a from-Ruin mission that is running and not completed yet.</summary>
     List<DropBatch> OpenDrops()
     {
@@ -101,13 +111,14 @@ public sealed partial class MainForm
             while (done < scus.Count)
             {
                 var take = Math.Min(capacity, scus.Count - done);
-                var scu = scus.Skip(done).Take(take).Sum();
+                var part = scus.Skip(done).Take(take).ToList();
+                var scu = part.Sum();
                 done += take;
                 // a ship that holds fewer SCU than the load cannot take it (a worker without a ship set is assumed to manage)
                 var who = allowed.Length == 0 ? flyers : allowed.ToList();
                 var fits = scu <= 0 ? who : who.Where(n => ShipOf(n) is not { } ship || ship.Total >= scu).ToList();
                 var set = fits.Count == 0 || fits.Count == flyers.Count ? allowed : fits.ToArray();
-                chunks.Add(new DropChunk { Station = g.Key.Station, Cargo = mission.OutCargo ?? "Cargo", Batches = take, Scu = scu, Allowed = set });
+                chunks.Add(new DropChunk { Station = g.Key.Station, Cargo = mission.OutCargo ?? "Cargo", Batches = take, Scu = scu, Parts = part, Allowed = set });
             }
         }
         return chunks;

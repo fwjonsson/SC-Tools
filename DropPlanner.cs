@@ -9,6 +9,7 @@ public sealed class DropChunk
     public string Station = "";
     public int Batches;
     public int Scu;            // how many SCU the load is (0 = not known)
+    public List<int> Parts = new();   // the SCU of every drop-off in it, one by one (0 = not known): the containers are cut for each of them
     public string Cargo = "";
     public string[] Allowed = Array.Empty<string>();   // the workers who have that mission (empty = everybody)
 }

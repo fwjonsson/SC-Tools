@@ -204,19 +204,17 @@ sealed class LiveWebServer : IDisposable
   .plantables { flex:1 1 520px; min-width:0; }
   .plantables h2:first-child { margin-top:0; }
   .plantables table { table-layout:fixed; }
-  /* Current Route: #, Stops, Collect/Drop (takes the rest), Value, Distance, In flight */
-  .plancur th:nth-child(1) { width:36px; } .plancur th:nth-child(2) { width:120px; } .plancur th:nth-child(4) { width:80px; }
-  .plancur th:nth-child(5) { width:74px; } .plancur th:nth-child(6) { width:68px; }
-  .plancur td:nth-child(3) { white-space:normal; }
+  /* Current Route: #, Stops, Collect/Drop, Cargo (takes the rest), Value, Distance, In flight */
+  .plancur th:nth-child(1) { width:36px; } .plancur th:nth-child(2) { width:120px; } .plancur th:nth-child(3) { width:200px; } .plancur th:nth-child(5) { width:80px; }
+  .plancur th:nth-child(6) { width:74px; } .plancur th:nth-child(7) { width:68px; }
+  .plancur td:nth-child(3), .plancur td:nth-child(4) { white-space:normal; }
   /* Queued routes: #, Route (takes the rest), Batches, Value, Distance, In flight */
   .planque th:nth-child(1) { width:36px; } .planque th:nth-child(3) { width:64px; } .planque th:nth-child(4) { width:80px; }
   .planque th:nth-child(5) { width:74px; } .planque th:nth-child(6) { width:68px; }
   .planque td:nth-child(2) { white-space:normal; }
-  /* every worker: the Current Route on the left, the Queued routes on the right */
-  .planpair { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; }   /* too narrow for both: the Queued routes go under the Current Route */
-  .plancur { flex:1 1 490px; min-width:0; }
-  .planque { flex:1 1 430px; min-width:0; }
-  .plancur table { min-width:488px; }
+  /* every worker: the Current Route on top and the Queued routes under it, both as wide as the page (their Value, Distance and In flight columns line up) */
+  .planque { margin-top:8px; }
+  .plancur table { min-width:700px; }
   .planque table { min-width:432px; }
   .planpair h3 { margin:6px 0 4px; }
   .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
@@ -792,7 +790,7 @@ public sealed partial class MainForm
     }
 
     /// <summary>The Trip Planner tab as data: the stations for the map and, for every crew member, his Current Route and Queued routes tables and his planned routes.</summary>
-    static object WebPlan(PlanView plan)
+    object WebPlan(PlanView plan)
     {
         // the Current Route: what is done at every stop; the Queued routes: the trips after it
         object CurrentHeaders() => new[]
@@ -800,6 +798,7 @@ public sealed partial class MainForm
             new { text = "#", align = "center" },
             new { text = "Stops", align = "left" },
             new { text = "Collect/Drop", align = "left" },
+            new { text = "Cargo", align = "left" },
             new { text = "Value", align = "right" },
             new { text = "Distance", align = "right" },
             new { text = "In flight", align = "right" },

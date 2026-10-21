@@ -28,6 +28,7 @@ public sealed class TripCollect
     public string Objective = "";
     public string Cargo = "Cargo";
     public DateTime Time;       // UTC
+    public int Scu;             // the load of the drop-off it is for, from the "Deliver 0/187 SCU" popup (0 = not seen)
 }
 
 /// <summary>One run: from the previous hand-in (or the first accepted contract) to a hand-in at Ruin.</summary>
@@ -388,7 +389,7 @@ public static class WorkerTripBuilder
             if (s.Worker == null || s.Time < g.Start || (g.Stop.HasValue && s.Time > g.Stop.Value)) continue;
             var cargo = s.Mission.OutCargo ?? "Cargo";
             if (s.Pickup)
-                collected.Add((s.Worker, new TripCollect { MissionId = s.Mission.Id, Objective = s.Objective, Cargo = cargo, Time = s.Time }));
+                collected.Add((s.Worker, new TripCollect { MissionId = s.Mission.Id, Objective = s.Objective, Cargo = cargo, Time = s.Time, Scu = s.Mission.ObjScu.GetValueOrDefault(s.Objective) }));
             else if (s.Mission.ObjZone.TryGetValue(s.Objective, out var zone))
                 delivered.Add((s.Worker, new TripDrop { Zone = zone, MissionId = s.Mission.Id, Objective = s.Objective, Cargo = cargo, Time = s.Time, Scu = s.Mission.ObjScu.GetValueOrDefault(s.Objective) }));
         }
