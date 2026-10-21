@@ -73,7 +73,7 @@ public sealed partial class MainForm
                 done += take;
                 // a ship that holds fewer SCU than the load cannot take it (a worker without a ship set is assumed to manage)
                 var who = allowed.Length == 0 ? flyers : allowed.ToList();
-                var fits = scu <= 0 ? who : who.Where(n => ShipOf(n) is not { } ship || ship.Scu >= scu).ToList();
+                var fits = scu <= 0 ? who : who.Where(n => ShipOf(n) is not { } ship || ship.Total >= scu).ToList();
                 var set = fits.Count == 0 || fits.Count == flyers.Count ? allowed : fits.ToArray();
                 chunks.Add(new DropChunk { Station = g.Key.Station, Cargo = mission.OutCargo ?? "Cargo", Batches = take, Scu = scu, Allowed = set });
             }

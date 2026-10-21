@@ -3,9 +3,12 @@ namespace HaulingTracker;
 /// <summary>
 /// A ship that can haul, from the Star Citizen Wiki API (vehicles, flight-ready ships with 30 SCU of cargo or more): the name and how many SCU of cargo it holds.
 /// </summary>
-public sealed record Ship(string Name, int Scu)
+public sealed record Ship(string Name, int Scu, int Overload = 0)
 {
-    public string Label => Name + " (" + Scu + " SCU)";
+    /// <summary>What the ship can carry in all: the cargo grid plus what fits off grid (containers on the floor, which a few ships have room for).</summary>
+    public int Total => Scu + Overload;
+
+    public string Label => Name + " (" + Scu + " SCU" + (Overload > 0 ? " + " + Overload + " off grid" : "") + ")";
 }
 
 /// <summary>The ships of the game data, for the ship each worker flies (the Party table).</summary>
@@ -22,7 +25,7 @@ public static class Ships
         new("Apollo Triage", 32),
         new("Asgard", 180),
         new("C1 Spirit", 64),
-        new("C2 Hercules Starlifter", 696),
+        new("C2 Hercules Starlifter", 696, 128),   // 4 more 32 SCU containers off grid (24 in all)
         new("Carrack", 456),
         new("Carrack Expedition", 456),
         new("Caterpillar", 576),
@@ -36,7 +39,7 @@ public static class Ships
         new("Cutlass Black", 46),
         new("Golem OX", 64),
         new("Hammerhead", 40),
-        new("Hermes", 288),
+        new("Hermes", 288, 168),   // 5 more 32 SCU and one 8 SCU container off grid
         new("Idris-M", 1326),
         new("Idris-P", 1374),
         new("Ironclad", 2200),
