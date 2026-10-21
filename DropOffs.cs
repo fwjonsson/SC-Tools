@@ -52,6 +52,33 @@ public sealed partial class MainForm
     }
 
     /// <summary>
+    /// Where a worker is after he delivered the load of a from-Ruin mission he holds: the station of his latest completed drop-off. It only counts until he picks up
+    /// something or hands in a run after it (a run in progress knows where it is by itself), and while the delivery is recent. Null = nothing to go by.
+    /// </summary>
+    (string Station, DateTime Time)? DropStartOf(string name)
+    {
+        if (_log == null) return null;
+        (string Station, DateTime Time)? best = null;
+        foreach (var m in _log.Missions.Values.Where(x => x.IsOut && !x.Dropped))
+        {
+            if (!HasMission(m, name)) continue;
+            foreach (var kv in m.ObjZone.Where(o => o.Key.StartsWith("dropoff_")))
+            {
+                if (!m.Events.TryGetValue(kv.Key, out var ev)) continue;
+                var done = ev.Where(e => e.State == "COMPLETED").Select(e => e.Time).DefaultIfEmpty(DateTime.MinValue).Min();
+                if (done == DateTime.MinValue) continue;
+                var station = StationOf(kv.Value);
+                if (station == null || station == PyroDistances.Ruin) continue;
+                if (best == null || done > best.Value.Time) best = (station, done);
+            }
+        }
+        if (best == null || _log.LastTime - best.Value.Time > TimeSpan.FromHours(3)) return null;
+        var at = best.Value.Time;
+        var moved = _trips.Any(t => SameName(t.Worker, name) && ((t.End ?? DateTime.MinValue) > at || t.Pickups.Any(p => p.Time > at)));
+        return moved ? null : best;
+    }
+
+    /// <summary>
     /// The cargo that goes out, cut into loads of one mission for one station (no more than a ship holds). The waste of different missions looks the same, so a trip only
     /// leaves Ruin with the load for its first stop, and only the workers who have that mission can take it.
     /// </summary>

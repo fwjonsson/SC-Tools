@@ -340,24 +340,31 @@ public sealed partial class MainForm
     string? StartPointOf(string name)
     {
         var kv = _data.StartPoints.FirstOrDefault(k => SameName(k.Key, name));
-        if (kv.Value == null) return null;
-        var since = kv.Value.Since;
-        var used = ActiveRunOf(name) != null   // he is flying a run: where he starts from is where that run is
-            || _trips.Any(t => SameName(t.Worker, name) && ((t.End ?? DateTime.MinValue) > since || t.Pickups.Any(p => p.Time > since)));
-        if (used)
+        if (kv.Value != null)
         {
-            _data.StartPoints.Remove(kv.Key);
-            Storage.Save(_data);
-            return null;
+            var since = kv.Value.Since;
+            var used = ActiveRunOf(name) != null   // he is flying a run: where he starts from is where that run is
+                || _trips.Any(t => SameName(t.Worker, name) && ((t.End ?? DateTime.MinValue) > since || t.Pickups.Any(p => p.Time > since)));
+            if (used)
+            {
+                _data.StartPoints.Remove(kv.Key);
+                Storage.Save(_data);
+            }
+            else
+            {
+                // what he chose himself wins over what the log says (Ruin Station chosen by hand is a choice too)
+                return PyroDistances.Points.Any(s => s.Id == kv.Value.Id && s.Id != PyroDistances.Ruin) ? kv.Value.Id : null;
+            }
         }
-        return PyroDistances.Points.Any(s => s.Id == kv.Value.Id && s.Id != PyroDistances.Ruin) ? kv.Value.Id : null;
+        return DropStartOf(name)?.Station;   // he delivered a load from Ruin and has not picked up yet: he is at that station
     }
 
     /// <summary>Sets (or clears, with null) where a worker starts from. His locked next stop is released, so the plan is free to start with a stop near him.</summary>
     void SetStartPoint(string name, string? stationId)
     {
         foreach (var k in _data.StartPoints.Keys.Where(k => SameName(k, name)).ToList()) _data.StartPoints.Remove(k);
-        if (stationId != null) _data.StartPoints[name] = new StartPoint { Id = stationId, Since = DateTime.UtcNow };
+        // Ruin Station chosen by hand is kept as a choice, so the station of his last delivery from Ruin does not take over again
+        _data.StartPoints[name] = new StartPoint { Id = stationId ?? PyroDistances.Ruin, Since = DateTime.UtcNow };
         var lockKey = LockKey(name);
         if (lockKey != null) _inputs!.LockedTrips.Remove(lockKey);
         Storage.Save(_data);
