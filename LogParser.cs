@@ -35,6 +35,18 @@ public sealed class MemberEvent
     public bool Left;
 }
 
+public enum QtKind { Selected, Arrived }
+
+/// <summary>A step of a quantum travel, as the game writes it in the log of the player who flies: he selected a destination, or his quantum drive arrived.</summary>
+public sealed class QtEvent
+{
+    public DateTime Time;                // UTC
+    public QtKind Kind;
+    public string Destination = "";      // Selected: the id the game gives the destination ("rs_ext_pyro6_leo")
+    public string From = "";             // Selected: the name the game gives the place he starts from ("Ruin Station"), when it said so
+    public string Ship = "";             // the ship he flies, as the game names it ("CRUS_Starlifter_C2")
+}
+
 public sealed class Mission
 {
     public string Id = "";
@@ -112,6 +124,18 @@ public sealed class HaulingLog
         @"Projected Start Location is (?<n>Nyx Gateway|Stanton Gateway) for route to destination",
         RegexOptions.Compiled);
 
+    // quantum travel: "Player has selected point rs_ext_pyro6_leo as their destination", "Projected Start Location is Ruin Station for route to destination rs_ext_pyro6_leo",
+    // "Quantum Drive has arrived at final destination". The ship is in the front of the line: "| CRUS_Starlifter_C2_891702459996[891702459996]|CSCItemNavigation::..."
+    static readonly Regex QtSelect = new(@"Player has selected point (?<d>\S+) as their destination", RegexOptions.Compiled);
+    static readonly Regex QtStart = new(@"Projected Start Location is (?<n>.+?) for route to destination (?<d>\S+)", RegexOptions.Compiled);
+    static readonly Regex QtShip = new(@"\| (?<s>[A-Za-z][A-Za-z0-9_]*?)_\d{6,}\[\d+\]\|CSCItemNavigation::", RegexOptions.Compiled);
+
+    // The game no longer writes kill lines (CIG took "<Actor Death>" out after 4.3). What is still written when the player of this log dies is the list of the items of his
+    // body for the item recovery (one line for every item): a burst of those lines is a death.
+    const string CorpseLine = "Adding non kept item [CSCActorCorpseUtils::PopulateItemPortForItemRecoveryEntitlement]";
+    DateTime _corpseFirst;
+    int _corpseCount;
+
     (DateTime Time, string Zone)? _gateEvent;   // the latest thing that happened at a gateway (a pickup there), to match with the name the game gives next
 
     static readonly Regex PlayerIdA = new(@"Player\[(?<n>[^\]]+)\] PlayerId\[(?<id>\d+)\]", RegexOptions.Compiled);
@@ -164,6 +188,16 @@ public sealed class HaulingLog
     public Dictionary<string, List<DateTime>> UnstowByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, List<DateTime>> PlatformByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>The quantum travel of the player of this log: the destinations he selected and when his drive arrived.</summary>
+    public List<QtEvent> Qt { get; } = new();
+
+    /// <summary>When the player of this log died (the first line of the burst of item recovery lines).</summary>
+    public List<DateTime> Deaths { get; } = new();
+
+    /// <summary>The same two lists for every account, set on a merged log (a player without a log is not in them).</summary>
+    public Dictionary<string, List<QtEvent>> QtByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, List<DateTime>> DeathsByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Character name of the player whose log this is.</summary>
     public string? Player { get; private set; }
 
@@ -214,6 +248,10 @@ public sealed class HaulingLog
             us.AddRange(l.Unstows);
             if (!res.PlatformByPlayer.TryGetValue(who, out var ps)) res.PlatformByPlayer[who] = ps = new List<DateTime>();
             ps.AddRange(l.Platforms);
+            if (!res.QtByPlayer.TryGetValue(who, out var qs)) res.QtByPlayer[who] = qs = new List<QtEvent>();
+            qs.AddRange(l.Qt);
+            if (!res.DeathsByPlayer.TryGetValue(who, out var ds)) res.DeathsByPlayer[who] = ds = new List<DateTime>();
+            ds.AddRange(l.Deaths);
 
             foreach (var tr in l.Transfers)
             {
@@ -402,6 +440,55 @@ public sealed class HaulingLog
             }
             return;
         }
+        if (line.Contains("[QuantumTravel]") || line.Contains(CorpseLine))
+        {
+            var qtm = Ts.Match(line);
+            if (qtm.Success)
+            {
+                var qtTime = ParseTime(qtm.Groups[1].Value);
+                if (line.Contains(CorpseLine))
+                {
+                    // one line for every item of the body: the first line of a burst is the moment he died
+                    if (_corpseCount == 0 || qtTime - _corpseFirst > TimeSpan.FromSeconds(5))
+                    {
+                        _corpseFirst = qtTime;
+                        _corpseCount = 0;
+                    }
+                    _corpseCount++;
+                    if (_corpseCount == 3)
+                    {
+                        Deaths.Add(_corpseFirst);
+                        Version++;
+                    }
+                    return;
+                }
+
+                var qsel = QtSelect.Match(line);
+                if (qsel.Success)
+                {
+                    Qt.Add(new QtEvent { Time = qtTime, Kind = QtKind.Selected, Destination = qsel.Groups["d"].Value, Ship = ShipIn(line) });
+                    Version++;
+                    return;
+                }
+                if (line.Contains("Quantum Drive has arrived at final destination"))
+                {
+                    Qt.Add(new QtEvent { Time = qtTime, Kind = QtKind.Arrived, Ship = ShipIn(line) });
+                    Version++;
+                    return;
+                }
+                var qstart = QtStart.Match(line);
+                if (qstart.Success)
+                {
+                    // the game says where the route starts: it belongs to the destination he selected a moment ago (the line goes on to the gateway check below)
+                    for (var qi = Qt.Count - 1; qi >= 0 && qtTime - Qt[qi].Time < TimeSpan.FromSeconds(3); qi--)
+                    {
+                        if (Qt[qi].Kind != QtKind.Selected || Qt[qi].Destination != qstart.Groups["d"].Value || Qt[qi].From.Length > 0) continue;
+                        Qt[qi].From = qstart.Groups["n"].Value;
+                        break;
+                    }
+                }
+            }
+        }
         if (line.Contains("Projected Start Location is "))
         {
             var sm2 = StartLocation.Match(line);
@@ -555,6 +642,12 @@ public sealed class HaulingLog
             if (x.Groups["o"].Success) m.ObjScu[x.Groups["o"].Value] = int.Parse(x.Groups["n"].Value, CultureInfo.InvariantCulture);
             Touch(t);
         }
+    }
+
+    static string ShipIn(string line)
+    {
+        var sm = QtShip.Match(line);
+        return sm.Success ? sm.Groups["s"].Value : "";
     }
 
     void Touch(DateTime t)

@@ -221,6 +221,9 @@ sealed class LiveWebServer : IDisposable
   .planpair h3 { margin:6px 0 4px; }
   .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
   .mapbox { flex:0 0 520px; max-width:100%; background:var(--cell); border:1px solid var(--line); }
+  .status { padding:4px 10px 8px; font-size:12px; font-style:italic; opacity:.7; min-height:1.3em; }
+  .status.fade { animation:statusfade .6s ease-out; }
+  @keyframes statusfade { from { opacity:0; } to { opacity:.7; } }
 </style>
 </head>
 <body>
@@ -252,6 +255,7 @@ sealed class LiveWebServer : IDisposable
 
 <script>
 var last = null;
+var shownStatus = -1;   // the last status line text that was faded in
 
 function table(el, g) {
   el.textContent = '';
@@ -470,6 +474,12 @@ function renderPlanner() {
     w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, passed: r.passed || 0, bold: !!r.solid, dashed: !r.solid }); });
   });
   mapSvg(mapBox, p.stations, routes, p.backdrop);
+  if (p.status) {
+    // the small team status line under the map: it fades in only when the text really changed (the page is built again every few seconds)
+    const st = document.createElement('div'); st.className = 'status'; st.textContent = p.status;
+    if (p.statusKey !== shownStatus) { st.classList.add('fade'); shownStatus = p.statusKey; }
+    mapBox.appendChild(st);
+  }
   p.workers.forEach(function (w) {
     const h = document.createElement('h2'); h.textContent = w.title; tables.appendChild(h);
     if (!w.current) return;   // nothing to do for him
@@ -852,6 +862,8 @@ public sealed partial class MainForm
         {
             summary = plan.Summary,
             note = plan.Note,
+            status = _statusText,
+            statusKey = _statusSeq,
             palette = MapPalette.Select(WebColor).ToArray(),
             stations = PyroDistances.Points.Select(p => new { id = p.Id, name = p.Name, x = p.X, y = p.Y }).ToList(),
             backdrop = new

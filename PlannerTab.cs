@@ -81,6 +81,7 @@ public sealed partial class MainForm
         public int DeliveredScu;
         public string? DeliveredCargo;
         public int Picked;                 // batches picked up here
+        public DateTime Last;              // when the latest of these was done (UTC)
     }
 
     sealed class PlanWorkerView
@@ -680,6 +681,7 @@ public sealed partial class MainForm
                     var d = done[LineFor(PyroDistances.Ruin, "Ruin", true)];
                     d.Taken += batch.Count;
                     d.TakenCargo = batch[0].Cargo;
+                    d.Last = batch.Max(x => x.Time);
                 }));
             }
             foreach (var cluster in Clusters(t.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone))
@@ -694,6 +696,7 @@ public sealed partial class MainForm
                     d.Delivered += batch.Count;
                     d.DeliveredScu += batch.Sum(x => x.Scu);
                     d.DeliveredCargo = batch[0].Cargo;
+                    d.Last = batch.Max(x => x.Time);
                 }));
             }
             foreach (var p in t.Pickups)
@@ -709,17 +712,20 @@ public sealed partial class MainForm
                     line.Batches += n;
                     line.Value += PickupValue(pick);
                     done[line].Picked += n;
+                    done[line].Last = pick.Time;
                 }));
             }
             foreach (var step in steps.OrderBy(x => x.Time)) step.Do();
 
-            // the run in progress: what is already done says so
+            // the run in progress: what is already done says so. At the line where he is, it says "Collecting" until he selects the next destination (only when his log shows that)
             foreach (var line in lines)
             {
                 var d = done[line];
-                if (d.Taken > 0) line.Actions.Add("Collected " + d.TakenCargo + (d.Taken > 1 ? " \u00d7" + d.Taken : "") + " \u2713");
-                if (d.Delivered > 0) line.Actions.Add("Dropped " + d.DeliveredCargo + (d.Delivered > 1 ? " \u00d7" + d.Delivered : "") + (d.DeliveredScu > 0 ? ", " + d.DeliveredScu + " SCU" : "") + " \u2713");
-                if (d.Picked > 0) line.Actions.Add("Collected \u00d7" + d.Picked + " \u2713");
+                var busy = ReferenceEquals(line, lines[^1]) && StillLoading(name, d.Last);
+                var tick = busy ? "" : " \u2713";
+                if (d.Taken > 0) line.Actions.Add((busy ? "Collecting " : "Collected ") + d.TakenCargo + (d.Taken > 1 ? " \u00d7" + d.Taken : "") + tick);
+                if (d.Delivered > 0) line.Actions.Add((busy ? "Dropping " : "Dropped ") + d.DeliveredCargo + (d.Delivered > 1 ? " \u00d7" + d.Delivered : "") + (d.DeliveredScu > 0 ? ", " + d.DeliveredScu + " SCU" : "") + tick);
+                if (d.Picked > 0) line.Actions.Add((busy ? "Collecting \u00d7" : "Collected \u00d7") + d.Picked + tick);
             }
             rows.Add(new PlanRow
             {
@@ -1158,7 +1164,18 @@ public sealed partial class MainForm
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var map = new PyroMapView { Dock = DockStyle.Top, Margin = new Padding(0, 0, 12, 0) };
+        var map = new PyroMapView { Dock = DockStyle.Top };
+        // under the map: the small team status line (a text that changes every few seconds)
+        var status = new StatusLine { Dock = DockStyle.Top };
+        status.ShowText(_statusText, false);
+        _statusLine = status;
+        status.Disposed += (_, _) =>
+        {
+            if (ReferenceEquals(_statusLine, status)) _statusLine = null;
+        };
+        var left = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0), Padding = new Padding(0, 0, 12, 0) };
+        left.Controls.Add(status);   // added first, so it sits under the map
+        left.Controls.Add(map);
         var host = new PlanHost { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
         host.Resize += (_, _) => FitPlanBlocks(host);
 
@@ -1181,12 +1198,12 @@ public sealed partial class MainForm
         {
             var room = Math.Max(320, t.ClientSize.Height - t.Padding.Vertical);
             var side = Math.Max(320, Math.Min(room, (int)(t.ClientSize.Width * 0.4)));
-            t.ColumnStyles[0].Width = side + map.Margin.Horizontal;
+            t.ColumnStyles[0].Width = side + left.Padding.Horizontal;
             map.Height = side;
         }
         t.Resize += (_, _) => FitMap();
         FitMap();
-        t.Controls.Add(map, 0, 0);
+        t.Controls.Add(left, 0, 0);
         t.Controls.Add(host, 1, 0);
         return t;
     }
