@@ -15,7 +15,7 @@ public sealed partial class MainForm
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        t.Controls.Add(Caption("Contracts", "Every mission that is still going. Tick who has it (the contract is shared with him); the one who took it is greyed out. The Trip Planner only plans a worker for missions he has."), 0, 0);
+        t.Controls.Add(Caption("Contracts", "Every mission that is still going. Tick who has it (the contract is shared with him); the one who took it is greyed (and can be unticked too). The Trip Planner only plans a worker for missions he has."), 0, 0);
 
         StyleGrid(_contractGrid);
         _contractGrid.Dock = DockStyle.Fill;
@@ -52,7 +52,6 @@ public sealed partial class MainForm
     bool LogSaysHas(Mission m, string member)
     {
         if (_log == null) return true;
-        if (m.Taker != null && SameName(m.Taker, member)) return true;
         if (_log.Players.Any(p => SameName(p, member))) return m.Holders.Any(h => SameName(h, member));
         var id = PlayerIdOf(member);
         if (id == null) return true;   // nothing tells: he is in the party, so he is assumed to have it (untick it when he does not)
@@ -63,7 +62,6 @@ public sealed partial class MainForm
     /// <summary>Does this member have the mission: what was ticked on the Contracts tab, else what the logs say.</summary>
     bool HasMission(Mission m, string member)
     {
-        if (m.Taker != null && SameName(m.Taker, member)) return true;
         if (_data.MissionHolders.TryGetValue(m.Id, out var ticked))
         {
             foreach (var kv in ticked)
@@ -117,8 +115,7 @@ public sealed partial class MainForm
                 for (var k = 0; k < members.Count; k++)
                 {
                     if (m.Taker == null || !SameName(m.Taker, members[k])) continue;
-                    var cell = row.Cells[2 + k];
-                    cell.ReadOnly = true;   // the taker has it, whatever is ticked
+                    var cell = row.Cells[2 + k];   // the taker is marked, but can be unticked (he may have lost the mission while the others still have it)
                     cell.Style.BackColor = Theme.Window;
                     cell.ToolTipText = members[k] + " took this contract";
                 }
