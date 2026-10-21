@@ -591,16 +591,19 @@ public static class TripPlanner
         }
 
         // The loads from Ruin ride along on the trips planned for the pickups (those stay as they are: the pickups are the priority). A trip takes at most one load,
-        // for its first stop. Only a worker with nothing at all to pick up and no run in progress may get a trip just for a load (the last resort). Every load goes
-        // where it adds the least, as long as there is a trip that can take it; a load that no trip can take along waits.
+        // only when it picks up at the station of the load anyway (that station becomes its first stop), so a load never adds a stop. Only a worker with nothing
+        // at all to pick up and no run in progress may get a trip just for a load (the last resort). A load that no trip can take along waits.
         var picks = bestPlan!;
         var picksUp = new bool[w];
         for (var t = 0; t < slots; t++)
         {
             if (picks[t].Any(x => x > 0)) picksUp[slotWorker[t]] = true;
         }
-        bool MayCarry(int slot) =>
-            picks[slot].Any(x => x > 0) || (!picksUp[slotWorker[slot]] && (startOf[slotWorker[slot]]?.Loaded ?? 0) <= 0);
+        // a load never adds a stop (the landings are what costs the time): it only rides along on a trip that picks up at its station anyway. Only a worker with
+        // nothing at all to pick up and no run in progress may fly a trip just for a load (the last resort)
+        bool Fits(int chunk, int slot) =>
+            CanDrop(chunk, slot) && (picks[slot][chunkStation[chunk]] > 0
+                || (!picksUp[slotWorker[slot]] && (startOf[slotWorker[slot]]?.Loaded ?? 0) <= 0 && !picks[slot].Any(x => x > 0)));
         var tripCost = picks.Select((row, t) => Cost(row, t)).ToArray();
         var workerTotals = new double[w];
         for (var t = 0; t < slots; t++) workerTotals[slotWorker[t]] += tripCost[t];
@@ -640,7 +643,7 @@ public static class TripPlanner
                     if (placed[c]) continue;
                     for (var t = 0; t < slots; t++)
                     {
-                        if (dropAt[t] >= 0 || !MayCarry(t) || !CanDrop(c, t)) continue;
+                        if (dropAt[t] >= 0 || !Fits(c, t)) continue;
                         var (value, cost) = With(t, c);
                         if (value < pick.Value - 1e-9) pick = (c, t, value, cost);
                     }
@@ -662,7 +665,7 @@ public static class TripPlanner
                 for (var b = 0; b < slots && !better; b++)
                 {
                     var cb = dropAt[b];
-                    if (a == b || !MayCarry(b) || !CanDrop(ca, b) || (cb >= 0 && !CanDrop(cb, a))) continue;
+                    if (a == b || !Fits(ca, b) || (cb >= 0 && !Fits(cb, a))) continue;
                     var oldA = tripCost[a];
                     var oldB = tripCost[b];
                     dropAt[a] = cb;
@@ -687,7 +690,7 @@ public static class TripPlanner
                 }
                 for (var c = 0; c < chunks.Count && !better; c++)
                 {
-                    if (placed[c] || !CanDrop(c, a)) continue;
+                    if (placed[c] || !Fits(c, a)) continue;
                     var (value, cost) = With(a, c);
                     if (value >= objective - 1e-9) continue;
                     Set(a, c, cost);
