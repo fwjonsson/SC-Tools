@@ -724,7 +724,7 @@ public sealed partial class MainForm
     {
         var headers = new[]
         {
-            new { text = "Trip", align = "center" },
+            new { text = "#", align = "center" },
             new { text = "Route (Ruin, then these, then back to Ruin)", align = "left" },
             new { text = "Batches", align = "center" },
             new { text = "Value", align = "right" },
@@ -797,7 +797,7 @@ public sealed partial class MainForm
             color = WebColor(w.Color),
             title = PlanTitle(w),
             grid = Grid(w),
-            routes = w.MapRows.Select(r => new { label = r.Label + "  " + Gm(r.Gm), stops = r.Stops, from = r.From, solid = r.Solid }).ToList(),
+            routes = w.MapRows.Select(r => new { label = (r.Label.Length > 0 && char.IsDigit(r.Label[0]) ? "Trip " : "") + r.Label + "  " + Gm(r.Gm), stops = r.Stops, from = r.From, solid = r.Solid }).ToList(),
         }).ToList();
         return new
         {
