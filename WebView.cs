@@ -508,6 +508,7 @@ function renderPlanner() {
       const t = document.createElement('h3'); t.textContent = x[1]; col.appendChild(t);
       const box = document.createElement('div'); box.className = 'scroll'; col.appendChild(box);
       table(box, x[2]);
+      if (x[0] === 'plancur' && p.actionWidth) { const th = box.querySelector('th:nth-child(3)'); if (th) th.style.width = p.actionWidth + 'px'; }
     });
   });
   // the short copy of Cargo Runs under the map: #, Worker, Value, Started, Completed, Time and Flight time (the Session tab has the whole table)
@@ -835,9 +836,10 @@ public sealed partial class MainForm
         var text = WebColor(Theme.Text);
         var calc = WebColor(Theme.Calc);
 
+        // a tick stays with the word before it (" ✓" never starts a line of its own)
         object PlainRow(string[] cells, string back, string fore, bool bold) => new
         {
-            cells,
+            cells = cells.Select(c => c.Replace(" \u2713", "\u00a0\u2713")).ToArray(),
             back = Enumerable.Repeat(back, cells.Length).ToArray(),
             fore = Enumerable.Repeat(fore, cells.Length).ToArray(),
             bold,
@@ -893,6 +895,7 @@ public sealed partial class MainForm
                 planets = PyroDistances.Planets.Select(q => new[] { q.X, q.Y }).ToList(),
             },
             workers,
+            actionWidth = PlanTextWidths(plan).Current + 16,   // the Deliver/Collect column as wide as its longest text needs (like in the program), so a line does not wrap
         };
     }
 
