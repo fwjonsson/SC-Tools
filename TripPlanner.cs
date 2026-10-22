@@ -32,6 +32,7 @@ public sealed class WorkerStart
     public string? FirstId;     // his next stop is locked to him: his first trip goes there first
     public int FirstBatches;    // the batches he takes there (they are not part of the batches left to divide)
     public int Loaded;          // batches he carries already in a run that is not handed in yet: they take room in his first trip
+    public int LoadedScu;       // the same in SCU (an estimate), when the plan fills the ships by SCU
     public string? From;        // where that run is now: his first trip continues from there instead of from Ruin
 }
 
@@ -129,8 +130,12 @@ public static class TripPlanner
     /// The pickups come first: the trips are planned for the pickups alone, then the loads ride along on them. Only a worker with nothing to pick up and no run in progress gets a trip just
     /// for a load; a load that no trip can take along is left out (it waits).</param>
     public static List<PlannedTrip> Plan(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity, QtDrive Drive)> crew, IReadOnlyList<WorkerStart>? starts = null,
-        IReadOnlyDictionary<string, List<(string[] Workers, int Batches)>>? limits = null, IReadOnlyList<DropChunk>? drops = null)
+        IReadOnlyDictionary<string, List<(string[] Workers, int Batches)>>? limits = null, IReadOnlyList<DropChunk>? drops = null,
+        IReadOnlyDictionary<string, int>? batchScu = null, IReadOnlyDictionary<string, int>? shipScu = null)
     {
+        // With the SCU of a batch at every station and the SCU of every ship, the ships are filled by SCU (a batch of a 4 stop mission is smaller than one of a
+        // 2 stop mission); without them every batch counts as one and a ship holds its number of batches.
+        var scuMode = batchScu != null && shipScu != null;
         var workers = crew.Where(c => c.Capacity > 0).ToList();
         var w = workers.Count;
         var trips = new List<PlannedTrip>();
@@ -155,20 +160,30 @@ public static class TripPlanner
         if (n == 0) return trips;
 
         var need = ids.Select(id => remaining.GetValueOrDefault(id)).ToArray();
+        var wt = ids.Select(id => scuMode ? Math.Max(1, batchScu!.GetValueOrDefault(id, 170)) : 1).ToArray();   // what one batch of that station takes in a ship
+        int CapOf(int k) => scuMode ? Math.Max(0, shipScu!.GetValueOrDefault(workers[k].Name, workers[k].Capacity * 232)) : workers[k].Capacity;
+        int LoadedOf(WorkerStart? st) => st == null ? 0 : scuMode ? st.LoadedScu : st.Loaded;
         var reservedIdx = new int[w];   // the locked stop of the first trip of each worker (-1 = none) and its batches
         var reservedN = new int[w];
         var firstCapacity = new int[w];
         for (var k = 0; k < w; k++)
         {
             var st = startOf[k];
-            firstCapacity[k] = Math.Max(0, workers[k].Capacity - (st?.Loaded ?? 0));
+            firstCapacity[k] = Math.Max(0, CapOf(k) - LoadedOf(st));
             reservedIdx[k] = -1;
             if (st?.FirstId == null || st.FirstBatches <= 0) continue;
-            reservedIdx[k] = ids.IndexOf(st.FirstId);
-            reservedN[k] = Math.Min(st.FirstBatches, firstCapacity[k]);
+            var at = ids.IndexOf(st.FirstId);
+            reservedIdx[k] = at;
+            reservedN[k] = Math.Min(st.FirstBatches, firstCapacity[k] / wt[at]);
+            if (reservedN[k] < st.FirstBatches) need[at] += st.FirstBatches - reservedN[k];   // what does not fit in his first trip goes back to everybody
             if (reservedN[k] <= 0) reservedIdx[k] = -1;
         }
-        var total = need.Sum() + reservedN.Sum();
+        var total = 0;
+        for (var i = 0; i < n; i++) total += need[i] * wt[i];
+        for (var k = 0; k < w; k++)
+        {
+            if (reservedIdx[k] >= 0) total += reservedN[k] * wt[reservedIdx[k]];
+        }
 
         // batches only some workers can take: per station the groups (a set of workers, as a bit mask, and the batches), the rest is for everybody
         var allMask = (1 << w) - 1;
@@ -234,7 +249,7 @@ public static class TripPlanner
         // Every worker gets a few trip slots (an unused slot costs nothing). A slot has the ship size of its worker.
         // The first slot of a worker (slot k) can be special: it continues a run in progress (less room, starts where he is)
         // and/or starts at his locked stop.
-        var sumCapacity = Math.Max(1, workers.Sum(c => c.Capacity));
+        var sumCapacity = Math.Max(1, Enumerable.Range(0, w).Sum(CapOf));
         var perWorker = (total + sumCapacity - 1) / sumCapacity + 2 + chunks.Count;
         var slots = perWorker * w;
         var slotWorker = new int[slots];
@@ -243,12 +258,12 @@ public static class TripPlanner
         for (var t = 0; t < slots; t++)
         {
             slotWorker[t] = t % w;
-            slotCapacity[t] = workers[t % w].Capacity;
+            slotCapacity[t] = CapOf(t % w);
         }
         for (var k = 0; k < w; k++)
         {
             var st = startOf[k];
-            if (st == null || (st.From == null && reservedIdx[k] < 0 && st.Loaded <= 0)) continue;
+            if (st == null || (st.From == null && reservedIdx[k] < 0 && LoadedOf(st) <= 0)) continue;
             special[k] = true;
             slotCapacity[k] = firstCapacity[k];
         }
@@ -268,7 +283,7 @@ public static class TripPlanner
         Array.Fill(dropAt, -1);
         // a trip slot takes a load when the worker can have it and the ship holds it; a slot that continues a run (or starts elsewhere) cannot, but a locked first stop at the very station of the load can (the load is unloaded there, then the locked batches are taken)
         bool CanDrop(int chunk, int slot) =>
-            ((chunkMask[chunk] >> slotWorker[slot]) & 1) != 0 && chunks[chunk].Batches <= slotCapacity[slot]
+            ((chunkMask[chunk] >> slotWorker[slot]) & 1) != 0 && (scuMode ? chunks[chunk].Scu : chunks[chunk].Batches) <= slotCapacity[slot]
             && (!special[slot] || (startOf[slot]!.From == null && startOf[slot]!.Loaded <= 0 && reservedIdx[slot] == chunkStation[chunk]));
 
         // is this division of a station over the workers possible with the batches they have (every set of workers can only take what at least one of them can)
@@ -448,7 +463,7 @@ public static class TripPlanner
                     for (var b = 0; b < slots; b++)
                     {
                         if (a == b) continue;
-                        if (loads[b] < slotCapacity[b])
+                        if (loads[b] + wt[i] <= slotCapacity[b])
                         {
                             assign[a][i]--;
                             assign[b][i]++;
@@ -466,8 +481,8 @@ public static class TripPlanner
                                     current = value;
                                     slotCost[a] = newA;
                                     slotCost[b] = newB;
-                                    loads[a]--;
-                                    loads[b]++;
+                                    loads[a] -= wt[i];
+                                    loads[b] += wt[i];
                                     return true;
                                 }
                                 totals[slotWorker[a]] -= dA;
@@ -479,6 +494,10 @@ public static class TripPlanner
                         for (var j = 0; j < n; j++)
                         {
                             if (j == i || assign[b][j] == 0 || IsReserved(assign, b, j)) continue;
+                            // the two batches can differ in size: neither ship may end up over its room (unless it was already, and does not get fuller)
+                            var loadA = loads[a] - wt[i] + wt[j];
+                            var loadB = loads[b] - wt[j] + wt[i];
+                            if ((loadA > slotCapacity[a] && loadA > loads[a]) || (loadB > slotCapacity[b] && loadB > loads[b])) continue;
                             assign[a][i]--;
                             assign[b][i]++;
                             assign[b][j]--;
@@ -497,6 +516,8 @@ public static class TripPlanner
                                     current = value;
                                     slotCost[a] = newA;
                                     slotCost[b] = newB;
+                                    loads[a] = loadA;
+                                    loads[b] = loadB;
                                     return true;
                                 }
                                 totals[slotWorker[a]] -= dA;
@@ -537,7 +558,7 @@ public static class TripPlanner
             {
                 if (reservedIdx[k] < 0) continue;
                 assign[k][reservedIdx[k]] = reservedN[k];
-                loads[k] = reservedN[k];
+                loads[k] = reservedN[k] * wt[reservedIdx[k]];
             }
             // batches only some workers can take go first, to a trip of one of them with room (the first ones of a station in this order are the limited ones)
             var isLimited = new bool[units.Count];
@@ -557,7 +578,7 @@ public static class TripPlanner
                         var target = -1;
                         for (var t = 0; t < slots && target < 0; t++)
                         {
-                            if (((mask >> slotWorker[t]) & 1) != 0 && loads[t] < slotCapacity[t]) target = t;
+                            if (((mask >> slotWorker[t]) & 1) != 0 && loads[t] + wt[i] <= slotCapacity[t]) target = t;
                         }
                         if (target < 0)
                         {
@@ -567,7 +588,7 @@ public static class TripPlanner
                             }
                         }
                         assign[target][i]++;
-                        loads[target]++;
+                        loads[target] += wt[i];
                         break;
                     }
                     at += count;
@@ -577,9 +598,10 @@ public static class TripPlanner
             for (var u = 0; u < units.Count; u++)
             {
                 if (isLimited[u]) continue;
-                while (slot < slots - 1 && loads[slot] >= slotCapacity[slot]) slot++;
-                assign[slot][units[u]]++;
-                loads[slot]++;
+                var i = units[u];
+                while (slot < slots - 1 && loads[slot] + wt[i] > slotCapacity[slot]) slot++;
+                assign[slot][i]++;
+                loads[slot] += wt[i];
             }
 
             Array.Fill(dropAt, -1);   // the loads from Ruin are not part of this search: they are put on the trips afterwards (below)

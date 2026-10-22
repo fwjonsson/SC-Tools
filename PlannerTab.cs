@@ -76,7 +76,8 @@ public sealed partial class MainForm
         public double Scu;               // SCU picked up here: a guess, the log only knows the SCU of a whole mission, so every stop of it counts as an equal share
         public string ActionText => string.Join(" | ", Actions);
         public int Count;                // the batches picked up here, or handed in here at Ruin: "3 Batches" in the Cargo column
-        public string CargoText => string.Join(" | ", (ShowPickupScu && Scu > 0 ? Loads.Append(ScuGuess(Scu)) : Loads).Concat(Count > 0 ? new[] { BatchText(Count) } : Array.Empty<string>()));
+        public double HandScu;           // a Ruin line: the SCU handed in there (everything picked up), an estimate
+        public string CargoText => string.Join(" | ", (ShowPickupScu && Scu > 0 ? Loads.Append(ScuGuess(Scu)) : Loads).Concat(Count > 0 ? new[] { BatchText(Count, HandScu > 0 ? HandScu : Scu) } : Array.Empty<string>()));
     }
 
     /// <summary>What was done at one line of a run in progress (for the text of its Drop/Collect column).</summary>
@@ -450,6 +451,7 @@ public sealed partial class MainForm
         }
         var home = Add(PyroDistances.Ruin, "Ruin", false, trip.Batches > 0 ? new[] { "Drop" } : Array.Empty<string>());
         home.Count = trip.Batches;
+        home.HandScu = lines.Sum(l => l.Scu);
         var handedIn = lines.Sum(l => l.Scu);
         if (ShowPickupScu && handedIn > 0) home.Loads.Add(ScuGuess(handedIn));   // everything picked up is handed in here
         return lines;
@@ -485,6 +487,7 @@ public sealed partial class MainForm
         var line = new StopLine { Id = PyroDistances.Ruin, Name = "Ruin", Stop = false, Gm = gm, Seconds = gm > 0 ? QtOf(worker).Seconds(gm) : 0 };
         if (batches > 0) line.Actions.Add("Drop");
         line.Count = batches;
+        line.HandScu = lines.Sum(l => l.Scu);
         var handedIn = lines.Sum(l => l.Scu);
         if (ShowPickupScu && handedIn > 0) line.Loads.Add(ScuGuess(handedIn));   // everything picked up is handed in here
         lines.Add(line);
@@ -530,9 +533,13 @@ public sealed partial class MainForm
     /// </summary>
     static double StopScu(Mission m)
     {
+        if (m.Multi <= 0) return 0;
         var all = m.ObjScu.Values.Sum();
-        return all > 0 && m.Multi > 0 ? all / (double)m.Multi : 0;
+        return (all > 0 ? all : AssumedMissionScu) / (double)m.Multi;   // the game did not say (yet): these contracts are about 500 SCU
     }
+
+    /// <summary>The SCU of a hauling mission when the game has not written it (its "Deliver 0/N SCU" popup): they are all about 500 SCU, give or take 30.</summary>
+    const int AssumedMissionScu = 500;
 
     /// <summary>The SCU of the batches of one pickup (a guess, see StopScu).</summary>
     double PickupScu(TripPickup p)
@@ -554,7 +561,7 @@ public sealed partial class MainForm
     const bool ShowPickupScu = false;
 
     /// <summary>How many batches, for the Cargo column: "1 Batch", "3 Batches".</summary>
-    static string BatchText(int n) => n + (n == 1 ? " Batch" : " Batches");
+    static string BatchText(int n, double scu = 0) => n + (n == 1 ? " Batch" : " Batches") + (scu >= 1 ? " (~" + Math.Round(scu).ToString(CultureInfo.InvariantCulture) + " SCU)" : "");   // the SCU is an estimate: mission SCU / its stops
 
     /// <summary>A guessed amount of SCU as containers, like "~12×32 + 8".</summary>
     static string ScuGuess(double scu) => Math.Round(scu) < 1 ? "? SCU" : "~" + ContainersText((int)Math.Round(scu));
@@ -694,7 +701,7 @@ public sealed partial class MainForm
             "",
             "Total: " + stops + (stops == 1 ? " stop" : " stops"),
             batches > 0 ? "Collect" : "",
-            batches > 0 ? BatchText(batches) : ShowPickupScu && scu > 0 ? ScuGuess(scu) : "",
+            batches > 0 ? BatchText(batches, scu) : "",
             ValueText(lines.Sum(l => l.Value)),
             gm > 0 ? Gm(gm) : "",
             flight > 0 ? "~" + FlightSpan(flight) : "",
@@ -879,6 +886,10 @@ public sealed partial class MainForm
     }
 
     /// <summary>The run the worker is flying (picked up, not handed in yet): the batches on board and the station of the last pickup, or null. A run with only waste in it has no cargo of the plan on board.</summary>
+    /// <summary>The SCU he carries in his run in progress (an estimate: mission SCU / stops for every batch).</summary>
+    int LoadedScuOf(string name) =>
+        (int)Math.Round(_trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue).SelectMany(t => t.Pickups).Sum(PickupScu));
+
     (int Loaded, string? From, DateTime Last)? ActiveRunOf(string name)
     {
         var loaded = 0;
@@ -927,8 +938,12 @@ public sealed partial class MainForm
     /// while there is room, the next stop of that continuation is locked too (it is where he is heading). A lock ends when he picks up somewhere else, when its batches are picked up, and when he leaves the party; when his run
     /// is handed in, the first stop of his next planned trip is locked. Only worked out again when the batches, the crew or the locks change.
     /// </summary>
-    PlanCore CoreFor(List<(string Name, int Capacity, QtDrive Drive)> crew, Dictionary<string, int> open, List<string> unknown, Dictionary<string, List<(string[] Workers, int Batches)>> limits, IReadOnlyList<DropChunk> chunks)
+    PlanCore CoreFor(List<(string Name, int Capacity, QtDrive Drive)> crew, Dictionary<string, int> open, List<string> unknown, Dictionary<string, List<(string[] Workers, int Batches)>> limits, IReadOnlyList<DropChunk> chunks,
+        Dictionary<string, int> batchScu, Dictionary<string, int> shipScu)
     {
+        // how many batches of this station still fit in his ship, with what he carries already (by SCU)
+        int RoomAt(string name, string station, int loadedScu) =>
+            Math.Max(0, (shipScu.GetValueOrDefault(name) - loadedScu) / Math.Max(1, batchScu.GetValueOrDefault(station, 170)));
         var settled = new HashSet<string>();
         for (var pass = 0; ; pass++)
         {
@@ -954,7 +969,7 @@ public sealed partial class MainForm
                 {
                     var run = ActiveRunOf(c.Name);
                     var loc = LocationOf(c.Name).Id;   // where he is: the station of his last pickup or delivery (the logs), or the one set by hand
-                    var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, From = loc == PyroDistances.Ruin ? null : loc };
+                    var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, LoadedScu = LoadedScuOf(c.Name), From = loc == PyroDistances.Ruin ? null : loc };
                     var lockKey = LockKey(c.Name);
                     if (lockKey == null && locking)
                     {
@@ -973,7 +988,7 @@ public sealed partial class MainForm
                         }
                         if (stored.Count > 0)
                         {
-                            var take = Math.Min(Math.Min(stored[0].Batches, remaining.GetValueOrDefault(stored[0].Id)), Math.Max(0, c.Capacity - start.Loaded));
+                            var take = Math.Min(Math.Min(stored[0].Batches, remaining.GetValueOrDefault(stored[0].Id)), RoomAt(c.Name, stored[0].Id, start.LoadedScu));
                             if (take > 0)
                             {
                                 start.FirstId = stored[0].Id;
@@ -986,7 +1001,7 @@ public sealed partial class MainForm
                                 changed = true;
                             }
                         }
-                        if (start.FirstId == null && (run == null || run.Value.Loaded < c.Capacity)) waiting.Add(c.Name);   // a run with room left locks the next stop of its continuation too
+                        if (start.FirstId == null && (run == null || start.LoadedScu < shipScu.GetValueOrDefault(c.Name))) waiting.Add(c.Name);   // a run with room left locks the next stop of its continuation too
                     }
                     // his own log shows the station he is flying to (or has arrived at) since his last pickup or delivery: what he can take there stays his,
                     // locked or not, so planning again for somebody else never takes it away from him while he is on his way or about to load
@@ -994,7 +1009,7 @@ public sealed partial class MainForm
                     if (heading != null && remaining.GetValueOrDefault(heading) > 0)
                     {
                         var notHis = limits.TryGetValue(heading, out var hl) ? hl.Where(x => !x.Workers.Contains(c.Name)).Sum(x => x.Batches) : 0;
-                        var take = Math.Min(remaining[heading] - notHis, Math.Max(0, c.Capacity - start.Loaded));
+                        var take = Math.Min(remaining[heading] - notHis, RoomAt(c.Name, heading, start.LoadedScu));
                         if (take > 0)
                         {
                             start.FirstId = heading;
@@ -1007,7 +1022,7 @@ public sealed partial class MainForm
                         // he said where he is: what is left at that station is right there, so his first trip takes it first (what only the others have is left to them)
                         var here = start.From;
                         var onlyOthers = limits.TryGetValue(here, out var gl) ? gl.Where(x => !x.Workers.Contains(c.Name)).Sum(x => x.Batches) : 0;
-                        var take = Math.Min(Math.Min(remaining[here] - onlyOthers, remaining[here]), c.Capacity);
+                        var take = Math.Min(Math.Min(remaining[here] - onlyOthers, remaining[here]), RoomAt(c.Name, here, 0));
                         if (take > 0)
                         {
                             start.FirstId = here;
@@ -1020,12 +1035,13 @@ public sealed partial class MainForm
                 if (changed) Storage.Save(_data);
             }
 
-            var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity + ":" + c.Drive.Key))
+            var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity + ":" + shipScu.GetValueOrDefault(c.Name) + ":" + c.Drive.Key))
+                + "#" + string.Join("|", batchScu.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + ":" + kv.Value))
                 + "#" + string.Join("|", remaining.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + ":" + kv.Value))
                 + "#" + string.Join("|", unknown)
                 + "#" + string.Join("|", chunks.Select(x => x.Station + ":" + x.Batches + ":" + x.Scu + ":" + x.Cargo + ":" + string.Join(",", x.Allowed)))
                 + "#" + string.Join("|", limits.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + "=" + string.Join(";", kv.Value.Select(g => string.Join(",", g.Workers) + "x" + g.Batches))))
-                + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "/" + t.Loaded + "@" + t.From));
+                + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "/" + t.Loaded + "/" + t.LoadedScu + "@" + t.From));
             if (_planCore != null && _planCore.Key == key && waiting.All(n => _planCore.Settled.Contains(n))) return _planCore;
 
             var note = unknown.Count > 0 ? "Not in the distance table, so left out: " + string.Join(", ", unknown) + "." : "";
@@ -1034,7 +1050,7 @@ public sealed partial class MainForm
             var core = new PlanCore
             {
                 Key = key,
-                Trips = TripPlanner.Plan(remaining, crew, starts, limits, chunks),
+                Trips = TripPlanner.Plan(remaining, crew, starts, limits, chunks, batchScu, shipScu),
                 Batches = remaining.Where(kv => kv.Value > 0).Sum(kv => kv.Value) + starts.Sum(t => t.FirstBatches),
                 Note = note,
                 Settled = settled,
@@ -1118,7 +1134,10 @@ public sealed partial class MainForm
             var lost = drops.Count(d => d.Station == null);
             if (lost > 0) dropNote = "From Ruin: " + lost + (lost == 1 ? " drop-off is" : " drop-offs are") + " to a place that is not in the distance table, so left out.";
         }
-        var core = CoreFor(crew, remaining, unknown, limits, chunks);
+        // the ships are filled by SCU: what a batch of every station takes (its open stops on average: mission SCU / stops), and what every ship holds
+        var batchScu = remaining.Keys.ToDictionary(id => id, id => Math.Max(1, (int)Math.Round(volume.TryGetValue(id, out var v) && v.Stops > 0 ? v.Scu / v.Stops : AssumedMissionScu / 3.0)));
+        var shipScu = crew.Where(c => c.Capacity > 0).ToDictionary(c => c.Name, c => ShipOf(c.Name)?.Total ?? c.Capacity * 232);   // no ship set: his batches times a third of a C2
+        var core = CoreFor(crew, remaining, unknown, limits, chunks, batchScu, shipScu);
         var dropTrips = core.Trips;
         // the waste only rides along on the pickup trips: a load that none of them can take along waits (the note says so)
         var carried = dropTrips.SelectMany(pt => pt.Drops.Select(dd => dd.Id)).ToList();
