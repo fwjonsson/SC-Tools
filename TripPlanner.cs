@@ -544,6 +544,53 @@ public static class TripPlanner
                     }
                 }
             }
+            // merge two trips: every batch of trip b goes into trip a when the ship has room for both. One batch at a time cannot find this (moving one stop of
+            // a trip to another first makes the plan worse), so a few scattered batches ended up as single trips: Ruin, one stop, Ruin, again and again
+            for (var a = 0; a < slots; a++)
+            {
+                for (var b = 0; b < slots; b++)
+                {
+                    if (a == b || loads[b] == 0 || loads[a] + loads[b] > slotCapacity[a]) continue;
+                    if (b < w && reservedIdx[b] >= 0) continue;   // his locked or next stop stays in his first trip
+                    var moved = (int[])assign[b].Clone();
+                    for (var i = 0; i < n; i++)
+                    {
+                        assign[a][i] += moved[i];
+                        assign[b][i] = 0;
+                    }
+                    var ok = true;
+                    for (var i = 0; i < n && ok; i++)
+                    {
+                        if (moved[i] > 0 && !Allowed(assign, i)) ok = false;
+                    }
+                    if (ok)
+                    {
+                        var newA = Cost(assign[a], a);
+                        var newB = Cost(assign[b], b);
+                        var dA = newA - slotCost[a];
+                        var dB = newB - slotCost[b];
+                        totals[slotWorker[a]] += dA;
+                        totals[slotWorker[b]] += dB;
+                        var value = Objective(totals);
+                        if (value < current - 1e-9)
+                        {
+                            current = value;
+                            slotCost[a] = newA;
+                            slotCost[b] = newB;
+                            loads[a] += loads[b];
+                            loads[b] = 0;
+                            return true;
+                        }
+                        totals[slotWorker[a]] -= dA;
+                        totals[slotWorker[b]] -= dB;
+                    }
+                    for (var i = 0; i < n; i++)
+                    {
+                        assign[a][i] -= moved[i];
+                        assign[b][i] = moved[i];
+                    }
+                }
+            }
             return false;
         }
 
