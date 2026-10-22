@@ -887,8 +887,11 @@ public static class TripPlanner
         return trips
             .OrderBy(tp => order2.IndexOf(tp.Worker))
             .ThenBy(tp => tp.Special ? 0 : 1)   // his first trip: the one he is flying or heading for
-            .ThenBy(tp => tp.Fill >= BigShare || tp.Stops.Count == 0 ? 0 : 1)   // then the trips that fill at least half the ship; the ones with little in them wait at the back, where new missions can fill them up
-            .ThenBy(tp => tp.Stops.Count)   // then the one-stop trips (before everything else, also before a trip with waste that has more stops): while he flies those, missions get done and new ones come in, and the trips with more stops are planned again with them
+            // then: one stop that (nearly) fills the ship, the best trips there are; then the other trips that fill at least half the ship; the ones with little
+            // in them wait at the back, where new missions can fill them up
+            .ThenBy(tp => tp.Stops.Count == 1 && tp.Fill >= FullShare ? 0 : tp.Fill >= BigShare || tp.Stops.Count == 0 ? 1 : 2)
+            .ThenBy(tp => tp.Stops.Count)   // fewer stops first: while he flies those, missions get done and new ones come in, and the trips with more stops are planned again with them
+            .ThenByDescending(tp => Math.Round(tp.Fill, 1))   // the fuller ship first
             .ThenBy(tp => tp.Drops.Count > 0 ? 0 : 1)   // with as many stops, the trip that takes cargo out from Ruin first, so he is rid of it (and can take a new from-Ruin contract) sooner
             .ThenByDescending(tp => tp.Batches)
             .ThenBy(tp => tp.Distance)
