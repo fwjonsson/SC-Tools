@@ -1384,7 +1384,7 @@ public sealed partial class MainForm
         var left = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0), Padding = new Padding(0, 0, 12, 0) };
         // the map on top (always square: it is as high as the column is wide), the team status under it and the short Cargo Runs in the room that is left;
         // what is added first is docked last, so it sits lowest
-        var runsTitle = SectionTitle("Cargo Runs");
+        var runsTitle = RunsTitle();   // with a button that opens every run in a window of its own
         runsTitle.Dock = DockStyle.Top;
         runsTitle.Height = TitleHeight;
         _planRunsGrid.Dock = DockStyle.Fill;
