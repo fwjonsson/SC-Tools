@@ -439,13 +439,17 @@ public static class TripPlanner
                 if (scu < cap * SmallShare && carried - scu >= cap * FullShare) topUp += TopUpSeconds;
             }
             // a pickup at a station that has waste waiting, on a trip that could never take that waste along (a run in progress, a worker without that
-            // mission, a ship too small): the landing there is wasted for the waste
+            // mission, a ship too small): the landing there is wasted for the waste. A trip takes one load at most, so a second station with waste in the same
+            // trip strands that waste just the same
             double wasteWait = 0;
+            var withWaste = 0;
             for (var i = 0; i < n; i++)
             {
                 if (row[i] <= 0 || chunksAt[i] == null) continue;
                 if (!chunksAt[i]!.Any(c => CanDrop(c, slot))) wasteWait += WasteWaitSeconds;
+                else withWaste++;
             }
+            if (withWaste > 1) wasteWait += (withWaste - 1) * WasteWaitSeconds;
             // a trip of its own costs its hand-in landing at Ruin; a run in progress lands at Ruin anyway (stops added to it do not add that landing)
             var hand = !special[slot] && (stops > 0 || drop >= 0) ? TripSeconds : 0;
             return SlotCost(row, slot) * FlightWeight + stops * StopSeconds + hand + topUp + wasteWait - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
