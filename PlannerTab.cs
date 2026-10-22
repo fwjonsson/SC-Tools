@@ -65,6 +65,7 @@ public sealed partial class MainForm
         public List<string> Actions = new();   // Collect, Drop Waste, Collected ✓ ... (the Drop/Collect column; how many batches is in the Cargo column)
         public bool Stop = true;         // false: the start or the end at Ruin (or where he starts from): not counted as a stop
         public bool Done;                // collected already (it is on board)
+        public bool Pending;             // something done here already (waste delivered, a pickup), but the plan still collects more here: he is not finished with this stop
         public bool Busy;                // done here, but he is still at it (Collecting, Dropping: he has not set his next destination yet)
         public int Batches;              // batches collected, or still to collect, here
         public decimal Value;
@@ -461,6 +462,7 @@ public sealed partial class MainForm
         if (last != null && last.Id == id)
         {
             last.Actions.Add("Collect");
+            last.Pending = true;   // the colour stays here until this is collected too
             last.Count += batches;
             last.Batches += batches;
             last.Value += batches * perBatch;
@@ -505,7 +507,7 @@ public sealed partial class MainForm
             if (at >= 0) return at;
         }
         if (lastDone < 0) return 0;
-        return !lines[lastDone].Busy && lastDone + 1 < lines.Count ? lastDone + 1 : lastDone;
+        return !lines[lastDone].Busy && !lines[lastDone].Pending && lastDone + 1 < lines.Count ? lastDone + 1 : lastDone;
     }
 
     /// <summary>What the batches of one pickup are worth: every mission pays its reward split over its stops (the same sum as the value of a run).</summary>
