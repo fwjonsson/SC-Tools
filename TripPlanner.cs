@@ -48,8 +48,9 @@ public static class TripPlanner
     const int Restarts = 30;
     const double TotalWeight = 0.25;   // how much the combined Gm counts next to the longest worker total
     const double SmallShare = 0.25;    // a stop with less than this part of the ship is a small stop ...
-    const double BigShare = 0.5;       // ... and one with at least this part a big one
-    const double TopUpSeconds = 600;   // a small stop added to a trip that has a big load already counts this much more: it is left for a later trip, where new missions can make it worth the landing
+    const double FullShare = 0.75;     // ... and the ship is nearly full when the rest of the trip fills this part of it
+    const double BigShare = 0.5;       // a trip that fills at least this part of the ship is worth flying now (the queue order)
+    const double TopUpSeconds = 600;   // a small stop added to a ship that is nearly full already counts this much more: it is left for a later trip, where new missions can make it worth the landing (a half full ship does fill up on the way home)
     const double StopSeconds = 240;    // every station a trip lands at costs a landing, the loading and a take-off: that many seconds per stop when comparing plans (not in the times shown), so the plan prefers fewer stops, and full one-stop trips most of all
     const double SyncSeconds = 240;    // unloading cargo from Ruin and loading a pickup at the SAME station saves a landing and a take-off: that many seconds are taken off such a trip when comparing plans (not in the times shown)
 
@@ -410,19 +411,22 @@ public static class TripPlanner
         {
             var drop = dropAt[slot];
             var stops = 0;
-            var small = 0;
             var cap = (double)Math.Max(1, CapOf(slotWorker[slot]));
-            var loaded = special[slot] ? LoadedOf(startOf[slot]) : 0;   // a run in progress: what is on board already
-            var big = loaded >= cap * BigShare;
+            double carried = special[slot] ? LoadedOf(startOf[slot]) : 0;   // a run in progress: what is on board already
             for (var i = 0; i < n; i++)
             {
                 if (row[i] <= 0) continue;
                 stops++;
-                var scu = row[i] * wt[i];
-                if (scu >= cap * BigShare) big = true;
-                else if (scu < cap * SmallShare) small++;
+                carried += row[i] * wt[i];
             }
-            var topUp = big && stops + (loaded > 0 ? 1 : 0) >= 2 ? small * TopUpSeconds : 0;   // only a small stop next to a big load (or a run that is full already)
+            // a small stop on a ship that the rest of the trip fills to 75% or more is a top-up that is not worth the landing
+            double topUp = 0;
+            for (var i = 0; i < n; i++)
+            {
+                if (row[i] <= 0) continue;
+                var scu = row[i] * wt[i];
+                if (scu < cap * SmallShare && carried - scu >= cap * FullShare) topUp += TopUpSeconds;
+            }
             return SlotCost(row, slot) + stops * StopSeconds + topUp - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
         }
 
@@ -544,6 +548,46 @@ public static class TripPlanner
                     }
                 }
             }
+            // move a whole stop: every batch of station i in trip a goes to trip b. One batch at a time cannot find this either: half a stop moved still leaves
+            // the landing in trip a (and a lone batch is a small top-up), so a half full ship was not filled up with a stop on the way home
+            for (var a = 0; a < slots; a++)
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    var count = assign[a][i];
+                    if (count <= 1 || (a < w && reservedIdx[a] == i)) continue;   // one batch: the single moves do that; his locked or next stop stays
+                    for (var b = 0; b < slots; b++)
+                    {
+                        if (a == b || loads[b] + count * wt[i] > slotCapacity[b]) continue;
+                        assign[a][i] = 0;
+                        assign[b][i] += count;
+                        if (Allowed(assign, i))
+                        {
+                            var newA = Cost(assign[a], a);
+                            var newB = Cost(assign[b], b);
+                            var dA = newA - slotCost[a];
+                            var dB = newB - slotCost[b];
+                            totals[slotWorker[a]] += dA;
+                            totals[slotWorker[b]] += dB;
+                            var value = Objective(totals);
+                            if (value < current - 1e-9)
+                            {
+                                current = value;
+                                slotCost[a] = newA;
+                                slotCost[b] = newB;
+                                loads[a] -= count * wt[i];
+                                loads[b] += count * wt[i];
+                                return true;
+                            }
+                            totals[slotWorker[a]] -= dA;
+                            totals[slotWorker[b]] -= dB;
+                        }
+                        assign[a][i] = count;
+                        assign[b][i] -= count;
+                    }
+                }
+            }
+
             // merge two trips: every batch of trip b goes into trip a when the ship has room for both. One batch at a time cannot find this (moving one stop of
             // a trip to another first makes the plan worse), so a few scattered batches ended up as single trips: Ruin, one stop, Ruin, again and again
             for (var a = 0; a < slots; a++)
