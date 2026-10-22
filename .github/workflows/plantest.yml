@@ -1,0 +1,21 @@
+name: Planner scenarios
+
+# Runs the trip planner on the scenarios in tools/PlanTest and prints the plans (see the log of the run).
+on:
+  push:
+    paths:
+      - 'TripPlanner.cs'
+      - 'tools/PlanTest/**'
+      - '.github/workflows/plantest.yml'
+  workflow_dispatch:
+
+jobs:
+  plans:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Plan the scenarios
+        run: dotnet run --project tools/PlanTest -c Release

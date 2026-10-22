@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Runs the trip planner on scenarios from real sessions and prints the plans (no Windows needed): dotnet run --project tools/PlanTest -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>HaulingTracker</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../TripPlanner.cs" />
+    <Compile Include="../../Distances.cs" />
+    <Compile Include="../../QuantumDrives.cs" />
+    <Compile Include="../../DropPlanner.cs" />
+  </ItemGroup>
+
+</Project>

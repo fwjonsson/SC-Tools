@@ -569,6 +569,57 @@ public static class TripPlanner
                     }
                 }
             }
+            // swap two whole stops between two trips: all of station i of trip a for all of station j of trip b. When every ship is full nothing can be moved,
+            // only swapped (a run in progress that should fill up with Starlight instead of Endgame, whose waste waits for a trip from Ruin)
+            for (var a = 0; a < slots; a++)
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    var ci = assign[a][i];
+                    if (ci == 0 || (a < w && reservedIdx[a] == i)) continue;
+                    for (var b = a + 1; b < slots; b++)
+                    {
+                        for (var j = 0; j < n; j++)
+                        {
+                            var cj = assign[b][j];
+                            if (j == i || cj == 0 || (b < w && reservedIdx[b] == j) || (ci == 1 && cj == 1)) continue;   // one batch each: the single swap does that
+                            var loadA = loads[a] - ci * wt[i] + cj * wt[j];
+                            var loadB = loads[b] - cj * wt[j] + ci * wt[i];
+                            if ((loadA > slotCapacity[a] && loadA > loads[a]) || (loadB > slotCapacity[b] && loadB > loads[b])) continue;
+                            assign[a][i] = 0;
+                            assign[b][i] += ci;
+                            assign[b][j] = 0;
+                            assign[a][j] += cj;
+                            if (Allowed(assign, i) && Allowed(assign, j))
+                            {
+                                var newA = Cost(assign[a], a);
+                                var newB = Cost(assign[b], b);
+                                var dA = newA - slotCost[a];
+                                var dB = newB - slotCost[b];
+                                totals[slotWorker[a]] += dA;
+                                totals[slotWorker[b]] += dB;
+                                var value = Objective(totals);
+                                if (value < current - 1e-9)
+                                {
+                                    current = value;
+                                    slotCost[a] = newA;
+                                    slotCost[b] = newB;
+                                    loads[a] = loadA;
+                                    loads[b] = loadB;
+                                    return true;
+                                }
+                                totals[slotWorker[a]] -= dA;
+                                totals[slotWorker[b]] -= dB;
+                            }
+                            assign[a][j] -= cj;
+                            assign[b][j] = cj;
+                            assign[b][i] -= ci;
+                            assign[a][i] = ci;
+                        }
+                    }
+                }
+            }
+
             // move a whole stop: every batch of station i in trip a goes to trip b. One batch at a time cannot find this either: half a stop moved still leaves
             // the landing in trip a (and a lone batch is a small top-up), so a half full ship was not filled up with a stop on the way home
             for (var a = 0; a < slots; a++)
