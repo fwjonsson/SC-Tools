@@ -137,6 +137,15 @@ public sealed partial class MainForm
                 _partyGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
         };
         _partyGrid.CellValueChanged += PartyGrid_CellValueChanged;
+        _partyGrid.CellFormatting += (_, e) =>
+        {
+            // the names are shown in capitals (only shown: the name itself stays as it is, the logs and the saved data use it)
+            if (e.ColumnIndex == 0 && e.RowIndex >= 0 && e.Value is string name)
+            {
+                e.Value = name.ToUpperInvariant();
+                e.FormattingApplied = true;
+            }
+        };
         _partyGrid.CellClick += (_, e) =>
         {
             if (e.RowIndex < 0 || e.ColumnIndex != 5) return;

@@ -628,7 +628,7 @@ public sealed partial class MainForm
     }
 
     /// <summary>The title of a worker's table: just his name.</summary>
-    static string PlanTitle(PlanWorkerView w) => w.Name;
+    static string PlanTitle(PlanWorkerView w) => w.Name.ToUpperInvariant();   // the name in capitals, in his colour (only how it is shown: the name itself stays as it is)
 
     /// <summary>The Total line of the Queued routes table: the number of stops, batches, value, distance and flight time of the trips above it.</summary>
     static string[] PlanTotals(List<PlanRow> rows)
@@ -1493,7 +1493,7 @@ public sealed partial class MainForm
         var label = new Panel { Dock = DockStyle.Top, Height = 34 };
         var titleFont = new Font("Segoe UI", 11f, FontStyle.Bold);
         var nameWidth = TextRenderer.MeasureText(PlanTitle(w), titleFont).Width;
-        label.Controls.Add(new Label { Text = PlanTitle(w), AutoSize = true, Font = titleFont, ForeColor = Theme.Text, Location = new Point(0, 6) });
+        label.Controls.Add(new Label { Text = PlanTitle(w), AutoSize = true, Font = titleFont, ForeColor = w.Color, Location = new Point(0, 6) });
         var hintFont = new Font("Segoe UI", 9.5f);
         var hintText = "Current location:";
         var hintX = nameWidth + 30;
