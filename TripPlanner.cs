@@ -54,6 +54,7 @@ public static class TripPlanner
     // What a plan costs is mostly its LANDINGS, not its flying: set the destination, fly in, ask for a hangar, land, leave the seat, load, back in the seat,
     // ask to take off. That is the work. Quantum travel is close to free (with two accounts the other one is played meanwhile), so it only counts for a part.
     const double StopSeconds = 600;    // every station a trip lands at: that many seconds when comparing plans (not in the times shown), so every landing has to be worth it
+    const double TripSeconds = StopSeconds;   // every trip ends with a landing at Ruin to hand in (a run 38 min, 9 of them flying: about 10 min per landing, Ruin too), so two half empty trips cost a landing more than one full one
     const double FlightWeight = 0.25;  // the part of the flying time that counts when comparing plans (the times shown are the real ones)
     const double SyncSeconds = StopSeconds;   // delivering cargo from Ruin where the trip picks up anyway: one landing does both, so that is a landing saved
     const double WasteWaitSeconds = StopSeconds;   // picking up at a station with waste waiting for it, on a trip that cannot take the waste along: the waste then needs a landing of its own later (or waits for ever), so that pickup is left for a trip from Ruin that brings the waste
@@ -445,7 +446,9 @@ public static class TripPlanner
                 if (row[i] <= 0 || chunksAt[i] == null) continue;
                 if (!chunksAt[i]!.Any(c => CanDrop(c, slot))) wasteWait += WasteWaitSeconds;
             }
-            return SlotCost(row, slot) * FlightWeight + stops * StopSeconds + topUp + wasteWait - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
+            // a trip of its own costs its hand-in landing at Ruin; a run in progress lands at Ruin anyway (stops added to it do not add that landing)
+            var hand = !special[slot] && (stops > 0 || drop >= 0) ? TripSeconds : 0;
+            return SlotCost(row, slot) * FlightWeight + stops * StopSeconds + hand + topUp + wasteWait - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
         }
 
         // the number to beat: the longest worker total, plus a part of the combined time (all in seconds)
