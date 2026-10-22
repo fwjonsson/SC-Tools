@@ -423,6 +423,7 @@ public sealed partial class MainForm
             if (hasDrop)
             {
                 ruin.Loads.Add(LoadText(trip.DropParts));   // the SCU of the load and the containers it is cut into
+                ruin.Value = WasteValue(trip.DropKeys);     // what the load pays (reward / drop-offs of its contract), from the From Ruin rows of the rewards table
                 ruin.Unknown.AddRange(unknownKeys);
             }
         }
@@ -809,6 +810,7 @@ public sealed partial class MainForm
                     // what was taken out is only known from what was delivered since: those loads, with their containers
                     if (t.Drops.Count > 0)
                     {
+                        line.Value += WasteValue(t);   // what the waste delivered so far pays (the value of the run counts it too)
                         line.Loads.Add(LoadText(t.Drops.Select(x => x.Scu)));
                         line.Unknown.AddRange(t.Drops.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
                     }
@@ -1154,7 +1156,7 @@ public sealed partial class MainForm
                     Route = RouteText(mine[k]),
                     Batches = mine[k].Batches.ToString(CultureInfo.InvariantCulture),
                     BatchCount = mine[k].Batches,
-                    Value = mine[k].Stops.Sum(s => s.Batches * PerBatch(s.Id)),
+                    Value = mine[k].Stops.Sum(s => s.Batches * PerBatch(s.Id)) + WasteValue(mine[k].DropKeys),
                     Gm = mine[k].Distance,
                     Seconds = mine[k].Seconds,
                     Flight = mine[k].Seconds,

@@ -437,7 +437,8 @@ public sealed partial class MainForm
             var summary = SessionBuilder.Summarize(g);
             var r2 = inp.Reward2 == 0 ? DefaultReward2 : inp.Reward2;
             var r3 = inp.Reward3 == 0 ? DefaultReward3 : inp.Reward3;
-            var revenue = g.Missions.Count(m => m.Multi == 2) * r2 + g.Missions.Count(m => m.Multi == 3) * r3 + g.Missions.Count(m => m.Multi == 4) * inp.Reward4;
+            var revenue = g.Missions.Count(m => m.Multi == 2) * r2 + g.Missions.Count(m => m.Multi == 3) * r3 + g.Missions.Count(m => m.Multi == 4) * inp.Reward4
+                + SessionWaste(g).Sum(m => WasteRewardOf(m, inp));   // the from-Ruin (waste) contracts, by what you typed for them
             if (inp.StartUtc != g.Start || inp.EndUtc != summary.End || inp.MissionCount != g.Missions.Count || inp.Revenue != revenue)
             {
                 inp.StartUtc = g.Start;
