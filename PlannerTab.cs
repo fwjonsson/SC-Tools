@@ -1260,8 +1260,7 @@ public sealed partial class MainForm
             _planCore = null;
             return;
         }
-        _planNote.Text = plan.Note;
-        _planNote.Visible = plan.Note.Length > 0;
+        _planNote.Visible = false;   // the line above the map (the loads that wait) is gone: the page has more room; only a problem is written there
         if (plan.Signature == _planShown) return;   // nothing changed, so nothing flickers
 
         _planBody.SuspendLayout();
@@ -1327,8 +1326,11 @@ public sealed partial class MainForm
         _planRunsGrid.Dock = DockStyle.Fill;
         left.Controls.Add(_planRunsGrid);   // moves it from the page that is replaced: that one must not dispose it
         left.Controls.Add(runsTitle);
-        left.Controls.Add(status);
-        left.Controls.Add(map);
+        // like on the web page, the map and the team status are in one frame (a thin line round them, the colour of the tables)
+        var frame = new MapFrame { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0), Padding = new Padding(1) };
+        frame.Controls.Add(status);   // added first, so it sits under the map
+        frame.Controls.Add(map);
+        left.Controls.Add(frame);
         var squaring = false;
         void Square()
         {
@@ -1336,7 +1338,7 @@ public sealed partial class MainForm
             squaring = true;
             try
             {
-                var w = left.ClientSize.Width - left.Padding.Horizontal;
+                var w = left.ClientSize.Width - left.Padding.Horizontal - frame.Padding.Horizontal;
                 if (w > 0 && map.Height != w) map.Height = w;   // a map that is not square is drawn small and squeezed
             }
             finally
@@ -1395,11 +1397,12 @@ public sealed partial class MainForm
                 var page = _planPage;
                 var note = _planNote.Visible ? _planNote.Height : 0;
                 var avail = page != null ? page.ClientSize.Height - page.Padding.Vertical - note : t.ClientSize.Height;
-                var side = Math.Max(320, Math.Min((int)(t.ClientSize.Width * 0.4), avail - t.Padding.Vertical - status.Height - TitleHeight - PlanRunsMin));
-                if ((int)t.ColumnStyles[0].Width != side + left.Padding.Horizontal) t.ColumnStyles[0].Width = side + left.Padding.Horizontal;
+                var side = Math.Max(320, Math.Min((int)(t.ClientSize.Width * 0.4), avail - t.Padding.Vertical - status.Height - frame.Padding.Vertical - TitleHeight - PlanRunsMin));
+                var column = side + frame.Padding.Horizontal + left.Padding.Horizontal;
+                if ((int)t.ColumnStyles[0].Width != column) t.ColumnStyles[0].Width = column;
                 if (map.Height != side) map.Height = side;
                 var blocks = host.Controls.Cast<Control>().Sum(c => c.Height + c.Margin.Vertical);
-                var leftNeed = side + status.Height + TitleHeight + PlanRunsMin;
+                var leftNeed = side + status.Height + frame.Padding.Vertical + TitleHeight + PlanRunsMin;
                 var need = Math.Max(avail, Math.Max(leftNeed, blocks) + t.Padding.Vertical + 4);
                 if (page != null && Math.Abs(page.RowStyles[1].Height - need) > 0.5f)
                 {
@@ -1430,6 +1433,19 @@ public sealed partial class MainForm
         foreach (Control c in host.Controls) c.Width = width;
         // after the window got bigger again nothing may stay scrolled to the side
         if (host.AutoScrollPosition.X != 0) host.AutoScrollPosition = new Point(0, -host.AutoScrollPosition.Y);
+    }
+
+    /// <summary>The frame round the map and the team status of the Trip Planner (like the one on the web page): the colour of the tables with a thin line.</summary>
+    sealed class MapFrame : Panel
+    {
+        public MapFrame() => SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            using (var fill = new SolidBrush(Theme.Cell)) e.Graphics.FillRectangle(fill, ClientRectangle);
+            using var pen = new Pen(Theme.Lines);
+            e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        }
     }
 
     /// <summary>The panel that holds the tables of the Trip Planner: it scrolls up and down only, never sideways (the tables fit its width).</summary>
