@@ -149,7 +149,7 @@ public sealed partial class MainForm
 
             foreach (var m in missions)
             {
-                var contract = m.IsOut ? "From Ruin, " + m.OutDrops + (m.OutDrops == 1 ? " drop-off" : " drop-offs") : m.Multi > 0 ? m.Multi + " stops" : "?";
+                var contract = m.IsOut ? m.OutDrops + " From Ruin" : m.Multi > 0 ? m.Multi + " To Ruin" : "?";   // the same names as the rewards table
                 var cells = new List<object?> { contract, m.IsOut ? m.OutCargo ?? "Cargo" : string.IsNullOrEmpty(m.Cargo) ? "" : m.Cargo, ContractStopsText(m) };
                 cells.AddRange(members.Select(_ => (object?)""));
                 cells.Add(m.Dropped ? "Bring back" : "Gone");
