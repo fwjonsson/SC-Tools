@@ -1,6 +1,6 @@
 name: Planner scenarios
 
-# Runs the trip planner on the scenarios in tools/PlanTest and prints the plans (see the log of the run).
+# Runs the trip planner on the scenarios in tools/PlanTest and prints the plans (in the log, and as a notice on the run).
 on:
   push:
     paths:
@@ -18,4 +18,12 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Plan the scenarios
-        run: dotnet run --project tools/PlanTest -c Release
+        shell: bash
+        run: |
+          set +e
+          dotnet run --project tools/PlanTest -c Release > out.txt 2>&1
+          code=$?
+          cat out.txt
+          body=$(grep -v "^\s*$" out.txt | tail -c 6000 | sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::notice title=Planner output::$body"
+          exit $code
