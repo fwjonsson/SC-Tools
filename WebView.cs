@@ -802,7 +802,7 @@ public sealed partial class MainForm
         {
             new { text = "#", align = "center" },
             new { text = "Stops", align = "left" },
-            new { text = "Drop/Collect", align = "left" },
+            new { text = "Deliver/Collect", align = "left" },
             new { text = "Cargo", align = "left" },
             new { text = "Value", align = "right" },
             new { text = "Distance", align = "right" },
