@@ -781,8 +781,8 @@ public static class TripPlanner
         return trips
             .OrderBy(tp => order2.IndexOf(tp.Worker))
             .ThenBy(tp => tp.Special ? 0 : 1)   // his first trip: the one he is flying or heading for
-            .ThenBy(tp => tp.Drops.Count > 0 ? 0 : 1)   // then the trips that take cargo out from Ruin, so he is rid of it (and can take a new from-Ruin contract) as soon as possible
-            .ThenBy(tp => tp.Stops.Count)   // then the one-stop trips: while he flies those, missions get done and new ones come in, and the trips with more stops are planned again with them
+            .ThenBy(tp => tp.Stops.Count)   // then the one-stop trips (before everything else, also before a trip with waste that has more stops): while he flies those, missions get done and new ones come in, and the trips with more stops are planned again with them
+            .ThenBy(tp => tp.Drops.Count > 0 ? 0 : 1)   // with as many stops, the trip that takes cargo out from Ruin first, so he is rid of it (and can take a new from-Ruin contract) sooner
             .ThenByDescending(tp => tp.Batches)
             .ThenBy(tp => tp.Distance)
             .ToList();

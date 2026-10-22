@@ -107,6 +107,14 @@ public sealed partial class MainForm : Form
         {
             if (IsHandleCreated && !IsDisposed) BeginInvoke(new Action(() => SetStatus("Could not save the data file: " + msg)));
         };
+        Storage.SaveOk += () =>
+        {
+            // a save that worked again after one that failed: the message is not true any more
+            if (IsHandleCreated && !IsDisposed) BeginInvoke(new Action(() =>
+            {
+                if (_status.Text.StartsWith("Could not save the data file", StringComparison.Ordinal)) SetStatus("The data file is saved again.");
+            }));
+        };
 
         InitSessionButtons();
         ClearView();

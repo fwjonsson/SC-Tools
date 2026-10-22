@@ -209,6 +209,9 @@ public static class Storage
     /// <summary>Raised with a short text when the data file could not be saved (for example a OneDrive folder that is not available).</summary>
     public static event Action<string>? SaveFailed;
 
+    /// <summary>Raised when the data file was saved (so a message about a failed save can go away).</summary>
+    public static event Action? SaveOk;
+
     /// <summary>The Backups folder next to the data file.</summary>
     public static string BackupDir => Path.Combine(Path.GetDirectoryName(FilePath) ?? DefaultDir, "Backups");
 
@@ -264,8 +267,23 @@ public static class Storage
 
             // write to a temporary file first, so a sync client never sees a half written file
             var tmp = path + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(data, Options));
-            File.Move(tmp, path, true);
+            var json = JsonSerializer.Serialize(data, Options);
+            // a sync client (OneDrive) can hold the file for a moment while it uploads it: "access denied". Try again a few times before giving up;
+            // the data stays in memory, so the next save writes it anyway
+            for (var attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    File.WriteAllText(tmp, json);
+                    File.Move(tmp, path, true);
+                    SaveOk?.Invoke();
+                    return;
+                }
+                catch (Exception ex) when (attempt < 5 && ex is IOException or UnauthorizedAccessException)
+                {
+                    Thread.Sleep(150 * (attempt + 1));
+                }
+            }
         }
         catch (Exception ex)
         {
