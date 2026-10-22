@@ -357,12 +357,15 @@ public sealed partial class MainForm
         g.Columns.Add(Col("Time", 90, true));
         g.Columns.Add(Col("Flight time", 90, true));
         g.Columns.Add(Col("Lost Cargo", 116, true));
+        g.Columns.Add(Col("aUEC/h", 96, true, DataGridViewContentAlignment.MiddleRight));   // cell 10, like on the Session tab
         FitColumns(g);
         foreach (DataGridViewColumn c in g.Columns)
         {
-            if (c.HeaderText is not ("Worker" or "#" or "Value" or "Started" or "Completed" or "Time" or "Flight time")) c.Visible = false;   // not the locations, the batches or the lost cargo   // the cells are still there (the live time and value update them by index)
+            if (c.HeaderText is not ("Worker" or "#" or "Value" or "Started" or "Completed" or "Time" or "Flight time" or "aUEC/h")) c.Visible = false;   // not the locations, the batches or the lost cargo   // the cells are still there (the live time and value update them by index)
         }
-        g.Columns[0].FillWeight = 110;   // the worker and what his run is worth
+        // the worker keeps his width (like #); the other columns share the rest
+        g.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+        g.Columns[0].Width = 110;
         foreach (DataGridViewColumn c in g.Columns) c.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;   // the titles in the middle, also over the left-aligned Locations
         g.ScrollBars = ScrollBars.Vertical;
     }
