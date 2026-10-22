@@ -703,6 +703,9 @@ public sealed partial class MainForm : Form
         lostCol.Items.AddRange("None", "Little", "All");
         lostCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         _tripGrid.Columns.Add(lostCol);
+        var hourly = Col("aUEC/h", 96, true, DataGridViewContentAlignment.MiddleRight);   // what the run earned per hour (cell 10), shown right of Flight time
+        _tripGrid.Columns.Add(hourly);
+        hourly.DisplayIndex = 9;
         _tripGrid.DataError += (_, e) => e.ThrowException = false;
         _tripGrid.CurrentCellDirtyStateChanged += (_, _) =>
         {
@@ -760,6 +763,22 @@ public sealed partial class MainForm : Form
     }
 
     /// <summary>Time from the start of the run to its end, or to now while the run is still on the way (when watching live).</summary>
+    /// <summary>What a run earned per hour: its value over its time (a run on the way: so far). Empty while it is under a minute old or has no value.</summary>
+    string RunHourlyText(WorkerTrip t)
+    {
+        TimeSpan span;
+        if (t.End.HasValue) span = t.End.Value - t.Start;
+        else
+        {
+            var latest = _sessions.Count > 0 && _current != null && _current.Key == _sessions[^1].Key;
+            if (!_live || !latest || !HasOpenContracts()) return "";
+            span = DateTime.UtcNow - t.Start;
+        }
+        var value = RunValue(t);
+        if (span < TimeSpan.FromMinutes(1) || value <= 0) return "";
+        return (value / (decimal)span.TotalHours).ToString("N0");
+    }
+
     string RunDuration(WorkerTrip t)
     {
         if (t.End.HasValue) return LongDuration(t.End.Value - t.Start);
@@ -779,6 +798,8 @@ public sealed partial class MainForm : Form
                 if (row.Tag is not WorkerTrip t || t.End.HasValue) continue;
                 var text = RunDuration(t);
                 if (!Equals(row.Cells[7].Value, text)) row.Cells[7].Value = text;
+                var perHour = RunHourlyText(t);
+                if (!Equals(row.Cells[10].Value, perHour)) row.Cells[10].Value = perHour;
             }
         }
     }
@@ -879,6 +900,7 @@ public sealed partial class MainForm : Form
                     RunDuration(t),
                     RunFlightText(t),
                     level,
+                    RunHourlyText(t),
                 };
                 var brief = (object[])values.Clone();
                 brief[2] = RunPlacesText(t);   // the short copy under the map in the Trip Planner shows just the places
@@ -1816,7 +1838,9 @@ public sealed partial class MainForm : Form
         {
             foreach (DataGridViewRow row in grid.Rows)
             {
-                if (row.Tag is WorkerTrip t) row.Cells[4].Value = RunValueText(t);
+                if (row.Tag is not WorkerTrip t) continue;
+                row.Cells[4].Value = RunValueText(t);
+                row.Cells[10].Value = RunHourlyText(t);
             }
         }
     }
