@@ -233,9 +233,12 @@ public sealed partial class MainForm
         carried.Where(kv => SameName(kv.Key, name)).Sum(kv => kv.Value);
 
     static decimal RewardOf(Mission m, SessionInputs inp) =>
-        m.Multi == 2 ? (inp.Reward2 == 0 ? DefaultReward2 : inp.Reward2)
-        : m.Multi == 3 ? (inp.Reward3 == 0 ? DefaultReward3 : inp.Reward3)
-        : m.Multi == 4 ? inp.Reward4 : 0;
+        m.Multi == 2 ? Or(inp.Reward2, DefaultReward2)
+        : m.Multi == 3 ? Or(inp.Reward3, DefaultReward3)
+        : m.Multi == 4 ? Or(inp.Reward4, DefaultReward4) : 0;
+
+    /// <summary>The payout you typed, or the built-in one when nothing is typed (0).</summary>
+    static decimal Or(decimal typed, decimal builtIn) => typed == 0 ? builtIn : typed;
 
     /// <summary>The value of the batches of a run (reward / stops of each mission), and the part whose mission is completed.</summary>
     static (decimal Total, decimal Confirmed, decimal Failed) RunValues(WorkerTrip t, SessionGroup g, SessionInputs inp)
@@ -435,9 +438,7 @@ public sealed partial class MainForm
             }
 
             var summary = SessionBuilder.Summarize(g);
-            var r2 = inp.Reward2 == 0 ? DefaultReward2 : inp.Reward2;
-            var r3 = inp.Reward3 == 0 ? DefaultReward3 : inp.Reward3;
-            var revenue = g.Missions.Count(m => m.Multi == 2) * r2 + g.Missions.Count(m => m.Multi == 3) * r3 + g.Missions.Count(m => m.Multi == 4) * inp.Reward4
+            var revenue = g.Missions.Sum(m => RewardOf(m, inp))
                 + SessionWaste(g).Sum(m => WasteRewardOf(m, inp));   // the from-Ruin (waste) contracts, by what you typed for them
             if (inp.StartUtc != g.Start || inp.EndUtc != summary.End || inp.MissionCount != g.Missions.Count || inp.Revenue != revenue)
             {
