@@ -357,7 +357,8 @@ public sealed partial class MainForm
         {
             if (c.HeaderText is not ("Worker" or "#" or "Locations")) c.Visible = false;   // the cells are still there (the live time and value update them by index)
         }
-        g.Columns[0].FillWeight = 70;
+        g.Columns[0].FillWeight = 110;   // the worker, next to the long Locations
+        foreach (DataGridViewColumn c in g.Columns) c.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;   // the titles in the middle, also over the left-aligned Locations
         g.ScrollBars = ScrollBars.Vertical;
     }
 
