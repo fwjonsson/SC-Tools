@@ -239,7 +239,7 @@ public sealed partial class MainForm : Form
     }
 
     const int TitleHeight = 30;
-    const int SideWidth = 420;     // the column on the right: the party, the contracts and the times
+    const int SideWidth = 560;     // the column on the right: the party, the contracts and the times
     const int ContractsHeight = 204;   // the contracts table: header and seven rows (hauling 2, 3, 4 stops, waste 2, 3, 4 drop-offs, Total)
     const int RewardRows = 6;          // the rows of the rewards table before its Total row
     const int SummaryHeight = 190;     // the times and totals table: seven rows of 25 with their borders

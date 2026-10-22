@@ -207,7 +207,7 @@ public sealed partial class MainForm
     const int PartyRowHeight = 26;
     const int PartyMaxRows = 6;
     // proportions of the columns (the entry row under the table uses the same ones)
-    const int PartyColMember = 90, PartyColActive = 62, PartyColBatches = 78, PartyColShip = 150, PartyColDrive = 116, PartyColColor = 64;
+    const int PartyColMember = 110, PartyColActive = 64, PartyColBatches = 78, PartyColShip = 170, PartyColDrive = 116, PartyColColor = 60;
     TableLayoutPanel? _partyPanel;
     int _partyHeight = PartyMaxHeight;   // as drawn now, the party table and its entry row
 

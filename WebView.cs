@@ -222,6 +222,19 @@ sealed class LiveWebServer : IDisposable
   .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
   .planleft { flex:0 0 520px; max-width:100%; }
   .planleft h2 { margin-top:14px; }
+  /* a tablet or a smaller window: a smaller map, so the tables of the workers keep all their columns in view */
+  @media (max-width:1600px) {
+    .planleft { flex:0 0 340px; }
+    .plancur table, .planque table { min-width:0; }
+    .plancur th:nth-child(2) { width:96px; } .plancur th:nth-child(3) { width:150px; } .plancur th:nth-child(5) { width:84px; }
+    .plancur th:nth-child(6), .planque th:nth-child(6) { width:72px; } .plancur th:nth-child(7), .planque th:nth-child(7) { width:62px; }
+    .planque th:nth-child(3) { width:52px; } .planque th:nth-child(4) { width:66px; } .planque th:nth-child(5) { width:84px; }
+    .plantables th, .plantables td { padding:4px 5px; }
+  }
+  /* a phone, or a tablet held upright: the map on top, the tables under it, full width */
+  @media (max-width:900px) {
+    .planleft { flex:1 1 100%; }
+  }
   .mapbox { background:var(--cell); border:1px solid var(--line); }
   .status { padding:4px 10px 8px; font-size:14px; font-style:italic; opacity:.7; min-height:1.3em; }
   .status.fade { animation:statusfade .6s ease-out; }
