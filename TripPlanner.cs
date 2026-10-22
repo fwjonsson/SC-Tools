@@ -12,6 +12,7 @@ public sealed class PlannedTrip
     public bool Special;      // his first trip: it continues a run in progress and/or starts at his locked stop
     public string? From;      // a run in progress: the trip continues from this station (null = it starts at Ruin)
     public int Room;          // how many batches this trip can hold (the ship, minus what a run in progress carries already)
+    public double Fill;       // how full the ship is on this trip (0 to 1, with what a run in progress carries already): a trip that is not worth flying yet goes to the back of the queue
     public List<(string Id, int Batches)> Drops = new();   // a from-Ruin contract: this trip leaves Ruin with the load for its FIRST stop (at most one entry) and unloads it there, before the pickups
     public string? DropCargo; // what it is (Waste ...)
     public int DropScu;       // how many SCU the load is (0 = not known)
@@ -21,7 +22,7 @@ public sealed class PlannedTrip
     public PlannedTrip Copy() => new()
     {
         Worker = Worker, Stops = new List<(string Id, int Batches)>(Stops), Distance = Distance, Seconds = Seconds, Locked = Locked,
-        Special = Special, From = From, Room = Room, Drops = new List<(string Id, int Batches)>(Drops), DropCargo = DropCargo, DropScu = DropScu, DropParts = new List<int>(DropParts), DropKeys = new List<string>(DropKeys),
+        Special = Special, From = From, Room = Room, Fill = Fill, Drops = new List<(string Id, int Batches)>(Drops), DropCargo = DropCargo, DropScu = DropScu, DropParts = new List<int>(DropParts), DropKeys = new List<string>(DropKeys),
     };
 }
 
@@ -46,6 +47,9 @@ public static class TripPlanner
 {
     const int Restarts = 30;
     const double TotalWeight = 0.25;   // how much the combined Gm counts next to the longest worker total
+    const double SmallShare = 0.25;    // a stop with less than this part of the ship is a small stop ...
+    const double BigShare = 0.5;       // ... and one with at least this part a big one
+    const double TopUpSeconds = 600;   // a small stop added to a trip that has a big load already counts this much more: it is left for a later trip, where new missions can make it worth the landing
     const double StopSeconds = 240;    // every station a trip lands at costs a landing, the loading and a take-off: that many seconds per stop when comparing plans (not in the times shown), so the plan prefers fewer stops, and full one-stop trips most of all
     const double SyncSeconds = 240;    // unloading cargo from Ruin and loading a pickup at the SAME station saves a landing and a take-off: that many seconds are taken off such a trip when comparing plans (not in the times shown)
 
@@ -406,11 +410,20 @@ public static class TripPlanner
         {
             var drop = dropAt[slot];
             var stops = 0;
+            var small = 0;
+            var cap = (double)Math.Max(1, CapOf(slotWorker[slot]));
+            var loaded = special[slot] ? LoadedOf(startOf[slot]) : 0;   // a run in progress: what is on board already
+            var big = loaded >= cap * BigShare;
             for (var i = 0; i < n; i++)
             {
-                if (row[i] > 0) stops++;
+                if (row[i] <= 0) continue;
+                stops++;
+                var scu = row[i] * wt[i];
+                if (scu >= cap * BigShare) big = true;
+                else if (scu < cap * SmallShare) small++;
             }
-            return SlotCost(row, slot) + stops * StopSeconds - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
+            var topUp = big && stops + (loaded > 0 ? 1 : 0) >= 2 ? small * TopUpSeconds : 0;   // only a small stop next to a big load (or a run that is full already)
+            return SlotCost(row, slot) + stops * StopSeconds + topUp - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
         }
 
         // the number to beat: the longest worker total, plus a part of the combined time (all in seconds)
@@ -732,7 +745,9 @@ public static class TripPlanner
             var row = picks[t];
             var mask = MaskOf(row);
             if (mask == 0 && dropAt[t] < 0) continue;
-            var trip = new PlannedTrip { Worker = workers[slotWorker[t]].Name, Room = slotCapacity[t] };
+            var carried = special[t] ? LoadedOf(startOf[t]) : 0;
+            for (var i = 0; i < n; i++) carried += row[i] * wt[i];
+            var trip = new PlannedTrip { Worker = workers[slotWorker[t]].Name, Room = slotCapacity[t], Fill = carried / (double)Math.Max(1, CapOf(slotWorker[t])) };
             if (special[t])
             {
                 var route = Special(t, mask);
@@ -781,6 +796,7 @@ public static class TripPlanner
         return trips
             .OrderBy(tp => order2.IndexOf(tp.Worker))
             .ThenBy(tp => tp.Special ? 0 : 1)   // his first trip: the one he is flying or heading for
+            .ThenBy(tp => tp.Fill >= BigShare || tp.Stops.Count == 0 ? 0 : 1)   // then the trips that fill at least half the ship; the ones with little in them wait at the back, where new missions can fill them up
             .ThenBy(tp => tp.Stops.Count)   // then the one-stop trips (before everything else, also before a trip with waste that has more stops): while he flies those, missions get done and new ones come in, and the trips with more stops are planned again with them
             .ThenBy(tp => tp.Drops.Count > 0 ? 0 : 1)   // with as many stops, the trip that takes cargo out from Ruin first, so he is rid of it (and can take a new from-Ruin contract) sooner
             .ThenByDescending(tp => tp.Batches)

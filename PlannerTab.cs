@@ -542,6 +542,9 @@ public sealed partial class MainForm
     /// <summary>The SCU of a hauling mission when the game has not written it (its "Deliver 0/N SCU" popup): they are all about 500 SCU, give or take 30.</summary>
     const int AssumedMissionScu = 500;
 
+    /// <summary>How full the plan fills a ship (by the estimated SCU of the batches): the rest is headroom for missions that are bigger than the estimate.</summary>
+    const double PlanFill = 0.9;
+
     /// <summary>The SCU of the batches of one pickup (a guess, see StopScu).</summary>
     double PickupScu(TripPickup p)
     {
@@ -1143,7 +1146,9 @@ public sealed partial class MainForm
         }
         // the ships are filled by SCU: what a batch of every station takes (its open stops on average: mission SCU / stops), and what every ship holds
         var batchScu = remaining.Keys.ToDictionary(id => id, id => Math.Max(1, (int)Math.Round(volume.TryGetValue(id, out var v) && v.Stops > 0 ? v.Scu / v.Stops : AssumedMissionScu / 3.0)));
-        var shipScu = crew.Where(c => c.Capacity > 0).ToDictionary(c => c.Name, c => ShipOf(c.Name)?.Total ?? c.Capacity * 232);   // no ship set: his batches times a third of a C2
+        // what every ship holds, less some headroom: the SCU of a batch is an estimate (missions are 500 SCU give or take, and not split evenly over their stations),
+        // so the plan fills a ship to 90%, not to the last SCU (a C2: 742 of 824). No ship set: his batches times a third of a C2.
+        var shipScu = crew.Where(c => c.Capacity > 0).ToDictionary(c => c.Name, c => (int)((ShipOf(c.Name)?.Total ?? c.Capacity * 232) * PlanFill));
         var core = CoreFor(crew, remaining, unknown, limits, chunks, batchScu, shipScu);
         var dropTrips = core.Trips;
         // the waste only rides along on the pickup trips: a load that none of them can take along waits (the note says so)
