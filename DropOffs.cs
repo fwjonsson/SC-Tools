@@ -30,11 +30,11 @@ public sealed partial class MainForm
         return string.Join(" + ", parts);
     }
 
-    /// <summary>"4×32 + 16 + 2 + 1" (just the containers, the total is in the game), or an empty text when the SCU is not known.</summary>
-    internal static string ScuText(int scu) => scu <= 0 ? "" : ContainersText(scu);
+    /// <summary>"147 SCU: 4×32 + 16 + 2 + 1", or an empty text when the SCU is not known.</summary>
+    internal static string ScuText(int scu) => scu <= 0 ? "" : scu + " SCU: " + ContainersText(scu);
 
     /// <summary>
-    /// The Cargo cell of a load that goes out from Ruin: the SCU of every drop-off in it with the containers it is cut into ("4×32 + 24"), one part for
+    /// The Cargo cell of a load that goes out from Ruin: the SCU of every drop-off in it with the containers it is cut into ("152 SCU: 4×32 + 24"), one part for
     /// each drop-off; "? SCU" when the game never said how big the load is.
     /// </summary>
     internal static string LoadText(IEnumerable<int> parts)
