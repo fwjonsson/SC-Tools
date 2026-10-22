@@ -230,7 +230,7 @@ public sealed partial class MainForm : Form
         runs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         runs.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));
         runs.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        runs.Controls.Add(SectionTitle("Cargo Runs"), 0, 0);
+        runs.Controls.Add(RunsTitle(), 0, 0);   // with a button that opens every run in a window of its own
 
         BuildTripGrid();
         root.Controls.Add(main, 0, 0);
