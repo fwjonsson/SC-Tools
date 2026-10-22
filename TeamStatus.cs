@@ -486,8 +486,8 @@ public sealed partial class MainForm
         {
             SetStyle(ControlStyles.SupportsTransparentBackColor | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
             BackColor = Color.Transparent;
-            Font = new Font("Segoe UI", 9f, FontStyle.Italic);
-            Height = 26;
+            Font = new Font("Segoe UI", 11f, FontStyle.Italic);
+            Height = 30;
             TabStop = false;
             _fade.Tick += (_, _) => Step();
         }
