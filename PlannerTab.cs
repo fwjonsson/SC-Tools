@@ -1287,7 +1287,11 @@ public sealed partial class MainForm
         {
             _planBody.ResumeLayout(true);
         }
-        if (IsHandleCreated) BeginInvoke(new Action(RefitPlanGrids));   // the page is on screen now: the rows are measured at the widths they really have
+        if (IsHandleCreated) BeginInvoke(new Action(() =>
+        {
+            RefitPlanGrids();         // the page is on screen now: the rows are measured at the widths they really have
+            _fitPlanPage?.Invoke();   // and the map gets its size once more, now that the new page is laid out
+        }));
     }
 
     /// <summary>Measures the rows of the tables of the Trip Planner again (a row with a long route is as high as its text needs at the width the table has).</summary>
