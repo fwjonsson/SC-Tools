@@ -1400,10 +1400,14 @@ public sealed partial class MainForm
                 var avail = page != null ? page.ClientSize.Height - page.Padding.Vertical - note : t.ClientSize.Height;
                 var side = Math.Max(320, Math.Min((int)(t.ClientSize.Width * 0.4), avail - t.Padding.Vertical - status.Height - frame.Padding.Vertical - TitleHeight - PlanRunsMin));
                 var column = side + frame.Padding.Horizontal + left.Padding.Horizontal;
-                if ((int)t.ColumnStyles[0].Width != column) t.ColumnStyles[0].Width = column;
-                if (map.Height != side) map.Height = side;
+                if ((int)t.ColumnStyles[0].Width != column)
+                {
+                    t.ColumnStyles[0].Width = column;
+                    t.PerformLayout();   // the column gets its new width now, not later
+                }
+                Square();   // the map is as high as the column really is wide (never set from the wanted size: a column that had not followed yet left it tall and squeezed)
                 var blocks = host.Controls.Cast<Control>().Sum(c => c.Height + c.Margin.Vertical);
-                var leftNeed = side + status.Height + frame.Padding.Vertical + TitleHeight + PlanRunsMin;
+                var leftNeed = map.Height + status.Height + frame.Padding.Vertical + TitleHeight + PlanRunsMin;
                 var need = Math.Max(avail, Math.Max(leftNeed, blocks) + t.Padding.Vertical + 4);
                 if (page != null && Math.Abs(page.RowStyles[1].Height - need) > 0.5f)
                 {
