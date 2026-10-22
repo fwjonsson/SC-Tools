@@ -208,15 +208,16 @@ sealed class LiveWebServer : IDisposable
   .plancur th:nth-child(1) { width:36px; } .plancur th:nth-child(2) { width:120px; } .plancur th:nth-child(3) { width:200px; } .plancur th:nth-child(5) { width:80px; }
   .plancur th:nth-child(6) { width:74px; } .plancur th:nth-child(7) { width:68px; }
   .plancur td:nth-child(3), .plancur td:nth-child(4) { white-space:normal; }
-  /* Queued routes: a narrow table, #, Stops (how many), Batches, Value, Distance, In flight */
-  .planque th:nth-child(1) { width:36px; } .planque th:nth-child(2) { width:64px; } .planque th:nth-child(3) { width:64px; } .planque th:nth-child(4) { width:80px; }
-  .planque th:nth-child(5) { width:74px; } .planque th:nth-child(6) { width:68px; }
-  /* every worker: the Current Route, and right of it the narrow Queued routes (under it when the window is too narrow) */
-  .planpair { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; }
-  .plancur { flex:1 1 640px; min-width:0; }
-  .planque { flex:0 0 400px; }
-  .plancur table { min-width:640px; }
-  .planque table { width:400px; }
+  /* Queued routes: #, Route (takes the rest), Stops (how many), Batches, Value, Distance, In flight */
+  .planque th:nth-child(1) { width:36px; } .planque th:nth-child(3) { width:64px; } .planque th:nth-child(4) { width:64px; } .planque th:nth-child(5) { width:80px; }
+  .planque th:nth-child(6) { width:74px; } .planque th:nth-child(7) { width:68px; }
+  .planque td:nth-child(2) { white-space:normal; }
+  /* every worker in his own frame: the Current Route, and the Queued routes under it */
+  .planworker { background:var(--cell); border:1px solid var(--line); padding:4px 10px 10px; margin-bottom:12px; }
+  .planworker h2 { margin-top:6px; }
+  .planpair { display:flex; flex-direction:column; gap:4px; }
+  .plancur, .planque { min-width:0; }
+  .plancur table, .planque table { min-width:640px; }
   .planpair h3 { margin:6px 0 4px; }
   .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
   .planleft { flex:0 0 520px; max-width:100%; }
@@ -483,9 +484,10 @@ function renderPlanner() {
     mapBox.appendChild(st);
   }
   p.workers.forEach(function (w) {
-    const h = document.createElement('h2'); h.textContent = w.title; tables.appendChild(h);
+    const frame = document.createElement('div'); frame.className = 'planworker'; tables.appendChild(frame);   // every worker in his own frame
+    const h = document.createElement('h2'); h.textContent = w.title; frame.appendChild(h);
     if (!w.current) return;   // nothing to do for him
-    const pair = document.createElement('div'); pair.className = 'planpair'; tables.appendChild(pair);
+    const pair = document.createElement('div'); pair.className = 'planpair'; frame.appendChild(pair);
     [['plancur', 'Current Route', w.current], ['planque', 'Queued routes', w.queued]].forEach(function (x) {
       const col = document.createElement('div'); col.className = x[0]; pair.appendChild(col);
       const t = document.createElement('h3'); t.textContent = x[1]; col.appendChild(t);
@@ -807,6 +809,7 @@ public sealed partial class MainForm
         object QueuedHeaders() => new[]
         {
             new { text = "#", align = "center" },
+            new { text = "Route", align = "left" },
             new { text = "Stops", align = "center" },
             new { text = "Batches", align = "center" },
             new { text = "Value", align = "right" },
@@ -843,7 +846,7 @@ public sealed partial class MainForm
         object QueuedGrid(List<PlanRow> queued)
         {
             var rows = new List<object>();
-            if (queued.Count == 0) rows.Add(PlainRow(new[] { "", "none", "", "", "", "" }, cell, WebColor(Theme.Muted), false));
+            if (queued.Count == 0) rows.Add(PlainRow(new[] { "", "none", "", "", "", "", "" }, cell, WebColor(Theme.Muted), false));
             foreach (var r in queued) rows.Add(PlainRow(QueuedCells(r), RowColor(r) is { } c ? WebColor(c) : cell, text, false));
             if (queued.Count > 0) rows.Add(PlainRow(PlanTotals(queued), calc, text, true));
             return new { headers = QueuedHeaders(), rows };

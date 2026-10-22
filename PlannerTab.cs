@@ -639,6 +639,7 @@ public sealed partial class MainForm
         return new[]
         {
             "\u03a3",
+            "",
             stops.ToString(CultureInfo.InvariantCulture),
             rows.Sum(r => r.BatchCount).ToString(CultureInfo.InvariantCulture),
             ValueText(rows.Sum(r => r.Value)),
@@ -692,6 +693,7 @@ public sealed partial class MainForm
     static string[] QueuedCells(PlanRow r) => new[]
     {
         RowLabel(r),
+        r.Route,
         r.Stops.Count.ToString(CultureInfo.InvariantCulture),
         r.BatchCount.ToString(CultureInfo.InvariantCulture),
         ValueText(r.Value),
@@ -1456,7 +1458,7 @@ public sealed partial class MainForm
         if (host.AutoScrollPosition.X != 0) host.AutoScrollPosition = new Point(0, -host.AutoScrollPosition.Y);
     }
 
-    /// <summary>The frame round the map and the team status of the Trip Planner (like the one on the web page): the colour of the tables with a thin line.</summary>
+    /// <summary>The frame round the map and the team status, and round every worker, in the Trip Planner (like on the web page): the colour of the tables with a thin line.</summary>
     sealed class MapFrame : Panel
     {
         public MapFrame() => SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
@@ -1485,7 +1487,8 @@ public sealed partial class MainForm
     /// <summary>A title and the two tables of one crew member: the Current Route, and right of it the narrow Queued routes (under it when the window is too narrow for both).</summary>
     Control PlanBlock(PlanWorkerView w, (int Current, int Queued, int Cargo) widths)
     {
-        var block = new Panel { Margin = new Padding(0, 0, 0, 14) };
+        // every worker in his own frame (like the map), so it is clear where one ends and the next begins
+        var block = new MapFrame { Margin = new Padding(0, 0, 0, 12), Padding = new Padding(10, 4, 10, 10), BackColor = Theme.Cell };
         // the title: his name, and right of it where he is now (his Current location: the logs keep it up to date, and here it can be set by hand)
         var label = new Panel { Dock = DockStyle.Top, Height = 34 };
         var titleFont = new Font("Segoe UI", 11f, FontStyle.Bold);
@@ -1533,8 +1536,7 @@ public sealed partial class MainForm
             pair.Controls.Add(currentBox);
             pair.Controls.Add(queuedBox);
 
-            // The Current Route takes the room, and the Queued routes (a narrow table: just the numbers of every trip) sit right of it; when the window is too
-            // narrow for both, the Queued routes go under the Current Route.
+            // The Current Route on top and the Queued routes under it, both as wide as the frame (so their columns line up).
             var fitting = false;
             void FitPair()
             {
@@ -1542,19 +1544,18 @@ public sealed partial class MainForm
                 fitting = true;
                 try
                 {
-                    var minCurrent = PlanCurrentFixed(widths.Current) + PlanMinText;
-                    var room = Math.Max(minCurrent, pair.ClientSize.Width);
-                    var side = room >= minCurrent + PlanGap + PlanQueuedWidth;
-                    currentBox.Width = side ? room - PlanGap - PlanQueuedWidth : room;
-                    queuedBox.Width = PlanQueuedWidth;
+                    var room = Math.Max(PlanCurrentFixed(widths.Current) + PlanMinText, pair.ClientSize.Width);
+                    currentBox.Width = room;
+                    queuedBox.Width = room;
                     // the tables are as high as their rows (a long text takes two lines), the boxes follow them, and the block follows the boxes
                     currentBox.Height = PlanTitleHeight + currentGrid.Height;
                     queuedBox.Height = PlanTitleHeight + queuedGrid.Height;
                     currentBox.Location = new Point(0, 0);
-                    queuedBox.Location = side ? new Point(currentBox.Width + PlanGap, 0) : new Point(0, currentBox.Height + PlanGap);
-                    var tall = side ? Math.Max(currentBox.Height, queuedBox.Height) : queuedBox.Bottom;
+                    queuedBox.Location = new Point(0, currentBox.Height + PlanGap);
+                    var tall = queuedBox.Bottom;
                     if (pair.Height != tall) pair.Height = tall;
-                    if (block.Height != label.Height + tall) block.Height = label.Height + tall;
+                    var blockHeight = label.Height + tall + block.Padding.Vertical;
+                    if (block.Height != blockHeight) block.Height = blockHeight;
                 }
                 finally
                 {
@@ -1570,14 +1571,14 @@ public sealed partial class MainForm
         }
 
         block.Controls.Add(label);
-        block.Height = height;
+        block.Height = height + block.Padding.Vertical;
         return block;
     }
 
     const int PlanTitleHeight = 26;
     const int PlanMinText = 110;                            // the text column of a table (Cargo, Route) is never narrower than this
-    const int PlanQueuedWidth = 36 + 64 + 64 + 80 + 74 + 68 + 3;   // the Queued routes: #, Stops, Batches, Value, Distance, In flight (and the border)
-    const int PlanGap = 12;                                 // between the Current Route and the Queued routes
+    const int PlanQueuedFixed = 36 + 64 + 64 + 80 + 74 + 68;  // the Queued routes without its Route column: #, Stops, Batches, Value, Distance, In flight
+    const int PlanGap = 8;                                  // between the Current Route and the Queued routes under it
     const int PlanRunsMin = 150;                            // Cargo Runs under the map is never lower than this (the page scrolls instead)
 
     /// <summary>The Current Route without its Cargo column (the one that takes the room that is left): #, Stops, Drop/Collect, Value, Distance, In flight.</summary>
@@ -1649,8 +1650,9 @@ public sealed partial class MainForm
         }
         else
         {
-            text = Col("Stops", 64, true);   // how many stops the trip has (the route is in the tooltip and on the map)
+            text = Col("Route", textWidth, true, DataGridViewContentAlignment.MiddleLeft);   // the stations of the trip in order (takes the room that is left)
             grid.Columns.Add(text);
+            grid.Columns.Add(Col("Stops", 64, true));   // how many stops it has
             grid.Columns.Add(Col("Batches", 64, true));
         }
         grid.Columns.Add(Col("Value", 80, true, DataGridViewContentAlignment.MiddleRight));
@@ -1659,12 +1661,12 @@ public sealed partial class MainForm
         foreach (DataGridViewColumn c in grid.Columns)
         {
             c.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-            c.MinimumWidth = current && c == text ? PlanMinText : 30;
+            c.MinimumWidth = c == text ? PlanMinText : 30;
         }
         text.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
         if (action != null) action.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
-        grid.TextColumn = current ? text : null;   // the Queued routes have no column that stretches
-        grid.Width = current ? PlanCurrentFixed(textWidth) + cargoWidth : PlanQueuedWidth;   // the width it is expected to get, so the first measure of its rows is about right
+        grid.TextColumn = text;
+        grid.Width = current ? PlanCurrentFixed(textWidth) + cargoWidth : PlanQueuedFixed + textWidth;   // the width it is expected to get, so the first measure of its rows is about right
         return grid;
     }
 
@@ -1704,16 +1706,14 @@ public sealed partial class MainForm
     PlanGridView QueuedRoutesGrid(List<PlanRow> queued, int textWidth)
     {
         var grid = NewPlanGrid(false, textWidth, 0);
-        grid.ShowCellToolTips = true;   // the route of a trip is in the tooltip of its Stops
         if (queued.Count == 0)
         {
-            var none = grid.Rows[grid.Rows.Add("", "none", "", "", "", "")];
+            var none = grid.Rows[grid.Rows.Add("", "none", "", "", "", "", "")];
             none.DefaultCellStyle.ForeColor = Theme.Muted;
         }
         foreach (var r in queued)
         {
             var row = grid.Rows[grid.Rows.Add(QueuedCells(r))];
-            foreach (DataGridViewCell cell in row.Cells) cell.ToolTipText = r.Route;
             if (RowColor(r) is { } color) row.DefaultCellStyle.BackColor = color;
         }
         if (queued.Count > 0) AddTotalRow(grid, PlanTotals(queued));
