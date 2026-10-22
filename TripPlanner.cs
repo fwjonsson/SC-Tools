@@ -51,8 +51,12 @@ public static class TripPlanner
     const double FullShare = 0.75;     // ... and the ship is nearly full when the rest of the trip fills this part of it
     const double BigShare = 0.5;       // a trip that fills at least this part of the ship is worth flying now (the queue order)
     const double TopUpSeconds = 600;   // a small stop added to a ship that is nearly full already counts this much more: it is left for a later trip, where new missions can make it worth the landing (a half full ship does fill up on the way home)
-    const double StopSeconds = 240;    // every station a trip lands at costs a landing, the loading and a take-off: that many seconds per stop when comparing plans (not in the times shown), so the plan prefers fewer stops, and full one-stop trips most of all
-    const double SyncSeconds = 240;    // unloading cargo from Ruin and loading a pickup at the SAME station saves a landing and a take-off: that many seconds are taken off such a trip when comparing plans (not in the times shown)
+    // What a plan costs is mostly its LANDINGS, not its flying: set the destination, fly in, ask for a hangar, land, leave the seat, load, back in the seat,
+    // ask to take off. That is the work. Quantum travel is close to free (with two accounts the other one is played meanwhile), so it only counts for a part.
+    const double StopSeconds = 600;    // every station a trip lands at: that many seconds when comparing plans (not in the times shown), so every landing has to be worth it
+    const double FlightWeight = 0.25;  // the part of the flying time that counts when comparing plans (the times shown are the real ones)
+    const double SyncSeconds = StopSeconds;   // delivering cargo from Ruin where the trip picks up anyway: one landing does both, so that is a landing saved
+    const double WasteWaitSeconds = StopSeconds;   // picking up at a station with waste waiting for it, on a trip that cannot take the waste along: the waste then needs a landing of its own later (or waits for ever), so that pickup is left for a trip from Ruin that brings the waste
 
     /// <summary>The cheapest way from a start through these stations and back to Ruin (exact for up to 12 stations): the cost in Gm and the order (indexes into ids).</summary>
     internal static (double Cost, int[] Order) Cheapest(string start, IReadOnlyList<string> ids)
@@ -287,6 +291,12 @@ public static class TripPlanner
         var dropAt = new int[slots];   // the load (index into chunks) a trip slot takes out from Ruin, -1 = none
         Array.Fill(dropAt, -1);
         // a trip slot takes a load when the worker can have it and the ship holds it; a slot that continues a run (or starts elsewhere) cannot, but a locked first stop at the very station of the load can (the load is unloaded there, then the locked batches are taken)
+        var chunksAt = new List<int>?[n];   // the loads from Ruin that go to each station
+        for (var c = 0; c < chunks.Count; c++)
+        {
+            if (chunkStation[c] < 0) continue;
+            (chunksAt[chunkStation[c]] ??= new List<int>()).Add(c);
+        }
         bool CanDrop(int chunk, int slot) =>
             ((chunkMask[chunk] >> slotWorker[slot]) & 1) != 0 && (scuMode ? chunks[chunk].Scu : chunks[chunk].Batches) <= slotCapacity[slot]
             && (!special[slot] || (startOf[slot]!.From == null && startOf[slot]!.Loaded <= 0 && reservedIdx[slot] == chunkStation[chunk]));
@@ -427,7 +437,15 @@ public static class TripPlanner
                 var scu = row[i] * wt[i];
                 if (scu < cap * SmallShare && carried - scu >= cap * FullShare) topUp += TopUpSeconds;
             }
-            return SlotCost(row, slot) + stops * StopSeconds + topUp - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
+            // a pickup at a station that has waste waiting, on a trip that could never take that waste along (a run in progress, a worker without that
+            // mission, a ship too small): the landing there is wasted for the waste
+            double wasteWait = 0;
+            for (var i = 0; i < n; i++)
+            {
+                if (row[i] <= 0 || chunksAt[i] == null) continue;
+                if (!chunksAt[i]!.Any(c => CanDrop(c, slot))) wasteWait += WasteWaitSeconds;
+            }
+            return SlotCost(row, slot) * FlightWeight + stops * StopSeconds + topUp + wasteWait - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
         }
 
         // the number to beat: the longest worker total, plus a part of the combined time (all in seconds)
