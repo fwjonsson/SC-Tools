@@ -497,7 +497,7 @@ function renderPlanner() {
       table(box, x[2]);
     });
   });
-  // the short copy of Cargo Runs under the map: #, Worker and the value (the Session tab has the whole table)
+  // the short copy of Cargo Runs under the map: #, Worker, Value, Started, Completed, Time and Flight time (the Session tab has the whole table)
   section(left, 'h2', 'Cargo Runs', last.planRuns || last.runs);
 }
 
@@ -697,7 +697,7 @@ public sealed partial class MainForm
             finished = WebGrid(_doneGrid),
             leaders = WebGrid(_statsGrid),
             runs = WebGrid(_tripGrid),
-            planRuns = WebGrid(_planRunsGrid),   // the short copy under the map of the Trip Planner (#, Worker, Value)
+            planRuns = WebGrid(_planRunsGrid),   // the short copy under the map of the Trip Planner (#, Worker, Value, Started, Completed, Time, Flight time)
             runsLive = _tripGrid.Rows.Cast<DataGridViewRow>().Where(r => !r.IsNewRow)
                 .Select(r => r.Tag is WorkerTrip t && !t.End.HasValue && (Convert.ToString(r.Cells[7].Value) ?? "").Length > 0).ToArray(),   // runs on the way: the page counts their Run Time up
             planner = WebPlan(GetPlan()),

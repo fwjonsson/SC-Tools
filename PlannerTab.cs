@@ -331,7 +331,8 @@ public sealed partial class MainForm
     }
 
     /// <summary>
-    /// A short copy of Cargo Runs for the Trip Planner tab (under the map): only the number, the worker and the value of the run, so it can be thin. The Session tab has the whole table.
+    /// A short copy of Cargo Runs for the Trip Planner tab (under the map): the number, the worker, the value, when it started and was completed, its time and flight time
+    /// (not the locations, the batches or the lost cargo), so it fits under the map. The Session tab has the whole table.
     /// It has the same cells as that one (the other columns are hidden), and it cannot be edited.
     /// </summary>
     void BuildPlanRunsGrid()
@@ -359,7 +360,7 @@ public sealed partial class MainForm
         FitColumns(g);
         foreach (DataGridViewColumn c in g.Columns)
         {
-            if (c.HeaderText is not ("Worker" or "#" or "Value")) c.Visible = false;   // the cells are still there (the live time and value update them by index)
+            if (c.HeaderText is not ("Worker" or "#" or "Value" or "Started" or "Completed" or "Time" or "Flight time")) c.Visible = false;   // not the locations, the batches or the lost cargo   // the cells are still there (the live time and value update them by index)
         }
         g.Columns[0].FillWeight = 110;   // the worker and what his run is worth
         foreach (DataGridViewColumn c in g.Columns) c.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;   // the titles in the middle, also over the left-aligned Locations
