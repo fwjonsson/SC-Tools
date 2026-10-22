@@ -43,9 +43,12 @@ public sealed partial class MainForm
         return all.Any(p => p > 0) ? string.Join(" | ", all.Select(p => p > 0 ? ScuText(p) : "? SCU")) : "? SCU";
     }
 
-    /// <summary>What a from-Ruin contract pays: the From Ruin rows of the rewards table on the Session tab, by its number of drop-offs (0 = not typed).</summary>
+    /// <summary>What a from-Ruin contract pays: the From Ruin rows of the rewards table on the Session tab, by its number of drop-offs (nothing typed = the built-in payout).</summary>
     static decimal WasteRewardOf(Mission m, SessionInputs? inp) =>
-        inp == null ? 0 : m.OutDrops == 2 ? inp.WasteReward2 : m.OutDrops == 3 ? inp.WasteReward3 : m.OutDrops == 4 ? inp.WasteReward4 : 0;
+        inp == null ? 0
+        : m.OutDrops == 2 ? Or(inp.WasteReward2, DefaultReward2)   // the same payouts as the to-Ruin contracts with as many stops
+        : m.OutDrops == 3 ? Or(inp.WasteReward3, DefaultReward3)
+        : m.OutDrops == 4 ? Or(inp.WasteReward4, DefaultReward4) : 0;
 
     /// <summary>
     /// The value of from-Ruin drop-offs ("mission id|objective id"): every drop-off is worth the reward of its contract split over its drop-offs, like a pickup

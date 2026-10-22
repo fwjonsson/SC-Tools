@@ -9,6 +9,8 @@ public sealed partial class MainForm : Form
     static Color CalcBlue => Theme.Calc;
     const decimal DefaultReward2 = 1268250m;   // payout of a 2 stop mission
     const decimal DefaultReward3 = 1691000m;   // payout of a 3 stop mission
+    const decimal DefaultReward4 = 2113750m;   // payout of a 4 stop mission (Master rank)
+    // a from-Ruin contract pays the same as a to-Ruin one with as many stops (2, 3 or 4 drop-offs)
     static Color LostRed => Theme.Red;
     static Color DoneGreen => Theme.Green;
     static Color LostOrange => Theme.Orange;
@@ -1594,10 +1596,14 @@ public sealed partial class MainForm : Form
             _rewards.Rows.Clear();
             if (_inputs.Reward2 == 0) _inputs.Reward2 = DefaultReward2;
             if (_inputs.Reward3 == 0) _inputs.Reward3 = DefaultReward3;
+            if (_inputs.Reward4 == 0) _inputs.Reward4 = DefaultReward4;
+            if (_inputs.WasteReward2 == 0) _inputs.WasteReward2 = DefaultReward2;
+            if (_inputs.WasteReward3 == 0) _inputs.WasteReward3 = DefaultReward3;
+            if (_inputs.WasteReward4 == 0) _inputs.WasteReward4 = DefaultReward4;
             var accepted = _current.Missions;   // every accepted mission of the session (abandoned ones are already left out)
             _rewards.Rows.Add("2 To Ruin", _inputs.Reward2.ToString("N0"), accepted.Count(m => m.Multi == 2), "");
             _rewards.Rows.Add("3 To Ruin", _inputs.Reward3.ToString("N0"), accepted.Count(m => m.Multi == 3), "");
-            _rewards.Rows.Add("4 To Ruin", _inputs.Reward4.ToString("N0"), accepted.Count(m => m.Multi == 4), "");   // Master rank: type the payout
+            _rewards.Rows.Add("4 To Ruin", _inputs.Reward4.ToString("N0"), accepted.Count(m => m.Multi == 4), "");   // Master rank
             // the from-Ruin (waste) contracts: the log does not say what they pay either, so you type it once, by the number of drop-offs
             var waste = SessionWaste(_current);
             _rewards.Rows.Add("2 From Ruin", _inputs.WasteReward2.ToString("N0"), waste.Count(m => m.OutDrops == 2), "");
@@ -1768,7 +1774,7 @@ public sealed partial class MainForm : Form
     decimal StopValue(LocationRow r)
     {
         if (_inputs == null) return 0;
-        return r.Stops2 * _inputs.Reward2 / 2m + r.Stops3 * _inputs.Reward3 / 3m + r.Stops4 * _inputs.Reward4 / 4m;
+        return r.Stops2 * Or(_inputs.Reward2, DefaultReward2) / 2m + r.Stops3 * Or(_inputs.Reward3, DefaultReward3) / 3m + r.Stops4 * Or(_inputs.Reward4, DefaultReward4) / 4m;
     }
 
     /// <summary>Gm from Ruin Station to this pickup location, empty when the distance table does not know it.</summary>
