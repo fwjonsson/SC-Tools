@@ -486,7 +486,7 @@ function renderPlanner() {
   p.workers.forEach(function (w) {
     const frame = document.createElement('div'); frame.className = 'planworker'; tables.appendChild(frame);   // every worker in his own frame
     const h = document.createElement('h2'); frame.appendChild(h);
-    const nm = document.createElement('span'); nm.textContent = w.name || ''; if (w.nameColor) nm.style.color = w.nameColor; h.appendChild(nm);   // his name in capitals, in his colour
+    const nm = document.createElement('span'); nm.textContent = w.heading || w.name || ''; if (w.color) nm.style.color = w.color; h.appendChild(nm);   // his name in capitals, in his colour
     h.appendChild(document.createTextNode(w.title));
     if (!w.current) return;   // nothing to do for him
     const pair = document.createElement('div'); pair.className = 'planpair'; frame.appendChild(pair);
@@ -858,8 +858,7 @@ public sealed partial class MainForm
         {
             name = w.Name,
             color = WebColor(w.Color),
-            name = PlanTitle(w),
-            nameColor = WebColor(w.Color),
+            heading = PlanTitle(w),   // his name in capitals, shown in his colour
             title = "   \u2013   Current location: " + PyroDistances.NameOf(w.LocationId) + (w.LocationByHand ? " (set by hand)" : ""),   // where he is now: the logs keep it up to date
             current = w.Rows.FirstOrDefault(r => !r.Hidden) is { } first ? CurrentGrid(w, first) : null,
             queued = w.Rows.Any(r => !r.Hidden) ? QueuedGrid(w.Rows.Where(r => !r.Hidden).Skip(1).ToList()) : null,
