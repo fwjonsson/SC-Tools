@@ -209,7 +209,7 @@ sealed class LiveWebServer : IDisposable
   .plancur th:nth-child(6) { width:74px; } .plancur th:nth-child(7) { width:68px; }
   .plancur td:nth-child(3), .plancur td:nth-child(4) { white-space:normal; }
   /* Queued routes: #, Route (takes the rest), Stops (how many), Batches, Value, Distance, In flight */
-  .planque th:nth-child(1) { width:36px; } .planque th:nth-child(3) { width:64px; } .planque th:nth-child(4) { width:64px; } .planque th:nth-child(5) { width:80px; }
+  .planque th:nth-child(1) { width:36px; } .planque th:nth-child(3) { width:64px; } .planque th:nth-child(4) { width:84px; } .planque th:nth-child(5) { width:80px; }
   .planque th:nth-child(6) { width:74px; } .planque th:nth-child(7) { width:68px; }
   .planque td:nth-child(2) { white-space:normal; }
   /* every worker in his own frame: the Current Route, and the Queued routes under it */

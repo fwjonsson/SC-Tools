@@ -62,7 +62,7 @@ public sealed partial class MainForm
     {
         public string Id = "";           // station id ("" = a place that is not in the distance table)
         public string Name = "";
-        public List<string> Actions = new();   // Collect ×2, Drop Waste, Collected ×1 ✓ ... (the Drop/Collect column)
+        public List<string> Actions = new();   // Collect, Drop Waste, Collected ✓ ... (the Drop/Collect column; how many batches is in the Cargo column)
         public bool Stop = true;         // false: the start or the end at Ruin (or where he starts from): not counted as a stop
         public bool Done;                // collected already (it is on board)
         public bool Busy;                // done here, but he is still at it (Collecting, Dropping: he has not set his next destination yet)
@@ -74,7 +74,8 @@ public sealed partial class MainForm
         public List<string> Unknown = new();   // drop-offs on this line whose SCU nobody knows ("mission id|objective id"): clicking the Cargo cell lets you type it
         public double Scu;               // SCU picked up here: a guess, the log only knows the SCU of a whole mission, so every stop of it counts as an equal share
         public string ActionText => string.Join(" | ", Actions);
-        public string CargoText => string.Join(" | ", ShowPickupScu && Scu > 0 ? Loads.Append(ScuGuess(Scu)) : Loads);
+        public int Count;                // the batches picked up here, or handed in here at Ruin: "3 Batches" in the Cargo column
+        public string CargoText => string.Join(" | ", (ShowPickupScu && Scu > 0 ? Loads.Append(ScuGuess(Scu)) : Loads).Concat(Count > 0 ? new[] { BatchText(Count) } : Array.Empty<string>()));
     }
 
     /// <summary>What was done at one line of a run in progress (for the text of its Drop/Collect column).</summary>
@@ -443,10 +444,11 @@ public sealed partial class MainForm
                 actions.Add("Drop " + cargo);
                 dropShown = true;
             }
-            if (batches > 0) actions.Add("Collect \u00d7" + batches);
-            Add(id, PyroDistances.NameOf(id), true, actions, batches, batches * perBatch(id), batches * scuPerBatch(id));   // a drop-off here: its SCU is on the line where it is collected
+            if (batches > 0) actions.Add("Collect");
+            Add(id, PyroDistances.NameOf(id), true, actions, batches, batches * perBatch(id), batches * scuPerBatch(id)).Count = batches;   // a drop-off here: its SCU is on the line where it is collected
         }
-        var home = Add(PyroDistances.Ruin, "Ruin", false, trip.Batches > 0 ? new[] { "Drop \u00d7" + trip.Batches } : Array.Empty<string>());
+        var home = Add(PyroDistances.Ruin, "Ruin", false, trip.Batches > 0 ? new[] { "Drop" } : Array.Empty<string>());
+        home.Count = trip.Batches;
         var handedIn = lines.Sum(l => l.Scu);
         if (ShowPickupScu && handedIn > 0) home.Loads.Add(ScuGuess(handedIn));   // everything picked up is handed in here
         return lines;
@@ -458,7 +460,8 @@ public sealed partial class MainForm
         var last = lines.Count > 0 ? lines[^1] : null;
         if (last != null && last.Id == id)
         {
-            last.Actions.Add("Collect \u00d7" + batches);
+            last.Actions.Add("Collect");
+            last.Count += batches;
             last.Batches += batches;
             last.Value += batches * perBatch;
             last.Scu += batches * scuPerBatch;
@@ -467,7 +470,8 @@ public sealed partial class MainForm
         var prev = lines.LastOrDefault(l => l.Id.Length > 0)?.Id ?? PyroDistances.Ruin;
         var gm = PyroDistances.Between(prev, id);
         var line = new StopLine { Id = id, Name = PyroDistances.NameOf(id), Batches = batches, Value = batches * perBatch, Scu = batches * scuPerBatch, Gm = gm, Seconds = gm > 0 ? QtOf(worker).Seconds(gm) : 0 };
-        line.Actions.Add("Collect \u00d7" + batches);
+        line.Actions.Add("Collect");
+        line.Count = batches;
         lines.Add(line);
     }
 
@@ -477,7 +481,8 @@ public sealed partial class MainForm
         var prev = lines.LastOrDefault(l => l.Id.Length > 0)?.Id ?? PyroDistances.Ruin;
         var gm = PyroDistances.Between(prev, PyroDistances.Ruin);
         var line = new StopLine { Id = PyroDistances.Ruin, Name = "Ruin", Stop = false, Gm = gm, Seconds = gm > 0 ? QtOf(worker).Seconds(gm) : 0 };
-        if (batches > 0) line.Actions.Add("Drop \u00d7" + batches);
+        if (batches > 0) line.Actions.Add("Drop");
+        line.Count = batches;
         var handedIn = lines.Sum(l => l.Scu);
         if (ShowPickupScu && handedIn > 0) line.Loads.Add(ScuGuess(handedIn));   // everything picked up is handed in here
         lines.Add(line);
@@ -545,6 +550,9 @@ public sealed partial class MainForm
     /// number of batches at a station is all that matters; the code stays for a later version.
     /// </summary>
     const bool ShowPickupScu = false;
+
+    /// <summary>How many batches, for the Cargo column: "1 Batch", "3 Batches".</summary>
+    static string BatchText(int n) => n + (n == 1 ? " Batch" : " Batches");
 
     /// <summary>A guessed amount of SCU as containers, like "~12×32 + 8".</summary>
     static string ScuGuess(double scu) => Math.Round(scu) < 1 ? "? SCU" : "~" + ContainersText((int)Math.Round(scu));
@@ -683,8 +691,8 @@ public sealed partial class MainForm
         {
             "",
             "Total: " + stops + (stops == 1 ? " stop" : " stops"),
-            batches > 0 ? "Collect \u00d7" + batches : "",
-            ShowPickupScu && scu > 0 ? ScuGuess(scu) : "",
+            batches > 0 ? "Collect" : "",
+            batches > 0 ? BatchText(batches) : ShowPickupScu && scu > 0 ? ScuGuess(scu) : "",
             ValueText(lines.Sum(l => l.Value)),
             gm > 0 ? Gm(gm) : "",
             flight > 0 ? "~" + FlightSpan(flight) : "",
@@ -822,7 +830,11 @@ public sealed partial class MainForm
                 {
                     line.Actions.Add("Delivered " + d.DeliveredCargo + (d.Delivered > 1 ? " \u00d7" + d.Delivered : "") + " \u2713");   // its SCU is on the Ruin line where it was collected
                 }
-                if (d.Picked > 0) line.Actions.Add((busy ? "Collecting \u00d7" : "Collected \u00d7") + d.Picked + tick);
+                if (d.Picked > 0)
+                {
+                    line.Actions.Add((busy ? "Collecting" : "Collected") + tick);
+                    line.Count += d.Picked;
+                }
             }
             rows.Add(new PlanRow
             {
@@ -1577,7 +1589,7 @@ public sealed partial class MainForm
 
     const int PlanTitleHeight = 26;
     const int PlanMinText = 110;                            // the text column of a table (Cargo, Route) is never narrower than this
-    const int PlanQueuedFixed = 36 + 64 + 64 + 80 + 74 + 68;  // the Queued routes without its Route column: #, Stops, Batches, Value, Distance, In flight
+    const int PlanQueuedFixed = 36 + 64 + 84 + 80 + 74 + 68;  // the Queued routes without its Route column: #, Stops, Batches, Value, Distance, In flight
     const int PlanGap = 8;                                  // between the Current Route and the Queued routes under it
     const int PlanRunsMin = 150;                            // Cargo Runs under the map is never lower than this (the page scrolls instead)
 
@@ -1653,7 +1665,7 @@ public sealed partial class MainForm
             text = Col("Route", textWidth, true, DataGridViewContentAlignment.MiddleLeft);   // the stations of the trip in order (takes the room that is left)
             grid.Columns.Add(text);
             grid.Columns.Add(Col("Stops", 64, true));   // how many stops it has
-            grid.Columns.Add(Col("Batches", 64, true));
+            grid.Columns.Add(Col("Batches", 84, true));
         }
         grid.Columns.Add(Col("Value", 80, true, DataGridViewContentAlignment.MiddleRight));
         grid.Columns.Add(Col("Distance", 74, true, DataGridViewContentAlignment.MiddleRight));
