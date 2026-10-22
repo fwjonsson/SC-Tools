@@ -806,6 +806,21 @@ public sealed partial class MainForm : Form
         return string.Join(",  ", steps.OrderBy(s => s.Time).Select(s => s.Text));
     }
 
+    /// <summary>Only the places of a run, in the order it went there ("Ruin, Gaslight, Dudley"), for the short Cargo Runs of the Trip Planner.</summary>
+    string RunPlacesText(WorkerTrip t)
+    {
+        var steps = new List<(DateTime Time, string Place)>();
+        foreach (var c in Clusters(t.Collects, x => x.Time, x => x.Cargo)) steps.Add((c[0].Time, "Ruin"));
+        foreach (var c in Clusters(t.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone)) steps.Add((c[0].Time, LocationName(c[0].Zone)));
+        foreach (var p in t.Pickups) steps.Add((p.Time, LocationName(p.Zone)));
+        var places = new List<string>();
+        foreach (var (_, place) in steps.OrderBy(x => x.Time))
+        {
+            if (places.Count == 0 || places[^1] != place) places.Add(place);   // waste dropped and cargo picked up at the same station is one place
+        }
+        return string.Join(", ", places);
+    }
+
     /// <summary>The runs of a session: who did them comes from the logs and the Trip Planner (see WorkerTripBuilder.Build).</summary>
     List<WorkerTrip> BuildRuns(SessionGroup g, SessionInputs inp)
     {
@@ -849,9 +864,11 @@ public sealed partial class MainForm : Form
                     RunFlightText(t),
                     level,
                 };
-                foreach (var grid in new[] { _tripGrid, _planRunsGrid })
+                var brief = (object[])values.Clone();
+                brief[2] = RunPlacesText(t);   // the short copy under the map in the Trip Planner shows just the places
+                foreach (var (grid, cells) in new[] { (_tripGrid, values), (_planRunsGrid, brief) })
                 {
-                    var row = grid.Rows[grid.Rows.Add(values)];
+                    var row = grid.Rows[grid.Rows.Add(cells)];
                     row.Tag = t;
                     row.DefaultCellStyle.BackColor = RunColor(t.Manual ? "All" : level, t.End.HasValue);
                 }

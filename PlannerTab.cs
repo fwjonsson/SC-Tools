@@ -133,12 +133,10 @@ public sealed partial class MainForm
 
     Control BuildPlannerPage()
     {
-        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(12), AutoScroll = true };
+        var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(12), AutoScroll = true };
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         t.RowStyles.Add(new RowStyle(SizeType.AutoSize));        // a warning, only when there is one
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 500));   // the map and the tables: as high as everybody's tables need (PlanPage sets it)
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleHeight));   // Cargo Runs
-        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // the copy of Cargo Runs: the room that is left (the page scrolls when there is too little)
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 500));   // the map with the short Cargo Runs under it, and the tables of everybody: the whole height of the page (PlanPage sets it)
         _planPage = t;
         t.Resize += (_, _) => _fitPlanPage?.Invoke();   // a taller or lower window changes how big the map can be
 
@@ -160,9 +158,7 @@ public sealed partial class MainForm
         _planBody.Dock = DockStyle.Fill;
         _planBody.Margin = new Padding(0);
         t.Controls.Add(_planBody, 0, 1);
-        t.Controls.Add(SectionTitle("Cargo Runs"), 0, 2);
-        BuildPlanRunsGrid();
-        t.Controls.Add(_planRunsGrid, 0, 3);
+        BuildPlanRunsGrid();   // it sits under the map (PlanPage puts it there)
         return t;
     }
 
@@ -330,7 +326,10 @@ public sealed partial class MainForm
         if (changed) Storage.Save(_data);
     }
 
-    /// <summary>A copy of Cargo Runs for the Trip Planner tab, so the runs are in view while you plan. It cannot be edited (do that on the Session tab).</summary>
+    /// <summary>
+    /// A short copy of Cargo Runs for the Trip Planner tab (under the map): only the number, the worker and the locations, so it can be thin. The Session tab has the whole table.
+    /// It has the same cells as that one (the other columns are hidden), and it cannot be edited.
+    /// </summary>
     void BuildPlanRunsGrid()
     {
         var g = _planRunsGrid;
@@ -345,7 +344,7 @@ public sealed partial class MainForm
         run.Name = "num";
         g.Columns.Add(run);
         run.DisplayIndex = 0;
-        g.Columns.Add(Col("Pickup Location & Time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
+        g.Columns.Add(Col("Locations", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
         g.Columns.Add(Col("Batches", 90, true));
         g.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
         g.Columns.Add(Col("Started", 76, true));
@@ -354,6 +353,11 @@ public sealed partial class MainForm
         g.Columns.Add(Col("Flight time", 90, true));
         g.Columns.Add(Col("Lost Cargo", 116, true));
         FitColumns(g);
+        foreach (DataGridViewColumn c in g.Columns)
+        {
+            if (c.HeaderText is not ("Worker" or "#" or "Locations")) c.Visible = false;   // the cells are still there (the live time and value update them by index)
+        }
+        g.Columns[0].FillWeight = 70;
         g.ScrollBars = ScrollBars.Vertical;
     }
 
@@ -1263,7 +1267,7 @@ public sealed partial class MainForm
         _planBody.SuspendLayout();
         try
         {
-            var page = PlanPage(plan);
+            var page = PlanPage(plan);   // takes the Cargo Runs table from the page it replaces
             foreach (var old in _planBody.Controls.Cast<Control>().ToList())
             {
                 _planBody.Controls.Remove(old);
@@ -1315,8 +1319,32 @@ public sealed partial class MainForm
             if (ReferenceEquals(_statusLine, status)) _statusLine = null;
         };
         var left = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0), Padding = new Padding(0, 0, 12, 0) };
-        left.Controls.Add(status);   // added first, so it sits under the map
+        // the map on top (always square: it is as high as the column is wide), the team status under it and the short Cargo Runs in the room that is left;
+        // what is added first is docked last, so it sits lowest
+        var runsTitle = SectionTitle("Cargo Runs");
+        runsTitle.Dock = DockStyle.Top;
+        runsTitle.Height = TitleHeight;
+        _planRunsGrid.Dock = DockStyle.Fill;
+        left.Controls.Add(_planRunsGrid);   // moves it from the page that is replaced: that one must not dispose it
+        left.Controls.Add(runsTitle);
+        left.Controls.Add(status);
         left.Controls.Add(map);
+        var squaring = false;
+        void Square()
+        {
+            if (squaring) return;
+            squaring = true;
+            try
+            {
+                var w = left.ClientSize.Width - left.Padding.Horizontal;
+                if (w > 0 && map.Height != w) map.Height = w;   // a map that is not square is drawn small and squeezed
+            }
+            finally
+            {
+                squaring = false;
+            }
+        }
+        left.Resize += (_, _) => Square();
         var host = new PlanHost { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = false, Margin = new Padding(0) };   // never scrolls: the row is as high as everybody's tables
         host.Resize += (_, _) => FitPlanBlocks(host);
 
@@ -1334,9 +1362,8 @@ public sealed partial class MainForm
         foreach (var w in plan.Workers) host.Controls.Add(PlanBlock(w, widths));
         FitPlanBlocks(host);
 
-        // The map is a square, 40% of the width (and no higher than the page leaves above Cargo Runs). The row of the map and the tables is as high as everybody's
-        // tables need (or the map, when that is higher), so the Current Route of every worker is on the page: Cargo Runs moves down, and the page scrolls when the
-        // window is too low for both.
+        // The map is a square, 40% of the width (and no higher than the page leaves for the map, the status and a short Cargo Runs). The row is as high as the page,
+        // or higher when the tables of everybody need more: the workers go down the right side, and the page only scrolls when they do not fit.
         var fitting = false;
         var again = false;   // a size changed while it was being fitted (setting the sizes below resizes the page, the map and the tables): fit once more
         void FitPage()
@@ -1367,16 +1394,17 @@ public sealed partial class MainForm
             {
                 var page = _planPage;
                 var note = _planNote.Visible ? _planNote.Height : 0;
-                var above = page != null ? page.ClientSize.Height - page.Padding.Vertical - TitleHeight - PlanRunsMin - note : t.ClientSize.Height;
-                var side = Math.Max(320, Math.Min((int)(t.ClientSize.Width * 0.4), above - status.Height - t.Padding.Vertical));
+                var avail = page != null ? page.ClientSize.Height - page.Padding.Vertical - note : t.ClientSize.Height;
+                var side = Math.Max(320, Math.Min((int)(t.ClientSize.Width * 0.4), avail - t.Padding.Vertical - status.Height - TitleHeight - PlanRunsMin));
                 if ((int)t.ColumnStyles[0].Width != side + left.Padding.Horizontal) t.ColumnStyles[0].Width = side + left.Padding.Horizontal;
                 if (map.Height != side) map.Height = side;
                 var blocks = host.Controls.Cast<Control>().Sum(c => c.Height + c.Margin.Vertical);
-                var need = Math.Max(side + status.Height, blocks) + t.Padding.Vertical + 4;
+                var leftNeed = side + status.Height + TitleHeight + PlanRunsMin;
+                var need = Math.Max(avail, Math.Max(leftNeed, blocks) + t.Padding.Vertical + 4);
                 if (page != null && Math.Abs(page.RowStyles[1].Height - need) > 0.5f)
                 {
                     page.RowStyles[1].Height = need;
-                    page.AutoScrollMinSize = new Size(0, need + TitleHeight + PlanRunsMin + page.Padding.Vertical + note);
+                    page.AutoScrollMinSize = new Size(0, need + page.Padding.Vertical + note);
                 }
             }
         }
@@ -1384,8 +1412,11 @@ public sealed partial class MainForm
         t.Resize += (_, _) => FitPage();
         t.VisibleChanged += (_, _) =>
         {
-            if (t.Visible) FitPage();   // the tab is shown again: its real size is known now
+            if (!t.Visible) return;
+            FitPage();   // the tab is shown again: its real size is known now (and once more when the window has laid itself out, the map was sometimes left small)
+            if (t.IsHandleCreated) t.BeginInvoke(new Action(() => { FitPage(); Square(); }));
         };
+        Square();
         foreach (Control b in host.Controls) b.SizeChanged += (_, _) => FitPage();
         FitPage();
         t.Controls.Add(left, 0, 0);
@@ -1510,7 +1541,7 @@ public sealed partial class MainForm
     const int PlanMinText = 110;                            // the text column of a table (Cargo, Route) is never narrower than this
     const int PlanQueuedWidth = 36 + 64 + 64 + 80 + 74 + 68 + 3;   // the Queued routes: #, Stops, Batches, Value, Distance, In flight (and the border)
     const int PlanGap = 12;                                 // between the Current Route and the Queued routes
-    const int PlanRunsMin = 160;                            // Cargo Runs under the planner is never lower than this (the page scrolls instead)
+    const int PlanRunsMin = 150;                            // Cargo Runs under the map is never lower than this (the page scrolls instead)
 
     /// <summary>The Current Route without its Cargo column (the one that takes the room that is left): #, Stops, Drop/Collect, Value, Distance, In flight.</summary>
     static int PlanCurrentFixed(int action) => 36 + 120 + action + 80 + 74 + 68;
