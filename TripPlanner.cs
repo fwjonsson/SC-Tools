@@ -45,6 +45,7 @@ public static class TripPlanner
 {
     const int Restarts = 30;
     const double TotalWeight = 0.25;   // how much the combined Gm counts next to the longest worker total
+    const double StopSeconds = 240;    // every station a trip lands at costs a landing, the loading and a take-off: that many seconds per stop when comparing plans (not in the times shown), so the plan prefers fewer stops, and full one-stop trips most of all
     const double SyncSeconds = 240;    // unloading cargo from Ruin and loading a pickup at the SAME station saves a landing and a take-off: that many seconds are taken off such a trip when comparing plans (not in the times shown)
 
     /// <summary>The cheapest way from a start through these stations and back to Ruin (exact for up to 12 stations): the cost in Gm and the order (indexes into ids).</summary>
@@ -385,11 +386,16 @@ public static class TripPlanner
             return seconds + drive.Seconds(d0[order[^1]]);
         }
 
-        // what the search compares: the flight time, less the saving of unloading and loading at the same station
+        // what the search compares: the flight time and the landings (every stop), less the saving of unloading and loading at the same station
         double Cost(int[] row, int slot)
         {
             var drop = dropAt[slot];
-            return SlotCost(row, slot) - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
+            var stops = 0;
+            for (var i = 0; i < n; i++)
+            {
+                if (row[i] > 0) stops++;
+            }
+            return SlotCost(row, slot) + stops * StopSeconds - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
         }
 
         // the number to beat: the longest worker total, plus a part of the combined time (all in seconds)
@@ -754,6 +760,7 @@ public static class TripPlanner
             .OrderBy(tp => order2.IndexOf(tp.Worker))
             .ThenBy(tp => tp.Special ? 0 : 1)   // his first trip: the one he is flying or heading for
             .ThenBy(tp => tp.Drops.Count > 0 ? 0 : 1)   // then the trips that take cargo out from Ruin, so he is rid of it (and can take a new from-Ruin contract) as soon as possible
+            .ThenBy(tp => tp.Stops.Count)   // then the one-stop trips: while he flies those, missions get done and new ones come in, and the trips with more stops are planned again with them
             .ThenByDescending(tp => tp.Batches)
             .ThenBy(tp => tp.Distance)
             .ToList();
