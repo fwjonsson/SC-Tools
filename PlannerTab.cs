@@ -578,6 +578,17 @@ public sealed partial class MainForm
     }
 
     /// <summary>
+    /// True when the logs show the worker doing something after this time that a station set by hand cannot outlast: taking waste out at Ruin (he is at Ruin then),
+    /// or selecting a quantum destination in his own log (he is on his way, and the logs follow him from there).
+    /// </summary>
+    bool ActedSince(string name, DateTime since)
+    {
+        if (_trips.Any(t => SameName(t.Worker, name) && t.Collects.Any(c => c.Time > since))) return true;
+        var travel = TravelOf(name);
+        return travel != null && travel.Any(e => e.Kind == QtKind.Selected && e.Time > since);
+    }
+
+    /// <summary>
     /// The Current location of a worker: where he is now, and where the plan starts his next trip. The logs keep it up to date (AutoLocationOf: every pickup, every
     /// delivery from Ruin, every hand-in). A station set by hand (for example at the start of a session, or when the logs miss something) holds until the logs
     /// show him doing something after that, then the logs take over again.
@@ -587,9 +598,9 @@ public sealed partial class MainForm
         var kv = _data.StartPoints.FirstOrDefault(k => SameName(k.Key, name));
         if (kv.Value != null)
         {
-            if (LastMoveOf(name) > kv.Value.Since)
+            if (LastMoveOf(name) > kv.Value.Since || ActedSince(name, kv.Value.Since))
             {
-                _data.StartPoints.Remove(kv.Key);   // he has picked up, delivered or handed in since: the logs know better
+                _data.StartPoints.Remove(kv.Key);   // he has picked up, delivered, handed in, taken waste out or set a quantum destination since: the logs know better
                 Storage.Save(_data);
             }
             else if (PyroDistances.Points.Any(s => s.Id == kv.Value.Id))
@@ -1498,7 +1509,7 @@ public sealed partial class MainForm
         label.Controls.Add(combo);
         label.Controls.Add(new Label
         {
-            Text = w.LocationByHand ? "set by you, until his next pickup, delivery or hand-in" : "follows his pickups, deliveries and hand-ins",
+            Text = w.LocationByHand ? "set by you, until the logs show him moving (pickup, delivery, hand-in, waste or a quantum jump)" : "follows his pickups, deliveries and hand-ins",
             AutoSize = true, Font = new Font("Segoe UI", 9f), ForeColor = Theme.Muted, Location = new Point(comboX + combo.Width + 12, 10),
         });
         var height = label.Height;
