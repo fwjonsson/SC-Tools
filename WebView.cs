@@ -219,7 +219,9 @@ sealed class LiveWebServer : IDisposable
   .planque table { width:400px; }
   .planpair h3 { margin:6px 0 4px; }
   .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
-  .mapbox { flex:0 0 520px; max-width:100%; background:var(--cell); border:1px solid var(--line); }
+  .planleft { flex:0 0 520px; max-width:100%; }
+  .planleft h2 { margin-top:14px; }
+  .mapbox { background:var(--cell); border:1px solid var(--line); }
   .status { padding:4px 10px 8px; font-size:12px; font-style:italic; opacity:.7; min-height:1.3em; }
   .status.fade { animation:statusfade .6s ease-out; }
   @keyframes statusfade { from { opacity:0; } to { opacity:.7; } }
@@ -460,14 +462,15 @@ function mapSvg(el, stations, routes, bg) {
 
 function renderPlanner() {
   const p = last.planner;
-  document.getElementById('planNote').textContent = p.note || '';
+  document.getElementById('planNote').textContent = '';   // no line above the map (like in the program): the tables get the room
   const body = document.getElementById('planBody');
   body.textContent = '';
-  // the map on the left, the tables on the right, the copy of Cargo Runs under them
+  // the map on the left with the short copy of Cargo Runs under it, the tables of everybody on the right (like in the program)
   const wrap = document.createElement('div'); wrap.className = 'planwrap';
+  const left = document.createElement('div'); left.className = 'planleft';
   const mapBox = document.createElement('div'); mapBox.className = 'mapbox';
   const tables = document.createElement('div'); tables.className = 'plantables';
-  wrap.appendChild(mapBox); wrap.appendChild(tables); body.appendChild(wrap);
+  left.appendChild(mapBox); wrap.appendChild(left); wrap.appendChild(tables); body.appendChild(wrap);
   const routes = [];
   p.workers.forEach(function (w) {
     w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, passed: r.passed || 0, bold: !!r.solid, dashed: !r.solid }); });
@@ -490,12 +493,8 @@ function renderPlanner() {
       table(box, x[2]);
     });
   });
-  // a copy of Cargo Runs under the planner
-  section(body, 'h2', 'Cargo Runs', last.runs);
-  if (last.runsLive) {
-    const rows = body.lastChild.querySelectorAll('tbody tr');
-    last.runsLive.forEach(function (live, i) { if (live && rows[i] && rows[i].cells[7]) addTicker(rows[i].cells[7]); });
-  }
+  // the short copy of Cargo Runs under the map: #, Worker and the locations (the Session tab has the whole table)
+  section(left, 'h2', 'Cargo Runs', last.planRuns || last.runs);
 }
 
 function renderDebts() {
@@ -694,6 +693,7 @@ public sealed partial class MainForm
             finished = WebGrid(_doneGrid),
             leaders = WebGrid(_statsGrid),
             runs = WebGrid(_tripGrid),
+            planRuns = WebGrid(_planRunsGrid),   // the short copy under the map of the Trip Planner (#, Worker, Locations)
             runsLive = _tripGrid.Rows.Cast<DataGridViewRow>().Where(r => !r.IsNewRow)
                 .Select(r => r.Tag is WorkerTrip t && !t.End.HasValue && (Convert.ToString(r.Cells[7].Value) ?? "").Length > 0).ToArray(),   // runs on the way: the page counts their Run Time up
             planner = WebPlan(GetPlan()),
