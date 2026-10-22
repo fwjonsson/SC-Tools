@@ -1,0 +1,29 @@
+name: Planner scenarios
+
+# Runs the trip planner on the scenarios in tools/PlanTest and prints the plans (in the log, and as a notice on the run).
+on:
+  push:
+    paths:
+      - 'TripPlanner.cs'
+      - 'tools/PlanTest/**'
+      - '.github/workflows/plantest.yml'
+  workflow_dispatch:
+
+jobs:
+  plans:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Plan the scenarios
+        shell: bash
+        run: |
+          set +e
+          dotnet run --project tools/PlanTest -c Release > out.txt 2>&1
+          code=$?
+          cat out.txt
+          body=$(grep -v "^\s*$" out.txt | tail -c 6000 | sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::notice title=Planner output::$body"
+          exit $code
