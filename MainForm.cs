@@ -230,7 +230,8 @@ public sealed partial class MainForm : Form
 
     const int TitleHeight = 30;
     const int SideWidth = 420;     // the column on the right: the party, the contracts and the times
-    const int ContractsHeight = 132;   // the contracts table: header and four rows
+    const int ContractsHeight = 204;   // the contracts table: header and seven rows (hauling 2, 3, 4 stops, waste 2, 3, 4 drop-offs, Total)
+    const int RewardRows = 6;          // the rows of the rewards table before its Total row
     const int SummaryHeight = 190;     // the times and totals table: seven rows of 25 with their borders
     TableLayoutPanel? _header;
 
@@ -543,19 +544,24 @@ public sealed partial class MainForm : Form
         _rewards.AllowUserToAddRows = false;
         _rewards.AllowUserToDeleteRows = false;
         _rewards.ScrollBars = ScrollBars.None;
-        _rewards.Columns.Add(Col("Contract", 90, true, DataGridViewContentAlignment.MiddleLeft));
+        _rewards.Columns.Add(Col("Contract", 110, true, DataGridViewContentAlignment.MiddleLeft));
         _rewards.Columns.Add(Col("Mission Reward", 120, false, DataGridViewContentAlignment.MiddleRight));
         _rewards.Columns.Add(Col("# Missions", 90, true, DataGridViewContentAlignment.MiddleRight));
         _rewards.Columns.Add(Col("Total", 100, true, DataGridViewContentAlignment.MiddleRight, true));
         _rewards.CellEndEdit += (_, _) =>
         {
-            if (_inputs != null && _rewards.Rows.Count >= 3)
+            if (_inputs != null && _rewards.Rows.Count >= RewardRows)
             {
                 _inputs.Reward2 = ParseNumber(_rewards.Rows[0].Cells[1].Value);
                 _inputs.Reward3 = ParseNumber(_rewards.Rows[1].Cells[1].Value);
                 _inputs.Reward4 = ParseNumber(_rewards.Rows[2].Cells[1].Value);
+                _inputs.WasteReward2 = ParseNumber(_rewards.Rows[3].Cells[1].Value);
+                _inputs.WasteReward3 = ParseNumber(_rewards.Rows[4].Cells[1].Value);
+                _inputs.WasteReward4 = ParseNumber(_rewards.Rows[5].Cells[1].Value);
             }
             RecomputeRewards();
+            _planShown = "";   // the values in the Trip Planner change with the payouts
+            if (_planBody.Visible && _planBody.IsHandleCreated) RefreshPlanner();
             Storage.Save(_data);
             UpdateSnapshots();
             RefreshDebts();
@@ -1589,9 +1595,14 @@ public sealed partial class MainForm : Form
             if (_inputs.Reward2 == 0) _inputs.Reward2 = DefaultReward2;
             if (_inputs.Reward3 == 0) _inputs.Reward3 = DefaultReward3;
             var accepted = _current.Missions;   // every accepted mission of the session (abandoned ones are already left out)
-            _rewards.Rows.Add("2 stops", _inputs.Reward2.ToString("N0"), accepted.Count(m => m.Multi == 2), "");
-            _rewards.Rows.Add("3 stops", _inputs.Reward3.ToString("N0"), accepted.Count(m => m.Multi == 3), "");
-            _rewards.Rows.Add("4 stops", _inputs.Reward4.ToString("N0"), accepted.Count(m => m.Multi == 4), "");   // Master rank: type the payout
+            _rewards.Rows.Add("2 To Ruin", _inputs.Reward2.ToString("N0"), accepted.Count(m => m.Multi == 2), "");
+            _rewards.Rows.Add("3 To Ruin", _inputs.Reward3.ToString("N0"), accepted.Count(m => m.Multi == 3), "");
+            _rewards.Rows.Add("4 To Ruin", _inputs.Reward4.ToString("N0"), accepted.Count(m => m.Multi == 4), "");   // Master rank: type the payout
+            // the from-Ruin (waste) contracts: the log does not say what they pay either, so you type it once, by the number of drop-offs
+            var waste = SessionWaste(_current);
+            _rewards.Rows.Add("2 From Ruin", _inputs.WasteReward2.ToString("N0"), waste.Count(m => m.OutDrops == 2), "");
+            _rewards.Rows.Add("3 From Ruin", _inputs.WasteReward3.ToString("N0"), waste.Count(m => m.OutDrops == 3), "");
+            _rewards.Rows.Add("4 From Ruin", _inputs.WasteReward4.ToString("N0"), waste.Count(m => m.OutDrops == 4), "");
             var totalIdx = _rewards.Rows.Add("Total", "", 0, "");
             _rewards.Rows[totalIdx].ReadOnly = true;
             _rewards.Rows[totalIdx].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
@@ -1844,7 +1855,7 @@ public sealed partial class MainForm : Form
         {
             foreach (DataGridViewRow row in _rewards.Rows)
             {
-                if (row.Index >= 3) continue;   // the Total row
+                if (row.Index >= RewardRows) continue;   // the Total row
                 var reward = ParseNumber(row.Cells[1].Value);
                 var count = (int)ParseNumber(row.Cells[2].Value);
                 var total = reward * count;
@@ -1861,10 +1872,10 @@ public sealed partial class MainForm : Form
         _revenue = revenue;
         _rewardsTotalMissions.Text = missions.ToString("N0");
         _rewardsTotalRevenue.Text = revenue.ToString("N0");
-        if (_rewards.Rows.Count >= 4)
+        if (_rewards.Rows.Count > RewardRows)
         {
-            _rewards.Rows[3].Cells[2].Value = missions;
-            _rewards.Rows[3].Cells[3].Value = revenue == 0 ? "" : revenue.ToString("N0");
+            _rewards.Rows[RewardRows].Cells[2].Value = missions;
+            _rewards.Rows[RewardRows].Cells[3].Value = revenue == 0 ? "" : revenue.ToString("N0");
         }
         RefreshStopValues();
         RecomputeTimes();
@@ -1890,7 +1901,8 @@ public sealed partial class MainForm : Form
     }
 
     /// <summary>The value of the batches a run picked up (reward / stops of each mission).</summary>
-    decimal RunValue(WorkerTrip t) => _current == null || _inputs == null ? 0 : RunValues(t, _current, _inputs).Total;
+    /// <summary>The value of a run: its pickups (reward / stops of each mission) and the waste it delivered (reward / drop-offs). The Debts tab only counts the pickups.</summary>
+    decimal RunValue(WorkerTrip t) => _current == null || _inputs == null ? 0 : RunValues(t, _current, _inputs).Total + WasteValue(t);
 
     string RunValueText(WorkerTrip t)
     {
@@ -1946,7 +1958,8 @@ public sealed partial class MainForm : Form
         // total earned = what completed missions really paid
         decimal income = 0;
         if (_current != null && _inputs != null)
-            income = _current.Missions.Where(m => m.Completed).Sum(m => RewardOf(m, _inputs));
+            income = _current.Missions.Where(m => m.Completed).Sum(m => RewardOf(m, _inputs))
+                + SessionWaste(_current).Where(m => m.Completed).Sum(m => WasteRewardOf(m, _inputs));   // and the waste contracts that are done
         _incomeNow = income;
         _revenueVal.Text = income == 0 ? "" : income.ToString("N0");
         UpdateSessionClock();

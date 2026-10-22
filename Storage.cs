@@ -74,6 +74,9 @@ public sealed class SessionInputs
     public decimal Reward2 { get; set; }   // payout of a 2 stop contract
     public decimal Reward3 { get; set; }   // payout of a 3 stop contract
     public decimal Reward4 { get; set; }   // payout of a 4 stop contract (Master rank)
+    public decimal WasteReward2 { get; set; }   // payout of a from-Ruin (waste) contract with 2 drop-offs
+    public decimal WasteReward3 { get; set; }   // ... with 3 drop-offs
+    public decimal WasteReward4 { get; set; }   // ... with 4 drop-offs
     public List<string> LostRuns { get; set; } = new();   // old format: runs ticked as "lost cargo" (counts as All)
     public Dictionary<string, string> LostCargo { get; set; } = new();   // run key -> Little or All
     public List<ManualEnd> ManualEnds { get; set; } = new();

@@ -43,6 +43,48 @@ public sealed partial class MainForm
         return all.Any(p => p > 0) ? string.Join(" | ", all.Select(p => p > 0 ? ScuText(p) : "? SCU")) : "? SCU";
     }
 
+    /// <summary>What a from-Ruin contract pays: the From Ruin rows of the rewards table on the Session tab, by its number of drop-offs (0 = not typed).</summary>
+    static decimal WasteRewardOf(Mission m, SessionInputs? inp) =>
+        inp == null ? 0 : m.OutDrops == 2 ? inp.WasteReward2 : m.OutDrops == 3 ? inp.WasteReward3 : m.OutDrops == 4 ? inp.WasteReward4 : 0;
+
+    /// <summary>
+    /// The value of from-Ruin drop-offs ("mission id|objective id"): every drop-off is worth the reward of its contract split over its drop-offs, like a pickup
+    /// is worth reward / stops.
+    /// </summary>
+    decimal WasteValue(IEnumerable<string> keys)
+    {
+        if (_log == null || _inputs == null) return 0;
+        decimal total = 0;
+        foreach (var key in keys)
+        {
+            var bar = key.IndexOf('|');
+            if (bar <= 0 || !_log.Missions.TryGetValue(key[..bar], out var m) || m.OutDrops <= 0) continue;
+            total += WasteRewardOf(m, _inputs) / m.OutDrops;
+        }
+        return total;
+    }
+
+    /// <summary>The waste a run delivered: what it is worth.</summary>
+    decimal WasteValue(WorkerTrip t) => WasteValue(t.Drops.Select(d => d.MissionId + "|" + d.Objective));
+
+    /// <summary>
+    /// The from-Ruin contracts of a session: accepted while it was the latest session (after its start, before the next one started), and not abandoned or failed.
+    /// They are not hauling missions, so they are not in the session itself.
+    /// </summary>
+    List<Mission> SessionWaste(SessionGroup g)
+    {
+        var list = new List<Mission>();
+        if (_log == null) return list;
+        foreach (var m in _log.Missions.Values.Where(x => x.IsOut && !x.Dead && !x.Dropped))
+        {
+            var at = m.Accepted ?? m.FirstSeen;
+            if (at == null) continue;
+            var owner = _sessions.Where(s => s.Start <= at.Value).OrderBy(s => s.Start).LastOrDefault();
+            if (owner != null && owner.Key == g.Key) list.Add(m);
+        }
+        return list;
+    }
+
     /// <summary>The SCU you typed for drop-offs the game did not tell the size of: added to the missions of the merged log, where the game's own number is missing.</summary>
     void ApplyTypedScu(HaulingLog log)
     {
