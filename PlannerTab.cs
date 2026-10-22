@@ -125,6 +125,7 @@ public sealed partial class MainForm
     // the button sits in the top bar of the window, level with Options and Stop Session, while the Trip Planner tab is shown
     readonly ToolStripButton _lockBtn = new() { DisplayStyle = ToolStripItemDisplayStyle.Text, Text = "Next Stops: Unlocked", Padding = new Padding(8, 0, 8, 0), Visible = false };
     readonly Label _planNote = new();
+    int _planMapSide;                              // the size of the map (square), kept when the page is rebuilt so it does not jump
     TableLayoutPanel? _planPage;                   // the whole Trip Planner page (the row of the map and the tables is sized to fit everybody)
     Action? _fitPlanPage;                          // sizes that row for the page shown now
     readonly Panel _planBody = new();              // the page: the map and the tables (rebuilt when the plan changes)
@@ -1188,7 +1189,7 @@ public sealed partial class MainForm
                 AddRuinLine(runRow.Lines, c.Name, runRow.BatchCount);   // the run ends at Ruin
                 runRow.Route = string.Join("  \u2192  ", runRow.Lines.Select(l => l.Name));
             }
-            // he has taken the waste out at Ruin already (his run has nothing else in it yet): the Ruin line of his first trip says so. "Loading Waste" while he is
+            // he has taken the waste out at Ruin already (his run has nothing else in it yet): the Ruin line of his first trip says so. "Collecting Waste" while he is
             // still at it (he has not set his next quantum destination, only known from his own log), then "Collected Waste ✓" and his colour moves on to the next stop
             if (runRow == null && mine.Count > 0 && mine[0].From == null && mine[0].Drops.Count > 0)
             {
@@ -1204,7 +1205,7 @@ public sealed partial class MainForm
                     var stillLoading = StillLoading(c.Name, loadedAt);
                     var loads = mine[0].Drops[0].Batches;
                     startLine.Actions.Clear();
-                    startLine.Actions.Add((stillLoading ? "Loading " : "Collected ") + (mine[0].DropCargo ?? takenRun.Collects[0].Cargo) + (loads > 1 ? " \u00d7" + loads : "") + (stillLoading ? "" : " \u2713"));
+                    startLine.Actions.Add((stillLoading ? "Collecting " : "Collected ") + (mine[0].DropCargo ?? takenRun.Collects[0].Cargo) + (loads > 1 ? " \u00d7" + loads : "") + (stillLoading ? "" : " \u2713"));
                     startLine.Done = true;
                     startLine.Busy = stillLoading;
                 }
@@ -1286,7 +1287,11 @@ public sealed partial class MainForm
         {
             _planBody.ResumeLayout(true);
         }
-        if (IsHandleCreated) BeginInvoke(new Action(RefitPlanGrids));   // the page is on screen now: the rows are measured at the widths they really have
+        if (IsHandleCreated) BeginInvoke(new Action(() =>
+        {
+            RefitPlanGrids();         // the page is on screen now: the rows are measured at the widths they really have
+            _fitPlanPage?.Invoke();   // and the map gets its size once more, now that the new page is laid out
+        }));
     }
 
     /// <summary>Measures the rows of the tables of the Trip Planner again (a row with a long route is as high as its text needs at the width the table has).</summary>
@@ -1361,6 +1366,7 @@ public sealed partial class MainForm
                 k++;
             }
         }
+        if (_planMapSide > 0) t.ColumnStyles[0].Width = _planMapSide + 2 + left.Padding.Horizontal;   // the size it had: the new page does not start small
         var widths = PlanTextWidths(plan);   // the same for every worker, so his tables line up with the others
         foreach (var w in plan.Workers) host.Controls.Add(PlanBlock(w, widths));
         FitPlanBlocks(host);
@@ -1393,12 +1399,20 @@ public sealed partial class MainForm
         }
         void FitPageOnce()
         {
-            if (t.ClientSize.Width < 100) return;   // not laid out yet (the page is built before it is shown): a size now would be the smallest map, and stay
             {
+                // The size of the map comes from the window only (the whole Trip Planner tab, which is never rebuilt), not from this page: a page that is just built
+                // has a small default size for a moment, and a map sized from that stayed small. The room of a scroll bar is always left out, so the map does not
+                // change when one comes or goes. Until the tab has a real size the map keeps the size it had.
                 var page = _planPage;
                 var note = _planNote.Visible ? _planNote.Height : 0;
-                var avail = page != null ? page.ClientSize.Height - page.Padding.Vertical - note : t.ClientSize.Height;
-                var side = Math.Max(320, Math.Min((int)(t.ClientSize.Width * 0.4), avail - t.Padding.Vertical - status.Height - frame.Padding.Vertical - TitleHeight - PlanRunsMin));
+                var width = page != null ? page.Width - page.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth : 0;
+                var avail = page != null ? page.Height - page.Padding.Vertical - note : 0;
+                var side = width >= 600 && avail >= 300
+                    ? Math.Max(320, Math.Min((int)(width * 0.4), avail - t.Padding.Vertical - status.Height - frame.Padding.Vertical - TitleHeight - PlanRunsMin))
+                    : _planMapSide;
+                if (side <= 0) return;   // no real size yet, and none from before
+                _planMapSide = side;
+                if (avail < 300) avail = t.ClientSize.Height;
                 var column = side + frame.Padding.Horizontal + left.Padding.Horizontal;
                 if ((int)t.ColumnStyles[0].Width != column)
                 {
