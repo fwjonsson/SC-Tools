@@ -66,7 +66,7 @@ public sealed partial class MainForm
         public bool Stop = true;         // false: the start or the end at Ruin (or where he starts from): not counted as a stop
         public bool Done;                // collected already (it is on board)
         public bool Pending;             // something done here already (waste delivered, a pickup), but the plan still collects more here: he is not finished with this stop
-        public bool Busy;                // done here, but he is still at it (Collecting, Dropping: he has not set his next destination yet)
+        public bool Busy;                // done here, but he is still at it (Collecting: he has not set his next destination yet)
         public int Batches;              // batches collected, or still to collect, here
         public decimal Value;
         public double Gm;                // the leg from the line before it
@@ -76,8 +76,8 @@ public sealed partial class MainForm
         public double Scu;               // SCU picked up here: a guess, the log only knows the SCU of a whole mission, so every stop of it counts as an equal share
         public string ActionText => string.Join(" | ", Actions);
         public int Count;                // the batches picked up here, or handed in here at Ruin: "3 Batches" in the Cargo column
-        public double HandScu;           // a Ruin line: the SCU handed in there (everything picked up), an estimate
-        public string CargoText => string.Join(" | ", (ShowPickupScu && Scu > 0 ? Loads.Append(ScuGuess(Scu)) : Loads).Concat(Count > 0 ? new[] { BatchText(Count, HandScu > 0 ? HandScu : Scu) } : Array.Empty<string>()));
+        public double WasteScu;          // the SCU of the cargo from Ruin collected on this line (for the total the route carries)
+        public string CargoText => string.Join(" | ", (ShowPickupScu && Scu > 0 ? Loads.Append(ScuGuess(Scu)) : Loads).Concat(Count > 0 ? new[] { BatchText(Count, Scu) } : Array.Empty<string>()));
     }
 
     /// <summary>What was done at one line of a run in progress (for the text of its Drop/Collect column).</summary>
@@ -427,6 +427,7 @@ public sealed partial class MainForm
             if (hasDrop)
             {
                 ruin.Loads.Add(LoadText(trip.DropParts));   // the SCU of the load and the containers it is cut into
+                ruin.WasteScu = trip.DropParts.Where(x => x > 0).Sum();
                 ruin.Value = WasteValue(trip.DropKeys);     // what the load pays (reward / drop-offs of its contract), from the From Ruin rows of the rewards table
                 ruin.Unknown.AddRange(unknownKeys);
             }
@@ -436,7 +437,7 @@ public sealed partial class MainForm
         var dropShown = !hasDrop;
         if (hasDrop && firstStop != drop.Id)
         {
-            Add(drop.Id, PyroDistances.NameOf(drop.Id), true, new[] { "Drop " + cargo });   // a stop with only the drop-off (its SCU is on the line where it is collected)
+            Add(drop.Id, PyroDistances.NameOf(drop.Id), true, new[] { "Deliver " + cargo });   // a stop with only the drop-off (its SCU is on the line where it is collected)
             dropShown = true;
         }
         foreach (var (id, batches) in trip.Stops)
@@ -444,17 +445,15 @@ public sealed partial class MainForm
             var actions = new List<string>();
             if (!dropShown && id == drop.Id)
             {
-                actions.Add("Drop " + cargo);
+                actions.Add("Deliver " + cargo);
                 dropShown = true;
             }
             if (batches > 0) actions.Add("Collect");
             Add(id, PyroDistances.NameOf(id), true, actions, batches, batches * perBatch(id), batches * scuPerBatch(id)).Count = batches;   // a drop-off here: its SCU is on the line where it is collected
         }
-        var home = Add(PyroDistances.Ruin, "Ruin", false, trip.Batches > 0 ? new[] { "Drop" } : Array.Empty<string>());
-        home.Count = trip.Batches;
-        home.HandScu = lines.Sum(l => l.Scu);
+        Add(PyroDistances.Ruin, "Ruin", false, trip.Batches > 0 ? new[] { "Deliver" } : Array.Empty<string>());   // everything on board is handed in (the Cargo column only says how much where it is collected)
         var handedIn = lines.Sum(l => l.Scu);
-        if (ShowPickupScu && handedIn > 0) home.Loads.Add(ScuGuess(handedIn));   // everything picked up is handed in here
+        if (ShowPickupScu && handedIn > 0) lines[^1].Loads.Add(ScuGuess(handedIn));   // everything picked up is handed in here
         return lines;
     }
 
@@ -486,9 +485,7 @@ public sealed partial class MainForm
         var prev = lines.LastOrDefault(l => l.Id.Length > 0)?.Id ?? PyroDistances.Ruin;
         var gm = PyroDistances.Between(prev, PyroDistances.Ruin);
         var line = new StopLine { Id = PyroDistances.Ruin, Name = "Ruin", Stop = false, Gm = gm, Seconds = gm > 0 ? QtOf(worker).Seconds(gm) : 0 };
-        if (batches > 0) line.Actions.Add("Drop");
-        line.Count = batches;
-        line.HandScu = lines.Sum(l => l.Scu);
+        if (batches > 0) line.Actions.Add("Deliver");   // the Cargo column only says how much where it is collected
         var handedIn = lines.Sum(l => l.Scu);
         if (ShowPickupScu && handedIn > 0) line.Loads.Add(ScuGuess(handedIn));   // everything picked up is handed in here
         lines.Add(line);
@@ -502,7 +499,7 @@ public sealed partial class MainForm
     {
         if (lines.Count == 0) return -1;
         // what is done at the last stop he got to is finished (Collected, Delivered Waste): his colour moves on to the next step, the one he is on his way to;
-        // while he is still at it (Collecting, Dropping) it stays on that stop
+        // while he is still at it (Collecting) it stays on that stop
         var lastDone = lines.FindLastIndex(l => l.Done);
         if (byHand)
         {
@@ -695,14 +692,19 @@ public sealed partial class MainForm
         var stops = lines.Count(l => l.Stop);
         var batches = lines.Sum(l => l.Batches);
         var scu = lines.Sum(l => l.Scu);
+        var waste = lines.Sum(l => l.WasteScu);
         var gm = lines.Sum(l => l.Gm);
         var flight = lines.Sum(l => l.Seconds);
+        // everything the route carries: the batches to Ruin and the cargo from Ruin, in SCU together (the batches are an estimate, so ~)
+        var carried = (batches > 0 ? BatchText(batches) : "") + (waste > 0 ? (batches > 0 ? " + " : "") + "Waste" : "");
+        var all = scu + waste;
+        if (carried.Length > 0 && all >= 1) carried += " (" + (scu > 0 ? "~" : "") + Math.Round(all).ToString(CultureInfo.InvariantCulture) + " SCU)";
         return new[]
         {
             "",
             "Total: " + stops + (stops == 1 ? " stop" : " stops"),
             batches > 0 ? "Collect" : "",
-            batches > 0 ? BatchText(batches, scu) : "",
+            carried,
             ValueText(lines.Sum(l => l.Value)),
             gm > 0 ? Gm(gm) : "",
             flight > 0 ? "~" + FlightSpan(flight) : "",
@@ -833,6 +835,7 @@ public sealed partial class MainForm
                     {
                         line.Value += WasteValue(t);   // what the waste delivered so far pays (the value of the run counts it too)
                         line.Loads.Add(LoadText(t.Drops.Select(x => x.Scu)));
+                        line.WasteScu += t.Drops.Where(x => x.Scu > 0).Sum(x => x.Scu);
                         line.Unknown.AddRange(t.Drops.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
                     }
                 }
@@ -1258,6 +1261,15 @@ public sealed partial class MainForm
             // the worker colour is on the line of the Current Route where he is
             var currentRow = w.Rows.FirstOrDefault(x => !x.Hidden);
             if (currentRow != null) currentRow.Here = HereLine(currentRow.Lines, w.LocationId, w.LocationByHand);
+            if (currentRow != null && currentRow.Here > 0 && currentRow.Here < currentRow.Lines.Count)
+            {
+                // the step he is on is a delivery: he is on his way there (the step before it is done), so it says Delivering, like Collecting at a pickup
+                var here = currentRow.Lines[currentRow.Here];
+                for (var a = 0; a < here.Actions.Count; a++)
+                {
+                    if (here.Actions[a] == "Deliver" || here.Actions[a].StartsWith("Deliver ", StringComparison.Ordinal)) here.Actions[a] = "Delivering" + here.Actions[a]["Deliver".Length..];
+                }
+            }
             plan.Workers.Add(w);
         }
 
@@ -1677,7 +1689,7 @@ public sealed partial class MainForm
         if (current)
         {
             grid.Columns.Add(Col("Stops", 120, true, DataGridViewContentAlignment.MiddleLeft));
-            action = Col("Drop/Collect", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
+            action = Col("Deliver/Collect", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
             grid.Columns.Add(action);
             text = Col("Cargo", cargoWidth, true, DataGridViewContentAlignment.MiddleLeft);
             grid.Columns.Add(text);
