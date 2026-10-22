@@ -71,8 +71,8 @@ public sealed partial class MainForm
     decimal WasteValue(WorkerTrip t) => WasteValue(t.Drops.Select(d => d.MissionId + "|" + d.Objective));
 
     /// <summary>
-    /// The from-Ruin contracts of a session: accepted while it was the latest session (after its start, before the next one started), and not abandoned or failed.
-    /// They are not hauling missions, so they are not in the session itself.
+    /// The from-Ruin contracts of a session, like the hauling missions: one that is still going belongs to the latest session, one that is done to the session it was
+    /// completed in (that is when it pays). Abandoned and failed ones are left out. They are not hauling missions, so they are not in the session itself.
     /// </summary>
     List<Mission> SessionWaste(SessionGroup g)
     {
@@ -80,9 +80,9 @@ public sealed partial class MainForm
         if (_log == null) return list;
         foreach (var m in _log.Missions.Values.Where(x => x.IsOut && !x.Dead && !x.Dropped))
         {
-            var at = m.Accepted ?? m.FirstSeen;
-            if (at == null) continue;
-            var owner = _sessions.Where(s => s.Start <= at.Value).OrderBy(s => s.Start).LastOrDefault();
+            var owner = m.EndedAt is { } ended
+                ? _sessions.Where(s => s.Start <= ended).OrderBy(s => s.Start).LastOrDefault()
+                : _sessions.OrderBy(s => s.Start).LastOrDefault();
             if (owner != null && owner.Key == g.Key) list.Add(m);
         }
         return list;
