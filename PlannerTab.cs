@@ -432,28 +432,19 @@ public sealed partial class MainForm
         var dropShown = !hasDrop;
         if (hasDrop && firstStop != drop.Id)
         {
-            var only = Add(drop.Id, PyroDistances.NameOf(drop.Id), true, new[] { "Drop " + cargo });   // a stop with only the drop-off
-            only.Loads.Add(LoadText(trip.DropParts));
-            only.Unknown.AddRange(unknownKeys);
+            Add(drop.Id, PyroDistances.NameOf(drop.Id), true, new[] { "Drop " + cargo });   // a stop with only the drop-off (its SCU is on the line where it is collected)
             dropShown = true;
         }
         foreach (var (id, batches) in trip.Stops)
         {
             var actions = new List<string>();
-            var unloads = false;
             if (!dropShown && id == drop.Id)
             {
                 actions.Add("Drop " + cargo);
                 dropShown = true;
-                unloads = true;
             }
             if (batches > 0) actions.Add("Collect \u00d7" + batches);
-            var stopLine = Add(id, PyroDistances.NameOf(id), true, actions, batches, batches * perBatch(id), batches * scuPerBatch(id));
-            if (unloads)
-            {
-                stopLine.Loads.Add(LoadText(trip.DropParts));
-                stopLine.Unknown.AddRange(unknownKeys);
-            }
+            Add(id, PyroDistances.NameOf(id), true, actions, batches, batches * perBatch(id), batches * scuPerBatch(id));   // a drop-off here: its SCU is on the line where it is collected
         }
         var home = Add(PyroDistances.Ruin, "Ruin", false, trip.Batches > 0 ? new[] { "Drop \u00d7" + trip.Batches } : Array.Empty<string>());
         var handedIn = lines.Sum(l => l.Scu);
@@ -499,15 +490,15 @@ public sealed partial class MainForm
     static int HereLine(List<StopLine> lines, string location, bool byHand)
     {
         if (lines.Count == 0) return -1;
-        var running = lines.Any(l => l.Done);
-        if (byHand)
-        {
-            var at = running ? lines.FindLastIndex(l => l.Id == location) : lines.FindIndex(l => l.Id == location);
-            if (at >= 0) return at;
-        }
         // what is done at the last stop he got to is finished (Collected, Delivered Waste): his colour moves on to the next step, the one he is on his way to;
         // while he is still at it (Collecting, Dropping) it stays on that stop
         var lastDone = lines.FindLastIndex(l => l.Done);
+        if (byHand)
+        {
+            // the place you set: the first line with it from the last stop that is done on (Ruin at the start of a run is not the Ruin he hands in at)
+            var at = lines.FindIndex(Math.Max(0, lastDone), l => l.Id == location);
+            if (at >= 0) return at;
+        }
         if (lastDone < 0) return 0;
         return !lines[lastDone].Busy && lastDone + 1 < lines.Count ? lastDone + 1 : lastDone;
     }
@@ -774,7 +765,6 @@ public sealed partial class MainForm
                     var d = done[line];
                     d.Delivered += batch.Count;
                     d.DeliveredScu.AddRange(batch.Select(x => x.Scu));
-                    line.Unknown.AddRange(batch.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
                     d.DeliveredCargo = batch[0].Cargo;
                     d.Last = batch.Max(x => x.Time);
                 }));
@@ -819,8 +809,7 @@ public sealed partial class MainForm
                 }
                 if (d.Delivered > 0)
                 {
-                    line.Actions.Add("Delivered " + d.DeliveredCargo + (d.Delivered > 1 ? " \u00d7" + d.Delivered : "") + " \u2713");
-                    line.Loads.Add(LoadText(d.DeliveredScu));
+                    line.Actions.Add("Delivered " + d.DeliveredCargo + (d.Delivered > 1 ? " \u00d7" + d.Delivered : "") + " \u2713");   // its SCU is on the Ruin line where it was collected
                 }
                 if (d.Picked > 0) line.Actions.Add((busy ? "Collecting \u00d7" : "Collected \u00d7") + d.Picked + tick);
             }
