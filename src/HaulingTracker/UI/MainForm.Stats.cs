@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace HaulingTracker.UI;
 
 // The session leaderboard (between the pickup board and the run board) and the all-time leaderboard on the History tab.

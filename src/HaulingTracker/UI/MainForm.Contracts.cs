@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace HaulingTracker.UI;
 
 // The "Contracts" tab: every mission that is still going, and who of the party has it (it was shared with him) or took it.

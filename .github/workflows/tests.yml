@@ -28,7 +28,10 @@ jobs:
           dotnet test tests/HaulingTracker.Tests -c Release --logger "console;verbosity=normal" > test.txt 2>&1
           code=$?
           cat test.txt
-          body=$(grep -E "Passed|Failed|error|Assert|Total tests|Skipped" test.txt | grep -v "warning" | tail -c 6000 | sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g')
+          # the counts first, then only what failed (a notice is cut off after a few thousand characters)
+          summary=$(grep -E "^\s*(Total tests|Passed|Failed|Skipped):" test.txt | tr -s ' ' | tr '\n' ' ')
+          problems=$(grep -E "^\s*Failed |error|Assert\.|Expected|Actual|at HaulingTracker" test.txt | grep -v "warning" | head -80)
+          body=$(printf "%s\n%s" "$summary" "$problems" | tail -c 6000 | sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g')
           echo "::notice title=Test results::$body"
           exit $code
       - name: Plan the scenarios

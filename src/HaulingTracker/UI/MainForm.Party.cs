@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace HaulingTracker.UI;
 
 // The Party table on the front page (top right): who is in the party, who is active, and since when.

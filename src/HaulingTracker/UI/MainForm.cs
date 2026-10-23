@@ -1502,7 +1502,7 @@ public sealed partial class MainForm : Form
         col.Items.Clear();
         col.Items.Add("");
         // only the active party members can be picked; someone already assigned stays in the list so the cell can show him
-        var choices = _data.Party.Where(n => !_data.InactiveParty.Any(x => SameName(x, n))).ToList();
+        var choices = _crew.ActiveCrew();
         if (_state.Inputs != null)
         {
             foreach (var r in _state.Inputs.Rows.Values)
