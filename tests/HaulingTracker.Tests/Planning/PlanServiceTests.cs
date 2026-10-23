@@ -86,35 +86,37 @@ public class PlanServiceTests
     }
 
     [Fact]
-    public void The_trips_that_take_waste_out_go_first_then_the_most_per_hour()
+    public void Waste_goes_first_then_one_stop_trips_then_the_value_and_three_stops_last()
     {
         var (patch, gas) = (PlayedSession.PatchCity, PlayedSession.Gaslight);
         var flying = Trip("A", new[] { gas }, special: true);
-        var oneStopWaste = Trip("A", new[] { patch }, waste: patch);     // waste and pickup at the same station: one landing (and Ruin). 1.0 M: 2.0 M per hour
-        var twoStopsWaste = Trip("A", new[] { gas }, waste: Endgame);    // the waste goes to another station: two landings. 1.2 M: 1.6 M per hour
-        var twoStops = Trip("A", new[] { patch, gas });                  // 3.0 M: 4.0 M per hour
-        var oneStop = Trip("A", new[] { gas });                          // 2.5 M: 5.0 M per hour
-        var smallStop = Trip("A", new[] { patch });                      // 1.8 M: 3.6 M per hour
+        var wasteOne = Trip("A", new[] { patch }, waste: patch);              // waste and pickup at the same station: one stop
+        var wasteTwo = Trip("A", new[] { gas }, waste: Endgame);              // the waste goes to another station: two stops
+        var oneStop = Trip("A", new[] { gas });
+        var twoStops = Trip("A", new[] { patch, gas });
+        var twoStopsLess = Trip("A", new[] { gas, patch });
+        var threeWaste = Trip("A", new[] { patch, gas }, waste: Endgame);     // three stops, also with waste: the last resort
+        var three = Trip("A", new[] { patch, gas, Endgame });
         var value = new Dictionary<PlannedTrip, decimal>
         {
-            [flying] = 0.1m, [oneStopWaste] = 1_000_000m, [twoStopsWaste] = 1_200_000m, [twoStops] = 3_000_000m, [oneStop] = 2_500_000m, [smallStop] = 1_800_000m,
+            [flying] = 0.1m, [wasteOne] = 1.0m, [wasteTwo] = 3.0m, [oneStop] = 2.0m, [twoStops] = 9.0m, [twoStopsLess] = 4.0m, [threeWaste] = 10.0m, [three] = 12.0m,
         };
 
-        var queue = PlanService.Queue(new[] { twoStops, smallStop, twoStopsWaste, oneStop, flying, oneStopWaste }, t => value[t]);
-        // the run he is flying; the waste, whatever it is worth; then one stop worth a bit less before two stops, but not one worth a lot less
-        Assert.Equal(new[] { flying, oneStopWaste, twoStopsWaste, oneStop, twoStops, smallStop }, queue);
+        var queue = PlanService.Queue(new[] { three, twoStopsLess, threeWaste, oneStop, wasteTwo, twoStops, flying, wasteOne }, t => value[t]);
+        Assert.Equal(new[] { flying, wasteOne, wasteTwo, oneStop, twoStops, twoStopsLess, threeWaste, three }, queue);
+        Assert.Equal(3, PlanService.Landings(threeWaste));
+        Assert.Equal(1, PlanService.Landings(wasteOne));
     }
 
     [Fact]
-    public void Otherwise_the_trip_that_earns_the_most_per_hour_goes_first()
+    public void Otherwise_the_most_valuable_trip_goes_first()
     {
-        var close = Trip("A", new[] { PlayedSession.PatchCity }, seconds: 300);    // 2.0 M for 5 min of flying and two landings: 2.0 M per 35 min
-        var far = Trip("A", new[] { PlayedSession.Gaslight }, seconds: 1500);      // 2.2 M for 25 min of flying and two landings: 2.2 M per 55 min
+        var close = Trip("A", new[] { PlayedSession.PatchCity }, seconds: 300);
+        var far = Trip("A", new[] { PlayedSession.Gaslight }, seconds: 1500);   // further, but worth more
         var value = new Dictionary<PlannedTrip, decimal> { [close] = 2_000_000m, [far] = 2_200_000m };
-        Assert.Equal(new[] { close, far }, PlanService.Queue(new[] { far, close }, t => value[t]));
-        Assert.Equal(2_000_000.0 * 60 / 35, PlanService.PerHour(close, 2_000_000m), 3);
+        Assert.Equal(new[] { far, close }, PlanService.Queue(new[] { close, far }, t => value[t]));
 
-        // the same: the planner's order. Waste he has taken out already: that trip first, whatever it is
+        // the same: the planner's order. Waste he has taken out already: that trip first, whatever it is (three stops too)
         var (b1, b2) = (Trip("B", new[] { PlayedSession.PatchCity }), Trip("B", new[] { PlayedSession.PatchCity }));
         var (c1, c2) = (Trip("C", new[] { PlayedSession.PatchCity }), Trip("C", new[] { PlayedSession.PatchCity, PlayedSession.Gaslight }, waste: Endgame));
         Assert.Equal(new[] { b1, b2, c2, c1 }, PlanService.Queue(new[] { b1, c1, b2, c2 }, _ => 1m, n => n == "C"));
