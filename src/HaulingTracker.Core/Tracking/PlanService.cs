@@ -98,10 +98,16 @@ public sealed class PlanService
     public static bool NothingToLock(PlannedTrip t) => t.Stops.Count == 0 || (t.Drops.Count > 0 && t.Stops[0].Id != t.Drops[0].Id);
 
     /// <summary>
-    /// The order of every worker's trips (his first is his Current Route, the others his Queued routes): the trip he is flying or heading for first (it continues
-    /// his run, or starts at his locked stop or where he is), then the one with the waste he has taken out at Ruin already, then the most valuable trip first,
-    /// its pickups and the waste it takes out together. Trips worth the same keep the planner's order (see TripPlanner.Plan), so of two trips with equal pickups
-    /// the one that takes waste out goes first. The workers keep their order.
+    /// The order of every worker's trips (his first is his Current Route, the others his Queued routes). First the trip he is flying or heading for (it continues
+    /// his run, or starts at his locked stop or where he is), then the one with the waste he has taken out at Ruin already. Then:
+    /// <list type="number">
+    /// <item>the trips that take waste out, so he is rid of it and can take a new from-Ruin contract (every load is a payout more);</item>
+    /// <item>then the trips that land at one station: while he flies those, missions get done and new ones come in, and the stations of the bigger trips can get
+    /// enough batches to be one stop trips too;</item>
+    /// <item>then the most valuable: its pickups and the waste it takes out.</item>
+    /// </list>
+    /// A trip with three stops or more is the last resort: it goes after all the others, also when it takes waste out (then before the other big ones).
+    /// Trips the same on all of that keep the planner's order (see TripPlanner.Plan). The workers keep their order.
     /// </summary>
     public static List<PlannedTrip> Queue(IEnumerable<PlannedTrip> trips, Func<PlannedTrip, decimal> value, Func<string, bool>? wasteAboard = null)
     {
@@ -111,9 +117,15 @@ public sealed class PlanService
         return list
             .OrderBy(t => workers.IndexOf(t.Worker))
             .ThenBy(t => t.Special ? 0 : t.Drops.Count > 0 && aboard.Contains(t.Worker) ? 1 : 2)
+            .ThenBy(t => Landings(t) >= 3 ? 1 : 0)   // three stops or more: the last resort
+            .ThenBy(t => t.Drops.Count > 0 ? 0 : 1)
+            .ThenBy(t => Landings(t) <= 1 ? 0 : 1)
             .ThenByDescending(value)
             .ToList();
     }
+
+    /// <summary>The stations a trip lands at before Ruin (its stops): where it drops off the waste and where it picks up (waste and pickups at the same station is one stop).</summary>
+    public static int Landings(PlannedTrip t) => t.Drops.Select(d => d.Id).Concat(t.Stops.Select(s => s.Id)).Distinct().Count();
 
     /// <summary>The waste he has taken out at Ruin and not brought anywhere yet (recently): his run in progress with nothing else in it, or null.</summary>
     WorkerTrip? WasteTakenOut(string name)

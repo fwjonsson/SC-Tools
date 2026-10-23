@@ -75,24 +75,51 @@ public class PlanServiceTests
         Assert.Equal(-1, PlanService.HereLine(new List<StopLine>(), "Ruin", false));
     }
 
-    [Fact]
-    public void The_most_valuable_trip_goes_first_after_the_one_he_is_flying()
-    {
-        PlannedTrip Trip(string worker, bool special = false, bool waste = false)
-        {
-            var t = new PlannedTrip { Worker = worker, Special = special, Stops = { (PlayedSession.PatchCity, 1) } };
-            if (waste) t.Drops.Add((PlayedSession.PatchCity, 1));
-            return t;
-        }
-        var (a1, a2, a3) = (Trip("A"), Trip("A"), Trip("A", special: true));
-        var (b1, b2) = (Trip("B"), Trip("B"));
-        var (c1, c2) = (Trip("C"), Trip("C", waste: true));
-        var value = new Dictionary<PlannedTrip, decimal> { [a1] = 1, [a2] = 3, [a3] = 0.5m, [b1] = 2, [b2] = 2, [c1] = 5, [c2] = 1 };
+    const string Endgame = "70273";
 
-        var queue = PlanService.Queue(new[] { a1, b1, a3, a2, c1, b2, c2 }, t => value[t], n => n == "C");
-        // A: the run he is flying, then the most valuable. B: worth the same, the planner's order. C has waste aboard: the trip that takes it out first
-        Assert.Equal(new[] { a3, a2, a1, b1, b2, c2, c1 }, queue);
-        Assert.Equal(new[] { a2, a1 }, PlanService.Queue(new[] { a1, a2 }, t => value[t]));
+    static PlannedTrip Trip(string worker, string[] stops, string? waste = null, bool special = false, double seconds = 0)
+    {
+        var t = new PlannedTrip { Worker = worker, Special = special, Seconds = seconds };
+        foreach (var id in stops) t.Stops.Add((id, 2));
+        if (waste != null) t.Drops.Add((waste, 1));
+        return t;
+    }
+
+    [Fact]
+    public void Waste_goes_first_then_one_stop_trips_then_the_value_and_three_stops_last()
+    {
+        var (patch, gas) = (PlayedSession.PatchCity, PlayedSession.Gaslight);
+        var flying = Trip("A", new[] { gas }, special: true);
+        var wasteOne = Trip("A", new[] { patch }, waste: patch);              // waste and pickup at the same station: one stop
+        var wasteTwo = Trip("A", new[] { gas }, waste: Endgame);              // the waste goes to another station: two stops
+        var oneStop = Trip("A", new[] { gas });
+        var twoStops = Trip("A", new[] { patch, gas });
+        var twoStopsLess = Trip("A", new[] { gas, patch });
+        var threeWaste = Trip("A", new[] { patch, gas }, waste: Endgame);     // three stops, also with waste: the last resort
+        var three = Trip("A", new[] { patch, gas, Endgame });
+        var value = new Dictionary<PlannedTrip, decimal>
+        {
+            [flying] = 0.1m, [wasteOne] = 1.0m, [wasteTwo] = 3.0m, [oneStop] = 2.0m, [twoStops] = 9.0m, [twoStopsLess] = 4.0m, [threeWaste] = 10.0m, [three] = 12.0m,
+        };
+
+        var queue = PlanService.Queue(new[] { three, twoStopsLess, threeWaste, oneStop, wasteTwo, twoStops, flying, wasteOne }, t => value[t]);
+        Assert.Equal(new[] { flying, wasteOne, wasteTwo, oneStop, twoStops, twoStopsLess, threeWaste, three }, queue);
+        Assert.Equal(3, PlanService.Landings(threeWaste));
+        Assert.Equal(1, PlanService.Landings(wasteOne));
+    }
+
+    [Fact]
+    public void Otherwise_the_most_valuable_trip_goes_first()
+    {
+        var close = Trip("A", new[] { PlayedSession.PatchCity }, seconds: 300);
+        var far = Trip("A", new[] { PlayedSession.Gaslight }, seconds: 1500);   // further, but worth more
+        var value = new Dictionary<PlannedTrip, decimal> { [close] = 2_000_000m, [far] = 2_200_000m };
+        Assert.Equal(new[] { far, close }, PlanService.Queue(new[] { close, far }, t => value[t]));
+
+        // the same: the planner's order. Waste he has taken out already: that trip first, whatever it is (three stops too)
+        var (b1, b2) = (Trip("B", new[] { PlayedSession.PatchCity }), Trip("B", new[] { PlayedSession.PatchCity }));
+        var (c1, c2) = (Trip("C", new[] { PlayedSession.PatchCity }), Trip("C", new[] { PlayedSession.PatchCity, PlayedSession.Gaslight }, waste: Endgame));
+        Assert.Equal(new[] { b1, b2, c2, c1 }, PlanService.Queue(new[] { b1, c1, b2, c2 }, _ => 1m, n => n == "C"));
     }
 
     [Fact]
