@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The Windows program: the window, its tabs and controls, the live web view and the self-update. The logic is in HaulingTracker.Core. -->
+  <!-- The Windows program: the window, its tabs and controls, and the self-update. The logic is in HaulingTracker.Core, the live web view in HaulingTracker.Web. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -15,11 +15,11 @@
 
   <ItemGroup>
     <ProjectReference Include="../HaulingTracker.Core/HaulingTracker.Core.csproj" />
+    <ProjectReference Include="../HaulingTracker.Web/HaulingTracker.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="icon.ico" LogicalName="icon.ico" />   <!-- also served as the icon of the web view page -->
-    <EmbeddedResource Include="Web/wwwroot/*" LogicalName="web/%(Filename)%(Extension)" />   <!-- the live web page (WebAssets puts it together) -->
   </ItemGroup>
 
 </Project>

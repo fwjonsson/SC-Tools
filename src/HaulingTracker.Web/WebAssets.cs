@@ -1,8 +1,8 @@
 namespace HaulingTracker.Web;
 
 /// <summary>
-/// The live web page. It is written as ordinary web files in Web/wwwroot (index.html, app.css, app.js), so they can be edited and checked like any
-/// web page; they are embedded in the program, and put together here once into the single page the server sends (the style and the script inline).
+/// The live web page. It is written as ordinary web files in wwwroot (index.html, app.css, app.js), so they can be edited and checked like any
+/// web page; they are embedded in this library, and put together here once into the single page the server sends (the style and the script inline).
 /// </summary>
 static class WebAssets
 {

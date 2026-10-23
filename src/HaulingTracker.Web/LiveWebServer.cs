@@ -150,7 +150,7 @@ sealed class LiveWebServer : IDisposable
         _iconRead = true;
         try
         {
-            using var stream = typeof(MainForm).Assembly.GetManifestResourceStream("icon.ico");
+            using var stream = typeof(LiveWebServer).Assembly.GetManifestResourceStream("icon.ico");
             if (stream == null) return null;
             using var memory = new MemoryStream();
             stream.CopyTo(memory);
@@ -163,6 +163,6 @@ sealed class LiveWebServer : IDisposable
         return _icon;
     }
 
-    /// <summary>The page: Web/wwwroot (index.html with its app.css and app.js), embedded in the program and put together once.</summary>
+    /// <summary>The page: wwwroot (index.html with its app.css and app.js), embedded in this library and put together once.</summary>
     static string Page => WebAssets.Page;
 }
