@@ -193,6 +193,9 @@ public sealed partial class MainForm
         _state.Save();
         BeginInvoke(new Action(() =>
         {
+            // the box ticked or the ship picked is saved already (CommitEdit): stop editing it, the party table is not rebuilt while a cell is edited
+            // (an Active box stayed in edit mode, so the member was not greyed out or back until the program started again)
+            if (_partyGrid.IsCurrentCellInEditMode && _partyGrid.CurrentCell is DataGridViewCheckBoxCell or DataGridViewComboBoxCell) _partyGrid.EndEdit();
             _renderedVersion = -1;
             RefreshFromLog();
             RefreshPartyPanel();

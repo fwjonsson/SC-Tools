@@ -97,6 +97,33 @@ public sealed class PlanService
     /// <summary>The first stop of a trip that only has a drop-off there (or nothing to pick up) is not a pickup, so there is nothing to lock.</summary>
     public static bool NothingToLock(PlannedTrip t) => t.Stops.Count == 0 || (t.Drops.Count > 0 && t.Stops[0].Id != t.Drops[0].Id);
 
+    /// <summary>
+    /// The order of every worker's trips (his first is his Current Route, the others his Queued routes): the trip he is flying or heading for first (it continues
+    /// his run, or starts at his locked stop or where he is), then the one with the waste he has taken out at Ruin already, then the most valuable trip first,
+    /// its pickups and the waste it takes out together. Trips worth the same keep the planner's order (see TripPlanner.Plan), so of two trips with equal pickups
+    /// the one that takes waste out goes first. The workers keep their order.
+    /// </summary>
+    public static List<PlannedTrip> Queue(IEnumerable<PlannedTrip> trips, Func<PlannedTrip, decimal> value, Func<string, bool>? wasteAboard = null)
+    {
+        var list = trips.ToList();
+        var workers = list.Select(t => t.Worker).Distinct().ToList();
+        var aboard = workers.Where(n => wasteAboard?.Invoke(n) == true).ToHashSet();
+        return list
+            .OrderBy(t => workers.IndexOf(t.Worker))
+            .ThenBy(t => t.Special ? 0 : t.Drops.Count > 0 && aboard.Contains(t.Worker) ? 1 : 2)
+            .ThenByDescending(value)
+            .ToList();
+    }
+
+    /// <summary>The waste he has taken out at Ruin and not brought anywhere yet (recently): his run in progress with nothing else in it, or null.</summary>
+    WorkerTrip? WasteTakenOut(string name)
+    {
+        var run = _state.Trips.Where(x => SameName(x.Worker, name) && !x.End.HasValue && x.Pickups.Count == 0 && x.Drops.Count == 0 && x.Collects.Count > 0)
+            .OrderBy(x => x.Start).LastOrDefault();
+        if (run == null || _state.Log == null || _state.Log.LastTime - run.Collects.Max(x => x.Time) > CargoRuns.StaleLeg) return null;
+        return run;
+    }
+
     /// <summary>The name a worker has in the locked trips of this session, or null when he has none.</summary>
     public string? LockKey(string name) => _state.Inputs?.LockedTrips.Keys.FirstOrDefault(k => SameName(k, name));
 
@@ -467,8 +494,9 @@ public sealed class PlanService
     /// is handed in, the first stop of his next planned trip is locked. Only worked out again when the batches, the crew or the locks change.
     /// </summary>
     PlanCore CoreFor(List<(string Name, int Capacity, QtDrive Drive)> crew, Dictionary<string, int> open, List<string> unknown, Dictionary<string, List<(string[] Workers, int Batches)>> limits, IReadOnlyList<DropChunk> chunks,
-        Dictionary<string, int> batchScu, Dictionary<string, int> shipScu)
+        Dictionary<string, int> batchScu, Dictionary<string, int> shipScu, Func<PlannedTrip, decimal> value)
     {
+        bool WasteAboard(string name) => WasteTakenOut(name) != null;
         // how many batches of this station still fit in his ship, with what he carries already (by SCU)
         int RoomAt(string name, string station, int loadedScu) =>
             Math.Max(0, (shipScu.GetValueOrDefault(name) - loadedScu) / Math.Max(1, batchScu.GetValueOrDefault(station, 170)));
@@ -570,7 +598,11 @@ public sealed class PlanService
                 + "#" + string.Join("|", chunks.Select(x => x.Station + ":" + x.Batches + ":" + x.Scu + ":" + x.Cargo + ":" + string.Join(",", x.Allowed)))
                 + "#" + string.Join("|", limits.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + "=" + string.Join(";", kv.Value.Select(g => string.Join(",", g.Workers) + "x" + g.Batches))))
                 + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "/" + t.Loaded + "/" + t.LoadedScu + "@" + t.From));
-            if (_planCore != null && _planCore.Key == key && waiting.All(n => _planCore.Settled.Contains(n))) return _planCore;
+            if (_planCore != null && _planCore.Key == key && waiting.All(n => _planCore.Settled.Contains(n)))
+            {
+                _planCore.Trips = Queue(_planCore.Trips, value, WasteAboard);   // the same trips; what they are worth can be typed again in the rewards table
+                return _planCore;
+            }
 
             var note = unknown.Count > 0 ? "Not in the distance table, so left out: " + string.Join(", ", unknown) + "." : "";
             var only = limits.SelectMany(kv => kv.Value.Select(g => PyroDistances.NameOf(kv.Key) + " ×" + g.Batches + " only " + string.Join(" / ", g.Workers))).ToList();
@@ -578,7 +610,7 @@ public sealed class PlanService
             var core = new PlanCore
             {
                 Key = key,
-                Trips = TripPlanner.Plan(remaining, crew, starts, limits, chunks, batchScu, shipScu),
+                Trips = Queue(TripPlanner.Plan(remaining, crew, starts, limits, chunks, batchScu, shipScu), value, WasteAboard),
                 Batches = remaining.Where(kv => kv.Value > 0).Sum(kv => kv.Value) + starts.Sum(t => t.FirstBatches),
                 Note = note,
                 Settled = settled,
@@ -667,7 +699,9 @@ public sealed class PlanService
         // what every ship holds, less some headroom: the SCU of a batch is an estimate (missions are 500 SCU give or take, and not split evenly over their stations),
         // so the plan fills a ship to 90%, not to the last SCU (a C2: 742 of 824). No ship set: his batches times a third of a C2.
         var shipScu = crew.Where(c => c.Capacity > 0).ToDictionary(c => c.Name, c => (int)((_crew.ShipOf(c.Name)?.Total ?? c.Capacity * 232) * PlanFill));
-        var core = CoreFor(crew, remaining, unknown, limits, chunks, batchScu, shipScu);
+        decimal PerBatch(string id) => worth.TryGetValue(id, out var x) && x.Batches > 0 ? x.Value / x.Batches : 0;   // the average batch at that station
+        decimal TripValue(PlannedTrip t) => t.Stops.Sum(s => s.Batches * PerBatch(s.Id)) + _earnings.WasteValue(t.DropKeys);   // its pickups and the waste it takes out
+        var core = CoreFor(crew, remaining, unknown, limits, chunks, batchScu, shipScu, TripValue);
         var dropTrips = core.Trips;
         // the waste only rides along on the pickup trips: a load that none of them can take along waits (the note says so)
         var carried = dropTrips.SelectMany(pt => pt.Drops.Select(dd => dd.Id)).ToList();
@@ -679,7 +713,6 @@ public sealed class PlanService
             else waits.Add(load.Cargo + " for " + PyroDistances.NameOf(load.Station));
         }
         if (waits.Count > 0) dropNote = (dropNote + "  Waiting to go along on a pickup trip: " + string.Join(", ", waits) + ".").Trim();
-        decimal PerBatch(string id) => worth.TryGetValue(id, out var x) && x.Batches > 0 ? x.Value / x.Batches : 0;   // the average batch at that station
         double ScuPerBatch(string id) => volume.TryGetValue(id, out var y) && y.Stops > 0 ? y.Scu / y.Stops : 0;   // the average stop at that station, in SCU
 
         var plan = new PlanView { Note = (core.Note + "  " + dropNote).Trim() };
@@ -720,7 +753,7 @@ public sealed class PlanService
                     Route = RouteText(mine[k]),
                     Batches = mine[k].Batches.ToString(CultureInfo.InvariantCulture),
                     BatchCount = mine[k].Batches,
-                    Value = mine[k].Stops.Sum(s => s.Batches * PerBatch(s.Id)) + _earnings.WasteValue(mine[k].DropKeys),
+                    Value = TripValue(mine[k]),
                     Gm = mine[k].Distance,
                     Seconds = mine[k].Seconds,
                     Flight = mine[k].Seconds,
@@ -759,13 +792,12 @@ public sealed class PlanService
             // still at it (he has not set his next quantum destination, only known from his own log), then "Collected Waste ✓" and his colour moves on to the next stop
             if (runRow == null && mine.Count > 0 && mine[0].From == null && mine[0].Drops.Count > 0)
             {
-                var takenRun = _state.Trips.Where(x => SameName(x.Worker, c.Name) && !x.End.HasValue && x.Pickups.Count == 0 && x.Drops.Count == 0 && x.Collects.Count > 0)
-                    .OrderBy(x => x.Start).LastOrDefault();
+                var takenRun = WasteTakenOut(c.Name);
                 var firstRow = w.Rows.FirstOrDefault(r => r.Trip == mine[0]);
                 var startLine = firstRow?.Lines.FirstOrDefault(l => l.Id == PyroDistances.Ruin && !l.Stop);
-                var loadedAt = takenRun?.Collects.Max(x => x.Time) ?? DateTime.MinValue;
-                if (takenRun != null && startLine != null && _state.Log != null && _state.Log.LastTime - loadedAt <= CargoRuns.StaleLeg)
+                if (takenRun != null && startLine != null)
                 {
+                    var loadedAt = takenRun.Collects.Max(x => x.Time);
                     // the game completes every pickup of the contract at once, however much is taken out, so the load of this trip is taken to be what he took
                     // (its SCU and containers stay as planned)
                     var stillLoading = _where.StillLoading(c.Name, loadedAt);

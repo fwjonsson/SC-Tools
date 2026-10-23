@@ -33,8 +33,13 @@ public sealed class Earnings
     };
 
     readonly TrackerState _s;
+    readonly Places _places;
 
-    public Earnings(TrackerState state) => _s = state;
+    public Earnings(TrackerState state, Places places)
+    {
+        _s = state;
+        _places = places;
+    }
 
     /// <summary>The payout you typed, or the built-in one when nothing is typed (0).</summary>
     public static decimal Or(decimal typed, decimal builtIn) => typed == 0 ? builtIn : typed;
@@ -77,6 +82,35 @@ public sealed class Earnings
     {
         var v = StopValue(r);
         return v == 0 ? "" : v.ToString("N0");
+    }
+
+    /// <summary>
+    /// The Stops board: every pickup location with the from-Ruin drop-offs still to bring there, the most valuable stop on top. A stop is worth its pickups and
+    /// the waste it gets (one landing does both), so a station with waste waiting for it moves up. The drop-offs at a station go with the stop of their own
+    /// zone, else with the most valuable stop at that station (counted once); a station with only drop-offs is a stop of its own.
+    /// </summary>
+    public List<BoardStop> StopsBoard(IReadOnlyList<DropBatch> drops)
+    {
+        var rows = _s.PickupRows.OrderByDescending(StopValue).ToList();
+        var dropsAt = new Dictionary<string, List<DropBatch>>();
+        var alone = new List<(string Zone, List<DropBatch> Drops)>();
+        foreach (var station in drops.GroupBy(d => d.Station ?? ("zone " + d.Zone)))
+        {
+            var first = station.First();
+            var row = rows.FirstOrDefault(r => r.Zone == first.Zone)
+                ?? (first.Station == null ? null : rows.FirstOrDefault(r => _places.StationOf(r.Zone) == first.Station));
+            if (row == null) alone.Add((first.Zone, station.ToList()));
+            else if (dropsAt.TryGetValue(row.Zone, out var had)) had.AddRange(station);
+            else dropsAt[row.Zone] = station.ToList();
+        }
+        return rows.Select(r =>
+            {
+                var d = dropsAt.GetValueOrDefault(r.Zone) ?? new List<DropBatch>();
+                return new BoardStop(r.Zone, r, d, StopValue(r) + WasteValue(d));
+            })
+            .Concat(alone.Select(a => new BoardStop(a.Zone, null, a.Drops, WasteValue(a.Drops))))
+            .OrderByDescending(s => s.Value)   // the same value: the order of the pickups
+            .ToList();
     }
 
     /// <summary>The value of the batches of a run (reward / stops of each mission), and the part whose mission is completed, and the part that is lost.</summary>
@@ -148,6 +182,10 @@ public sealed class Earnings
     /// <summary>The waste a run delivered: what it is worth.</summary>
     public decimal WasteValue(WorkerTrip t) => WasteValue(t.Drops.Select(d => d.MissionId + "|" + d.Objective));
 
+    /// <summary>What drop-offs still to do are worth: every drop-off is the reward of its contract split over its drop-offs.</summary>
+    public decimal WasteValue(IEnumerable<DropBatch> drops) =>
+        drops.Where(d => d.Mission.OutDrops > 0).Sum(d => WasteRewardOf(d.Mission, _s.Inputs) / d.Mission.OutDrops);
+
     /// <summary>
     /// The from-Ruin contracts of a session, like the hauling missions: one that is still going belongs to the latest session, one that is done to the session it was
     /// completed in (that is when it pays). Abandoned and failed ones are left out. They are not hauling missions, so they are not in the session itself.
@@ -190,3 +228,6 @@ public sealed record RewardLine(int Stops, bool FromRuin, Func<SessionInputs, de
     public int CountIn(IEnumerable<Mission> accepted, IEnumerable<Mission> waste) =>
         FromRuin ? waste.Count(m => m.OutDrops == Stops) : accepted.Count(m => m.Multi == Stops);
 }
+
+/// <summary>A stop of the Stops board: a pickup location (Row) and the drop-offs to bring there (a station with only drop-offs has no Row), and what it is worth.</summary>
+public sealed record BoardStop(string Zone, LocationRow? Row, IReadOnlyList<DropBatch> Drops, decimal Value);

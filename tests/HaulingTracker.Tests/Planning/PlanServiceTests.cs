@@ -76,6 +76,26 @@ public class PlanServiceTests
     }
 
     [Fact]
+    public void The_most_valuable_trip_goes_first_after_the_one_he_is_flying()
+    {
+        PlannedTrip Trip(string worker, bool special = false, bool waste = false)
+        {
+            var t = new PlannedTrip { Worker = worker, Special = special, Stops = { (PlayedSession.PatchCity, 1) } };
+            if (waste) t.Drops.Add((PlayedSession.PatchCity, 1));
+            return t;
+        }
+        var (a1, a2, a3) = (Trip("A"), Trip("A"), Trip("A", special: true));
+        var (b1, b2) = (Trip("B"), Trip("B"));
+        var (c1, c2) = (Trip("C"), Trip("C", waste: true));
+        var value = new Dictionary<PlannedTrip, decimal> { [a1] = 1, [a2] = 3, [a3] = 0.5m, [b1] = 2, [b2] = 2, [c1] = 5, [c2] = 1 };
+
+        var queue = PlanService.Queue(new[] { a1, b1, a3, a2, c1, b2, c2 }, t => value[t], n => n == "C");
+        // A: the run he is flying, then the most valuable. B: worth the same, the planner's order. C has waste aboard: the trip that takes it out first
+        Assert.Equal(new[] { a3, a2, a1, b1, b2, c2, c1 }, queue);
+        Assert.Equal(new[] { a2, a1 }, PlanService.Queue(new[] { a1, a2 }, t => value[t]));
+    }
+
+    [Fact]
     public void A_first_stop_with_only_a_drop_off_has_nothing_to_lock()
     {
         Assert.True(PlanService.NothingToLock(new PlannedTrip()));
