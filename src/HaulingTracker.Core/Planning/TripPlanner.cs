@@ -922,6 +922,7 @@ public static class TripPlanner
             trips.Add(trip);
         }
 
+        // the Trip Planner shows the most valuable trip first (PlanService.Queue, it knows what the batches are worth); this order decides between trips worth the same
         var order2 = workers.Select(c => c.Name).ToList();
         return trips
             .OrderBy(tp => order2.IndexOf(tp.Worker))

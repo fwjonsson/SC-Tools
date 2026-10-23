@@ -1400,22 +1400,23 @@ public sealed partial class MainForm : Form
         }
         RefreshWorkerChoices();
 
-        // the most valuable location on top. Once new missions are accepted, completed ones are gone from here
-        // (everything else, runs, leaderboards and totals, keeps counting them)
-        foreach (var r in _state.PickupRows.OrderByDescending(_earnings.StopValue))
+        // the most valuable stop on top, with the waste to bring there counted in (a station with only drop-offs is a row of its own). Once new missions are
+        // accepted, completed ones are gone from here (everything else, runs, leaderboards and totals, keeps counting them)
+        foreach (var stop in _earnings.StopsBoard(_dropOffs.OpenDrops()))
         {
-            _state.Inputs!.Rows.TryGetValue(r.Zone, out var inp);
+            var r = stop.Row;
+            _state.Inputs!.Rows.TryGetValue(stop.Zone, out var inp);
             var row = _logGrid.AddRow(
-                (StopCol.Location, _places.LocationName(r.Zone)),
-                (StopCol.FromRuin, _places.DistanceText(r.Zone)),
-                (StopCol.Batches, MissionsText(r)),
+                (StopCol.Location, _places.LocationName(stop.Zone)),
+                (StopCol.FromRuin, _places.DistanceText(stop.Zone)),
+                (StopCol.Batches, r == null ? "" : MissionsText(r)),
                 (StopCol.Worker, inp?.Worker ?? ""),
-                (StopCol.Value, _earnings.StopValueText(r)),
+                (StopCol.Value, ValueText(stop.Value)),
                 (StopCol.Notes, inp?.Notes ?? ""));
-            row.Tag = r.Zone;
-            ColorMissionsCell(row, r);
+            row.Tag = stop.Zone;
+            if (r != null) ColorMissionsCell(row, r);
+            ShowDropOffs(row, stop.Drops);
         }
-        FillDropOffs();
         NumberRows(_logGrid);
 
         // the finished stops: latest hand-in on top
@@ -1442,11 +1443,10 @@ public sealed partial class MainForm : Form
 
     void RefreshStopValues()
     {
+        var board = _earnings.StopsBoard(_dropOffs.OpenDrops()).ToDictionary(s => s.Zone);
         foreach (DataGridViewRow row in _logGrid.Rows)
         {
-            if (row.Tag is not string zone) continue;
-            var info = _state.PickupRows.FirstOrDefault(x => x.Zone == zone);
-            if (info != null) row.Cells[StopCol.Value].Value = _earnings.StopValueText(info);
+            if (row.Tag is string zone && board.TryGetValue(zone, out var stop)) row.Cells[StopCol.Value].Value = ValueText(stop.Value);
         }
         foreach (DataGridViewRow row in _doneGrid.Rows)
         {

@@ -53,6 +53,33 @@ public class EarningsTests
     }
 
     [Fact]
+    public void A_stop_with_waste_to_bring_there_is_worth_that_too_and_moves_up_the_board()
+    {
+        var w = GameLogWriter.MissionId(61);
+        var waste = string.Format(GameLogWriter.WasteContract, 2);
+        var (t, _) = PlayedSession.Load(more: x => x.Minutes(1).Accepted(w)
+            .Marker(w, waste, "dropoff_w_0", "900000006101", GameLogWriter.PatchCity)    // where a batch is still waiting to be picked up
+            .Marker(w, waste, "dropoff_w_1", "900000006102", GameLogWriter.RodsFuel));   // nothing to pick up there
+        var board = t.Earnings.StopsBoard(t.DropOffs.OpenDrops());
+
+        var patch = board.Single(s => s.Zone == PlayedSession.PatchZone);   // the drop-off goes with the stop at the same station
+        Assert.Single(patch.Drops);
+        Assert.Equal(t.Earnings.StopValue(patch.Row!) + Earnings.DefaultReward2 / 2, patch.Value);   // its pickups and its part of the waste contract
+        Assert.Same(patch, board[0]);
+        var rods = board.Single(s => s.Row == null);   // only a drop-off: a stop of its own
+        Assert.Equal("900000006102", rods.Zone);
+        Assert.Equal(Earnings.DefaultReward2 / 2, rods.Value);
+        Assert.Equal(board.Select(s => s.Value).OrderByDescending(v => v), board.Select(s => s.Value));   // the most valuable stop on top
+
+        var (plain, _) = PlayedSession.Load();   // no waste: the pickups alone
+        Assert.All(plain.Earnings.StopsBoard(plain.DropOffs.OpenDrops()), s =>
+        {
+            Assert.Empty(s.Drops);
+            Assert.Equal(plain.Earnings.StopValue(s.Row!), s.Value);
+        });
+    }
+
+    [Fact]
     public void A_run_is_worth_its_batches_and_the_part_of_completed_missions_is_earned()
     {
         var (t, _) = PlayedSession.Load();

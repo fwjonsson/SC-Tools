@@ -65,29 +65,13 @@ public sealed partial class MainForm
         }));
     }
 
-    /// <summary>The Drop-off column of the Stops board: what has to be brought out to every station (a station with only drop-offs gets a row of its own).</summary>
-    void FillDropOffs()
+    /// <summary>The Drop-off cell of a stop of the Stops board: what has to be brought out to that station (see Earnings.StopsBoard).</summary>
+    void ShowDropOffs(DataGridViewRow row, IReadOnlyList<DropBatch> drops)
     {
-        if (!_logGrid.Columns.Contains(StopCol.DropOff)) return;
-        var drops = _dropOffs.OpenDrops();
-        foreach (var byStation in drops.GroupBy(d => d.Station ?? ("zone " + d.Zone)))
-        {
-            var text = DropOffs.StationText(byStation);
-            var zone = byStation.First().Zone;
-            DataGridViewRow? row = null;
-            foreach (DataGridViewRow r in _logGrid.Rows)
-            {
-                if (r.Tag is string z && (z == zone || (byStation.First().Station != null && _places.StationOf(z) == byStation.First().Station))) { row = r; break; }
-            }
-            if (row == null)
-            {
-                row = _logGrid.AddRow((StopCol.Location, _places.LocationName(zone)), (StopCol.FromRuin, _places.DistanceText(zone)), (StopCol.Batches, ""), (StopCol.Worker, ""), (StopCol.Value, ""), (StopCol.Notes, ""));
-                row.Tag = zone;
-            }
-            var cell = row.Cells[StopCol.DropOff];
-            cell.Value = text;
-            cell.Style.BackColor = Theme.Gold;
-            cell.Style.ForeColor = Color.Black;
-        }
+        if (drops.Count == 0) return;
+        var cell = row.Cells[StopCol.DropOff];
+        cell.Value = DropOffs.StationText(drops);
+        cell.Style.BackColor = Theme.Gold;
+        cell.Style.ForeColor = Color.Black;
     }
 }

@@ -14,7 +14,7 @@ public sealed class Tracker
         Places = new Places(State);
         Crew = new Crew(State);
         Contracts = new Contracts(State, Places, Crew);
-        Earnings = new Earnings(State);
+        Earnings = new Earnings(State, Places);
         DropOffs = new DropOffs(State, Places, Crew, Contracts);
         Runs = new CargoRuns(State, Places, Crew, Earnings);
         Whereabouts = new Whereabouts(State, Runs, DropOffs);
