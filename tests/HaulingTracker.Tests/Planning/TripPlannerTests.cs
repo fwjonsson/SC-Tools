@@ -77,7 +77,7 @@ public class TripPlannerTests
         Assert.Equal(new[] { 1, 4 }, PatchCityShares(PatchCityOnly(from: null)));   // a full ship of 4, not 3 + 2
 
         var trips = PatchCityOnly();   // his run has room for 2: that would be the leftover of a station the other one lands at anyway
-        Assert.DoesNotContain(trips.Single(t => t.Special).Stops, s => s.Id == Id("Patch City"));
+        Assert.DoesNotContain(trips, t => t.Special);   // nothing is added to his run: he flies home with what he has
         Assert.Equal(new[] { 1, 4 }, PatchCityShares(trips));
     }
 
