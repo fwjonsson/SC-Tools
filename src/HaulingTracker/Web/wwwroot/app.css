@@ -1,0 +1,66 @@
+  :root { --bg:#1e1e1e; --fg:#e6e6e6; --header:#1f3a68; --line:#3a3a3a; --cell:#2b2b2b; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:14px 18px 40px; background:var(--bg); color:var(--fg); font:14px "Segoe UI", system-ui, sans-serif; }
+  h1 { font-size:20px; margin:0 0 2px; }
+  h2 { font-size:16px; margin:22px 0 6px; }
+  h3 { font-size:14px; margin:14px 0 4px; }
+  .bar { display:flex; gap:14px; align-items:baseline; flex-wrap:wrap; margin-bottom:6px; opacity:.85; }
+  .live { font-weight:600; }
+  .ok { color:#5fd35f; } .bad { color:#ff6b6b; }
+  .top { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+  .top > div:first-child { min-width:0; flex:1 1 560px; }   /* the stops take the width ... */
+  .top > div:last-child { flex:0 0 420px; max-width:100%; }   /* ... the party, contracts and session are as narrow as in the program */
+  .scroll { overflow-x:auto; }
+  .bal table { table-layout:fixed; }
+  .bal th:nth-child(1) { width:24%; }
+  .bal th:nth-child(2) { width:18%; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { border:1px solid var(--line); padding:4px 8px; white-space:nowrap; }
+  th { background:var(--header); color:#fff; font-weight:600; text-align:center; white-space:normal; }
+  .kv td:first-child { font-weight:600; width:50%; }
+  /* party, contracts and session: four equal columns, and the session's two columns are two of those, so the middle line is straight */
+  #party table, #rewards table, #summary table { table-layout:fixed; }
+  #party th, #rewards th { width:25%; }
+  .empty { opacity:.6; padding:6px 0; }
+  .nav, .sub { display:flex; gap:8px; margin:8px 0 4px; flex-wrap:wrap; }
+  .nav button, .sub button { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 16px; font:inherit; font-weight:600; cursor:pointer; border-radius:4px; }
+  .nav button.on, .sub button.on { background:var(--header); color:#fff; }
+  .hidden { display:none; }
+  .plantables { flex:1 1 520px; min-width:0; }
+  .plantables h2:first-child { margin-top:0; }
+  .plantables table { table-layout:fixed; }
+  /* Current Route: #, Stops, Drop/Collect, Cargo (takes the rest), Value, Distance, In flight */
+  .plancur th:nth-child(1) { width:36px; } .plancur th:nth-child(2) { width:120px; } .plancur th:nth-child(3) { width:200px; } .plancur th:nth-child(5) { width:80px; }
+  .plancur th:nth-child(6) { width:74px; } .plancur th:nth-child(7) { width:68px; }
+  .plancur td:nth-child(3), .plancur td:nth-child(4) { white-space:normal; }
+  /* Queued routes: #, Route (takes the rest), Stops (how many), Batches, Value, Distance, In flight */
+  .planque th:nth-child(1) { width:36px; } .planque th:nth-child(3) { width:64px; } .planque th:nth-child(4) { width:84px; } .planque th:nth-child(5) { width:80px; }
+  .planque th:nth-child(6) { width:74px; } .planque th:nth-child(7) { width:68px; }
+  .planque td:nth-child(2) { white-space:normal; }
+  /* every worker in his own frame: the Current Route, and the Queued routes under it */
+  .planworker { background:var(--cell); border:1px solid var(--line); padding:4px 10px 10px; margin-bottom:12px; }
+  .planworker h2 { margin-top:6px; }
+  .planpair { display:flex; flex-direction:column; gap:4px; }
+  .plancur, .planque { min-width:0; }
+  .plancur table, .planque table { min-width:640px; }
+  .planpair h3 { margin:6px 0 4px; }
+  .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
+  .planleft { flex:0 0 520px; max-width:100%; }
+  .planleft h2 { margin-top:14px; }
+  /* a tablet or a smaller window: a smaller map, so the tables of the workers keep all their columns in view */
+  @media (max-width:1600px) {
+    .planleft { flex:0 0 340px; }
+    .plancur table, .planque table { min-width:0; }
+    .plancur th:nth-child(2) { width:96px; } .plancur th:nth-child(3) { width:150px; } .plancur th:nth-child(5) { width:84px; }
+    .plancur th:nth-child(6), .planque th:nth-child(6) { width:72px; } .plancur th:nth-child(7), .planque th:nth-child(7) { width:62px; }
+    .planque th:nth-child(3) { width:52px; } .planque th:nth-child(4) { width:66px; } .planque th:nth-child(5) { width:84px; }
+    .plantables th, .plantables td { padding:4px 5px; }
+  }
+  /* a phone, or a tablet held upright: the map on top, the tables under it, full width */
+  @media (max-width:900px) {
+    .planleft { flex:1 1 100%; }
+  }
+  .mapbox { background:var(--cell); border:1px solid var(--line); }
+  .status { padding:4px 10px 8px; font-size:14px; font-style:italic; opacity:.7; min-height:1.3em; }
+  .status.fade { animation:statusfade .6s ease-out; }
+  @keyframes statusfade { from { opacity:0; } to { opacity:.7; } }

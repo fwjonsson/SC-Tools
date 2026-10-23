@@ -7,11 +7,32 @@ Only **Station to Ruin** hauling contracts are used. Ruin to Station missions ar
 
 You need the .NET 10 SDK (Windows).
 
-    cd HaulingTracker
-    dotnet run
+    dotnet run --project src/HaulingTracker
 
-or open `HaulingTracker.csproj` in Visual Studio and press F5.
-To make a single exe: `dotnet publish -c Release -r win-x64 --self-contained false`.
+or open `HaulingTracker.slnx` in Visual Studio and press F5.
+To make a single exe: `dotnet publish src/HaulingTracker -c Release -r win-x64 --self-contained false`.
+
+## How the code is organised
+
+    src/
+      HaulingTracker.Core/     the logic, without any user interface (runs anywhere .NET runs, so it can be tested on any machine)
+        GameLog/               reading Game.log: missions, objectives, quantum travel, money transfers (HaulingLog)
+        Sessions/              which missions belong to a session, the pickup locations (SessionBuilder)
+        Runs/                  the runs of every worker: pickups, deliveries, hand-ins (WorkerTripBuilder)
+        Planning/              the trip planner (TripPlanner) and the loads from Ruin (DropChunk)
+        GameData/              the Pyro stations and distances, quantum drives, ships
+        Debts/                 who owes whom (DebtCalc)
+        Persistence/           the saved data (AppData and the classes in it) and where it is saved (Storage)
+      HaulingTracker/          the Windows program (WinForms)
+        UI/                    the main window, one file per part of it: MainForm.Planner.cs, MainForm.Debts.cs, ...
+        UI/Controls/           the map (PyroMapView) and the themed controls
+        UI/Theming/            the light and dark colours
+        Web/                   the live web view: the small server, and the page itself in Web/wwwroot (index.html, app.css, app.js)
+        Updates/               the self-update from the GitHub release
+      ScApiTool/               the separate Star Citizen Wiki API tool
+    tools/PlanTest/            runs the trip planner on situations from real sessions (the "Planner scenarios" run on GitHub)
+
+Every area has its own namespace (`HaulingTracker.Planning`, `HaulingTracker.UI`, ...), one class per file.
 
 ## Updates
 

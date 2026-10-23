@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="icon.ico" LogicalName="icon.ico" />   <!-- also served as the icon of the web view page -->
+    <EmbeddedResource Include="Web/wwwroot/*" LogicalName="web/%(Filename)%(Extension)" />   <!-- the live web page (WebAssets puts it together) -->
   </ItemGroup>
 
 </Project>

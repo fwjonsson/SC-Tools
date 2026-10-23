@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hauling Tracker (live)</title>
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<h1>Hauling Tracker</h1>
+<div class="bar"><span id="session"></span><span id="live" class="live"></span><span id="updated"></span></div>
+<div class="nav"><button id="tabS" class="on">Session</button><button id="tabP">Trip Planner</button><button id="tabD">Debts</button><button id="tabH">History</button></div>
+
+<div id="viewS">
+<div class="top">
+  <div><h2>Stops</h2><div class="scroll" id="pickups"></div>
+    <div id="finishedBox"><h2>Finished stops</h2><div class="scroll" id="finished"></div></div></div>
+  <div>
+    <h2>Party</h2><div class="scroll" id="party"></div>
+    <h2>Contracts</h2><div class="scroll" id="rewards"></div>
+    <h2>Session</h2><div class="scroll" id="summary"></div>
+  </div>
+</div>
+<h2>Session leaderboard</h2><div class="scroll" id="leaders"></div>
+<h2>Cargo runs</h2><div class="scroll" id="runs"></div>
+</div>
+
+<div id="viewP" class="hidden">
+  <div id="planNote" class="empty"></div>
+  <div id="planBody"></div>
+</div>
+
+<div id="viewD" class="hidden"></div>
+<div id="viewH" class="hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
