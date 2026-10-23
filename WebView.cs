@@ -398,9 +398,9 @@ function mapSvg(el, stations, routes, bg) {
     return '#' + [1, 2, 3].map(function (k) { return Math.round(parseInt(m[k], 16) * f).toString(16).padStart(2, '0'); }).join('');
   }
   function wave(a, b, ux, uy, len, color, width) {
-    const ALPHA = 140 / 255, INSET = 8;   // how dark the middle of a band is, and clear of the stations at both ends of the leg
+    const ALPHA = 215 / 255, INSET = 8;   // how dark the middle of a band is, and clear of the stations at both ends of the leg
     if (len <= 2 * INSET + 2) return;   // a leg that short is hardly more than its two stations
-    const id = 'wave' + waveGrads.length, shade = darker(color, 0.38);
+    const id = 'wave' + waveGrads.length, shade = darker(color, 0.18);
     // one wave goes from a to a + WAVE_LEN along the leg and repeats all along it; moveWaves() slides the pattern on towards the end of the leg
     const grad = add('linearGradient', { id: id, gradientUnits: 'userSpaceOnUse', x1: a[0], y1: a[1], x2: a[0] + ux * WAVE_LEN, y2: a[1] + uy * WAVE_LEN, spreadMethod: 'repeat' });
     for (let k = 0; k <= 8; k++) {
@@ -431,6 +431,7 @@ function mapSvg(el, stations, routes, bg) {
       let waved = false;   // the waves run on one leg only: the first, or the one after the stops of a run that are done
       for (let s = 0; s + 1 < ids.length; s++) {
         if (ids[s] === ids[s + 1]) continue;
+        if (r.bold && !r.dashed && s < (r.passed || 0)) continue;   // a leg to a stop that is done is gone: the run starts at the leg he is flying now
         let a = pos[ids[s]], b = pos[ids[s + 1]];
         if (!a || !b) continue;
         const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.sqrt(dx * dx + dy * dy);

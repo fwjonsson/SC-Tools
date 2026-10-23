@@ -34,8 +34,8 @@ sealed class PyroMapView : Control
     // the waves: darker bands that run along the leg, from the station where it starts to the station where it ends
     const float WaveLength = 28f;   // pixels from one dark band to the next
     const float WaveSpeed = 20f;    // pixels per second
-    const float WaveDark = 0.38f;   // the bands have the colour of the route times this
-    const int WaveAlpha = 140;      // how dark the middle of a band is (of 255)
+    const float WaveDark = 0.18f;   // the bands have the colour of the route times this
+    const int WaveAlpha = 215;      // how dark the middle of a band is (of 255)
     const float WaveInset = 8f;     // the waves stay clear of the stations at both ends of the leg
     static readonly Stopwatch WaveClock = Stopwatch.StartNew();   // one clock for every map: a map that is built anew goes on with the waves where the old one was
 
@@ -235,6 +235,7 @@ sealed class PyroMapView : Control
                 for (var s = 0; s + 1 < ids.Count; s++)
                 {
                     if (ids[s] == ids[s + 1]) continue;
+                    if (route.Bold && !route.Dashed && s < route.Passed) continue;   // a leg to a stop that is done is gone: the run starts at the leg he is flying now
                     var a = P(ids[s]);
                     var b = P(ids[s + 1]);
                     var dx = b.X - a.X;
