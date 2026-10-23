@@ -251,7 +251,7 @@ public sealed partial class MainForm
         var map = new PyroMapView { Dock = DockStyle.Top };
         // under the map: the small team status line (a text that changes every few seconds)
         var status = new StatusLine { Dock = DockStyle.Top };
-        status.ShowText(_statusText, false);
+        status.ShowText(_feed.Text, false);
         _statusLine = status;
         status.Disposed += (_, _) =>
         {

@@ -90,6 +90,9 @@ sealed class GameLogWriter
     public GameLogWriter BodyItem() =>
         Add($"{Ts} [Notice] <Adding non kept item [CSCActorCorpseUtils::PopulateItemPortForItemRecoveryEntitlement]> Item 'armor_test_123 - Class(armor_test)' [Team_CoreGameplayFeatures]");
 
+    /// <summary>The lines written so far, as they would be in Game.log.</summary>
+    public IReadOnlyList<string> Lines => _lines;
+
     public HaulingLog Read()
     {
         var log = new HaulingLog();

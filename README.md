@@ -16,16 +16,19 @@ To make a single exe: `dotnet publish src/HaulingTracker -c Release -r win-x64 -
 
     src/
       HaulingTracker.Core/     the logic, without any user interface (runs anywhere .NET runs, so it can be tested on any machine)
-        GameLog/               reading Game.log: missions, objectives, quantum travel, money transfers (HaulingLog)
+        GameLog/               reading Game.log: missions, objectives, quantum travel, money transfers (HaulingLog), and the files
+                               that are read, opened by hand or followed live with their backup logs (LogSources)
         Sessions/              which missions belong to a session, the pickup locations (SessionBuilder)
         Runs/                  the runs of every worker: pickups, deliveries, hand-ins (WorkerTripBuilder)
-        Planning/              the trip planner (TripPlanner) and the loads from Ruin (DropChunk)
+        Planning/              the trip planner (TripPlanner), the loads from Ruin (DropChunk), and the plan as the tab shows it
+                               (PlanView, PlanRow, StopLine) with the texts of its tables (PlanText)
         GameData/              the Pyro stations and distances, quantum drives, ships
         Debts/                 who owes whom (DebtCalc)
         Persistence/           the saved data (AppData and the classes in it) and where it is saved (Storage)
         Tracking/              the logic of the tabs, working from what the program knows now (TrackerState: the merged log, the
                                sessions, the session shown with its stops and runs). Tracker makes the services and wires them:
-                               Places, Crew, Contracts, Earnings, DropOffs, CargoRuns, Whereabouts, SessionFigures, Payouts, Leaderboard
+                               Places, Crew, Contracts, Earnings, DropOffs, CargoRuns, Whereabouts, SessionFigures, Payouts, Leaderboard,
+                               PlanService (the plan of the session, the locks) and StatusFeed (the team status line)
       HaulingTracker/          the Windows program (WinForms): it shows what the services give it
         UI/                    the main window, one file per part of it: MainForm.Planner.cs, MainForm.Debts.cs, ...
         UI/Tables/             the names of the table columns (cells are found by name, never by number) and AddRow

@@ -277,8 +277,8 @@ public sealed partial class MainForm
         {
             summary = plan.Summary,
             note = plan.Note,
-            status = _statusText,
-            statusKey = _statusSeq,
+            status = _feed.Text,
+            statusKey = _feed.Seq,
             palette = MapPalette.Select(WebColor).ToArray(),
             stations = PyroDistances.Points.Select(p => new { id = p.Id, name = p.Name, x = p.X, y = p.Y }).ToList(),
             backdrop = new
