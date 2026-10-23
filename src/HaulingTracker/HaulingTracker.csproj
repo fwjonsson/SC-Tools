@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Windows program: the window, its tabs and controls, and the self-update. The logic is in HaulingTracker.Core, the live web view in HaulingTracker.Web. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>HaulingTracker</AssemblyName>
+    <RootNamespace>HaulingTracker</RootNamespace>
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../HaulingTracker.Core/HaulingTracker.Core.csproj" />
+    <ProjectReference Include="../HaulingTracker.Web/HaulingTracker.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="icon.ico" LogicalName="icon.ico" />   <!-- also served as the icon of the web view page -->
+  </ItemGroup>
+
+</Project>

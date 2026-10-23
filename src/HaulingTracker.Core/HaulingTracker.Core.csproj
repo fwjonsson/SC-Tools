@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The logic of the tracker, without any user interface: reading the Game.log, sessions and runs, the trip planner, the debts,
+       the game data (stations, distances, quantum drives, ships) and the saved data. It runs anywhere .NET runs, so the tests do too. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>HaulingTracker</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HaulingTracker" />
+    <InternalsVisibleTo Include="HaulingTracker.Tests" />
+    <InternalsVisibleTo Include="PlanTest" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The live web view: a tiny read-only web server and the page it sends (wwwroot: index.html, app.css, app.js). No Windows parts, so it can be tested anywhere. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>HaulingTracker.Web</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="wwwroot/*" LogicalName="web/%(Filename)%(Extension)" />   <!-- the page (WebAssets puts it together) -->
+    <EmbeddedResource Include="../HaulingTracker/icon.ico" LogicalName="icon.ico" />   <!-- the icon of the page and of a bookmark -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HaulingTracker" />
+    <InternalsVisibleTo Include="HaulingTracker.Tests" />
+  </ItemGroup>
+
+</Project>

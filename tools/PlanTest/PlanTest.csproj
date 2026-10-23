@@ -10,10 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../../TripPlanner.cs" />
-    <Compile Include="../../Distances.cs" />
-    <Compile Include="../../QuantumDrives.cs" />
-    <Compile Include="../../DropPlanner.cs" />
+    <ProjectReference Include="../../src/HaulingTracker.Core/HaulingTracker.Core.csproj" />
   </ItemGroup>
 
 </Project>

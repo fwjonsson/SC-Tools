@@ -1,0 +1,43 @@
+name: Tests
+
+# The tests of the core and the web view, and the planner scenarios (printed in the log, and as a notice on the run). They run on Linux:
+# nothing in them needs Windows.
+on:
+  push:
+    paths:
+      - 'src/HaulingTracker.Core/**'
+      - 'src/HaulingTracker.Web/**'
+      - 'tests/**'
+      - 'tools/PlanTest/**'
+      - '.github/workflows/tests.yml'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Run the tests
+        shell: bash
+        run: |
+          set +e
+          dotnet test tests/HaulingTracker.Tests -c Release --logger "console;verbosity=normal" > test.txt 2>&1
+          code=$?
+          cat test.txt
+          body=$(grep -E "Passed|Failed|error|Assert|Total tests|Skipped" test.txt | grep -v "warning" | tail -c 6000 | sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::notice title=Test results::$body"
+          exit $code
+      - name: Plan the scenarios
+        shell: bash
+        run: |
+          set +e
+          dotnet run --project tools/PlanTest -c Release > out.txt 2>&1
+          code=$?
+          cat out.txt
+          body=$(grep -v "^\s*$" out.txt | grep -v "warning" | tail -c 6000 | sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::notice title=Planner output::$body"
+          exit $code

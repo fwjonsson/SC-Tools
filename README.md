@@ -7,11 +7,35 @@ Only **Station to Ruin** hauling contracts are used. Ruin to Station missions ar
 
 You need the .NET 10 SDK (Windows).
 
-    cd HaulingTracker
-    dotnet run
+    dotnet run --project src/HaulingTracker
 
-or open `HaulingTracker.csproj` in Visual Studio and press F5.
-To make a single exe: `dotnet publish -c Release -r win-x64 --self-contained false`.
+or open `HaulingTracker.slnx` in Visual Studio and press F5.
+To make a single exe: `dotnet publish src/HaulingTracker -c Release -r win-x64 --self-contained false`.
+
+## How the code is organised
+
+    src/
+      HaulingTracker.Core/     the logic, without any user interface (runs anywhere .NET runs, so it can be tested on any machine)
+        GameLog/               reading Game.log: missions, objectives, quantum travel, money transfers (HaulingLog)
+        Sessions/              which missions belong to a session, the pickup locations (SessionBuilder)
+        Runs/                  the runs of every worker: pickups, deliveries, hand-ins (WorkerTripBuilder)
+        Planning/              the trip planner (TripPlanner) and the loads from Ruin (DropChunk)
+        GameData/              the Pyro stations and distances, quantum drives, ships
+        Debts/                 who owes whom (DebtCalc)
+        Persistence/           the saved data (AppData and the classes in it) and where it is saved (Storage)
+      HaulingTracker/          the Windows program (WinForms)
+        UI/                    the main window, one file per part of it: MainForm.Planner.cs, MainForm.Debts.cs, ...
+        UI/Controls/           the map (PyroMapView) and the themed controls
+        UI/Theming/            the light and dark colours
+        UI/MainForm.Web.cs     what the live web view shows (the data it sends)
+        Updates/               the self-update from the GitHub release
+      HaulingTracker.Web/      the live web view: the small read-only server, and the page itself in wwwroot (index.html, app.css, app.js)
+      ScApiTool/               the separate Star Citizen Wiki API tool
+    tests/HaulingTracker.Tests/  the tests (xUnit): dotnet test tests/HaulingTracker.Tests
+    tools/PlanTest/            prints the plans the trip planner makes for situations from real sessions
+
+Every area has its own namespace (`HaulingTracker.Planning`, `HaulingTracker.UI`, ...), one class per file.
+GitHub builds the program on every change (Build, Windows) and runs the tests and the planner scenarios (Tests, Linux).
 
 ## Updates
 
