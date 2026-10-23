@@ -250,6 +250,16 @@ public sealed class CargoRuns
         return (all > 0 ? all : AssumedMissionScu) / (double)m.Multi;
     }
 
+    /// <summary>The SCU still to pick up at a location: its stops that are not picked up yet (a guess, see StopScu).</summary>
+    public static double WaitingScu(LocationRow r) => r.OpenMissions.Sum(StopScu);
+
+    /// <summary>The Cargo cell of the Stops board: "~835 SCU", or nothing when everything there is picked up.</summary>
+    public static string WaitingScuText(LocationRow r)
+    {
+        var scu = WaitingScu(r);
+        return scu < 0.5 ? "" : "~" + Math.Round(scu).ToString("N0") + " SCU";
+    }
+
     /// <summary>The SCU of the batches of one pickup (a guess, see StopScu).</summary>
     public double PickupScu(TripPickup p)
     {

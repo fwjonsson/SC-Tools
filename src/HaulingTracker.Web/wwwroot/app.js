@@ -47,7 +47,7 @@ function alignColumns() {
     t.style.tableLayout = 'fixed';
     for (let i = 0; i < cells.length; i++) cells[i].style.width = (i < n && i < cells.length - 1 && w[i]) ? w[i] + 'px' : '';   // the last column takes what is left
   }
-  fix('pickups', 5); fix('finished', 6); fix('runs', 2);
+  fix('pickups', 6); fix('finished', 6); fix('runs', 2);
 }
 window.addEventListener('resize', alignColumns);
 

@@ -375,7 +375,7 @@ public sealed partial class MainForm : Form
                 cols[i].Width = lead[i].Width;
             }
         }
-        Fix(_logGrid, 5);     // #, Pickup Location, From Ruin, Batches, Value
+        Fix(_logGrid, 6);     // #, Pickup Location, From Ruin, Batches, Cargo, Value
         Fix(_doneGrid, 6);    // #, Pickup Location, From Ruin, Delivered, Worker, Value
         Fix(_tripGrid, 2);    // #, Worker
     }
@@ -647,6 +647,7 @@ public sealed partial class MainForm : Form
         _logGrid.Columns.Add(Col(StopCol.Location, "Pickup Location", 190, false, DataGridViewContentAlignment.MiddleLeft));
         _logGrid.Columns.Add(Col(StopCol.FromRuin, "From Ruin", 90, true, DataGridViewContentAlignment.MiddleRight));
         _logGrid.Columns.Add(Col(StopCol.Batches, "Batches", 90, true));
+        _logGrid.Columns.Add(Col(StopCol.Cargo, "Cargo", 100, true, DataGridViewContentAlignment.MiddleRight));   // the SCU still to pick up there (estimated, like the Cargo of the Trip Planner)
         var workerCol = new DataGridViewComboBoxColumn
         {
             Name = StopCol.Worker,
@@ -1410,6 +1411,7 @@ public sealed partial class MainForm : Form
                 (StopCol.Location, _places.LocationName(stop.Zone)),
                 (StopCol.FromRuin, _places.DistanceText(stop.Zone)),
                 (StopCol.Batches, r == null ? "" : MissionsText(r)),
+                (StopCol.Cargo, r == null ? "" : CargoRuns.WaitingScuText(r)),
                 (StopCol.Worker, inp?.Worker ?? ""),
                 (StopCol.Value, ValueText(stop.Value)),
                 (StopCol.Notes, inp?.Notes ?? ""));
