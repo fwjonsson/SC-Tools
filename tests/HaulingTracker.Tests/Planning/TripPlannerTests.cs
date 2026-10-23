@@ -57,6 +57,73 @@ public class TripPlannerTests
         Assert.Equal(18, planned.Values.Sum());
     }
 
+    /// <summary>Patch City alone, 5 batches of 167 SCU: more than one ship holds. zzoega at Checkmate (or nowhere: both at Ruin), with this much on board.</summary>
+    static List<PlannedTrip> PatchCityOnly(int loadedScu = 292, string? from = "Checkmate")
+    {
+        var open = new Dictionary<string, int> { [Id("Patch City")] = 5 };
+        var batchScu = new Dictionary<string, int> { [Id("Patch City")] = 167 };
+        var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, Ts2), ("zzatvo", 3, Ts2) };
+        var shipScu = new Dictionary<string, int> { ["zzoega"] = 741, ["zzatvo"] = 741 };
+        var starts = from == null ? null : new List<WorkerStart> { new() { Worker = "zzoega", Loaded = loadedScu > 0 ? 2 : 0, LoadedScu = loadedScu, From = Id(from) } };
+        return TripPlanner.Plan(open, crew, starts, null, null, batchScu, shipScu);
+    }
+
+    static List<int> PatchCityShares(List<PlannedTrip> trips) =>
+        trips.SelectMany(t => t.Stops).Where(s => s.Id == Id("Patch City")).Select(s => s.Batches).OrderBy(x => x).ToList();
+
+    [Fact]
+    public void A_station_that_needs_two_trips_fills_one_and_the_leftover_waits()
+    {
+        Assert.Equal(new[] { 1, 4 }, PatchCityShares(PatchCityOnly(from: null)));   // a full ship of 4, not 3 + 2
+
+        var trips = PatchCityOnly();   // his run has room for 2: that would be the leftover of a station the other one lands at anyway
+        Assert.DoesNotContain(trips, t => t.Special);   // nothing is added to his run: he flies home with what he has
+        Assert.Equal(new[] { 1, 4 }, PatchCityShares(trips));
+    }
+
+    [Fact]
+    public void The_trip_he_is_flying_fills_up()
+    {
+        var trips = PatchCityOnly(loadedScu: 0);   // at Checkmate with an empty ship (he delivered waste there): room for 4
+        Assert.Equal(4, trips.Single(t => t.Special).Stops.Single(s => s.Id == Id("Patch City")).Batches);
+        Assert.Equal(new[] { 1, 4 }, PatchCityShares(trips));
+    }
+
+    /// <summary>
+    /// 23 Oct 14:54: zzoega is flying a run, at Checkmate with 2 batches on board (292 SCU, room for about 450 more); zzatvo is on his way home from Orbituary
+    /// with a full ship. The plan sent zzoega to Patch City for one batch while zzatvo's next trip took the other four there.
+    /// </summary>
+    public static List<PlannedTrip> CheckmateRun()
+    {
+        var open = new Dictionary<string, int>
+        {
+            [Id("Gaslight")] = 6, [Id("Patch City")] = 5, [Id("Nyx GW")] = 3, [Id("Endgame")] = 3, [Id("Dudley")] = 2, [Id("Megumi")] = 2, [Id("Rod's Fuel")] = 2,
+        };
+        var batchScu = new Dictionary<string, int>
+        {
+            [Id("Gaslight")] = 153, [Id("Patch City")] = 167, [Id("Nyx GW")] = 139, [Id("Endgame")] = 125, [Id("Dudley")] = 188, [Id("Megumi")] = 146, [Id("Rod's Fuel")] = 146,
+        };
+        var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, Ts2), ("zzatvo", 3, Ts2) };
+        var shipScu = new Dictionary<string, int> { ["zzoega"] = 741, ["zzatvo"] = 741 };
+        var starts = new List<WorkerStart>
+        {
+            new() { Worker = "zzoega", Loaded = 2, LoadedScu = 292, From = Id("Checkmate") },
+            new() { Worker = "zzatvo", Loaded = 5, LoadedScu = 707, From = Id("Orbituary") },
+        };
+        return TripPlanner.Plan(open, crew, starts, null, null, batchScu, shipScu);
+    }
+
+    [Fact]
+    public void A_run_in_progress_fills_up_where_it_takes_the_station_and_never_lands_for_a_leftover()
+    {
+        var trips = CheckmateRun();
+        var now = trips.Single(t => t.Special && t.Worker == "zzoega");
+        Assert.DoesNotContain(now.Stops, s => s.Id == Id("Patch City"));
+        var all = trips.SelectMany(t => t.Stops).GroupBy(s => s.Id).ToDictionary(g => g.Key, g => g.Sum(s => s.Batches));
+        Assert.All(now.Stops, s => Assert.True(s.Batches * 2 >= all[s.Id], PyroDistances.NameOf(s.Id) + " is a leftover"));   // the bigger part of every station it lands at
+        Assert.Equal(23, all.Values.Sum());   // every batch is still planned
+    }
+
     /// <summary>The start of a session (nothing carried yet), one worker in a C2, waste waiting at four stations.</summary>
     static List<PlannedTrip> SessionStart()
     {
