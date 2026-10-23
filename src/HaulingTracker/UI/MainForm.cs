@@ -704,7 +704,7 @@ public sealed partial class MainForm : Form
         _tripGrid.Columns.Add(Col(RunCol.Started, "Started", 76, true));
         _tripGrid.Columns.Add(Col(RunCol.Completed, "Completed", 108, true));
         _tripGrid.Columns.Add(Col(RunCol.Time, "Time", 90, true));
-        _tripGrid.Columns.Add(Col(RunCol.Flight, "Flight time", 90, true));   // the estimated flying time of the run (the Flight time of the Trip Planner)
+        _tripGrid.Columns.Add(Col(RunCol.Flight, "In flight", 90, true));   // the estimated flying time of the run (the In flight of the Trip Planner)
         var lostCol = new DataGridViewComboBoxColumn
         {
             Name = RunCol.Lost,
@@ -716,7 +716,7 @@ public sealed partial class MainForm : Form
         lostCol.Items.AddRange("None", "Little", "All");
         lostCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         _tripGrid.Columns.Add(lostCol);
-        var hourly = Col(RunCol.PerHour, "aUEC/h", 96, true, DataGridViewContentAlignment.MiddleRight);   // what the run earned per hour, shown right of Flight time
+        var hourly = Col(RunCol.PerHour, "aUEC/h", 96, true, DataGridViewContentAlignment.MiddleRight);   // what the run earned per hour, shown right of In flight
         _tripGrid.Columns.Add(hourly);
         hourly.DisplayIndex = lostCol.DisplayIndex;
         _tripGrid.DataError += (_, e) => e.ThrowException = false;

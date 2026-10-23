@@ -50,7 +50,7 @@ public sealed partial class MainForm
             + "Locked: the next stop of everybody is kept for him. Planning again leaves those alone and plans the rest around them, and a run in progress counts in the ship. "
             + "Press it again to unlock. Nothing is locked until you press it.\n\n"
             + "Who flies, how many batches each ship holds and which quantum drive each has is set in the Party table on the front page. The runs below get their worker from the logs, and from these trips for members without a log.\n\n"
-            + "Flight time is the estimated flying time of that whole route with the drive of the worker (~, no loading); Time is how long a run really took. Green = done, orange = some cargo lost, red = all lost. The run you are flying is your Current row, in your colour.";
+            + "In flight is the estimated flying time of that whole route with the drive of the worker (~, no loading); Time is how long a run really took. Green = done, orange = some cargo lost, red = all lost. The run you are flying is your Current row, in your colour.";
 
         _planNote.Dock = DockStyle.Fill;
         _planNote.AutoSize = true;
@@ -109,7 +109,7 @@ public sealed partial class MainForm
     }
 
     /// <summary>
-    /// A short copy of Cargo Runs for the Trip Planner tab (under the map): the number, the worker, the value, when it started and was completed, its time and flight time
+    /// A short copy of Cargo Runs for the Trip Planner tab (under the map): the number, the worker, the value, when it started and was completed, its time and In flight
     /// (not the locations, the batches or the lost cargo), so it fits under the map. The Session tab has the whole table.
     /// It has the same cells as that one (the other columns are hidden), and it cannot be edited.
     /// </summary>
@@ -132,7 +132,7 @@ public sealed partial class MainForm
         g.Columns.Add(Col(RunCol.Started, "Started", 76, true));
         g.Columns.Add(Col(RunCol.Completed, "Completed", 108, true));
         g.Columns.Add(Col(RunCol.Time, "Time", 90, true));
-        g.Columns.Add(Col(RunCol.Flight, "Flight time", 90, true));
+        g.Columns.Add(Col(RunCol.Flight, "In flight", 90, true));
         g.Columns.Add(Col(RunCol.Lost, "Lost Cargo", 116, true));
         g.Columns.Add(Col(RunCol.PerHour, "aUEC/h", 96, true, DataGridViewContentAlignment.MiddleRight));
         FitColumns(g);
