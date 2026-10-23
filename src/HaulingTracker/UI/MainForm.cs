@@ -779,7 +779,7 @@ public sealed partial class MainForm : Form
         else
         {
             var latest = _state.Sessions.Count > 0 && _state.Current != null && _state.Current.Key == _state.Sessions[^1].Key;
-            if (!_state.Live || !latest || !HasOpenContracts()) return "";
+            if (!_state.Live || !latest || !_state.HasOpenContracts()) return "";
             span = DateTime.UtcNow - t.Start;
         }
         var value = RunValue(t);
@@ -791,7 +791,7 @@ public sealed partial class MainForm : Form
     {
         if (t.End.HasValue) return LongDuration(t.End.Value - t.Start);
         var latest = _state.Sessions.Count > 0 && _state.Current != null && _state.Current.Key == _state.Sessions[^1].Key;
-        if (!_state.Live || !latest || !HasOpenContracts()) return "";   // no active contract: nothing is counting
+        if (!_state.Live || !latest || !_state.HasOpenContracts()) return "";   // no active contract: nothing is counting
         var d = DateTime.UtcNow - t.Start;
         return d > TimeSpan.Zero ? LongDuration(d) : "";
     }
@@ -1945,10 +1945,10 @@ public sealed partial class MainForm : Form
         if (_state.Inputs?.Start is not { Length: > 0 })
         {
             // a session can go on for days: a stretch with no activity for an hour does not count (the clock just stops, the session goes on)
-            var running = !_state.Current.Stop.HasValue && _state.Live && latest && HasOpenContracts();
+            var running = !_state.Current.Stop.HasValue && _state.Live && latest && _state.HasOpenContracts();
             return SessionBuilder.ActiveTime(_state.Current, running ? DateTime.UtcNow : null);
         }
-        var active = _state.Live && latest && HasOpenContracts() && (!_state.Summary.End.HasValue || DateTime.UtcNow - _state.Summary.End.Value < SessionBuilder.ClockIdleLimit);
+        var active = _state.Live && latest && _state.HasOpenContracts() && (!_state.Summary.End.HasValue || DateTime.UtcNow - _state.Summary.End.Value < SessionBuilder.ClockIdleLimit);
         var end = active ? DateTime.UtcNow : _state.Summary.End ?? start;
         var d = end - start;
         return d > TimeSpan.Zero ? d : TimeSpan.Zero;

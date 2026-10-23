@@ -109,7 +109,7 @@ public sealed partial class MainForm
     bool LiveRunning()
     {
         var latest = _state.Sessions.Count > 0 && _state.Current != null && _state.Current.Key == _state.Sessions[^1].Key;
-        return _state.Live && latest && HasOpenContracts();
+        return _state.Live && latest && _state.HasOpenContracts();
     }
 
     /// <summary>The run a worker is flying now (not handed in). A run with only waste in it counts while it is recent.</summary>
