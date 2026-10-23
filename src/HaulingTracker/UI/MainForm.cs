@@ -33,6 +33,7 @@ public sealed partial class MainForm : Form
     readonly SessionFigures _figures;
     readonly Payouts _payouts;
     readonly Leaderboard _leaders;
+    readonly PlanService _plan;
     readonly DataGridView _doneGrid = new();
     Label? _doneTitle;
     decimal _revenue;
@@ -78,6 +79,7 @@ public sealed partial class MainForm : Form
         _figures = tracker.Figures;
         _payouts = tracker.Payouts;
         _leaders = tracker.Leaderboard;
+        _plan = tracker.Plan;
         Text = "Hauling Tracker";
         Font = new Font("Segoe UI", 10f);
         StartPosition = FormStartPosition.CenterScreen;
@@ -1417,7 +1419,7 @@ public sealed partial class MainForm : Form
         try
         {
             _tracker.Select(_state.Current);
-            ClaimNewPickups();   // before the boards change: the plan still has the batches that were just picked up
+            _plan.ClaimNewPickups();   // before the boards change: the plan still has the batches that were just picked up
             _tracker.LoadStops();
 
             _startBox.Text = _state.Inputs.Start ?? FormatTime(_state.Summary.Start);
@@ -1451,7 +1453,7 @@ public sealed partial class MainForm : Form
         // with the batch you just picked up already gone from the open batches, but the run that carries it not there yet, so the plan sent you out with a whole new
         // trip on top of it, and it stayed like that until the next change in the log.
         if (_planBody.Visible && _planBody.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
-        else if (_state.Inputs != null) GetPlan();   // keeps the plan and the locked Current trips up to date while the planner tab is closed
+        else if (_state.Inputs != null) _plan.GetPlan();   // keeps the plan and the locked Current trips up to date while the planner tab is closed
     }
 
     void ClearView()

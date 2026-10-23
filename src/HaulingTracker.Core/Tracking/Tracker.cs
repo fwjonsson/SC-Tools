@@ -21,6 +21,7 @@ public sealed class Tracker
         Figures = new SessionFigures(State);
         Payouts = new Payouts(State, Crew, Contracts, Earnings, Runs, Places);
         Leaderboard = new Leaderboard(State, Places, Payouts, Figures);
+        Plan = new PlanService(State, Places, Crew, Contracts, Earnings, DropOffs, Runs, Whereabouts);
     }
 
     public TrackerState State { get; }
@@ -34,6 +35,7 @@ public sealed class Tracker
     public SessionFigures Figures { get; }
     public Payouts Payouts { get; }
     public Leaderboard Leaderboard { get; }
+    public PlanService Plan { get; }
 
     /// <summary>
     /// Reads the logs of every player as one (a mission shared in the party is in it once), with the missions marked as gone and the SCU you typed, and finds the

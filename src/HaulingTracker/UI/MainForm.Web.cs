@@ -126,7 +126,7 @@ public sealed partial class MainForm
             planRuns = WebGrid(_planRunsGrid),   // the short copy under the map of the Trip Planner (#, Worker, Value, Started, Completed, Time, Flight time)
             runsLive = _tripGrid.Rows.Cast<DataGridViewRow>().Where(r => !r.IsNewRow)
                 .Select(r => r.Tag is WorkerTrip t && !t.End.HasValue && (Convert.ToString(r.Cells[RunCol.Time].Value) ?? "").Length > 0).ToArray(),   // runs on the way: the page counts their Run Time up
-            planner = WebPlan(GetPlan()),
+            planner = WebPlan(_plan.GetPlan()),
             debts = WebDebts(),
             history = new { allTime = WebGrid(_allTimeGrid), best = _bestLine.Text, saved = WebGrid(_historyGrid) },
         };
@@ -223,27 +223,9 @@ public sealed partial class MainForm
     /// <summary>The Trip Planner tab as data: the stations for the map and, for every crew member, his Current Route and Queued routes tables and his planned routes.</summary>
     object WebPlan(PlanView plan)
     {
-        // the Current Route: what is done at every stop; the Queued routes: the trips after it
-        object CurrentHeaders() => new[]
-        {
-            new { text = "#", align = "center" },
-            new { text = "Stops", align = "left" },
-            new { text = "Deliver/Collect", align = "left" },
-            new { text = "Cargo", align = "left" },
-            new { text = "Value", align = "right" },
-            new { text = "Distance", align = "right" },
-            new { text = "In flight", align = "right" },
-        };
-        object QueuedHeaders() => new[]
-        {
-            new { text = "#", align = "center" },
-            new { text = "Route", align = "left" },
-            new { text = "Stops", align = "center" },
-            new { text = "Batches", align = "center" },
-            new { text = "Value", align = "right" },
-            new { text = "Distance", align = "right" },
-            new { text = "In flight", align = "right" },
-        };
+        // the Current Route: what is done at every stop; the Queued routes: the trips after it (the same columns as in the program)
+        object CurrentHeaders() => PlanText.CurrentColumns.Select(c => new { text = c.Header, align = c.Align }).ToArray();
+        object QueuedHeaders() => PlanText.QueuedColumns.Select(c => new { text = c.Header, align = c.Align }).ToArray();
         var cell = WebColor(Theme.Cell);
         var text = WebColor(Theme.Text);
         var calc = WebColor(Theme.Calc);
@@ -260,14 +242,14 @@ public sealed partial class MainForm
         // the Current Route: one stop per line, the worker colour on the line where he is
         object CurrentGrid(PlanWorkerView w, PlanRow current)
         {
-            var cells = LineCells(current.Lines);
+            var cells = PlanText.LineCells(current.Lines);
             var rows = new List<object>();
             for (var i = 0; i < cells.Count; i++)
             {
                 var here = i == current.Here;
-                rows.Add(PlainRow(cells[i], here ? WebColor(w.Color) : cell, here ? WebColor(TextOn(w.Color)) : text, here));
+                rows.Add(PlainRow(cells[i], here ? WebColor(WorkerColor(w.Name)) : cell, here ? WebColor(TextOn(WorkerColor(w.Name))) : text, here));
             }
-            rows.Add(PlainRow(LineTotals(current.Lines), calc, text, true));
+            rows.Add(PlainRow(PlanText.LineTotals(current.Lines), calc, text, true));
             return new { headers = CurrentHeaders(), rows };
         }
 
@@ -276,15 +258,15 @@ public sealed partial class MainForm
         {
             var rows = new List<object>();
             if (queued.Count == 0) rows.Add(PlainRow(new[] { "", "none", "", "", "", "", "" }, cell, WebColor(Theme.Muted), false));
-            foreach (var r in queued) rows.Add(PlainRow(QueuedCells(r), RowColor(r) is { } c ? WebColor(c) : cell, text, false));
-            if (queued.Count > 0) rows.Add(PlainRow(PlanTotals(queued), calc, text, true));
+            foreach (var r in queued) rows.Add(PlainRow(PlanText.QueuedCells(r), RowColor(r) is { } c ? WebColor(c) : cell, text, false));
+            if (queued.Count > 0) rows.Add(PlainRow(PlanText.PlanTotals(queued), calc, text, true));
             return new { headers = QueuedHeaders(), rows };
         }
 
         var workers = plan.Workers.Select(w => new
         {
             name = w.Name,
-            color = WebColor(w.Color),
+            color = WebColor(WorkerColor(w.Name)),
             heading = PlanTitle(w),   // his name in capitals, shown in his colour
             title = "   \u2013   Current location: " + PyroDistances.NameOf(w.LocationId) + (w.LocationByHand ? " (set by hand)" : ""),   // where he is now: the logs keep it up to date
             current = w.Rows.FirstOrDefault(r => !r.Hidden) is { } first ? CurrentGrid(w, first) : null,
