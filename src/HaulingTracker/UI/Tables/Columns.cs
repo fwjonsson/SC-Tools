@@ -16,6 +16,7 @@ static class StopCol
     public const string Location = "location";
     public const string FromRuin = "fromRuin";     // Gm from Ruin Station
     public const string Batches = "batches";       // missions still waiting there / missions with cargo there
+    public const string Cargo = "cargo";           // the SCU still to pick up there (estimated)
     public const string Worker = "worker";         // Assigned Worker (hidden: the runs get their workers from the logs and the Trip Planner)
     public const string Value = "value";
     public const string Notes = "notes";

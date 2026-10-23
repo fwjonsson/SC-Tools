@@ -6,6 +6,16 @@ namespace HaulingTracker.Tests.Tracking;
 public class CargoRunsTests
 {
     [Fact]
+    public void A_stop_shows_the_scu_still_to_pick_up_there()
+    {
+        var (t, _) = PlayedSession.Load();
+        var patch = t.State.PickupRows.Single(r => r.Zone == PlayedSession.PatchZone);   // the second mission's batch is still waiting there
+        Assert.Equal(CargoRuns.AssumedMissionScu / 2.0, CargoRuns.WaitingScu(patch));     // the game did not say its SCU: 500 over 2 stops
+        Assert.Equal("~" + 250.ToString("N0") + " SCU", CargoRuns.WaitingScuText(patch));
+        Assert.Equal("", CargoRuns.WaitingScuText(new LocationRow()));                      // everything picked up
+    }
+
+    [Fact]
     public void The_runs_of_the_session_have_the_latest_activity_on_top()
     {
         var (t, _) = PlayedSession.Load();
