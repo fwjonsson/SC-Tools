@@ -57,9 +57,42 @@ public class TripPlannerTests
         Assert.Equal(18, planned.Values.Sum());
     }
 
+    /// <summary>The start of a session (nothing carried yet), one worker in a C2, waste waiting at four stations.</summary>
+    static List<PlannedTrip> SessionStart()
+    {
+        var open = new Dictionary<string, int>
+        {
+            [Id("Nyx GW")] = 6, [Id("Patch City")] = 5, [Id("Gaslight")] = 4, [Id("Rod's Fuel")] = 2, [Id("Stanton GW")] = 2, [Id("Starlight")] = 2,
+            [Id("Endgame")] = 2, [Id("Dudley")] = 2, [Id("Orbituary")] = 2, [Id("Rat's Nest")] = 2, [Id("Megumi")] = 1,
+        };
+        var batchScu = open.Keys.ToDictionary(k => k, k => 146);
+        batchScu[Id("Rod's Fuel")] = 208;
+        var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, Ts2) };
+        var shipScu = new Dictionary<string, int> { ["zzoega"] = 741 };
+        var drops = new List<DropChunk> { Waste("Rod's Fuel", 101), Waste("Endgame", 135), Waste("Stanton GW", 127), Waste("Nyx GW", 133) };
+        return TripPlanner.Plan(open, crew, null, null, drops, batchScu, shipScu);
+    }
+
+    [Fact]
+    public void At_the_start_every_waste_load_rides_along_and_no_trip_carries_two()
+    {
+        var trips = SessionStart();
+        Assert.Equal(4, trips.Count(t => t.Drops.Count > 0));
+        Assert.All(trips, t => Assert.True(t.Drops.Count <= 1));
+        Assert.All(trips.Where(t => t.Drops.Count > 0), t => Assert.Equal(t.Drops[0].Id, t.Stops[0].Id));
+    }
+
+    [Fact]
+    public void The_queue_starts_with_a_one_stop_trip_that_fills_the_ship()
+    {
+        var first = SessionStart().First();
+        Assert.Single(first.Stops);
+        Assert.True(first.Fill >= 0.75, "the first trip fills only " + first.Fill.ToString("P0"));
+    }
+
     [Fact]
     public void No_ship_is_planned_over_its_room()
     {
-        foreach (var t in RodsFuelRun()) Assert.True(t.Fill <= 1.0001, "a trip is planned over the room of the ship: " + t.Fill);
+        foreach (var t in RodsFuelRun().Concat(SessionStart())) Assert.True(t.Fill <= 1.0001, "a trip is planned over the room of the ship: " + t.Fill);
     }
 }
