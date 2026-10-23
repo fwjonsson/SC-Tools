@@ -1,6 +1,6 @@
 namespace HaulingTracker.UI;
 
-// From-Ruin contracts ("Single to Multi"): the cargo is loaded at Ruin and dropped off at 2 to 4 stations. Alpha: every drop-off objective is one batch.
+// From-Ruin contracts ("Single to Multi", and the direct ones): the cargo is loaded at Ruin and dropped off at 2 to 4 stations (a direct one: at one). Alpha: every drop-off objective is one batch.
 public sealed partial class MainForm
 {
     /// <summary>

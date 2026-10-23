@@ -16,12 +16,15 @@ public sealed class Earnings
     /// <summary>Payout of a 4 stop mission (Master rank).</summary>
     public const decimal DefaultReward4 = 2113750m;
 
+    /// <summary>Payout of a direct from-Ruin contract (one drop-off: "Experienced | DIRECT Stellar Large Haul | Ruin Station > Gaslight").</summary>
+    public const decimal DefaultDirectReward = 795750m;
+
     // a from-Ruin contract pays the same as a to-Ruin one with as many stops (2, 3 or 4 drop-offs)
 
-    /// <summary>The built-in payout of a contract with this many stops (2, 3 or 4); to and from Ruin pay the same.</summary>
-    public static decimal DefaultReward(int stops) => stops == 2 ? DefaultReward2 : stops == 3 ? DefaultReward3 : DefaultReward4;
+    /// <summary>The built-in payout of a contract with this many stops (2, 3 or 4; 1 is a direct one from Ruin); to and from Ruin pay the same.</summary>
+    public static decimal DefaultReward(int stops) => stops == 1 ? DefaultDirectReward : stops == 2 ? DefaultReward2 : stops == 3 ? DefaultReward3 : DefaultReward4;
 
-    /// <summary>The rows of the rewards table, in order: the hauling contracts to Ruin, then the from-Ruin (waste) contracts.</summary>
+    /// <summary>The rows of the rewards table, in order: the hauling contracts to Ruin, then the from-Ruin (waste) contracts, the direct one last.</summary>
     public static readonly IReadOnlyList<RewardLine> RewardLines = new RewardLine[]
     {
         new(2, false, i => i.Reward2, (i, v) => i.Reward2 = v),
@@ -30,6 +33,7 @@ public sealed class Earnings
         new(2, true, i => i.WasteReward2, (i, v) => i.WasteReward2 = v),
         new(3, true, i => i.WasteReward3, (i, v) => i.WasteReward3 = v),
         new(4, true, i => i.WasteReward4, (i, v) => i.WasteReward4 = v),
+        new(1, true, i => i.DirectReward, (i, v) => i.DirectReward = v),
     };
 
     readonly TrackerState _s;
@@ -62,6 +66,7 @@ public sealed class Earnings
     /// <summary>What a from-Ruin contract pays: the From Ruin rows of the rewards table, by its number of drop-offs (nothing typed = the built-in payout).</summary>
     public static decimal WasteRewardOf(Mission m, SessionInputs? inp) =>
         inp == null ? 0
+        : m.OutDrops == 1 ? Or(inp.DirectReward, DefaultDirectReward)   // a direct one: one drop-off
         : m.OutDrops == 2 ? Or(inp.WasteReward2, DefaultReward2)   // the same payouts as the to-Ruin contracts with as many stops
         : m.OutDrops == 3 ? Or(inp.WasteReward3, DefaultReward3)
         : m.OutDrops == 4 ? Or(inp.WasteReward4, DefaultReward4) : 0;
@@ -221,8 +226,8 @@ public sealed class Earnings
 /// <summary>A row of the rewards table: a kind of contract (2, 3 or 4 stops, to or from Ruin) and where its payout is kept in the session.</summary>
 public sealed record RewardLine(int Stops, bool FromRuin, Func<SessionInputs, decimal> Get, Action<SessionInputs, decimal> Set)
 {
-    /// <summary>"2 To Ruin", "4 From Ruin".</summary>
-    public string Contract => Stops + (FromRuin ? " From Ruin" : " To Ruin");
+    /// <summary>"2 To Ruin", "4 From Ruin", "Direct From Ruin".</summary>
+    public string Contract => FromRuin && Stops == 1 ? "Direct From Ruin" : Stops + (FromRuin ? " From Ruin" : " To Ruin");
 
     /// <summary>How many contracts of this kind the session has: its accepted missions (to Ruin), or its from-Ruin contracts.</summary>
     public int CountIn(IEnumerable<Mission> accepted, IEnumerable<Mission> waste) =>

@@ -53,6 +53,24 @@ public class HaulingLogTests
     }
 
     [Fact]
+    public void A_direct_contract_from_Ruin_is_a_load_with_one_drop_off()
+    {
+        // as zzatvo's log of 23 Oct 15:09 writes it: a pickup at Ruin and one drop-off
+        var log = new GameLogWriter()
+            .Marker(M1, GameLogWriter.DirectContract, "pickup_eeee_0", "900000000401", GameLogWriter.RuinStation)
+            .Marker(M1, GameLogWriter.DirectContract, "dropoff_eeee_0", "900000000402", GameLogWriter.Gaslight)
+            .DeliverPopup(M1, "dropoff_eeee_0", 421, "Waste", "Gaslight at the L2 Lagrange of Pyro V")
+            .Read();
+        var m = log.Missions[M1];
+        Assert.True(m.IsOut);
+        Assert.True(m.IsDirect);
+        Assert.False(m.IsHauling);
+        Assert.Equal("Waste", m.OutCargo);
+        Assert.Equal(1, m.OutDrops);
+        Assert.Equal(421, m.ObjScu["dropoff_eeee_0"]);
+    }
+
+    [Fact]
     public void Objective_updates_and_the_end_of_a_mission_are_kept()
     {
         var w = new GameLogWriter().Accepted(M1).Minutes(10).Objective(M1, "pickup_dddd_0", "COMPLETED").Minutes(20).MissionEnded(M1, "COMPLETED");

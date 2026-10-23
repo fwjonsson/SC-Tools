@@ -253,7 +253,7 @@ public sealed partial class MainForm : Form
 
     const int TitleHeight = 30;
     const int SideWidth = 560;     // the column on the right: the party, the contracts and the times
-    const int ContractsHeight = 204;   // the contracts table: header and seven rows (hauling 2, 3, 4 stops, waste 2, 3, 4 drop-offs, Total)
+    static readonly int ContractsHeight = 26 + (Earnings.RewardLines.Count + 1) * 24 + 10;   // the contracts table: header, a row for every kind of contract (to Ruin 2, 3, 4 stops, from Ruin 2, 3, 4 drop-offs and direct) and Total
     const int SummaryHeight = 190;     // the times and totals table: seven rows of 25 with their borders
     TableLayoutPanel? _header;
 

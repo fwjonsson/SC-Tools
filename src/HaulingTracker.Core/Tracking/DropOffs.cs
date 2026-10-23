@@ -13,7 +13,7 @@ public sealed class DropBatch
 }
 
 /// <summary>
-/// From-Ruin contracts ("Single to Multi"): what still has to go out to the stations, cut into loads the planner can take along, where a worker is after he
+/// From-Ruin contracts ("Single to Multi", and the direct ones with one drop-off): what still has to go out to the stations, cut into loads the planner can take along, where a worker is after he
 /// delivered one, and the SCU you typed where the game did not say it.
 /// </summary>
 public sealed class DropOffs
@@ -143,33 +143,53 @@ public sealed class DropOffs
     }
 
     /// <summary>
-    /// The cargo that goes out, cut into loads of one mission for one station (no more than a ship holds). The waste of different missions looks the same, so a trip only
-    /// leaves Ruin with the load for its first stop, and only the workers who have that mission can take it.
+    /// The cargo that goes out, cut into loads for one station: the drop-offs there of every from-Ruin contract the same workers have (a direct contract and
+    /// a waste drop-off for the same stop go out together), as many as a ship holds. Waste for one station looks the same whichever contract it is for, so it is
+    /// all unloaded there; waste for two stations does not go in one ship, so a trip only leaves Ruin with the load for its first stop, and only the workers who
+    /// have those contracts can take it.
     /// </summary>
-    public List<DropChunk> DropChunks(List<DropBatch> drops, List<string> flyers, int capacity)
+    /// <param name="capacity">the most drop-offs in one load (every drop-off is a batch: the batches the smallest ship holds)</param>
+    /// <param name="maxScu">the most SCU in one load (what the smallest ship is planned to hold; 0 = no limit): a direct load of 600 SCU and a waste drop-off of 274
+    /// do not fit in one C2, so they are two loads</param>
+    public List<DropChunk> DropChunks(List<DropBatch> drops, List<string> flyers, int capacity, int maxScu = 0)
     {
         var chunks = new List<DropChunk>();
         if (capacity <= 0) return chunks;
-        foreach (var g in drops.Where(d => d.Station != null).GroupBy(d => (Mission: d.Mission.Id, Station: d.Station!)))
+        var holders = new Dictionary<string, string[]>();   // mission id -> the workers who have it (empty = everybody)
+        foreach (var m in drops.Select(d => d.Mission).DistinctBy(m => m.Id))
         {
-            var mission = g.First().Mission;
-            var can = flyers.Where(n => _contracts.HasMission(mission, n)).ToArray();
-            var allowed = can.Length == 0 || can.Length == flyers.Count ? Array.Empty<string>() : can;
-            var scus = g.Select(d => d.Scu).ToList();
-            var keys = g.Select(d => d.Mission.Id + "|" + d.Objective).ToList();
+            var can = flyers.Where(n => _contracts.HasMission(m, n)).ToArray();
+            holders[m.Id] = can.Length == 0 || can.Length == flyers.Count ? Array.Empty<string>() : can;
+        }
+        foreach (var g in drops.Where(d => d.Station != null).GroupBy(d => (Station: d.Station!, Who: string.Join("|", holders[d.Mission.Id]))))
+        {
+            var allowed = holders[g.First().Mission.Id];
+            var list = g.ToList();
             var done = 0;
-            while (done < scus.Count)
+            while (done < list.Count)
             {
-                var take = Math.Min(capacity, scus.Count - done);
-                var part = scus.Skip(done).Take(take).ToList();
-                var partKeys = keys.Skip(done).Take(take).ToList();
-                var scu = part.Sum();
-                done += take;
+                var part = new List<DropBatch> { list[done] };
+                var scu = list[done].Scu;
+                while (done + part.Count < list.Count && part.Count < capacity && (maxScu <= 0 || scu + list[done + part.Count].Scu <= maxScu))
+                {
+                    scu += list[done + part.Count].Scu;
+                    part.Add(list[done + part.Count]);
+                }
+                done += part.Count;
                 // a ship that holds fewer SCU than the load cannot take it (a worker without a ship set is assumed to manage)
                 var who = allowed.Length == 0 ? flyers : allowed.ToList();
                 var fits = scu <= 0 ? who : who.Where(n => _crew.ShipOf(n) is not { } ship || ship.Total >= scu).ToList();
                 var set = fits.Count == 0 || fits.Count == flyers.Count ? allowed : fits.ToArray();
-                chunks.Add(new DropChunk { Station = g.Key.Station, Cargo = mission.OutCargo ?? "Cargo", Batches = take, Scu = scu, Parts = part, Keys = partKeys, Allowed = set });
+                chunks.Add(new DropChunk
+                {
+                    Station = g.Key.Station,
+                    Cargo = string.Join(" + ", part.Select(d => d.Mission.OutCargo ?? "Cargo").Distinct()),
+                    Batches = part.Count,
+                    Scu = scu,
+                    Parts = part.Select(d => d.Scu).ToList(),
+                    Keys = part.Select(d => d.Mission.Id + "|" + d.Objective).ToList(),
+                    Allowed = set,
+                });
             }
         }
         return chunks;

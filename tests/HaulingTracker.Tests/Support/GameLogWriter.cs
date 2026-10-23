@@ -11,6 +11,7 @@ sealed class GameLogWriter
 
     public const string HaulingContract = "RedWind_Pyro_BulkGrade_Solar_HH_StationToRuin_Carbon_CargoHauling_Multi{0}ToSingle";
     public const string WasteContract = "RedWind_Pyro_BulkGrade_RegionD_HH_RuinToStation_Waste_CargoHauling_SingleToMulti{0}";
+    public const string DirectContract = "RedWind_Pyro_BulkGrade_RegionD_HH_RuinToStation_RegionC_Waste_CargoHauling_AtoB";   // "Experienced | DIRECT Stellar Large Haul | Ruin Station > Gaslight"
 
     // positions of stations as the game writes them in the objective markers (StationIds knows them)
     public static readonly (double X, double Y, double Z) Gaslight = (-19125581, 10432691, 17665446);

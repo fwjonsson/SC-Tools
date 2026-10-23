@@ -73,6 +73,7 @@ public class ContractsTests
     {
         Assert.Equal("3 To Ruin", Contracts.ContractName(new Mission { Multi = 3 }));
         Assert.Equal("2 From Ruin", Contracts.ContractName(new Mission { OutDrops = 2 }));
+        Assert.Equal("Direct From Ruin", Contracts.ContractName(new Mission { OutDrops = 1 }));
         Assert.Equal("?", Contracts.ContractName(new Mission()));
     }
 }
