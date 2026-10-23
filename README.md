@@ -31,9 +31,11 @@ To make a single exe: `dotnet publish src/HaulingTracker -c Release -r win-x64 -
         Updates/               the self-update from the GitHub release
       HaulingTracker.Web/      the live web view: the small read-only server, and the page itself in wwwroot (index.html, app.css, app.js)
       ScApiTool/               the separate Star Citizen Wiki API tool
-    tools/PlanTest/            runs the trip planner on situations from real sessions (the "Planner scenarios" run on GitHub)
+    tests/HaulingTracker.Tests/  the tests (xUnit): dotnet test tests/HaulingTracker.Tests
+    tools/PlanTest/            prints the plans the trip planner makes for situations from real sessions
 
 Every area has its own namespace (`HaulingTracker.Planning`, `HaulingTracker.UI`, ...), one class per file.
+GitHub builds the program on every change (Build, Windows) and runs the tests and the planner scenarios (Tests, Linux).
 
 ## Updates
 
