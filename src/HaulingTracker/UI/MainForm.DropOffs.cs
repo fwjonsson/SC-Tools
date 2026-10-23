@@ -59,7 +59,7 @@ public sealed partial class MainForm
         {
             _renderedVersion = -1;   // the logs are merged again, with the SCU you typed
             _planShown = "";
-            _planCore = null;
+            _plan.Invalidate();
             RefreshFromLog();
             RefreshPlanner();
         }));

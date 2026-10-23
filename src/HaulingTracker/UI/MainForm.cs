@@ -15,7 +15,7 @@ public sealed partial class MainForm : Form
 
     const string DefaultLogPath = @"C:\Program Files\Roberts Space Industries\StarCitizen";
 
-    readonly List<HaulingLog> _logs = new();   // one log per player (account); merged they are _state.Log
+    readonly LogSources _logs = new();   // the logs that are read: one per player (files) or per live source; merged they are _state.Log
     readonly ToolStripMenuItem _addBtn = new();
     readonly DataGridView _tripGrid = new();
     readonly DataGridView _planRunsGrid = new();   // a read-only copy of Cargo Runs under the Trip Planner
@@ -33,6 +33,8 @@ public sealed partial class MainForm : Form
     readonly SessionFigures _figures;
     readonly Payouts _payouts;
     readonly Leaderboard _leaders;
+    readonly PlanService _plan;
+    readonly StatusFeed _feed;
     readonly DataGridView _doneGrid = new();
     Label? _doneTitle;
     decimal _revenue;
@@ -78,6 +80,9 @@ public sealed partial class MainForm : Form
         _figures = tracker.Figures;
         _payouts = tracker.Payouts;
         _leaders = tracker.Leaderboard;
+        _plan = tracker.Plan;
+        _feed = tracker.Status;
+        _feed.Changed += (text, fade) => _statusLine?.ShowText(text, fade);   // the line under the map, while it is on screen
         Text = "Hauling Tracker";
         Font = new Font("Segoe UI", 10f);
         StartPosition = FormStartPosition.CenterScreen;
@@ -102,7 +107,7 @@ public sealed partial class MainForm : Form
         {
             UpdateSessionClock();
             UpdateLiveDurations();
-            AdvanceStatus();
+            _feed.Advance(DateTime.UtcNow);
         };
         _clock.Start();
         _timer.Interval = 1500;
@@ -930,46 +935,8 @@ public sealed partial class MainForm : Form
 
     // ------------------------------------------------------------------ loading logs
 
-    sealed class LiveSource
-    {
-        public string Path = "";
-        public long Pos;
-        public Decoder Dec = Encoding.UTF8.GetDecoder();
-        public string Carry = "";
-        public HaulingLog Log = new();
-        public string? Current;     // the Game.log file that is being read right now
-    }
-
     readonly ToolStripMenuItem _sourcesBtn = new();
     readonly ToolStripMenuItem _partyBtn = new();
-
-    /// <summary>A watch path is a Game.log file, a folder with Game.log, or the StarCitizen folder with LIVE, HOTFIX... inside.</summary>
-    string? ResolveLog(string path)
-    {
-        try
-        {
-            if (File.Exists(path)) return path;
-            if (!Directory.Exists(path)) return null;
-
-            var direct = Path.Combine(path, "Game.log");
-            if (File.Exists(direct)) return direct;
-
-            var found = Directory.GetDirectories(path)
-                .Select(d => (Name: Path.GetFileName(d), File: Path.Combine(d, "Game.log")))
-                .Where(x => File.Exists(x.File))
-                .ToList();
-
-            var channel = _data.Channel;
-            if (!string.IsNullOrEmpty(channel) && channel != "Auto")
-            {
-                var pick = found.FirstOrDefault(x => string.Equals(x.Name, channel, StringComparison.OrdinalIgnoreCase));
-                return pick.File;   // null when that channel has no log
-            }
-            return found.OrderByDescending(x => File.GetLastWriteTimeUtc(x.File)).Select(x => x.File).FirstOrDefault();
-        }
-        catch (IOException) { return null; }
-        catch (UnauthorizedAccessException) { return null; }
-    }
 
     void SetChannel(string name)
     {
@@ -979,7 +946,6 @@ public sealed partial class MainForm : Form
         if (_state.Live) PollLive();
     }
 
-    readonly List<LiveSource> _sources = new();
 
     /// <summary>The sources that are switched on. A disabled source keeps its address but is not read.</summary>
     List<string> ActivePaths() => _data.WatchPaths.Where(p => !_data.DisabledWatchPaths.Contains(p)).ToList();
@@ -998,30 +964,14 @@ public sealed partial class MainForm : Form
         try
         {
             Cursor = Cursors.WaitCursor;
-            var files = dlg.FileNames
-                .OrderBy(f => HaulingLog.FirstTimestamp(f) ?? DateTime.MaxValue)
-                .ToList();
-
-            // one log per player, so logs from two accounts stay apart
-            _logs.Clear();
-            var byPlayer = new Dictionary<string, HaulingLog>();
-            foreach (var f in files)
-            {
-                var player = HaulingLog.FirstPlayer(f) ?? "Unknown player";
-                if (!byPlayer.TryGetValue(player, out var log))
-                {
-                    log = new HaulingLog();
-                    byPlayer[player] = log;
-                    _logs.Add(log);
-                }
-                log.ProcessFile(f);
-            }
+            var files = dlg.FileNames;
+            _logs.LoadFiles(files);   // one log per player, so logs from two accounts stay apart
 
             _renderedVersion = -1;
             _state.Current = null;
             _state.Log = null;
             RefreshFromLog();
-            SetStatus($"Loaded {files.Count} log file(s) for {_logs.Count} player(s), {_state.Sessions.Count} session(s) found.");
+            SetStatus($"Loaded {files.Length} log file(s) for {_logs.Logs.Count} player(s), {_state.Sessions.Count} session(s) found.");
         }
         catch (Exception ex)
         {
@@ -1102,7 +1052,7 @@ public sealed partial class MainForm : Form
         {
             var path = (string)row.Tag!;
             if (row.Cells[SourceCol.Enabled].Value is false) { row.Cells[SourceCol.Reads].Value = "switched off"; return; }
-            row.Cells[SourceCol.Reads].Value = ResolveLog(path) ?? "cannot be reached right now";
+            row.Cells[SourceCol.Reads].Value = LogSources.ResolveLog(path, _data.Channel) ?? "cannot be reached right now";
         }
         grid.CurrentCellDirtyStateChanged += (_, _) =>
         {
@@ -1151,7 +1101,6 @@ public sealed partial class MainForm : Form
         }
         StopLive();
         _logs.Clear();
-        _sources.Clear();
         _renderedVersion = -1;
         RefreshFromLog();
         SetStatus("All sources are switched off. Tick one in Sources to watch again.");
@@ -1189,15 +1138,8 @@ public sealed partial class MainForm : Form
     void StartLive()
     {
         _userStopped = false;
-        _sources.Clear();
-        _logs.Clear();
         var active = ActivePaths();
-        foreach (var path in active)
-        {
-            var src = new LiveSource { Path = path };
-            _sources.Add(src);
-            _logs.Add(src.Log);
-        }
+        _logs.Watch(active);
         _renderedVersion = -1;
         _state.Current = null;
         _state.Log = null;
@@ -1214,8 +1156,8 @@ public sealed partial class MainForm : Form
     /// <summary>Shows the time of the last line read from the logs next to the sources, so it can be seen at a glance that the window follows the game.</summary>
     void ShowLastLine()
     {
-        if (!_state.Live || _watchText.Length == 0 || _logs.Count == 0 || !_status.Text.StartsWith(_watchText, StringComparison.Ordinal)) return;   // a message in the status line stays
-        var last = _logs.Max(l => l.LastTime);
+        if (!_state.Live || _watchText.Length == 0 || _logs.Logs.Count == 0 || !_status.Text.StartsWith(_watchText, StringComparison.Ordinal)) return;   // a message in the status line stays
+        var last = _logs.LastLine;
         if (last == DateTime.MinValue) return;
         var text = _watchText + "   ·   last log line " + last.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture);
         if (_status.Text != text) _status.Text = text;
@@ -1231,95 +1173,10 @@ public sealed partial class MainForm : Form
     void PollLive()
     {
         if (!_state.Live) return;
-        foreach (var src in _sources)
-        {
-            try
-            {
-                var file = ResolveLog(src.Path);
-                if (file == null) continue;
-                if (file != src.Current)
-                {
-                    // after a restart of this program or of the game: read the recent backup logs first,
-                    // so a hauling session that was already going on is not lost
-                    Backfill(src, file);
-
-                    // switched channel (LIVE / HOTFIX) or a new location: read the new file from the top
-                    src.Current = file;
-                    src.Pos = 0;
-                    src.Carry = "";
-                    src.Dec = Encoding.UTF8.GetDecoder();
-                }
-                var info = new FileInfo(file);
-                if (!info.Exists) continue;
-
-                // A new Game.log starts empty. Keep the missions we already know and read it from the top.
-                if (info.Length < src.Pos)
-                {
-                    src.Pos = 0;
-                    src.Carry = "";
-                    src.Dec = Encoding.UTF8.GetDecoder();
-                }
-                if (info.Length <= src.Pos) continue;
-
-                using var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                fs.Seek(src.Pos, SeekOrigin.Begin);
-                var buffer = new byte[1 << 16];
-                var chars = new char[Encoding.UTF8.GetMaxCharCount(buffer.Length)];
-                int read;
-                while ((read = fs.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    src.Pos += read;
-                    var n = src.Dec.GetChars(buffer, 0, read, chars, 0);
-                    Feed(src, new string(chars, 0, n));
-                }
-            }
-            catch (IOException)
-            {
-                // The game may be writing at the same moment, or the other computer is offline. Try again next tick.
-            }
-        }
+        _logs.Poll(_data.Channel);
         RefreshFromLog();
         UpdateLiveDurations();
         ShowLastLine();
-    }
-
-    static readonly TimeSpan BackupAge = TimeSpan.FromHours(24);
-
-    /// <summary>Reads the logs in the logbackups folder next to Game.log that are less than 24 hours old.</summary>
-    static void Backfill(LiveSource src, string liveFile)
-    {
-        try
-        {
-            var dir = Path.Combine(Path.GetDirectoryName(liveFile) ?? "", "logbackups");
-            if (!Directory.Exists(dir)) return;
-
-            var cutoff = DateTime.UtcNow - BackupAge;
-            var files = Directory.GetFiles(dir, "*.log")
-                .Where(f => File.GetLastWriteTimeUtc(f) >= cutoff)
-                .OrderBy(f => HaulingLog.FirstTimestamp(f) ?? DateTime.MaxValue)
-                .ToList();
-
-            foreach (var f in files)
-            {
-                try { src.Log.ProcessFile(f); }
-                catch (IOException) { }
-            }
-        }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
-    }
-
-    static void Feed(LiveSource src, string text)
-    {
-        var data = src.Carry + text;
-        var start = 0;
-        int nl;
-        while ((nl = data.IndexOf('\n', start)) >= 0)
-        {
-            src.Log.ProcessLine(data.Substring(start, nl - start).TrimEnd('\r'));
-            start = nl + 1;
-        }
-        src.Carry = data.Substring(start);
     }
 
     // ------------------------------------------------------------------ showing a session
@@ -1341,15 +1198,15 @@ public sealed partial class MainForm : Form
 
     void RefreshFromLog()
     {
-        var version = _logs.Sum(l => l.Version) + _logs.Count * 1000003;
+        var version = _logs.Version;
         if (version == _renderedVersion) return;
         if (IsEditing()) return;   // do not disturb typing, we try again on the next tick
         _renderedVersion = version;
 
-        if (_logs.Count == 0) { ClearView(); return; }
+        if (_logs.Logs.Count == 0) { ClearView(); return; }
 
         // the logs of all accounts are merged, a mission shared in the party appears once
-        _tracker.Load(_logs);
+        _tracker.Load(_logs.Logs);
         var keep = _forceKey ?? _state.Current?.Key;
         _forceKey = null;
 
@@ -1417,7 +1274,7 @@ public sealed partial class MainForm : Form
         try
         {
             _tracker.Select(_state.Current);
-            ClaimNewPickups();   // before the boards change: the plan still has the batches that were just picked up
+            _plan.ClaimNewPickups();   // before the boards change: the plan still has the batches that were just picked up
             _tracker.LoadStops();
 
             _startBox.Text = _state.Inputs.Start ?? FormatTime(_state.Summary.Start);
@@ -1451,7 +1308,7 @@ public sealed partial class MainForm : Form
         // with the batch you just picked up already gone from the open batches, but the run that carries it not there yet, so the plan sent you out with a whole new
         // trip on top of it, and it stayed like that until the next change in the log.
         if (_planBody.Visible && _planBody.IsHandleCreated) RefreshPlanner();   // the plan follows the batches you pick up while the tab is open
-        else if (_state.Inputs != null) GetPlan();   // keeps the plan and the locked Current trips up to date while the planner tab is closed
+        else if (_state.Inputs != null) _plan.GetPlan();   // keeps the plan and the locked Current trips up to date while the planner tab is closed
     }
 
     void ClearView()

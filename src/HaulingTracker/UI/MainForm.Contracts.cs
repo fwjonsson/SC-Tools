@@ -125,7 +125,7 @@ public sealed partial class MainForm
                 _renderedVersion = -1;
                 _contractsShown = "";
                 _planShown = "";
-                _planCore = null;
+                _plan.Invalidate();
                 RefreshFromLog();
                 RefreshContracts();
             }));
