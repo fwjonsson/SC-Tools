@@ -4,7 +4,7 @@ name: Planner scenarios
 on:
   push:
     paths:
-      - 'TripPlanner.cs'
+      - 'src/HaulingTracker.Core/**'
       - 'tools/PlanTest/**'
       - '.github/workflows/plantest.yml'
   workflow_dispatch:

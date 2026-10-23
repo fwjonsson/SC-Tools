@@ -1,4 +1,5 @@
-using HaulingTracker;
+using HaulingTracker.GameData;
+using HaulingTracker.Planning;
 
 // Scenarios from real sessions: the open batches, the crew and what they carry, and the plan the planner makes for them.
 

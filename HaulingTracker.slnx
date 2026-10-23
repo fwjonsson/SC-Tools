@@ -1,4 +1,10 @@
 <Solution>
-  <Project Path="HaulingTracker.csproj" />
-  <Project Path="ScApiTool/ScApiTool.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/HaulingTracker/HaulingTracker.csproj" />
+    <Project Path="src/HaulingTracker.Core/HaulingTracker.Core.csproj" />
+    <Project Path="src/ScApiTool/ScApiTool.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/PlanTest/PlanTest.csproj" />
+  </Folder>
 </Solution>
