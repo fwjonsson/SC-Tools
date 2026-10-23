@@ -377,9 +377,59 @@ public sealed partial class MainForm
         var deaths = _log.DeathsByPlayer.Select(kv => (Name: kv.Key, Count: kv.Value.Count(d => d >= since))).Where(x => x.Count > 0).OrderByDescending(x => x.Count).ToList();
         if (deaths.Count > 0) stats.Add(Const("Deaths this session: " + string.Join(", ", deaths.Select(x => x.Name + " " + x.Count))));
 
+        // records and odd numbers of this session
+        try
+        {
+            var done = finished.Where(t => t.End.HasValue && t.End.Value >= since).ToList();
+            if (done.Count > 0)
+            {
+                var best = done.OrderByDescending(RunValue).First();
+                var bestValue = RunValue(best);
+                if (bestValue > 0) stats.Add(Const("Richest run so far: " + best.Worker + "'s run #" + best.Number + ", " + bestValue.ToString("N0", CultureInfo.InvariantCulture) + " aUEC"));
+                var rated = done.Where(t => (t.End!.Value - t.Start) >= TimeSpan.FromMinutes(5))
+                    .Select(t => (Run: t, Rate: RunValue(t) / (decimal)(t.End!.Value - t.Start).TotalHours)).OrderByDescending(x => x.Rate).FirstOrDefault();
+                if (rated.Run != null && rated.Rate > 0)
+                    stats.Add(Const("Best rate so far: " + rated.Run.Worker + "'s run #" + rated.Run.Number + " at " + Millions(rated.Rate) + " aUEC/h"));
+                var crewValue = _trips.Where(t => t.Start >= since || (t.End ?? DateTime.MaxValue) >= since).Sum(RunValue);
+                if (crewValue >= 1_000_000) stats.Add(Const("The runs of this session are worth " + Millions(crewValue) + " aUEC so far"));
+            }
+            var pickups = _trips.Where(t => (t.End ?? DateTime.MaxValue) >= since).SelectMany(t => t.Pickups.Select(p => (t.Worker, Pick: p))).ToList();
+            if (pickups.Count >= 3)
+            {
+                var biggest = pickups.OrderByDescending(x => x.Pick.Missions).First();
+                if (biggest.Pick.Missions >= 3) stats.Add(Const("Biggest pickup: " + biggest.Pick.Missions + " batches at " + LocationName(biggest.Pick.Zone) + " (" + biggest.Worker + ")"));
+                var favourite = pickups.GroupBy(x => LocationName(x.Pick.Zone)).OrderByDescending(g => g.Count()).First();
+                if (favourite.Count() >= 2) stats.Add(Const("Most visited station this session: " + favourite.Key + " (" + favourite.Count() + " landings)"));
+            }
+            var waste = _trips.Where(t => (t.End ?? DateTime.MaxValue) >= since).SelectMany(t => t.Drops).Sum(d => d.Scu);
+            if (waste > 0) stats.Add(Const(waste.ToString("N0", CultureInfo.InvariantCulture) + " SCU of waste delivered this session. Pyro thanks you"));
+            var left = _openRows.Sum(r => Math.Max(0, r.Missions - r.Loaded));
+            var at = _openRows.Count(r => r.Missions - r.Loaded > 0);
+            if (left > 0) stats.Add(Const(left + (left == 1 ? " batch is" : " batches are") + " still waiting at " + at + (at == 1 ? " station" : " stations")));
+            var flown = board.Values.Sum(st => st.Distance);
+            if (flown >= TerminusLap) stats.Add(Const("The crew has flown far enough to go around Terminus's orbit " + (flown / TerminusLap).ToString("0.0", CultureInfo.InvariantCulture) + " times"));
+            var local = DateTime.Now;
+            if (running && local.Hour >= 1 && local.Hour < 6) fun.Add(Const("It is " + local.ToString("HH:mm", CultureInfo.InvariantCulture) + ". Pyro never sleeps, but you could"));
+        }
+        catch (Exception)
+        {
+            // the line is only for fun
+        }
+
         // fun, two at a time (they change every few minutes)
         string[] jokes =
         {
+            "Quantum travel: the perfect time to refill your coffee",
+            "Every hangar request is a small prayer",
+            "If it does not fit, it is probably a 32",
+            "A full C2 is a happy C2",
+            "Two accounts, one brain, zero quantum time wasted",
+            "The freight elevator has seen things",
+            "Elevator music not included",
+            "Stack them high, fly them home",
+            "Somewhere a box of Carbon is wondering if you forgot it",
+            "Landing gear down, coffee up",
+            "Reminder: the cargo does not tip, but you can",
             "Hydration check: the real you, not the character",
             "Pyro: where \"just one more stop\" is a lifestyle",
             "No cargo was harmed in the making of this run. Probably",
@@ -412,6 +462,13 @@ public sealed partial class MainForm
         }
         return Interleave(live, stats, fun);
     }
+
+    /// <summary>Once around the orbit of Terminus, the outermost planet of Pyro (radius about 68.5 Gm), in Gm.</summary>
+    const double TerminusLap = 2 * Math.PI * 68.5;
+
+    /// <summary>"3.2M" for big numbers, the full number below a million.</summary>
+    static string Millions(decimal v) =>
+        v >= 1_000_000 ? (v / 1_000_000m).ToString("0.0", CultureInfo.InvariantCulture) + "M" : v.ToString("N0", CultureInfo.InvariantCulture);
 
     // ------------------------------------------------------------------ the line itself
 
