@@ -241,7 +241,7 @@ function renderPlanner() {
       if (x[0] === 'plancur' && p.actionWidth) { const th = box.querySelector('th:nth-child(3)'); if (th) th.style.width = p.actionWidth + 'px'; }
     });
   });
-  // the short copy of Cargo Runs under the map: #, Worker, Value, Started, Completed, Time and Flight time (the Session tab has the whole table)
+  // the short copy of Cargo Runs under the map: #, Worker, Value, Started, Completed, Time and In flight (the Session tab has the whole table)
   section(left, 'h2', 'Cargo Runs', last.planRuns || last.runs);
 }
 

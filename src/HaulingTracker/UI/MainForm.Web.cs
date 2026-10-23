@@ -123,7 +123,7 @@ public sealed partial class MainForm
             finished = WebGrid(_doneGrid),
             leaders = WebGrid(_statsGrid),
             runs = WebGrid(_tripGrid),
-            planRuns = WebGrid(_planRunsGrid),   // the short copy under the map of the Trip Planner (#, Worker, Value, Started, Completed, Time, Flight time)
+            planRuns = WebGrid(_planRunsGrid),   // the short copy under the map of the Trip Planner (#, Worker, Value, Started, Completed, Time, In flight)
             runsLive = _tripGrid.Rows.Cast<DataGridViewRow>().Where(r => !r.IsNewRow)
                 .Select(r => r.Tag is WorkerTrip t && !t.End.HasValue && (Convert.ToString(r.Cells[RunCol.Time].Value) ?? "").Length > 0).ToArray(),   // runs on the way: the page counts their Run Time up
             planner = WebPlan(_plan.GetPlan()),
