@@ -922,7 +922,7 @@ public static class TripPlanner
             trips.Add(trip);
         }
 
-        // the Trip Planner orders the trips again (PlanService.Queue: one stop trips first, the waste first, then what they earn per hour); this order decides between trips the same on that
+        // the Trip Planner orders the trips again (PlanService.Queue: the waste first, then what they earn per hour); this order decides between trips the same on that
         var order2 = workers.Select(c => c.Name).ToList();
         return trips
             .OrderBy(tp => order2.IndexOf(tp.Worker))

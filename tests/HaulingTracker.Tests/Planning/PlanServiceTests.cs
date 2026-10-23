@@ -86,18 +86,23 @@ public class PlanServiceTests
     }
 
     [Fact]
-    public void One_stop_trips_go_first_and_of_those_the_one_that_takes_waste_out()
+    public void The_trips_that_take_waste_out_go_first_then_the_most_per_hour()
     {
         var (patch, gas) = (PlayedSession.PatchCity, PlayedSession.Gaslight);
         var flying = Trip("A", new[] { gas }, special: true);
-        var oneStop = Trip("A", new[] { patch });
-        var oneStopWaste = Trip("A", new[] { patch }, waste: patch);     // waste and pickup at the same station: one landing
-        var twoStops = Trip("A", new[] { patch, gas });
-        var twoStopsWaste = Trip("A", new[] { gas }, waste: Endgame);    // the waste goes to another station: two landings
-        var value = new Dictionary<PlannedTrip, decimal> { [flying] = 1, [oneStop] = 2, [oneStopWaste] = 1.5m, [twoStops] = 9, [twoStopsWaste] = 3 };
+        var oneStopWaste = Trip("A", new[] { patch }, waste: patch);     // waste and pickup at the same station: one landing (and Ruin). 1.0 M: 2.0 M per hour
+        var twoStopsWaste = Trip("A", new[] { gas }, waste: Endgame);    // the waste goes to another station: two landings. 1.2 M: 1.6 M per hour
+        var twoStops = Trip("A", new[] { patch, gas });                  // 3.0 M: 4.0 M per hour
+        var oneStop = Trip("A", new[] { gas });                          // 2.5 M: 5.0 M per hour
+        var smallStop = Trip("A", new[] { patch });                      // 1.8 M: 3.6 M per hour
+        var value = new Dictionary<PlannedTrip, decimal>
+        {
+            [flying] = 0.1m, [oneStopWaste] = 1_000_000m, [twoStopsWaste] = 1_200_000m, [twoStops] = 3_000_000m, [oneStop] = 2_500_000m, [smallStop] = 1_800_000m,
+        };
 
-        var queue = PlanService.Queue(new[] { twoStops, oneStop, twoStopsWaste, flying, oneStopWaste }, t => value[t]);
-        Assert.Equal(new[] { flying, oneStopWaste, oneStop, twoStopsWaste, twoStops }, queue);   // a lot more value does not put two stops ahead of one
+        var queue = PlanService.Queue(new[] { twoStops, smallStop, twoStopsWaste, oneStop, flying, oneStopWaste }, t => value[t]);
+        // the run he is flying; the waste, whatever it is worth; then one stop worth a bit less before two stops, but not one worth a lot less
+        Assert.Equal(new[] { flying, oneStopWaste, twoStopsWaste, oneStop, twoStops, smallStop }, queue);
     }
 
     [Fact]

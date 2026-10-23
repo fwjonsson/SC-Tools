@@ -101,10 +101,10 @@ public sealed class PlanService
     /// The order of every worker's trips (his first is his Current Route, the others his Queued routes). First the trip he is flying or heading for (it continues
     /// his run, or starts at his locked stop or where he is), then the one with the waste he has taken out at Ruin already. Then:
     /// <list type="number">
-    /// <item>trips that land at one station before Ruin, even when a trip with more stops is worth a bit more: while he flies those, missions get done and new
-    /// ones come in, and the stations of the bigger trips can get enough batches to be one stop trips too;</item>
-    /// <item>of those, the trip that takes waste out first, so he is rid of it and can take a new from-Ruin contract (and so for the trips with more stops);</item>
-    /// <item>then the most per hour: what the trip is worth (its pickups and the waste it takes out) for its flying and its landings (Ruin too).</item>
+    /// <item>the trips that take waste out, so he is rid of it and can take a new from-Ruin contract (every load is a payout more);</item>
+    /// <item>then the most per hour: what the trip is worth (its pickups and the waste it takes out) for its flying and its landings (Ruin too, about 15 minutes
+    /// each). So a trip with fewer stops goes first when it is worth about as much: while he flies it, missions get done and new ones come in, and the stations of
+    /// the bigger trips can get enough batches to be one stop trips too. A trip with more stops that is worth clearly more still goes first.</item>
     /// </list>
     /// Trips the same on all of that keep the planner's order (see TripPlanner.Plan). The workers keep their order.
     /// </summary>
@@ -116,7 +116,6 @@ public sealed class PlanService
         return list
             .OrderBy(t => workers.IndexOf(t.Worker))
             .ThenBy(t => t.Special ? 0 : t.Drops.Count > 0 && aboard.Contains(t.Worker) ? 1 : 2)
-            .ThenBy(t => Landings(t) <= 1 ? 0 : 1)
             .ThenBy(t => t.Drops.Count > 0 ? 0 : 1)
             .ThenByDescending(t => PerHour(t, value(t)))
             .ToList();
