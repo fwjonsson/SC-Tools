@@ -344,28 +344,29 @@ public sealed partial class MainForm
         g.AllowUserToAddRows = false;
         g.AllowUserToDeleteRows = false;
         g.ReadOnly = true;
-        g.Columns.Add(Col("Worker", 190, true));
-        var run = Col("#", 36, true);
-        run.Name = "num";
+        g.Columns.Add(Col(RunCol.Worker, "Worker", 190, true));
+        var run = Col(RunCol.Number, "#", 36, true);
         g.Columns.Add(run);
         run.DisplayIndex = 0;
-        g.Columns.Add(Col("Locations", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
-        g.Columns.Add(Col("Batches", 90, true));
-        g.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
-        g.Columns.Add(Col("Started", 76, true));
-        g.Columns.Add(Col("Completed", 108, true));
-        g.Columns.Add(Col("Time", 90, true));
-        g.Columns.Add(Col("Flight time", 90, true));
-        g.Columns.Add(Col("Lost Cargo", 116, true));
-        g.Columns.Add(Col("aUEC/h", 96, true, DataGridViewContentAlignment.MiddleRight));   // cell 10, like on the Session tab
+        g.Columns.Add(Col(RunCol.Places, "Locations", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
+        g.Columns.Add(Col(RunCol.Batches, "Batches", 90, true));
+        g.Columns.Add(Col(RunCol.Value, "Value", 100, true, DataGridViewContentAlignment.MiddleRight));
+        g.Columns.Add(Col(RunCol.Started, "Started", 76, true));
+        g.Columns.Add(Col(RunCol.Completed, "Completed", 108, true));
+        g.Columns.Add(Col(RunCol.Time, "Time", 90, true));
+        g.Columns.Add(Col(RunCol.Flight, "Flight time", 90, true));
+        g.Columns.Add(Col(RunCol.Lost, "Lost Cargo", 116, true));
+        g.Columns.Add(Col(RunCol.PerHour, "aUEC/h", 96, true, DataGridViewContentAlignment.MiddleRight));
         FitColumns(g);
         foreach (DataGridViewColumn c in g.Columns)
         {
-            if (c.HeaderText is not ("Worker" or "#" or "Value" or "Started" or "Completed" or "Time" or "Flight time" or "aUEC/h")) c.Visible = false;   // not the locations, the batches or the lost cargo   // the cells are still there (the live time and value update them by index)
+            // not the locations, the batches or the lost cargo (the cells are still there: the rows are the same as on the Session tab)
+            if (c.Name is not (RunCol.Worker or RunCol.Number or RunCol.Value or RunCol.Started or RunCol.Completed or RunCol.Time or RunCol.Flight or RunCol.PerHour)) c.Visible = false;
         }
         // the worker keeps his width (like #); the other columns share the rest
-        g.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-        g.Columns[0].Width = 110;
+        var worker = g.Columns[RunCol.Worker]!;
+        worker.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+        worker.Width = 110;
         foreach (DataGridViewColumn c in g.Columns) c.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;   // the titles in the middle, also over the left-aligned Locations
         g.ScrollBars = ScrollBars.Vertical;
     }
@@ -1691,27 +1692,27 @@ public sealed partial class MainForm
         grid.AllowUserToDeleteRows = false;
         grid.ScrollBars = ScrollBars.None;
         grid.ShowCellToolTips = false;   // a pop-up with the value of a cell that is a bit tight is only in the way
-        grid.Columns.Add(Col("#", 36, true));
+        grid.Columns.Add(Col(PlanCol.Number, "#", 36, true));
         DataGridViewColumn text;          // the column that takes the room that is left
         DataGridViewColumn? action = null;
         if (current)
         {
-            grid.Columns.Add(Col("Stops", 120, true, DataGridViewContentAlignment.MiddleLeft));
-            action = Col("Deliver/Collect", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
+            grid.Columns.Add(Col(PlanCol.Stop, "Stops", 120, true, DataGridViewContentAlignment.MiddleLeft));
+            action = Col(PlanCol.Action, "Deliver/Collect", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
             grid.Columns.Add(action);
-            text = Col("Cargo", cargoWidth, true, DataGridViewContentAlignment.MiddleLeft);
+            text = Col(PlanCol.Cargo, "Cargo", cargoWidth, true, DataGridViewContentAlignment.MiddleLeft);
             grid.Columns.Add(text);
         }
         else
         {
-            text = Col("Route", textWidth, true, DataGridViewContentAlignment.MiddleLeft);   // the stations of the trip in order (takes the room that is left)
+            text = Col(PlanCol.Route, "Route", textWidth, true, DataGridViewContentAlignment.MiddleLeft);   // the stations of the trip in order (takes the room that is left)
             grid.Columns.Add(text);
-            grid.Columns.Add(Col("Stops", 64, true));   // how many stops it has
-            grid.Columns.Add(Col("Batches", 84, true));
+            grid.Columns.Add(Col(PlanCol.Stops, "Stops", 64, true));   // how many stops it has
+            grid.Columns.Add(Col(PlanCol.Batches, "Batches", 84, true));
         }
-        grid.Columns.Add(Col("Value", 80, true, DataGridViewContentAlignment.MiddleRight));
-        grid.Columns.Add(Col("Distance", 74, true, DataGridViewContentAlignment.MiddleRight));
-        grid.Columns.Add(Col("In flight", 68, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col(PlanCol.Value, "Value", 80, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col(PlanCol.Distance, "Distance", 74, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col(PlanCol.Flight, "In flight", 68, true, DataGridViewContentAlignment.MiddleRight));
         foreach (DataGridViewColumn c in grid.Columns)
         {
             c.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
@@ -1720,6 +1721,7 @@ public sealed partial class MainForm
         text.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
         if (action != null) action.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
         grid.TextColumn = text;
+        // the rows are added as whole lines of cells in the order of these columns: LineCells, QueuedCells and the totals make them so (the web page shows the same lines)
         grid.Width = current ? PlanCurrentFixed(textWidth) + cargoWidth : PlanQueuedFixed + textWidth;   // the width it is expected to get, so the first measure of its rows is about right
         return grid;
     }
@@ -1742,10 +1744,11 @@ public sealed partial class MainForm
         }
         AddTotalRow(grid, LineTotals(current.Lines));
         // a load the game did not tell the SCU of: click its Cargo cell to type it (the program works out the containers)
-        bool Typable(int row, int col) => col == 3 && row >= 0 && row < current.Lines.Count && current.Lines[row].Unknown.Count > 0;
+        var cargo = grid.Columns[PlanCol.Cargo]!.Index;
+        bool Typable(int row, int col) => col == cargo && row >= 0 && row < current.Lines.Count && current.Lines[row].Unknown.Count > 0;
         for (var i = 0; i < current.Lines.Count; i++)
         {
-            if (Typable(i, 3)) grid.Rows[i].Cells[3].Value = current.Lines[i].CargoText + "  (click to type)";
+            if (Typable(i, cargo)) grid.Rows[i].Cells[PlanCol.Cargo].Value = current.Lines[i].CargoText + "  (click to type)";
         }
         grid.CellMouseEnter += (_, e) => grid.Cursor = Typable(e.RowIndex, e.ColumnIndex) ? Cursors.Hand : Cursors.Default;
         grid.CellClick += (_, e) =>
@@ -1762,7 +1765,7 @@ public sealed partial class MainForm
         var grid = NewPlanGrid(false, textWidth, 0);
         if (queued.Count == 0)
         {
-            var none = grid.Rows[grid.Rows.Add("", "none", "", "", "", "", "")];
+            var none = grid.AddRow((PlanCol.Route, "none"));
             none.DefaultCellStyle.ForeColor = Theme.Muted;
         }
         foreach (var r in queued)

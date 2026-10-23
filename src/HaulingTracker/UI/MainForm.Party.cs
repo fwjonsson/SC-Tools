@@ -112,18 +112,18 @@ public sealed partial class MainForm
         _partyGrid.AllowUserToDeleteRows = false;
         _partyGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         _partyGrid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
-        _partyGrid.Columns.Add(Col("Member", PartyColMember, true, DataGridViewContentAlignment.MiddleLeft));
-        _partyGrid.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = "Active", Width = PartyColActive, SortMode = DataGridViewColumnSortMode.NotSortable });
-        _partyGrid.Columns.Add(Col("Batches", PartyColBatches, false));
-        var shipCol = new DataGridViewComboBoxColumn { HeaderText = "Ship", Width = PartyColShip, SortMode = DataGridViewColumnSortMode.NotSortable, FlatStyle = FlatStyle.Flat, DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing };
+        _partyGrid.Columns.Add(Col(PartyCol.Member, "Member", PartyColMember, true, DataGridViewContentAlignment.MiddleLeft));
+        _partyGrid.Columns.Add(new DataGridViewCheckBoxColumn { Name = PartyCol.Active, HeaderText = "Active", Width = PartyColActive, SortMode = DataGridViewColumnSortMode.NotSortable });
+        _partyGrid.Columns.Add(Col(PartyCol.Batches, "Batches", PartyColBatches, false));
+        var shipCol = new DataGridViewComboBoxColumn { Name = PartyCol.Ship, HeaderText = "Ship", Width = PartyColShip, SortMode = DataGridViewColumnSortMode.NotSortable, FlatStyle = FlatStyle.Flat, DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing };
         shipCol.Items.Add("");
         foreach (var s in Ships.All) shipCol.Items.Add(s.Label);
         _partyGrid.Columns.Add(shipCol);
-        var driveCol = new DataGridViewComboBoxColumn { HeaderText = "QT Drive", Width = PartyColDrive, SortMode = DataGridViewColumnSortMode.NotSortable, FlatStyle = FlatStyle.Flat, DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing };
+        var driveCol = new DataGridViewComboBoxColumn { Name = PartyCol.Drive, HeaderText = "QT Drive", Width = PartyColDrive, SortMode = DataGridViewColumnSortMode.NotSortable, FlatStyle = FlatStyle.Flat, DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing };
         driveCol.Items.Add("");
         foreach (var d in QuantumDrives.All.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Size)) driveCol.Items.Add(d.Label);
         _partyGrid.Columns.Add(driveCol);
-        _partyGrid.Columns.Add(Col("Color", PartyColColor, true));   // click it to pick the colour of this worker on the Trip Planner Overview
+        _partyGrid.Columns.Add(Col(PartyCol.Color, "Color", PartyColColor, true));   // click it to pick the colour of this worker on the Trip Planner Overview
         foreach (DataGridViewColumn c in _partyGrid.Columns)
         {
             c.FillWeight = c.Width;
@@ -140,7 +140,7 @@ public sealed partial class MainForm
         _partyGrid.CellFormatting += (_, e) =>
         {
             // the names are shown in capitals (only shown: the name itself stays as it is, the logs and the saved data use it)
-            if (e.ColumnIndex == 0 && e.RowIndex >= 0 && e.Value is string name)
+            if (e.RowIndex >= 0 && e.Value is string name && _partyGrid.ColumnName(e.ColumnIndex) == PartyCol.Member)
             {
                 e.Value = name.ToUpperInvariant();
                 e.FormattingApplied = true;
@@ -148,8 +148,8 @@ public sealed partial class MainForm
         };
         _partyGrid.CellClick += (_, e) =>
         {
-            if (e.RowIndex < 0 || e.ColumnIndex != 5) return;
-            var name = Convert.ToString(_partyGrid.Rows[e.RowIndex].Cells[0].Value) ?? "";
+            if (e.RowIndex < 0 || _partyGrid.ColumnName(e.ColumnIndex) != PartyCol.Color) return;
+            var name = Convert.ToString(_partyGrid.Rows[e.RowIndex].Cells[PartyCol.Member].Value) ?? "";
             if (name.Length == 0) return;
             using var dlg = new ColorDialog { Color = WorkerColor(name), FullOpen = true };
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
@@ -231,21 +231,27 @@ public sealed partial class MainForm
         _partyUpdating = true;
         try
         {
-            var selected = _partyGrid.CurrentRow?.Cells[0].Value as string;
+            var selected = _partyGrid.CurrentRow?.Cells[PartyCol.Member].Value as string;
             _partyGrid.Rows.Clear();
             foreach (var name in _data.Party)
             {
                 var active = IsActiveAt(name, DateTime.UtcNow);
-                var idx = _partyGrid.Rows.Add(name, active, Math.Max(1, ShipCapacityOf(name)), ShipOf(name)?.Label ?? "", DriveOf(name)?.Label ?? "", "");
-                if (!active) _partyGrid.Rows[idx].DefaultCellStyle.ForeColor = Theme.Muted;
-                var swatch = _partyGrid.Rows[idx].Cells[5].Style;
+                var row = _partyGrid.AddRow(
+                    (PartyCol.Member, name),
+                    (PartyCol.Active, active),
+                    (PartyCol.Batches, Math.Max(1, ShipCapacityOf(name))),
+                    (PartyCol.Ship, ShipOf(name)?.Label ?? ""),
+                    (PartyCol.Drive, DriveOf(name)?.Label ?? ""),
+                    (PartyCol.Color, ""));
+                if (!active) row.DefaultCellStyle.ForeColor = Theme.Muted;
+                var swatch = row.Cells[PartyCol.Color].Style;
                 swatch.BackColor = swatch.SelectionBackColor = WorkerColor(name);
             }
             if (selected != null)
             {
                 foreach (DataGridViewRow r in _partyGrid.Rows)
                 {
-                    if (SameName(Convert.ToString(r.Cells[0].Value) ?? "", selected)) r.Selected = true;
+                    if (SameName(Convert.ToString(r.Cells[PartyCol.Member].Value) ?? "", selected)) r.Selected = true;
                 }
             }
         }
@@ -274,32 +280,33 @@ public sealed partial class MainForm
     {
         if (_partyUpdating || e.RowIndex < 0) return;
         var row = _partyGrid.Rows[e.RowIndex];
-        var name = Convert.ToString(row.Cells[0].Value) ?? "";
+        var name = Convert.ToString(row.Cells[PartyCol.Member].Value) ?? "";
         if (name.Length == 0) return;
 
-        if (e.ColumnIndex == 1)
+        var column = _partyGrid.ColumnName(e.ColumnIndex);
+        if (column == PartyCol.Active)
         {
-            var active = row.Cells[1].Value is true;
+            var active = row.Cells[PartyCol.Active].Value is true;
             if (active == IsActiveAt(name, DateTime.UtcNow)) return;
             SetMemberActive(name, active);
             SetStatus(name + (active ? " joined the party." : " left the party.") + " Mission payouts from now on are split between the active members.");
         }
-        else if (e.ColumnIndex == 2)
+        else if (column == PartyCol.Batches)
         {
-            var typed = (Convert.ToString(row.Cells[2].Value) ?? "").Trim();
+            var typed = (Convert.ToString(row.Cells[PartyCol.Batches].Value) ?? "").Trim();
             _data.ShipCapacity[name] = int.TryParse(typed, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)
                 ? Math.Clamp(n, 1, MaxShipCapacity)
                 : DefaultShipCapacity;
         }
-        else if (e.ColumnIndex == 3)
+        else if (column == PartyCol.Ship)
         {
-            var ship = Ships.Find(Convert.ToString(row.Cells[3].Value));
+            var ship = Ships.Find(Convert.ToString(row.Cells[PartyCol.Ship].Value));
             foreach (var k in _data.Ship.Keys.Where(k => SameName(k, name)).ToList()) _data.Ship.Remove(k);
             if (ship != null) _data.Ship[name] = ship.Name;
         }
-        else if (e.ColumnIndex == 4)
+        else if (column == PartyCol.Drive)
         {
-            var picked = QuantumDrives.Find(Convert.ToString(row.Cells[4].Value));
+            var picked = QuantumDrives.Find(Convert.ToString(row.Cells[PartyCol.Drive].Value));
             foreach (var k in _data.QuantumDrive.Keys.Where(k => SameName(k, name)).ToList()) _data.QuantumDrive.Remove(k);
             if (picked != null) _data.QuantumDrive[name] = picked.Key;
         }
@@ -334,7 +341,7 @@ public sealed partial class MainForm
 
     void RemovePartyMember()
     {
-        var name = _partyGrid.CurrentRow?.Cells[0].Value as string;
+        var name = _partyGrid.CurrentRow?.Cells[PartyCol.Member].Value as string;
         if (string.IsNullOrEmpty(name))
         {
             SetStatus("Click a name in the party table first.");

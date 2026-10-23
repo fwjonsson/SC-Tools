@@ -125,7 +125,7 @@ public sealed partial class MainForm
             runs = WebGrid(_tripGrid),
             planRuns = WebGrid(_planRunsGrid),   // the short copy under the map of the Trip Planner (#, Worker, Value, Started, Completed, Time, Flight time)
             runsLive = _tripGrid.Rows.Cast<DataGridViewRow>().Where(r => !r.IsNewRow)
-                .Select(r => r.Tag is WorkerTrip t && !t.End.HasValue && (Convert.ToString(r.Cells[7].Value) ?? "").Length > 0).ToArray(),   // runs on the way: the page counts their Run Time up
+                .Select(r => r.Tag is WorkerTrip t && !t.End.HasValue && (Convert.ToString(r.Cells[RunCol.Time].Value) ?? "").Length > 0).ToArray(),   // runs on the way: the page counts their Run Time up
             planner = WebPlan(GetPlan()),
             debts = WebDebts(),
             history = new { allTime = WebGrid(_allTimeGrid), best = _bestLine.Text, saved = WebGrid(_historyGrid) },

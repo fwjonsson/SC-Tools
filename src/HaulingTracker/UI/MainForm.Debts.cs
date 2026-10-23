@@ -75,11 +75,11 @@ public sealed partial class MainForm
         _balanceGrid.Margin = new Padding(0, 3, 8, 3);
         _balanceGrid.AllowUserToAddRows = false;
         _balanceGrid.AllowUserToDeleteRows = false;
-        _balanceGrid.Columns.Add(Col("Party Member", 200, true, DataGridViewContentAlignment.MiddleLeft));
-        var balanceCol = Col("Balance", 160, false, DataGridViewContentAlignment.MiddleRight);
+        _balanceGrid.Columns.Add(Col(BalanceCol.Member, "Party Member", 200, true, DataGridViewContentAlignment.MiddleLeft));
+        var balanceCol = Col(BalanceCol.Balance, "Balance", 160, false, DataGridViewContentAlignment.MiddleRight);
         balanceCol.DefaultCellStyle.BackColor = CalcBlue;   // typed over like before, but the same colour as the rest of the table
         _balanceGrid.Columns.Add(balanceCol);
-        _balanceGrid.Columns.Add(Col("Meaning", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
+        _balanceGrid.Columns.Add(Col(BalanceCol.Meaning, "Meaning", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
         _balanceGrid.CellEndEdit += BalanceEdited;
         t.Controls.Add(_balanceGrid, 0, 2);
 
@@ -89,10 +89,10 @@ public sealed partial class MainForm
         _earnGrid.Margin = new Padding(8, 3, 0, 3);
         _earnGrid.AllowUserToAddRows = false;
         _earnGrid.AllowUserToDeleteRows = false;
-        _earnGrid.Columns.Add(Col("Worker", 200, true, DataGridViewContentAlignment.MiddleLeft));
-        _earnGrid.Columns.Add(Col("This Session", 160, true, DataGridViewContentAlignment.MiddleRight));
-        _earnGrid.Columns.Add(Col("All Sessions", 160, true, DataGridViewContentAlignment.MiddleRight));
-        _earnGrid.Columns.Add(Col("Net Balance (+ Owed to Them)", 240, true, DataGridViewContentAlignment.MiddleRight, true));
+        _earnGrid.Columns.Add(Col(EarnCol.Worker, "Worker", 200, true, DataGridViewContentAlignment.MiddleLeft));
+        _earnGrid.Columns.Add(Col(EarnCol.Session, "This Session", 160, true, DataGridViewContentAlignment.MiddleRight));
+        _earnGrid.Columns.Add(Col(EarnCol.All, "All Sessions", 160, true, DataGridViewContentAlignment.MiddleRight));
+        _earnGrid.Columns.Add(Col(EarnCol.Net, "Net Balance (+ Owed to Them)", 240, true, DataGridViewContentAlignment.MiddleRight, true));
         t.Controls.Add(_earnGrid, 1, 2);
 
         // the money transfers on the left, the payout of every finished mission on the right
@@ -103,12 +103,13 @@ public sealed partial class MainForm
         _txGrid.Margin = new Padding(0, 3, 8, 3);
         _txGrid.AllowUserToAddRows = false;
         _txGrid.AllowUserToDeleteRows = false;
-        _txGrid.Columns.Add(Col("Time", 150, true));
-        _txGrid.Columns.Add(Col("From", 160, true));
-        _txGrid.Columns.Add(Col("To", 160, true));
-        _txGrid.Columns.Add(Col("Amount", 170, true, DataGridViewContentAlignment.MiddleRight));
+        _txGrid.Columns.Add(Col(TransferCol.Time, "Time", 150, true));
+        _txGrid.Columns.Add(Col(TransferCol.From, "From", 160, true));
+        _txGrid.Columns.Add(Col(TransferCol.To, "To", 160, true));
+        _txGrid.Columns.Add(Col(TransferCol.Amount, "Amount", 170, true, DataGridViewContentAlignment.MiddleRight));
         _txGrid.Columns.Add(new DataGridViewCheckBoxColumn
         {
+            Name = TransferCol.Payment,
             HeaderText = "Payment",
             Width = 100,
             SortMode = DataGridViewColumnSortMode.NotSortable,
@@ -128,11 +129,11 @@ public sealed partial class MainForm
         _payoutGrid.Margin = new Padding(8, 3, 0, 3);
         _payoutGrid.AllowUserToAddRows = false;
         _payoutGrid.AllowUserToDeleteRows = false;
-        _payoutGrid.Columns.Add(Col("Time", 110, true));
-        _payoutGrid.Columns.Add(Col("Mission", 140, true, DataGridViewContentAlignment.MiddleLeft));
-        _payoutGrid.Columns.Add(Col("Payout", 110, false, DataGridViewContentAlignment.MiddleRight));   // the only box you can type in: what the mission really paid
-        _payoutGrid.Columns.Add(Col("Shared Between", 220, true, DataGridViewContentAlignment.MiddleLeft, true));
-        _payoutGrid.Columns.Add(Col("Each", 110, true, DataGridViewContentAlignment.MiddleRight));
+        _payoutGrid.Columns.Add(Col(PayoutCol.Time, "Time", 110, true));
+        _payoutGrid.Columns.Add(Col(PayoutCol.Mission, "Mission", 140, true, DataGridViewContentAlignment.MiddleLeft));
+        _payoutGrid.Columns.Add(Col(PayoutCol.Payout, "Payout", 110, false, DataGridViewContentAlignment.MiddleRight));   // the only box you can type in: what the mission really paid
+        _payoutGrid.Columns.Add(Col(PayoutCol.Members, "Shared Between", 220, true, DataGridViewContentAlignment.MiddleLeft, true));
+        _payoutGrid.Columns.Add(Col(PayoutCol.Each, "Each", 110, true, DataGridViewContentAlignment.MiddleRight));
         FitColumns(_payoutGrid);
         _payoutGrid.ScrollBars = ScrollBars.Vertical;
         _payoutGrid.CellEndEdit += PayoutEdited;
@@ -177,11 +178,11 @@ public sealed partial class MainForm
         _historyGrid.Dock = DockStyle.Fill;
         _historyGrid.AllowUserToAddRows = false;
         _historyGrid.AllowUserToDeleteRows = false;
-        _historyGrid.Columns.Add(Col("Date", 130, true));
-        _historyGrid.Columns.Add(Col("Time", 130, true));
-        _historyGrid.Columns.Add(Col("Missions", 90, true, DataGridViewContentAlignment.MiddleRight));
-        _historyGrid.Columns.Add(Col("Revenue", 140, true, DataGridViewContentAlignment.MiddleRight));
-        _historyGrid.Columns.Add(Col("Carried by Worker", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
+        _historyGrid.Columns.Add(Col(HistoryCol.Date, "Date", 130, true));
+        _historyGrid.Columns.Add(Col(HistoryCol.Time, "Time", 130, true));
+        _historyGrid.Columns.Add(Col(HistoryCol.Missions, "Missions", 90, true, DataGridViewContentAlignment.MiddleRight));
+        _historyGrid.Columns.Add(Col(HistoryCol.Revenue, "Revenue", 140, true, DataGridViewContentAlignment.MiddleRight));
+        _historyGrid.Columns.Add(Col(HistoryCol.Carried, "Carried by Worker", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
         t.Controls.Add(_historyGrid, 0, 4);
         return t;
     }
@@ -203,8 +204,12 @@ public sealed partial class MainForm
                 + (s.EndUtc.HasValue ? " to " + s.EndUtc.Value.ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture) : "");
             var carried = string.Join(",  ", s.Carried.OrderByDescending(kv => kv.Value)
                 .Select(kv => kv.Key + " " + kv.Value.ToString("N0", CultureInfo.InvariantCulture)));
-            _historyGrid.Rows.Add(start.ToString("d MMM yyyy", CultureInfo.CurrentCulture), time, s.MissionCount,
-                s.Revenue.ToString("N0", CultureInfo.InvariantCulture), carried);
+            _historyGrid.AddRow(
+                (HistoryCol.Date, start.ToString("d MMM yyyy", CultureInfo.CurrentCulture)),
+                (HistoryCol.Time, time),
+                (HistoryCol.Missions, s.MissionCount),
+                (HistoryCol.Revenue, s.Revenue.ToString("N0", CultureInfo.InvariantCulture)),
+                (HistoryCol.Carried, carried));
             revenue += s.Revenue;
             missions += s.MissionCount;
         }
@@ -221,8 +226,8 @@ public sealed partial class MainForm
                 + (bestHour.Revenue / (decimal)(bestHour.EndUtc!.Value - bestHour.StartUtc!.Value).TotalHours).ToString("N0", CultureInfo.InvariantCulture));
         _bestLine.Text = string.Join("      ", parts);
 
-        var tr = _historyGrid.Rows.Add("Total", "", missions, revenue.ToString("N0", CultureInfo.InvariantCulture), "");
-        _historyGrid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+        var totalRow = _historyGrid.AddRow((HistoryCol.Date, "Total"), (HistoryCol.Time, ""), (HistoryCol.Missions, missions), (HistoryCol.Revenue, revenue.ToString("N0", CultureInfo.InvariantCulture)), (HistoryCol.Carried, ""));
+        totalRow.DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
     }
 
     // ------------------------------------------------------------------ saving what the logs show
@@ -554,10 +559,10 @@ public sealed partial class MainForm
                     if (SameName(o, _debtSelected)) continue;
                     var calc = DebtCalc.Between(settle, _debtSelected, o);
                     var shown = calc + GetAdj(_debtSelected, o);
-                    var i = _balanceGrid.Rows.Add(o, Signed(shown), Meaning(_debtSelected, o, shown));
-                    _balanceGrid.Rows[i].Tag = calc;
-                    SignColor(_balanceGrid.Rows[i].Cells[1], shown);
-                    SignColor(_balanceGrid.Rows[i].Cells[2], shown);   // the meaning has the colour of its balance
+                    var row = _balanceGrid.AddRow((BalanceCol.Member, o), (BalanceCol.Balance, Signed(shown)), (BalanceCol.Meaning, Meaning(_debtSelected, o, shown)));
+                    row.Tag = calc;
+                    SignColor(row.Cells[BalanceCol.Balance], shown);
+                    SignColor(row.Cells[BalanceCol.Meaning], shown);   // the meaning has the colour of its balance
                 }
             }
 
@@ -571,11 +576,11 @@ public sealed partial class MainForm
                 nets.TryGetValue(p, out var net);
                 sumNow += now;
                 sumAll += all;
-                var er = _earnGrid.Rows.Add(p, now.ToString("N0", CultureInfo.InvariantCulture), all.ToString("N0", CultureInfo.InvariantCulture), Signed(net));
-                SignColor(_earnGrid.Rows[er].Cells[3], net);
+                var earnRow = _earnGrid.AddRow((EarnCol.Worker, p), (EarnCol.Session, now.ToString("N0", CultureInfo.InvariantCulture)), (EarnCol.All, all.ToString("N0", CultureInfo.InvariantCulture)), (EarnCol.Net, Signed(net)));
+                SignColor(earnRow.Cells[EarnCol.Net], net);
             }
-            var tr = _earnGrid.Rows.Add("Total", sumNow.ToString("N0", CultureInfo.InvariantCulture), sumAll.ToString("N0", CultureInfo.InvariantCulture), "");
-            _earnGrid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+            var earnTotal = _earnGrid.AddRow((EarnCol.Worker, "Total"), (EarnCol.Session, sumNow.ToString("N0", CultureInfo.InvariantCulture)), (EarnCol.All, sumAll.ToString("N0", CultureInfo.InvariantCulture)), (EarnCol.Net, ""));
+            earnTotal.DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
 
             FillHistory();
 
@@ -586,30 +591,31 @@ public sealed partial class MainForm
                     .Where(x => SameName(x.From, _debtSelected) || SameName(x.To, _debtSelected))
                     .OrderByDescending(x => x.Time))
                 {
-                    var i = _txGrid.Rows.Add(
-                        t.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture),
-                        t.From,
-                        t.To,
-                        t.Amount.ToString("N0", CultureInfo.InvariantCulture),
-                        t.Payment);
-                    _txGrid.Rows[i].Tag = t;
+                    var row = _txGrid.AddRow(
+                        (TransferCol.Time, t.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture)),
+                        (TransferCol.From, t.From),
+                        (TransferCol.To, t.To),
+                        (TransferCol.Amount, t.Amount.ToString("N0", CultureInfo.InvariantCulture)),
+                        (TransferCol.Payment, t.Payment));
+                    row.Tag = t;
                 }
             }
 
             _payoutGrid.Rows.Clear();
             foreach (var r in _data.Payouts.OrderByDescending(x => x.Time))
             {
-                var pi = _payoutGrid.Rows.Add(
-                    r.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture),
-                    r.Contract,
-                    r.Payout.ToString("N0", CultureInfo.InvariantCulture),
-                    string.Join(", ", r.Members),
-                    r.Each.ToString("N0", CultureInfo.InvariantCulture));
-                _payoutGrid.Rows[pi].Tag = r;
+                var row = _payoutGrid.AddRow(
+                    (PayoutCol.Time, r.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture)),
+                    (PayoutCol.Mission, r.Contract),
+                    (PayoutCol.Payout, r.Payout.ToString("N0", CultureInfo.InvariantCulture)),
+                    (PayoutCol.Members, string.Join(", ", r.Members)),
+                    (PayoutCol.Each, r.Each.ToString("N0", CultureInfo.InvariantCulture)));
+                row.Tag = r;
                 if (_data.PayoutOverrides.ContainsKey(r.MissionId))
                 {
-                    _payoutGrid.Rows[pi].Cells[2].Style.ForeColor = Theme.Gold;   // typed by you
-                    _payoutGrid.Rows[pi].Cells[2].ToolTipText = "Typed by you. Empty the box to use the reward of the contract again.";
+                    var typed = row.Cells[PayoutCol.Payout];
+                    typed.Style.ForeColor = Theme.Gold;   // typed by you
+                    typed.ToolTipText = "Typed by you. Empty the box to use the reward of the contract again.";
                 }
             }
         }
@@ -751,11 +757,11 @@ public sealed partial class MainForm
 
     void BalanceEdited(object? sender, DataGridViewCellEventArgs e)
     {
-        if (_debtUpdating || e.RowIndex < 0 || e.ColumnIndex != 1 || _debtSelected.Length == 0) return;
+        if (_debtUpdating || e.RowIndex < 0 || _balanceGrid.ColumnName(e.ColumnIndex) != BalanceCol.Balance || _debtSelected.Length == 0) return;
         var row = _balanceGrid.Rows[e.RowIndex];
         if (row.Tag is not decimal calc) return;
-        var other = Convert.ToString(row.Cells[0].Value) ?? "";
-        SetAdj(_debtSelected, other, ParseSigned(row.Cells[1].Value) - calc);
+        var other = Convert.ToString(row.Cells[BalanceCol.Member].Value) ?? "";
+        SetAdj(_debtSelected, other, ParseSigned(row.Cells[BalanceCol.Balance].Value) - calc);
         Storage.Save(_data);
         BeginInvoke(new Action(RefreshDebts));
     }
@@ -763,10 +769,10 @@ public sealed partial class MainForm
     /// <summary>The Payout of a mission was typed: it is what the mission really paid, so the shares and the debts follow it (empty = the reward of the contract again).</summary>
     void PayoutEdited(object? sender, DataGridViewCellEventArgs e)
     {
-        if (_debtUpdating || e.RowIndex < 0 || e.ColumnIndex != 2) return;
+        if (_debtUpdating || e.RowIndex < 0 || _payoutGrid.ColumnName(e.ColumnIndex) != PayoutCol.Payout) return;
         var row = _payoutGrid.Rows[e.RowIndex];
         if (row.Tag is not PayoutRecord r) return;
-        var typed = ParseNumber(row.Cells[2].Value);
+        var typed = ParseNumber(row.Cells[PayoutCol.Payout].Value);
         if (typed > 0) _data.PayoutOverrides[r.MissionId] = typed;
         else _data.PayoutOverrides.Remove(r.MissionId);
         Storage.Save(_data);
@@ -780,10 +786,10 @@ public sealed partial class MainForm
 
     void TxChanged(object? sender, DataGridViewCellEventArgs e)
     {
-        if (_debtUpdating || e.RowIndex < 0 || e.ColumnIndex != 4) return;
+        if (_debtUpdating || e.RowIndex < 0 || _txGrid.ColumnName(e.ColumnIndex) != TransferCol.Payment) return;
         var row = _txGrid.Rows[e.RowIndex];
         if (row.Tag is not SavedTransfer t) return;
-        t.Payment = row.Cells[4].Value is true;
+        t.Payment = row.Cells[TransferCol.Payment].Value is true;
         Storage.Save(_data);
         BeginInvoke(new Action(RefreshDebts));
     }

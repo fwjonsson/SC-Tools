@@ -29,20 +29,20 @@ public sealed partial class MainForm
         grid.Dock = DockStyle.Fill;
         grid.AllowUserToAddRows = false;
         grid.AllowUserToDeleteRows = false;
-        grid.Columns.Add(Col("Worker", 190, true));   // as wide as Pickup Location above
-        if (withSessions) grid.Columns.Add(Col("Sessions", 80, true));
-        grid.Columns.Add(Col("Completed Runs", 100, true));
-        grid.Columns.Add(Col("Perfect Runs", 90, true));
-        grid.Columns.Add(Col("Delivered Batches", 105, true));
-        grid.Columns.Add(Col("Avg Batches/Run", 100, true));
-        grid.Columns.Add(Col("Avg Run Time", 90, true));
-        grid.Columns.Add(Col("Distance Travelled", 105, true, DataGridViewContentAlignment.MiddleRight));
-        grid.Columns.Add(Col("Gm / Hour", 80, true, DataGridViewContentAlignment.MiddleRight));
-        grid.Columns.Add(Col("Total Run Value", 105, true, DataGridViewContentAlignment.MiddleRight));
-        grid.Columns.Add(Col("Total Earned aUEC", 105, true, DataGridViewContentAlignment.MiddleRight));
-        grid.Columns.Add(Col("Lost Value", 90, true, DataGridViewContentAlignment.MiddleRight));
-        grid.Columns.Add(Col("Share of Run Value", 100, true));
-        grid.Columns.Add(Col("Run Value / Hour", 110, true, DataGridViewContentAlignment.MiddleRight, true));
+        grid.Columns.Add(Col(StatCol.Worker, "Worker", 190, true));   // as wide as Pickup Location above
+        if (withSessions) grid.Columns.Add(Col(StatCol.Sessions, "Sessions", 80, true));
+        grid.Columns.Add(Col(StatCol.Runs, "Completed Runs", 100, true));
+        grid.Columns.Add(Col(StatCol.Perfect, "Perfect Runs", 90, true));
+        grid.Columns.Add(Col(StatCol.Delivered, "Delivered Batches", 105, true));
+        grid.Columns.Add(Col(StatCol.AvgBatches, "Avg Batches/Run", 100, true));
+        grid.Columns.Add(Col(StatCol.AvgTime, "Avg Run Time", 90, true));
+        grid.Columns.Add(Col(StatCol.Distance, "Distance Travelled", 105, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col(StatCol.GmPerHour, "Gm / Hour", 80, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col(StatCol.RunValue, "Total Run Value", 105, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col(StatCol.Earned, "Total Earned aUEC", 105, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col(StatCol.Lost, "Lost Value", 90, true, DataGridViewContentAlignment.MiddleRight));
+        grid.Columns.Add(Col(StatCol.Share, "Share of Run Value", 100, true));
+        grid.Columns.Add(Col(StatCol.ValuePerHour, "Run Value / Hour", 110, true, DataGridViewContentAlignment.MiddleRight, true));
     }
 
     void BuildStatsGrid()
@@ -117,15 +117,29 @@ public sealed partial class MainForm
                 ? (l.RunValue / totalValue * 100m).ToString("0", CultureInfo.InvariantCulture) + "%"
                 : "";
 
-            var cells = new List<object> { l.Name };
-            if (withSessions) cells.Add(l.Sessions);
-            cells.AddRange(new object[] { l.S.Runs, l.S.Perfect, l.S.Missions, avgMissions, avgTime, Dist(l.S.Distance), GmPerHour(l.S.Distance, l.Seconds), Num(l.RunValue), Num(l.Confirmed), Num(l.Lost), share, PerHour(l.RunValue, l.Seconds) });
-            var idx = grid.Rows.Add(cells.ToArray());
+            var cells = new List<(string, object?)>
+            {
+                (StatCol.Worker, l.Name),
+                (StatCol.Runs, l.S.Runs),
+                (StatCol.Perfect, l.S.Perfect),
+                (StatCol.Delivered, l.S.Missions),
+                (StatCol.AvgBatches, avgMissions),
+                (StatCol.AvgTime, avgTime),
+                (StatCol.Distance, Dist(l.S.Distance)),
+                (StatCol.GmPerHour, GmPerHour(l.S.Distance, l.Seconds)),
+                (StatCol.RunValue, Num(l.RunValue)),
+                (StatCol.Earned, Num(l.Confirmed)),
+                (StatCol.Lost, Num(l.Lost)),
+                (StatCol.Share, share),
+                (StatCol.ValuePerHour, PerHour(l.RunValue, l.Seconds)),
+            };
+            if (withSessions) cells.Add((StatCol.Sessions, l.Sessions));
+            var row = grid.AddRow(cells.ToArray());
             if (first && l.RunValue > 0)
             {
                 // the top earner: a star and a gold row
-                grid.Rows[idx].Cells[0].Value = "★ " + l.Name + " ★";
-                grid.Rows[idx].DefaultCellStyle.BackColor = TopGold;
+                row.Cells[StatCol.Worker].Value = "★ " + l.Name + " ★";
+                row.DefaultCellStyle.BackColor = TopGold;
                 first = false;
             }
 
@@ -140,14 +154,25 @@ public sealed partial class MainForm
             sum.Lost += l.Lost;
         }
 
-        var total = new List<object> { "Total" };
-        if (withSessions) total.Add(totalSessions);
-        total.AddRange(new object[]
+        var total = new List<(string, object?)>
         {
-            sum.S.Runs, sum.S.Perfect, sum.S.Missions, "", "", Dist(sum.S.Distance), GmPerHour(sum.S.Distance, totalSeconds), Num(sum.RunValue), Num(sum.Confirmed), Num(sum.Lost), sum.RunValue > 0 ? "100%" : "", PerHour(sum.RunValue, totalSeconds),
-        });
-        var tr = grid.Rows.Add(total.ToArray());
-        grid.Rows[tr].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+            (StatCol.Worker, "Total"),
+            (StatCol.Runs, sum.S.Runs),
+            (StatCol.Perfect, sum.S.Perfect),
+            (StatCol.Delivered, sum.S.Missions),
+            (StatCol.AvgBatches, ""),
+            (StatCol.AvgTime, ""),
+            (StatCol.Distance, Dist(sum.S.Distance)),
+            (StatCol.GmPerHour, GmPerHour(sum.S.Distance, totalSeconds)),
+            (StatCol.RunValue, Num(sum.RunValue)),
+            (StatCol.Earned, Num(sum.Confirmed)),
+            (StatCol.Lost, Num(sum.Lost)),
+            (StatCol.Share, sum.RunValue > 0 ? "100%" : ""),
+            (StatCol.ValuePerHour, PerHour(sum.RunValue, totalSeconds)),
+        };
+        if (withSessions) total.Add((StatCol.Sessions, totalSessions));
+        var totalRow = grid.AddRow(total.ToArray());
+        totalRow.DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
     }
 
     /// <summary>The leaderboard of the selected session.</summary>
