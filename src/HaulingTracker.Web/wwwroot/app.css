@@ -9,7 +9,7 @@
   .ok { color:#5fd35f; } .bad { color:#ff6b6b; }
   .top { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
   .top > div:first-child { min-width:0; flex:1 1 560px; }   /* the stops take the width ... */
-  .top > div:last-child { flex:0 0 480px; max-width:100%; }   /* ... the party, contracts and session are as narrow as in the program */
+  .top > div:last-child { flex:0 0 520px; max-width:100%; }   /* ... the party, contracts and session are as narrow as in the program */
   .scroll { overflow-x:auto; }
   .bal table { table-layout:fixed; }
   .bal th:nth-child(1) { width:24%; }
@@ -22,6 +22,7 @@
   #party table, #rewards table, #summary table { table-layout:fixed; }
   #party th, #rewards th { width:25%; }
   #runs td:nth-child(3) { white-space:normal; }   /* Pickup Location & Time of Cargo runs: a long run wraps instead of running over the next columns */
+  #pickups td:nth-child(7), #pickups td:nth-child(8) { white-space:normal; }   /* Notes and Drop-off of Stops: they wrap on a narrower window */
   .empty { opacity:.6; padding:6px 0; }
   .nav, .sub { display:flex; gap:8px; margin:8px 0 4px; flex-wrap:wrap; }
   .nav button, .sub button { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 16px; font:inherit; font-weight:600; cursor:pointer; border-radius:4px; }
