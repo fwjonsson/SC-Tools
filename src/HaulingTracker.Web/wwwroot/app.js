@@ -40,14 +40,21 @@ function alignColumns() {
   const lead = document.querySelector('#leaders table');
   if (!lead || !lead.tHead) return;
   const w = Array.prototype.map.call(lead.tHead.rows[0].cells, function (c) { return c.getBoundingClientRect().width; });
-  function fix(id, n) {
+  // after the lined-up columns: the column with the long text (wide) takes what is left, the others are as wide as their numbers need
+  const narrow = { 'Batches': 70, 'Value': 100, 'Started': 76, 'Completed': 90, 'Time': 80, 'In flight': 76, 'aUEC/h': 96, 'Lost Cargo': 96 };
+  function fix(id, n, wide) {
     const t = document.querySelector('#' + id + ' table');
     if (!t || !t.tHead) return;
     const cells = t.tHead.rows[0].cells;
     t.style.tableLayout = 'fixed';
-    for (let i = 0; i < cells.length; i++) cells[i].style.width = (i < n && i < cells.length - 1 && w[i]) ? w[i] + 'px' : '';   // the last column takes what is left
+    for (let i = 0; i < cells.length; i++) {
+      const h = cells[i].textContent;
+      if (i < n && i < cells.length - 1 && w[i]) cells[i].style.width = w[i] + 'px';
+      else if (wide && h !== wide && narrow[h]) cells[i].style.width = narrow[h] + 'px';
+      else cells[i].style.width = '';   // the last column (or the wide one) takes what is left
+    }
   }
-  fix('pickups', 6); fix('finished', 6); fix('runs', 2);
+  fix('pickups', 6); fix('finished', 6); fix('runs', 2, 'Pickup Location & Time');
 }
 window.addEventListener('resize', alignColumns);
 

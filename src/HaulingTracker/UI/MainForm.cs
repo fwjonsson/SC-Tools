@@ -252,7 +252,7 @@ public sealed partial class MainForm : Form
     }
 
     const int TitleHeight = 30;
-    const int SideWidth = 560;     // the column on the right: the party, the contracts and the times
+    const int SideWidth = 620;     // the column on the right: the party, the contracts and the times
     static readonly int ContractsHeight = 26 + (Earnings.RewardLines.Count + 1) * 24 + 10;   // the contracts table: header, a row for every kind of contract (to Ruin 2, 3, 4 stops, from Ruin 2, 3, 4 drop-offs and direct) and Total
     const int SummaryHeight = 190;     // the times and totals table: seven rows of 25 with their borders
     TableLayoutPanel? _header;
@@ -566,9 +566,9 @@ public sealed partial class MainForm : Form
         _rewards.AllowUserToAddRows = false;
         _rewards.AllowUserToDeleteRows = false;
         _rewards.ScrollBars = ScrollBars.None;
-        _rewards.Columns.Add(Col(RewardCol.Contract, "Contract", 110, true, DataGridViewContentAlignment.MiddleLeft));
-        _rewards.Columns.Add(Col(RewardCol.Reward, "Mission Reward", 120, false, DataGridViewContentAlignment.MiddleRight));
-        _rewards.Columns.Add(Col(RewardCol.Count, "# Missions", 90, true, DataGridViewContentAlignment.MiddleRight));
+        _rewards.Columns.Add(Col(RewardCol.Contract, "Contract", 150, true, DataGridViewContentAlignment.MiddleLeft));   // room for "Direct From Ruin"
+        _rewards.Columns.Add(Col(RewardCol.Reward, "Mission Reward", 130, false, DataGridViewContentAlignment.MiddleRight));
+        _rewards.Columns.Add(Col(RewardCol.Count, "# Missions", 100, true, DataGridViewContentAlignment.MiddleRight));
         _rewards.Columns.Add(Col(RewardCol.Total, "Total", 100, true, DataGridViewContentAlignment.MiddleRight, true));
         _rewards.CellEndEdit += (_, _) =>
         {
