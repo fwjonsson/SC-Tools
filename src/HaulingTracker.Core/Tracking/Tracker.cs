@@ -34,4 +34,55 @@ public sealed class Tracker
     public SessionFigures Figures { get; }
     public Payouts Payouts { get; }
     public Leaderboard Leaderboard { get; }
+
+    /// <summary>
+    /// Reads the logs of every player as one (a mission shared in the party is in it once), with the missions marked as gone and the SCU you typed, and finds the
+    /// sessions in it.
+    /// </summary>
+    public void Load(IEnumerable<HaulingLog> logs)
+    {
+        State.Log = HaulingLog.Merge(logs);
+        Contracts.ApplyDroppedMissions(State.Log);
+        DropOffs.ApplyTypedScu(State.Log);
+        State.Sessions = SessionBuilder.Build(State.Log, State.Data.ManualSessions);
+    }
+
+    /// <summary>Shows a session, with what was typed for it. A new set of missions clears the workers assigned to the stops (and that is saved).</summary>
+    public void Select(SessionGroup g)
+    {
+        State.Current = g;
+        State.Inputs = State.InputsOf(g.Key);
+        if (WorkerTripBuilder.ResetWorkersForNewBatch(g, State.Inputs, State.Missing)) State.Save();   // new missions: a clean slate for the assigned workers
+    }
+
+    /// <summary>
+    /// Works out the stops of the session shown: the missions whose cargo went missing, the summary, and the pickup locations. Both boards only show the missions
+    /// that are active (not completed); a location where every batch of those missions is handed in moves from the pickup table to the finished stops table.
+    /// A completed mission is on neither: the Cargo Runs keep everything since the session started.
+    /// </summary>
+    public void LoadStops()
+    {
+        var g = State.Current ?? throw new InvalidOperationException("No session is shown.");
+        State.Missing = State.Log == null ? new HashSet<string>() : SessionBuilder.MissingCargo(g, Runs.BuildRuns(g, State.Inputs!), State.Log.LastTime);
+        State.Summary = SessionBuilder.Summarize(g);
+        State.Rows = SessionBuilder.Locations(g);
+        State.OpenRows = SessionBuilder.Locations(g, true, State.Missing);
+        State.PickupRows = State.OpenRows.Where(r => !r.DeliveredTime.HasValue).ToList();
+        State.DoneRows = State.OpenRows.Where(r => r.DeliveredTime.HasValue).ToList();
+    }
+
+    /// <summary>Works out the runs of the session shown, latest activity first (none while no session is shown).</summary>
+    public void LoadRuns() => State.Trips = Runs.SessionRuns();
+
+    /// <summary>No session is shown: nothing typed, no stops.</summary>
+    public void ClearSession()
+    {
+        State.Missing = new HashSet<string>();
+        State.Inputs = null;
+        State.Summary = null;
+        State.Rows = new List<LocationRow>();
+        State.OpenRows = new List<LocationRow>();
+        State.PickupRows = new List<LocationRow>();
+        State.DoneRows = new List<LocationRow>();
+    }
 }

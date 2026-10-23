@@ -20,6 +20,7 @@ public sealed partial class MainForm : Form
     readonly DataGridView _tripGrid = new();
     readonly DataGridView _planRunsGrid = new();   // a read-only copy of Cargo Runs under the Trip Planner
     readonly AppData _data = Storage.Load();
+    readonly Tracker _tracker;      // reads the logs and works out the session shown (see Load, Select, LoadStops, LoadRuns)
     readonly TrackerState _state;   // the merged log, the sessions, and the session shown with its stops and runs: what the services work from
     // the services of the core (see Tracker): the logic of the tabs, the window only shows what they give it
     readonly Places _places;
@@ -65,7 +66,7 @@ public sealed partial class MainForm : Form
 
     public MainForm()
     {
-        var tracker = new Tracker(_data);
+        var tracker = _tracker = new Tracker(_data);
         _state = tracker.State;
         _places = tracker.Places;
         _crew = tracker.Crew;
@@ -770,9 +771,8 @@ public sealed partial class MainForm : Form
         {
             _tripGrid.Rows.Clear();
             _planRunsGrid.Rows.Clear();
-            _state.Trips = new List<WorkerTrip>();
+            _tracker.LoadRuns();   // latest activity on top
             if (_state.Current == null || _state.Inputs == null || _state.Log == null) return;
-            _state.Trips = _runs.SessionRuns();   // latest activity on top
 
             foreach (var t in _state.Trips)
             {
@@ -1349,13 +1349,9 @@ public sealed partial class MainForm : Form
         if (_logs.Count == 0) { ClearView(); return; }
 
         // the logs of all accounts are merged, a mission shared in the party appears once
-        _state.Log = HaulingLog.Merge(_logs);
-        _contracts.ApplyDroppedMissions(_state.Log);
-        _dropOffs.ApplyTypedScu(_state.Log);
-
+        _tracker.Load(_logs);
         var keep = _forceKey ?? _state.Current?.Key;
         _forceKey = null;
-        _state.Sessions = SessionBuilder.Build(_state.Log, _data.ManualSessions);
 
         _updating = true;
         try
@@ -1420,18 +1416,9 @@ public sealed partial class MainForm : Form
         _updating = true;
         try
         {
-            _state.Inputs = _state.InputsOf(_state.Current.Key);
-            if (WorkerTripBuilder.ResetWorkersForNewBatch(_state.Current, _state.Inputs, _state.Missing)) _state.Save();   // new missions: a clean slate for the assigned workers
+            _tracker.Select(_state.Current);
             ClaimNewPickups();   // before the boards change: the plan still has the batches that were just picked up
-            _state.Missing = _state.Log == null ? new HashSet<string>() : SessionBuilder.MissingCargo(_state.Current, _runs.BuildRuns(_state.Current, _state.Inputs), _state.Log.LastTime);
-            _state.Summary = SessionBuilder.Summarize(_state.Current);
-            _state.Rows = SessionBuilder.Locations(_state.Current);
-            // both boards only show the missions that are active (not completed). A location where every batch of those missions
-            // is handed in moves from the pickup table to the finished stops table. A completed mission is on neither: the
-            // Cargo Runs log below keeps everything since the session started.
-            _state.OpenRows = SessionBuilder.Locations(_state.Current, true, _state.Missing);
-            _state.PickupRows = _state.OpenRows.Where(r => !r.DeliveredTime.HasValue).ToList();
-            _state.DoneRows = _state.OpenRows.Where(r => r.DeliveredTime.HasValue).ToList();
+            _tracker.LoadStops();
 
             _startBox.Text = _state.Inputs.Start ?? FormatTime(_state.Summary.Start);
             _endBox.Text = _state.Inputs.End ?? (_state.Summary.End.HasValue ? FormatTime(_state.Summary.End.Value) : "");
@@ -1469,16 +1456,10 @@ public sealed partial class MainForm : Form
 
     void ClearView()
     {
-        _state.Missing = new HashSet<string>();
+        _tracker.ClearSession();
         _updating = true;
         try
         {
-            _state.Inputs = null;
-            _state.Summary = null;
-            _state.Rows = new List<LocationRow>();
-            _state.OpenRows = new List<LocationRow>();
-            _state.PickupRows = new List<LocationRow>();
-            _state.DoneRows = new List<LocationRow>();
             _doneGrid.Rows.Clear();
             _startBox.Text = "";
             _endBox.Text = "";
