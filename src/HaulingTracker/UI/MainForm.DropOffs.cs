@@ -56,13 +56,13 @@ public sealed partial class MainForm
     /// </summary>
     decimal WasteValue(IEnumerable<string> keys)
     {
-        if (_log == null || _inputs == null) return 0;
+        if (_state.Log == null || _state.Inputs == null) return 0;
         decimal total = 0;
         foreach (var key in keys)
         {
             var bar = key.IndexOf('|');
-            if (bar <= 0 || !_log.Missions.TryGetValue(key[..bar], out var m) || m.OutDrops <= 0) continue;
-            total += WasteRewardOf(m, _inputs) / m.OutDrops;
+            if (bar <= 0 || !_state.Log.Missions.TryGetValue(key[..bar], out var m) || m.OutDrops <= 0) continue;
+            total += WasteRewardOf(m, _state.Inputs) / m.OutDrops;
         }
         return total;
     }
@@ -77,12 +77,12 @@ public sealed partial class MainForm
     List<Mission> SessionWaste(SessionGroup g)
     {
         var list = new List<Mission>();
-        if (_log == null) return list;
-        foreach (var m in _log.Missions.Values.Where(x => x.IsOut && !x.Dead && !x.Dropped))
+        if (_state.Log == null) return list;
+        foreach (var m in _state.Log.Missions.Values.Where(x => x.IsOut && !x.Dead && !x.Dropped))
         {
             var owner = m.EndedAt is { } ended
-                ? _sessions.Where(s => s.Start <= ended).OrderBy(s => s.Start).LastOrDefault()
-                : _sessions.OrderBy(s => s.Start).LastOrDefault();
+                ? _state.Sessions.Where(s => s.Start <= ended).OrderBy(s => s.Start).LastOrDefault()
+                : _state.Sessions.OrderBy(s => s.Start).LastOrDefault();
             if (owner != null && owner.Key == g.Key) list.Add(m);
         }
         return list;
@@ -103,7 +103,7 @@ public sealed partial class MainForm
     string DropLabel(string key)
     {
         var bar = key.IndexOf('|');
-        if (_log == null || bar <= 0 || !_log.Missions.TryGetValue(key[..bar], out var m)) return "Drop-off";
+        if (_state.Log == null || bar <= 0 || !_state.Log.Missions.TryGetValue(key[..bar], out var m)) return "Drop-off";
         var place = m.ObjZone.TryGetValue(key[(bar + 1)..], out var zone) ? LocationName(zone) : "a station";
         return (m.OutCargo ?? "Cargo") + " for " + place;
     }
@@ -179,11 +179,11 @@ public sealed partial class MainForm
     List<DropBatch> OpenDrops()
     {
         var res = new List<DropBatch>();
-        if (_log == null) return res;
-        foreach (var m in _log.Missions.Values.Where(x => x.IsOut && x.EndState == null))
+        if (_state.Log == null) return res;
+        foreach (var m in _state.Log.Missions.Values.Where(x => x.IsOut && x.EndState == null))
         {
             var seen = m.Accepted ?? m.FirstSeen;
-            if (seen.HasValue && _log.LastTime - seen.Value > TimeSpan.FromHours(12)) continue;   // an old one that never ended
+            if (seen.HasValue && _state.Log.LastTime - seen.Value > TimeSpan.FromHours(12)) continue;   // an old one that never ended
             foreach (var kv in m.ObjZone.Where(o => o.Key.StartsWith("dropoff_")))
             {
                 if (m.Events.TryGetValue(kv.Key, out var ev) && ev.Any(e => e.State == "COMPLETED")) continue;
@@ -200,10 +200,10 @@ public sealed partial class MainForm
     (string Station, DateTime Time)? DropStartOf(string name)
     {
         var best = LastDropOf(name);
-        if (_log == null || best == null || best.Value.Station == null || best.Value.Station == PyroDistances.Ruin) return null;
-        if (_log.LastTime - best.Value.Time > TimeSpan.FromHours(3)) return null;
+        if (_state.Log == null || best == null || best.Value.Station == null || best.Value.Station == PyroDistances.Ruin) return null;
+        if (_state.Log.LastTime - best.Value.Time > TimeSpan.FromHours(3)) return null;
         var at = best.Value.Time;
-        var moved = _trips.Any(t => SameName(t.Worker, name) && ((t.End ?? DateTime.MinValue) > at || t.Pickups.Any(p => p.Time > at)));
+        var moved = _state.Trips.Any(t => SameName(t.Worker, name) && ((t.End ?? DateTime.MinValue) > at || t.Pickups.Any(p => p.Time > at)));
         return moved ? null : (best.Value.Station!, at);
     }
 
@@ -214,9 +214,9 @@ public sealed partial class MainForm
     /// </summary>
     (string? Station, DateTime Time)? LastDropOf(string name)
     {
-        if (_log == null) return null;
+        if (_state.Log == null) return null;
         (string? Station, DateTime Time)? best = null;
-        foreach (var s in WorkerTripBuilder.OutSteps(_log))
+        foreach (var s in WorkerTripBuilder.OutSteps(_state.Log))
         {
             if (s.Pickup || s.Worker == null || !SameName(s.Worker, name)) continue;
             if (!s.Mission.ObjZone.TryGetValue(s.Objective, out var zone)) continue;

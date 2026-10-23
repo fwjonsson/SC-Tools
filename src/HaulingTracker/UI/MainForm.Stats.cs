@@ -51,24 +51,12 @@ public sealed partial class MainForm
         AddNumberColumn(_statsGrid);   // the session leaderboard counts its workers: 1, 2, 3...
     }
 
-    static string ShortDuration(TimeSpan d) => (int)d.TotalHours + ":" + d.Minutes.ToString("00");
-
-    static string Num(decimal v) => v > 0 ? v.ToString("N0", CultureInfo.InvariantCulture) : "";
-
-    static string Dist(double gm) => gm > 0 ? gm.ToString("N1", CultureInfo.InvariantCulture) + " Gm" : "";
-
     /// <summary>The station of a pickup location: by its location id, or by the name you gave it. Null when the distance table does not know it.</summary>
     string? StationOf(string zone) => PyroDistances.IdOfTail(StationKey(zone)) ?? PyroDistances.IdOfName(LocationName(zone));
 
     /// <summary>Gm flown in one run: Ruin, the stations it went to (waste delivered, pickups) in the order they were visited, and back to Ruin. Locations missing from the table are skipped.</summary>
     static double RunDistance(WorkerTrip t, Func<string, string?> stationOf) =>
         PyroDistances.Run(t.VisitedZones().Select(z => stationOf(z)).OfType<string>());
-
-    static string GmPerHour(double gm, double seconds) =>
-        gm > 0 && seconds > 0 ? (gm / (seconds / 3600.0)).ToString("N1", CultureInfo.InvariantCulture) : "";
-
-    static string PerHour(decimal earned, double seconds) =>
-        earned > 0 && seconds > 0 ? Num(earned / (decimal)(seconds / 3600.0)) : "";
 
     /// <summary>Runs and missions per worker. Completed runs are the ones ended by a hand-in (not by hand), perfect runs are completed runs with lost cargo None.</summary>
     static Dictionary<string, WorkerStat> ComputeStats(IEnumerable<WorkerTrip> trips, SessionInputs inp, Func<string, string?>? stationOf = null, HashSet<string>? completed = null)
@@ -179,19 +167,19 @@ public sealed partial class MainForm
     void FillStats()
     {
         _statsGrid.Rows.Clear();
-        if (_inputs == null || _current == null) return;
+        if (_state.Inputs == null || _state.Current == null) return;
 
-        var carried = ComputeCarried(_current, _inputs);
-        var confirmed = ComputeCarried(_current, _inputs, CarryMode.Confirmed);
-        var failedNow = ComputeCarried(_current, _inputs, CarryMode.Failed);
-        var settled = _summary?.End is DateTime lastActivity && DateTime.UtcNow - lastActivity > SettleTime;   // still running: the rest is only queued
+        var carried = ComputeCarried(_state.Current, _state.Inputs);
+        var confirmed = ComputeCarried(_state.Current, _state.Inputs, CarryMode.Confirmed);
+        var failedNow = ComputeCarried(_state.Current, _state.Inputs, CarryMode.Failed);
+        var settled = _state.Summary?.End is DateTime lastActivity && DateTime.UtcNow - lastActivity > SettleTime;   // still running: the rest is only queued
 
         var seconds = SessionElapsed()?.TotalSeconds ?? 0;
 
-        var stats = ComputeStats(_trips, _inputs, StationOf);
+        var stats = ComputeStats(_state.Trips, _state.Inputs, StationOf);
         // only workers who started a cargo run this session
         var names = new List<string>();
-        foreach (var t in _trips)
+        foreach (var t in _state.Trips)
         {
             if (t.Worker != "Unassigned" && !names.Any(x => SameName(x, t.Worker))) names.Add(t.Worker);
         }

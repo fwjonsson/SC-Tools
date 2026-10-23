@@ -232,8 +232,6 @@ public sealed partial class MainForm
 
     // ------------------------------------------------------------------ saving what the logs show
 
-    static bool SameName(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
-
     static decimal CarriedBy(Dictionary<string, decimal> carried, string name) =>
         carried.Where(kv => SameName(kv.Key, name)).Sum(kv => kv.Value);
 
@@ -279,7 +277,7 @@ public sealed partial class MainForm
     Dictionary<string, decimal> ComputeCarried(SessionGroup g, SessionInputs inp, CarryMode mode = CarryMode.Run)
     {
         var carried = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        if (_log == null) return carried;
+        if (_state.Log == null) return carried;
         var trips = BuildRuns(g, inp);
         foreach (var t in trips)
         {
@@ -303,7 +301,7 @@ public sealed partial class MainForm
     {
         var carried = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         var received = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        if (_log == null) return (carried, received);
+        if (_state.Log == null) return (carried, received);
 
         var trips = BuildRuns(g, inp);
         var byMission = new Dictionary<string, Dictionary<string, decimal>>();
@@ -398,10 +396,10 @@ public sealed partial class MainForm
     /// <summary>Keeps what every session earned per worker, and the money transfers, so they survive closing the program.</summary>
     void UpdateSnapshots()
     {
-        if (_log == null) return;
+        if (_state.Log == null) return;
         var changed = false;
 
-        foreach (var g in _sessions)
+        foreach (var g in _state.Sessions)
         {
             _data.Sessions.TryGetValue(g.Key, out var stored);
             if (stored != null && WorkerTripBuilder.ResetWorkersForNewBatch(g, stored)) changed = true;
@@ -420,7 +418,7 @@ public sealed partial class MainForm
             var failedValues = ComputeCarried(g, stored ?? new SessionInputs(), CarryMode.Failed);
             if (carried.Count == 0 && runValues.Count == 0) continue;
 
-            var inp = stored ?? GetInputs(g.Key);
+            var inp = stored ?? _state.InputsOf(g.Key);
             var ids = g.Missions.Select(m => m.Id).ToList();
 
             // a session that grew and got a new key must not be counted twice
@@ -480,7 +478,7 @@ public sealed partial class MainForm
             }
         }
 
-        foreach (var t in _log.Transfers)
+        foreach (var t in _state.Log.Transfers)
         {
             var known = _data.Transfers.Any(x => x.Amount == t.Amount && SameName(x.From, t.From) && SameName(x.To, t.To)
                 && Math.Abs((x.Time - t.Time).TotalSeconds) <= 10);
@@ -524,8 +522,6 @@ public sealed partial class MainForm
         cell.Style.BackColor = c;
         cell.Style.SelectionBackColor = c;
     }
-
-    static string Signed(decimal v) => v.ToString("+#,##0;-#,##0;0", CultureInfo.InvariantCulture);
 
     static string Meaning(string me, string other, decimal v)
     {
@@ -571,7 +567,7 @@ public sealed partial class MainForm
             decimal sumAll = 0;
             foreach (var p in party)
             {
-                var now = _inputs == null ? 0m : CarriedBy(_inputs.Carried, p);
+                var now = _state.Inputs == null ? 0m : CarriedBy(_state.Inputs.Carried, p);
                 var all = _data.Sessions.Values.Sum(s => CarriedBy(s.Carried, p));
                 nets.TryGetValue(p, out var net);
                 sumNow += now;
@@ -681,14 +677,14 @@ public sealed partial class MainForm
     /// <summary>Who was in the party of the selected session. The reward is split equally between them.</summary>
     void EditSessionParty()
     {
-        if (_inputs == null || _current == null)
+        if (_state.Inputs == null || _state.Current == null)
         {
             SetStatus("Pick a session first.");
             return;
         }
 
         var names = DebtPartyNames();
-        var now = _inputs.Party ?? _inputs.Members;
+        var now = _state.Inputs.Party ?? _state.Inputs.Members;
         using var f = new Form
         {
             Text = "Session Party",
@@ -718,7 +714,7 @@ public sealed partial class MainForm
         ApplyTheme(f);
         if (f.ShowDialog(this) != DialogResult.OK) return;
 
-        _inputs.Party = list.CheckedItems.Cast<object>().Select(x => x.ToString() ?? "").Where(x => x.Length > 0).ToList();
+        _state.Inputs.Party = list.CheckedItems.Cast<object>().Select(x => x.ToString() ?? "").Where(x => x.Length > 0).ToList();
         Storage.Save(_data);
         UpdateSnapshots();
         RefreshDebts();
@@ -746,13 +742,6 @@ public sealed partial class MainForm
         var v = meFirst ? balance : -balance;
         if (Math.Abs(v) < 0.5m) _data.PairAdjust.Remove(key);
         else _data.PairAdjust[key] = v;
-    }
-
-    static decimal ParseSigned(object? value)
-    {
-        var s = Convert.ToString(value, CultureInfo.CurrentCulture) ?? "";
-        var negative = s.Contains('-') || s.Contains('−');
-        return (negative ? -1m : 1m) * ParseNumber(s);
     }
 
     void BalanceEdited(object? sender, DataGridViewCellEventArgs e)

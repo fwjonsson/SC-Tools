@@ -30,11 +30,11 @@ public sealed partial class MainForm
 
     /// <summary>The missions of the selected session that are still going, oldest first.</summary>
     List<Mission> ActiveMissions() =>
-        _current == null ? new List<Mission>() : _current.Missions.Where(m => m.EndState == null).OrderBy(m => m.Accepted ?? m.FirstSeen ?? DateTime.MaxValue).ThenBy(m => m.Id, StringComparer.Ordinal).ToList();
+        _state.Current == null ? new List<Mission>() : _state.Current.Missions.Where(m => m.EndState == null).OrderBy(m => m.Accepted ?? m.FirstSeen ?? DateTime.MaxValue).ThenBy(m => m.Id, StringComparer.Ordinal).ToList();
 
     /// <summary>The missions still going and the ones marked as gone (so they can be brought back), oldest first. The from-Ruin contracts come with the newest session.</summary>
     List<Mission> ContractRows() =>
-        _current == null ? new List<Mission>() : _current.Missions.Where(m => m.EndState == null).Concat(_current.Failed.Where(m => m.Dropped)).Concat(OutContracts())
+        _state.Current == null ? new List<Mission>() : _state.Current.Missions.Where(m => m.EndState == null).Concat(_state.Current.Failed.Where(m => m.Dropped)).Concat(OutContracts())
             .OrderBy(m => m.Accepted ?? m.FirstSeen ?? DateTime.MaxValue).ThenBy(m => m.Id, StringComparer.Ordinal).ToList();
 
     /// <summary>
@@ -43,8 +43,8 @@ public sealed partial class MainForm
     /// </summary>
     List<Mission> OutContracts()
     {
-        if (_log == null || _current == null || _sessions.Count == 0 || _current.Key != _sessions[^1].Key) return new List<Mission>();
-        var log = _log;
+        if (_state.Log == null || _state.Current == null || _state.Sessions.Count == 0 || _state.Current.Key != _state.Sessions[^1].Key) return new List<Mission>();
+        var log = _state.Log;
         return log.Missions.Values.Where(m => m.IsOut && (m.EndState == null || m.Dropped)
             && !((m.Accepted ?? m.FirstSeen) is { } seen && log.LastTime - seen > TimeSpan.FromHours(12))).ToList();
     }
@@ -76,24 +76,24 @@ public sealed partial class MainForm
     /// <summary>The id of a player the logs name only by number: the one party member without a log (when there is exactly one such id and member).</summary>
     string? PlayerIdOf(string member)
     {
-        if (_log == null) return null;
-        var named = _log.IdNames.FirstOrDefault(kv => SameName(kv.Value, member));
+        if (_state.Log == null) return null;
+        var named = _state.Log.IdNames.FirstOrDefault(kv => SameName(kv.Value, member));
         if (named.Key != null) return named.Key;
-        var unnamed = _log.MemberEvents.Select(e => e.Player).Distinct().Where(id => !_log.IdNames.ContainsKey(id)).ToList();
-        var withoutLog = _data.Party.Where(n => !_log.Players.Any(p => SameName(p, n))).ToList();
+        var unnamed = _state.Log.MemberEvents.Select(e => e.Player).Distinct().Where(id => !_state.Log.IdNames.ContainsKey(id)).ToList();
+        var withoutLog = _data.Party.Where(n => !_state.Log.Players.Any(p => SameName(p, n))).ToList();
         return unnamed.Count == 1 && withoutLog.Count == 1 && SameName(withoutLog[0], member) ? unnamed[0] : null;
     }
 
     /// <summary>What the logs say: does this party member have the mission? A member with a log has it when his log has it (not ended it); one without a log (nobody can read his game) unless the others were told that he left it.</summary>
     bool LogSaysHas(Mission m, string member, DateTime? at = null)
     {
-        if (_log == null) return true;
-        if (_log.Players.Any(p => SameName(p, member))) return m.Holders.Any(h => SameName(h, member));
+        if (_state.Log == null) return true;
+        if (_state.Log.Players.Any(p => SameName(p, member))) return m.Holders.Any(h => SameName(h, member));
         var id = PlayerIdOf(member);
         // nothing tells when it was shared with him: he is assumed to have it while he is in the party (click his box when he does not), and not when he is not
         var inParty = at.HasValue ? IsActiveAt(member, at.Value) : !_data.InactiveParty.Any(x => SameName(x, member));
         if (id == null) return inParty;
-        var last = _log.MemberEvents.Where(e => e.Mission == m.Id && e.Player == id).OrderBy(e => e.Time).LastOrDefault();
+        var last = _state.Log.MemberEvents.Where(e => e.Mission == m.Id && e.Player == id).OrderBy(e => e.Time).LastOrDefault();
         return last == null ? inParty : !last.Left;
     }
 
