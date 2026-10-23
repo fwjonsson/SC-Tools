@@ -20,6 +20,11 @@ public static class TripPlanner
     const double TripSeconds = StopSeconds;   // every trip ends with a landing at Ruin to hand in (a run of 38 min: 9 flying, 3-4 loading waste at the elevator, the rest two landings of about 13-15 min), so two half empty trips cost a landing more than one full one
     const double FlightWeight = 0.25;  // the part of the flying time that counts when comparing plans (the times shown are the real ones)
     const double SyncSeconds = StopSeconds;   // delivering cargo from Ruin where the trip picks up anyway: one landing does both, so that is a landing saved
+    // The trip he is flying now is the one thing of the plan that is sure to happen: the later trips are planned again as missions get done and new ones come in.
+    // So its room is used now, where it fills up, and it never lands for a leftover: the smaller part of a station that another trip lands at anyway saves no landing
+    // at all (that one would take it), it only costs his. The leftover waits for a later trip, where new missions can make it worth the landing.
+    const double FillNowSeconds = 900;    // what the trip he is flying picks up (not leftovers), as a part of his ship: a full ship of pickups counts as a landing saved
+    const double LeftoverSeconds = 1800;  // the trip he is flying takes the smaller part of a station that is landed at anyway: that costs as much as a trip of its own for it later (a landing and the hand-in), so the leftover waits
     const double WasteWaitSeconds = StopSeconds;   // picking up at a station with waste waiting for it, on a trip that cannot take the waste along: the waste then needs a landing of its own later (or waits for ever), so that pickup is left for a trip from Ruin that brings the waste
 
     /// <summary>The cheapest way from a start through these stations and back to Ruin (exact for up to 12 stations): the cost in Gm and the order (indexes into ids).</summary>
@@ -156,6 +161,11 @@ public static class TripPlanner
         for (var k = 0; k < w; k++)
         {
             if (reservedIdx[k] >= 0) total += reservedN[k] * wt[reservedIdx[k]];
+        }
+        var atStation = (int[])need.Clone();   // every batch of a station, the locked ones too
+        for (var k = 0; k < w; k++)
+        {
+            if (reservedIdx[k] >= 0) atStation[reservedIdx[k]] += reservedN[k];
         }
 
         // batches only some workers can take: per station the groups (a set of workers, as a bit mask, and the batches), the rest is for everybody
@@ -415,7 +425,20 @@ public static class TripPlanner
             if (withWaste > 1) wasteWait += (withWaste - 1) * WasteWaitSeconds;
             // a trip of its own costs its hand-in landing at Ruin; a run in progress lands at Ruin anyway (stops added to it do not add that landing)
             var hand = !special[slot] && (stops > 0 || drop >= 0) ? TripSeconds : 0;
-            return SlotCost(row, slot) * FlightWeight + stops * StopSeconds + hand + topUp + wasteWait - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
+            // the trip he is flying now: what it picks up counts (fill up now), a leftover it lands for is a wasted landing (see FillNowSeconds)
+            double now = 0;
+            if (special[slot])
+            {
+                double picked = 0;
+                for (var i = 0; i < n; i++)
+                {
+                    if (row[i] <= 0) continue;
+                    if (row[i] * 2 < atStation[i]) now += LeftoverSeconds;   // the bigger part of that station is for another trip, which lands there anyway
+                    else picked += row[i] * wt[i];
+                }
+                now -= FillNowSeconds * Math.Min(1.0, picked / cap);
+            }
+            return SlotCost(row, slot) * FlightWeight + stops * StopSeconds + hand + topUp + wasteWait + now - (drop >= 0 && row[chunkStation[drop]] > 0 ? SyncSeconds : 0);
         }
 
         // the number to beat: the longest worker total, plus a part of the combined time (all in seconds)
@@ -677,11 +700,11 @@ public static class TripPlanner
             return false;
         }
 
-        // The search only counts the landings and the flying, so how the batches of a station are divided over the trips that land there anyway makes no difference
-        // to it: 4 + 1 is as good as 3 + 2, and a trip got a landing for one batch (Patch City, 5 batches that do not fit in one ship: 1 for the run he was flying,
-        // 4 for the other worker). Even them out as far as the ships hold them, and with one batch between them the trip he is flying (or heading for) takes the
-        // bigger half: no landing for a lone batch when it can take more. The landings stay the same; a move is only made when the plan does not get worse.
-        void EvenOut(int[][] assign)
+        // The search only counts the landings (and the flying), so how the batches of a station are divided over the trips that land there anyway hardly matters to
+        // it: 4 + 1 is as good as 3 + 2. Fill up: the trip with the most of that station takes as many as its ship holds, the leftover stays in the other one, where
+        // new missions can still make it worth the landing (or it is the trip he is flying: that one fills up by itself, see FillNowSeconds). The landings stay the
+        // same; a batch is only moved when the plan does not get worse.
+        void Consolidate(int[][] assign)
         {
             var load = new int[slots];
             var cost = new double[slots];
@@ -729,12 +752,12 @@ public static class TripPlanner
                     moved = false;
                     for (var a = 0; a < slots && !moved; a++)
                     {
-                        if (assign[a][i] <= 0) continue;
+                        if (assign[a][i] < 2) continue;   // the last batch stays: the landings do not change here
                         for (var b = 0; b < slots && !moved; b++)
                         {
-                            if (a == b || assign[b][i] <= 0) continue;   // only between trips that land there anyway
-                            var gap = assign[a][i] - assign[b][i];
-                            if (gap >= 2 || (gap == 1 && special[b] && !special[a])) moved = Move(a, b, i);
+                            if (a == b || assign[b][i] <= 0 || assign[b][i] < assign[a][i]) continue;   // to the trip with the most there (equal: either way, once)
+                            if (assign[b][i] == assign[a][i] && b > a) continue;
+                            moved = Move(a, b, i);
                         }
                     }
                 }
@@ -829,7 +852,7 @@ public static class TripPlanner
         // only when it picks up at the station of the load anyway (that station becomes its first stop), so a load never adds a stop. Only a worker with nothing
         // at all to pick up and no run in progress may get a trip just for a load (the last resort). A load that no trip can take along waits.
         var picks = bestPlan!;
-        EvenOut(picks);
+        Consolidate(picks);
         var picksUp = new bool[w];
         for (var t = 0; t < slots; t++)
         {

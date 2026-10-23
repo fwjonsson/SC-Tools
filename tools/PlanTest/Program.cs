@@ -61,3 +61,24 @@ var ts2 = QuantumDrives.Find("TS-2") ?? QuantumDrives.Assumed;
     };
     Show("Start of a session, one worker", TripPlanner.Plan(open, crew, null, null, drops, batchScu, shipScu));
 }
+
+// 23 Oct 14:54: zzoega is flying a run, at Checkmate with 2 batches on board (292 SCU); zzatvo is on his way home from Orbituary with a full ship. The old plan sent
+// zzoega to Patch City for one batch (5 batches there, zzatvo's next trip took the other four).
+{
+    var open = new Dictionary<string, int>
+    {
+        [Id("Gaslight")] = 6, [Id("Patch City")] = 5, [Id("Nyx GW")] = 3, [Id("Endgame")] = 3, [Id("Dudley")] = 2, [Id("Megumi")] = 2, [Id("Rod's Fuel")] = 2,
+    };
+    var batchScu = new Dictionary<string, int>
+    {
+        [Id("Gaslight")] = 153, [Id("Patch City")] = 167, [Id("Nyx GW")] = 139, [Id("Endgame")] = 125, [Id("Dudley")] = 188, [Id("Megumi")] = 146, [Id("Rod's Fuel")] = 146,
+    };
+    var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, ts2), ("zzatvo", 3, ts2) };
+    var shipScu = new Dictionary<string, int> { ["zzoega"] = 741, ["zzatvo"] = 741 };
+    var starts = new List<WorkerStart>
+    {
+        new() { Worker = "zzoega", Loaded = 2, LoadedScu = 292, From = Id("Checkmate") },
+        new() { Worker = "zzatvo", Loaded = 5, LoadedScu = 707, From = Id("Orbituary") },
+    };
+    Show("Checkmate run in progress, Patch City has 5 batches (more than a ship)", TripPlanner.Plan(open, crew, starts, null, null, batchScu, shipScu));
+}
