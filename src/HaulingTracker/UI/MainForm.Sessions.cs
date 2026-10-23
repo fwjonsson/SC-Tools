@@ -35,7 +35,7 @@ public sealed partial class MainForm
 
             var now = DateTime.UtcNow;
             _data.ManualSessions.Add(new ManualSession { StartUtc = now });
-            Storage.Save(_data);
+            _state.Save();
             _forceKey = "manual-" + now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
             SetStatus("Session started. Only what happens from now on is read, until you press Stop Session.");
         }
@@ -48,7 +48,7 @@ public sealed partial class MainForm
             if (answer != DialogResult.Yes) return;
 
             open.StopUtc = DateTime.UtcNow;
-            Storage.Save(_data);
+            _state.Save();
             SetStatus("Session stopped.");
         }
 

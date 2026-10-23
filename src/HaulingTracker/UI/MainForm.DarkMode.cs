@@ -11,7 +11,7 @@ public sealed partial class MainForm
     {
         Theme.Dark = !Theme.Dark;
         _data.DarkMode = Theme.Dark;
-        Storage.Save(_data);
+        _state.Save();
         _themeBtn.Text = ThemeButtonText();
 
         SuspendLayout();

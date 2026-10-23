@@ -7,30 +7,7 @@ public sealed partial class MainForm : Form
 {
     static Color HeaderBlue => Theme.Header;
     static Color CalcBlue => Theme.Calc;
-    const decimal DefaultReward2 = 1268250m;   // payout of a 2 stop mission
-    const decimal DefaultReward3 = 1691000m;   // payout of a 3 stop mission
-    const decimal DefaultReward4 = 2113750m;   // payout of a 4 stop mission (Master rank)
-    // a from-Ruin contract pays the same as a to-Ruin one with as many stops (2, 3 or 4 drop-offs)
 
-    /// <summary>The built-in payout of a contract with this many stops (2, 3 or 4); to and from Ruin pay the same.</summary>
-    static decimal DefaultReward(int stops) => stops == 2 ? DefaultReward2 : stops == 3 ? DefaultReward3 : DefaultReward4;
-
-    /// <summary>A row of the rewards table: a kind of contract (2, 3 or 4 stops, to or from Ruin) and where its payout is kept in the session.</summary>
-    sealed record RewardLine(int Stops, bool FromRuin, Func<SessionInputs, decimal> Get, Action<SessionInputs, decimal> Set)
-    {
-        public string Contract => Stops + (FromRuin ? " From Ruin" : " To Ruin");
-    }
-
-    /// <summary>The rows of the rewards table, in order: the hauling contracts to Ruin, then the from-Ruin (waste) contracts.</summary>
-    static readonly RewardLine[] RewardLines =
-    {
-        new(2, false, i => i.Reward2, (i, v) => i.Reward2 = v),
-        new(3, false, i => i.Reward3, (i, v) => i.Reward3 = v),
-        new(4, false, i => i.Reward4, (i, v) => i.Reward4 = v),   // Master rank
-        new(2, true, i => i.WasteReward2, (i, v) => i.WasteReward2 = v),
-        new(3, true, i => i.WasteReward3, (i, v) => i.WasteReward3 = v),
-        new(4, true, i => i.WasteReward4, (i, v) => i.WasteReward4 = v),
-    };
     static Color LostRed => Theme.Red;
     static Color DoneGreen => Theme.Green;
     static Color LostOrange => Theme.Orange;
@@ -44,6 +21,17 @@ public sealed partial class MainForm : Form
     readonly DataGridView _planRunsGrid = new();   // a read-only copy of Cargo Runs under the Trip Planner
     readonly AppData _data = Storage.Load();
     readonly TrackerState _state;   // the merged log, the sessions, and the session shown with its stops and runs: what the services work from
+    // the services of the core (see Tracker): the logic of the tabs, the window only shows what they give it
+    readonly Places _places;
+    readonly Crew _crew;
+    readonly Contracts _contracts;
+    readonly Earnings _earnings;
+    readonly DropOffs _dropOffs;
+    readonly CargoRuns _runs;
+    readonly Whereabouts _where;
+    readonly SessionFigures _figures;
+    readonly Payouts _payouts;
+    readonly Leaderboard _leaders;
     readonly DataGridView _doneGrid = new();
     Label? _doneTitle;
     decimal _revenue;
@@ -77,7 +65,18 @@ public sealed partial class MainForm : Form
 
     public MainForm()
     {
-        _state = new TrackerState(_data);
+        var tracker = new Tracker(_data);
+        _state = tracker.State;
+        _places = tracker.Places;
+        _crew = tracker.Crew;
+        _contracts = tracker.Contracts;
+        _earnings = tracker.Earnings;
+        _dropOffs = tracker.DropOffs;
+        _runs = tracker.Runs;
+        _where = tracker.Whereabouts;
+        _figures = tracker.Figures;
+        _payouts = tracker.Payouts;
+        _leaders = tracker.Leaderboard;
         Text = "Hauling Tracker";
         Font = new Font("Segoe UI", 10f);
         StartPosition = FormStartPosition.CenterScreen;
@@ -109,7 +108,7 @@ public sealed partial class MainForm : Form
         _timer.Tick += (_, _) => PollLive();
         FormClosing += (_, _) =>
         {
-            if (!_skipSave) Storage.Save(_data);
+            if (!_skipSave) _state.Save();
         };
         Storage.SaveFailed += msg =>
         {
@@ -578,8 +577,8 @@ public sealed partial class MainForm : Form
             RecomputeRewards();
             _planShown = "";   // the values in the Trip Planner change with the payouts
             if (_planBody.Visible && _planBody.IsHandleCreated) RefreshPlanner();
-            Storage.Save(_data);
-            UpdateSnapshots();
+            _state.Save();
+            _payouts.UpdateSnapshots();
             RefreshDebts();
         };
         p.Controls.Add(SectionTitle("Contracts"), 0, 0);
@@ -725,25 +724,10 @@ public sealed partial class MainForm : Form
             var row = _tripGrid.Rows[e.RowIndex];
             if (row.Tag is not WorkerTrip trip) return;
             var level = Convert.ToString(row.Cells[RunCol.Lost].Value) ?? "None";
-            _state.Inputs.LostRuns.Remove(trip.Key);
-            if (level == "None") _state.Inputs.LostCargo.Remove(trip.Key);
-            else _state.Inputs.LostCargo[trip.Key] = level;
-            row.DefaultCellStyle.BackColor = RunColor(level, trip.End.HasValue);
-
             // All lost = the run failed: one that is still on the way ends here, and picking something else brings it back
-            var restart = false;
-            if (level == "All" && !trip.End.HasValue)
-            {
-                _state.Inputs.ManualEnds.Add(new ManualEnd { Worker = trip.Worker, Time = DateTime.UtcNow });
-                restart = true;
-            }
-            else if (level != "All" && trip.Manual && trip.End.HasValue)
-            {
-                var at = trip.End.Value;
-                _state.Inputs.ManualEnds.RemoveAll(x => SameName(x.Worker, trip.Worker) && x.Time == at);
-                restart = true;
-            }
-            Storage.Save(_data);
+            var restart = _runs.SetLostLevel(trip, level);
+            row.DefaultCellStyle.BackColor = RunColor(level, trip.End.HasValue);
+            _state.Save();
             BeginInvoke(new Action(() =>
             {
                 if (restart)
@@ -752,7 +736,7 @@ public sealed partial class MainForm : Form
                     if (_planBody.Visible && _planBody.IsHandleCreated) RefreshPlanner();   // a run that failed is not on the way any more
                 }
                 else RecomputeTimes();
-                UpdateSnapshots();
+                _payouts.UpdateSnapshots();
                 RefreshDebts();
             }));
         };
@@ -762,40 +746,6 @@ public sealed partial class MainForm : Form
     static Color RunColor(string level, bool ended) =>
         level == "All" ? LostRed : level == "Little" ? LostOrange : ended ? DoneGreen : PartialYellow;   // yellow = on the way
 
-    string LostLevel(string key) => _state.Inputs == null ? "None" : LostLevelOf(_state.Inputs, key);
-
-    static string LostLevelOf(SessionInputs inp, string key)
-    {
-        if (inp.LostCargo.TryGetValue(key, out var level)) return level;
-        return inp.LostRuns.Contains(key) ? "All" : "None";
-    }
-
-    /// <summary>Time from the start of the run to its end, or to now while the run is still on the way (when watching live).</summary>
-    /// <summary>What a run earned per hour: its value over its time (a run on the way: so far). Empty while it is under a minute old or has no value.</summary>
-    string RunHourlyText(WorkerTrip t)
-    {
-        TimeSpan span;
-        if (t.End.HasValue) span = t.End.Value - t.Start;
-        else
-        {
-            var latest = _state.Sessions.Count > 0 && _state.Current != null && _state.Current.Key == _state.Sessions[^1].Key;
-            if (!_state.Live || !latest || !_state.HasOpenContracts()) return "";
-            span = DateTime.UtcNow - t.Start;
-        }
-        var value = RunValue(t);
-        if (span < TimeSpan.FromMinutes(1) || value <= 0) return "";
-        return (value / (decimal)span.TotalHours).ToString("N0");
-    }
-
-    string RunDuration(WorkerTrip t)
-    {
-        if (t.End.HasValue) return LongDuration(t.End.Value - t.Start);
-        var latest = _state.Sessions.Count > 0 && _state.Current != null && _state.Current.Key == _state.Sessions[^1].Key;
-        if (!_state.Live || !latest || !_state.HasOpenContracts()) return "";   // no active contract: nothing is counting
-        var d = DateTime.UtcNow - t.Start;
-        return d > TimeSpan.Zero ? LongDuration(d) : "";
-    }
-
     /// <summary>Keeps the duration of runs that are on the way ticking between log updates.</summary>
     void UpdateLiveDurations()
     {
@@ -804,75 +754,12 @@ public sealed partial class MainForm : Form
             foreach (DataGridViewRow row in grid.Rows)
             {
                 if (row.Tag is not WorkerTrip t || t.End.HasValue) continue;
-                var text = RunDuration(t);
+                var text = _runs.RunDuration(t);
                 if (!Equals(row.Cells[RunCol.Time].Value, text)) row.Cells[RunCol.Time].Value = text;
-                var perHour = RunHourlyText(t);
+                var perHour = _runs.RunHourlyText(t);
                 if (!Equals(row.Cells[RunCol.PerHour].Value, perHour)) row.Cells[RunCol.PerHour].Value = perHour;
             }
         }
-    }
-
-    /// <summary>The latest thing that happened in a run: its hand-in when it is completed, otherwise the last pickup. A run that gets completed jumps to the top.</summary>
-    static DateTime RunLastActivity(WorkerTrip t)
-    {
-        var last = t.End ?? t.Start;
-        if (t.LastEvent is DateTime latest && latest > last) last = latest;
-        return last;
-    }
-
-    /// <summary>When a run really started: the first thing done in it (cargo taken out at Ruin, delivered from there, or picked up). A run begins at the previous hand-in, but the cargo run itself starts when cargo is moved. A run with nothing in it uses its start time.</summary>
-    static DateTime RunStartedAt(WorkerTrip t) => t.FirstEvent ?? t.Start;
-
-    /// <summary>Groups things that happened close together (and are alike) into one: the three batches of waste taken out at Ruin at the same moment are one step.</summary>
-    static List<List<T>> Clusters<T>(IEnumerable<T> items, Func<T, DateTime> time, Func<T, string> key)
-    {
-        var all = new List<List<T>>();
-        foreach (var x in items.OrderBy(time))
-        {
-            var open = all.Count > 0 ? all[^1] : null;
-            if (open != null && key(open[0]) == key(x) && time(x) - time(open[0]) <= TimeSpan.FromMinutes(2)) open.Add(x);
-            else all.Add(new List<T> { x });
-        }
-        return all;
-    }
-
-    /// <summary>
-    /// What a run did, in the order it happened, for the Pickup Location &amp; Time column: waste taken out at Ruin ("Waste from Ruin 13:19"), waste delivered to a station
-    /// ("Waste → Rat's Nest 15:55") and the pickups ("Rod's Fuel 15:36").
-    /// </summary>
-    string RunStepsText(WorkerTrip t)
-    {
-        var steps = new List<(DateTime Time, string Text)>();
-        foreach (var c in Clusters(t.Collects, x => x.Time, x => x.Cargo))
-            steps.Add((c[0].Time, c[0].Cargo + " from Ruin " + FormatTime(c[0].Time)));   // the game completes every pickup of the contract at once, however much is taken: no count
-        foreach (var c in Clusters(t.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone))
-            steps.Add((c[0].Time, c[0].Cargo + (c.Count > 1 ? " ×" + c.Count : "") + " → " + LocationName(c[0].Zone) + " " + FormatTime(c[0].Time)));
-        foreach (var p in t.Pickups) steps.Add((p.Time, LocationName(p.Zone) + " " + FormatTime(p.Time)));
-        return string.Join(",  ", steps.OrderBy(s => s.Time).Select(s => s.Text));
-    }
-
-    /// <summary>Only the places of a run, in the order it went there ("Ruin, Gaslight, Dudley"), for the short Cargo Runs of the Trip Planner.</summary>
-    string RunPlacesText(WorkerTrip t)
-    {
-        var steps = new List<(DateTime Time, string Place)>();
-        foreach (var c in Clusters(t.Collects, x => x.Time, x => x.Cargo)) steps.Add((c[0].Time, "Ruin"));
-        foreach (var c in Clusters(t.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone)) steps.Add((c[0].Time, LocationName(c[0].Zone)));
-        foreach (var p in t.Pickups) steps.Add((p.Time, LocationName(p.Zone)));
-        var places = new List<string>();
-        foreach (var (_, place) in steps.OrderBy(x => x.Time))
-        {
-            if (places.Count == 0 || places[^1] != place) places.Add(place);   // waste dropped and cargo picked up at the same station is one place
-        }
-        return string.Join(", ", places);
-    }
-
-    /// <summary>The runs of a session: who did them comes from the logs and the Trip Planner (see WorkerTripBuilder.Build).</summary>
-    List<WorkerTrip> BuildRuns(SessionGroup g, SessionInputs inp)
-    {
-        _data.PlanCreditSince ??= DateTime.UtcNow;
-        // someone who leaves the party stops flying: the run he has on the way ends then (not a failed run)
-        var ends = inp.ManualEnds.Concat(_data.PartyChanges.Where(c => !c.Active).Select(c => new ManualEnd { Worker = c.Name, Time = c.TimeUtc, Left = true })).ToList();
-        return WorkerTripBuilder.Build(g, (z, t) => WorkerTripBuilder.WorkerAt(inp, z, t), _state.Log!, ends, (_data.PlanCreditSince.Value, inp.PickupClaims));
     }
 
     void FillTrips()
@@ -885,24 +772,19 @@ public sealed partial class MainForm : Form
             _planRunsGrid.Rows.Clear();
             _state.Trips = new List<WorkerTrip>();
             if (_state.Current == null || _state.Inputs == null || _state.Log == null) return;
-
-            var inputs = _state.Inputs;
-            var sessionStart = _state.Current.Start;
-            _state.Trips = BuildRuns(_state.Current, inputs)
-                .Where(t => !t.End.HasValue || t.End.Value >= sessionStart)   // runs that were handed in before the session started belong to an earlier session
-                .OrderByDescending(RunLastActivity).ThenByDescending(RunStartedAt).ThenByDescending(t => t.Start).ThenBy(t => t.Worker, StringComparer.OrdinalIgnoreCase).ToList();   // latest activity on top
+            _state.Trips = _runs.SessionRuns();   // latest activity on top
 
             foreach (var t in _state.Trips)
             {
-                var level = LostLevel(t.Key);
-                var batches = t.Manual || level == "All" ? "failed" : t.Left ? "left" : t.End.HasValue ? t.HandedIn.ToString() : "";
-                var value = RunValueText(t);
+                var level = _runs.LostLevel(t.Key);
+                var batches = _runs.BatchesText(t);
+                var value = _earnings.RunValueText(t);
                 var completed = t.End.HasValue ? FormatTime(t.End.Value) : "";
-                var duration = RunDuration(t);
-                var flight = RunFlightText(t);
-                var perHour = RunHourlyText(t);
+                var duration = _runs.RunDuration(t);
+                var flight = _runs.RunFlightText(t);
+                var perHour = _runs.RunHourlyText(t);
                 // the short copy under the map in the Trip Planner shows just the places
-                foreach (var (grid, places) in new[] { (_tripGrid, RunStepsText(t)), (_planRunsGrid, RunPlacesText(t)) })
+                foreach (var (grid, places) in new[] { (_tripGrid, _runs.RunStepsText(t)), (_planRunsGrid, _runs.RunPlacesText(t)) })
                 {
                     var row = grid.AddRow(
                         (RunCol.Worker, t.Worker),
@@ -941,7 +823,6 @@ public sealed partial class MainForm : Form
         f.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 250));
         f.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         f.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
 
         f.Controls.Add(new Label
         {
@@ -1094,7 +975,7 @@ public sealed partial class MainForm : Form
     {
         foreach (var item in _channelItems) item.Checked = item.Text == name;
         _data.Channel = name;
-        Storage.Save(_data);
+        _state.Save();
         if (_state.Live) PollLive();
     }
 
@@ -1163,7 +1044,7 @@ public sealed partial class MainForm : Form
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
         if (!_data.WatchPaths.Contains(dlg.SelectedPath)) _data.WatchPaths.Add(dlg.SelectedPath);
         _data.DisabledWatchPaths.Remove(dlg.SelectedPath);
-        Storage.Save(_data);
+        _state.Save();
         SetStatus("Added " + dlg.SelectedPath);
         ApplySources();
     }
@@ -1237,7 +1118,7 @@ public sealed partial class MainForm : Form
                 if (!_data.DisabledWatchPaths.Contains(path)) _data.DisabledWatchPaths.Add(path);
             }
             else _data.DisabledWatchPaths.Remove(path);
-            Storage.Save(_data);
+            _state.Save();
             filling = true;   // RefreshStatus writes to a cell, that is not a click
             RefreshStatus(row);
             filling = false;
@@ -1248,7 +1129,7 @@ public sealed partial class MainForm : Form
             if (grid.CurrentRow?.Tag is not string path) return;
             _data.WatchPaths.Remove(path);
             _data.DisabledWatchPaths.Remove(path);
-            Storage.Save(_data);
+            _state.Save();
             Fill();
             ApplySources();
         };
@@ -1469,8 +1350,8 @@ public sealed partial class MainForm : Form
 
         // the logs of all accounts are merged, a mission shared in the party appears once
         _state.Log = HaulingLog.Merge(_logs);
-        ApplyDroppedMissions(_state.Log);
-        ApplyTypedScu(_state.Log);
+        _contracts.ApplyDroppedMissions(_state.Log);
+        _dropOffs.ApplyTypedScu(_state.Log);
 
         var keep = _forceKey ?? _state.Current?.Key;
         _forceKey = null;
@@ -1495,13 +1376,13 @@ public sealed partial class MainForm : Form
         if (_state.Current == null)
         {
             ClearView();
-            UpdateSnapshots();
+            _payouts.UpdateSnapshots();
             RefreshDebts();
             SetStatus("No session yet. Press Start Session to begin.");
             return;
         }
         ShowSession();
-        UpdateSnapshots();
+        _payouts.UpdateSnapshots();
         RefreshDebts();
         if (_tabs != null && _tabs.SelectedTab == _contractsPage) RefreshContracts();
     }
@@ -1528,56 +1409,6 @@ public sealed partial class MainForm : Form
         ShowSession();
     }
 
-    static string Tail(string zone) => zone.Length > 5 ? zone.Substring(zone.Length - 5) : zone;
-
-    /// <summary>The id of the station in the tables: found by the position the log gave (the same on every server), else the last digits of the location id.</summary>
-    static string StationKey(string zone) => StationIds.Of(zone) ?? Tail(zone);
-
-    // Names found so far, keyed by the last digits of the location id. Your own names in the grid win.
-    static readonly Dictionary<string, string> KnownNames = new()
-    {
-        ["73791"] = "Rat's Nest",
-        ["70269"] = "Megumi",
-        ["70120"] = "Patch City",
-        ["69936"] = "Gaslight",
-        ["72785"] = "Dudley",
-        ["73041"] = "Orbituary",
-        ["72645"] = "Rod's Fuel",
-        ["70053"] = "Starlight",
-        ["72952"] = "Checkmate",
-        ["74320"] = "Nyx GW",
-        ["74325"] = "Stanton GW",
-        ["70273"] = "Endgame",
-    };
-
-    // the names the program used to give these stations, as they may be saved in the data file
-    static readonly Dictionary<string, string> LongToShort = new()
-    {
-        ["Megumi Refueling"] = "Megumi",
-        ["Dudley & Daughters"] = "Dudley",
-        ["Rod's Fuel 'N Supplies"] = "Rod's Fuel",
-        ["Starlight Service Station"] = "Starlight",
-        ["Nyx Gateway"] = "Nyx GW",
-        ["Stanton Gateway"] = "Stanton GW",
-    };
-
-    /// <summary>The name the program knows for a location (from its position), or Unknown ...id.</summary>
-    string AutoName(string zone) =>
-        KnownNames.TryGetValue(StationKey(zone), out var known) ? known : "Unknown ..." + Tail(zone);
-
-    string LocationName(string zone)
-    {
-        var auto = AutoName(zone);
-        if (_data.LocationNames.TryGetValue(zone, out var n) && !string.IsNullOrWhiteSpace(n))
-        {
-            // a saved name that is only the name of another station, while this one is known now (it was saved by clicking into the cell), is not a name you chose
-            if (!auto.StartsWith("Unknown ...") && n != auto && (KnownNames.ContainsValue(n) || LongToShort.ContainsKey(n))) return auto;
-            if (LongToShort.TryGetValue(n, out var shortName)) return shortName;   // a long name saved by an earlier version: the short one now
-            return n;
-        }
-        return auto;
-    }
-
     void ShowSession()
     {
         if (_state.Current == null)
@@ -1590,9 +1421,9 @@ public sealed partial class MainForm : Form
         try
         {
             _state.Inputs = _state.InputsOf(_state.Current.Key);
-            if (WorkerTripBuilder.ResetWorkersForNewBatch(_state.Current, _state.Inputs, _state.Missing)) Storage.Save(_data);   // new missions: a clean slate for the assigned workers
+            if (WorkerTripBuilder.ResetWorkersForNewBatch(_state.Current, _state.Inputs, _state.Missing)) _state.Save();   // new missions: a clean slate for the assigned workers
             ClaimNewPickups();   // before the boards change: the plan still has the batches that were just picked up
-            _state.Missing = _state.Log == null ? new HashSet<string>() : SessionBuilder.MissingCargo(_state.Current, BuildRuns(_state.Current, _state.Inputs), _state.Log.LastTime);
+            _state.Missing = _state.Log == null ? new HashSet<string>() : SessionBuilder.MissingCargo(_state.Current, _runs.BuildRuns(_state.Current, _state.Inputs), _state.Log.LastTime);
             _state.Summary = SessionBuilder.Summarize(_state.Current);
             _state.Rows = SessionBuilder.Locations(_state.Current);
             // both boards only show the missions that are active (not completed). A location where every batch of those missions
@@ -1607,17 +1438,13 @@ public sealed partial class MainForm : Form
 
             // the mission counts come from the log (2, 3 and 4 stop contracts), you only type the payouts
             _rewards.Rows.Clear();
-            foreach (var line in RewardLines)
-            {
-                if (line.Get(_state.Inputs) == 0) line.Set(_state.Inputs, DefaultReward(line.Stops));   // nothing typed: the built-in payout
-            }
+            Earnings.FillDefaults(_state.Inputs);   // nothing typed: the built-in payouts
             var accepted = _state.Current.Missions;   // every accepted mission of the session (abandoned ones are already left out)
             // the from-Ruin (waste) contracts: the log does not say what they pay either, so you type it once, by the number of drop-offs
-            var waste = SessionWaste(_state.Current);
-            foreach (var line in RewardLines)
+            var waste = _earnings.SessionWaste(_state.Current);
+            foreach (var line in Earnings.RewardLines)
             {
-                var count = line.FromRuin ? waste.Count(m => m.OutDrops == line.Stops) : accepted.Count(m => m.Multi == line.Stops);
-                var row = _rewards.AddRow((RewardCol.Contract, line.Contract), (RewardCol.Reward, line.Get(_state.Inputs).ToString("N0")), (RewardCol.Count, count), (RewardCol.Total, ""));
+                var row = _rewards.AddRow((RewardCol.Contract, line.Contract), (RewardCol.Reward, line.Get(_state.Inputs).ToString("N0")), (RewardCol.Count, line.CountIn(accepted, waste)), (RewardCol.Total, ""));
                 row.Tag = line;
             }
             var totalRow = _rewards.AddRow((RewardCol.Contract, "Total"), (RewardCol.Reward, ""), (RewardCol.Count, 0), (RewardCol.Total, ""));
@@ -1724,7 +1551,7 @@ public sealed partial class MainForm : Form
                 assignedNow = true;
             }
         }
-        if (assignedNow) Storage.Save(_data);
+        if (assignedNow) _state.Save();
 
         // a worker that is not in the party yet (typed earlier) is added to it
         foreach (var r in _state.Rows)
@@ -1737,15 +1564,15 @@ public sealed partial class MainForm : Form
 
         // the most valuable location on top. Once new missions are accepted, completed ones are gone from here
         // (everything else, runs, leaderboards and totals, keeps counting them)
-        foreach (var r in _state.PickupRows.OrderByDescending(StopValue))
+        foreach (var r in _state.PickupRows.OrderByDescending(_earnings.StopValue))
         {
             _state.Inputs!.Rows.TryGetValue(r.Zone, out var inp);
             var row = _logGrid.AddRow(
-                (StopCol.Location, LocationName(r.Zone)),
-                (StopCol.FromRuin, DistanceText(r.Zone)),
+                (StopCol.Location, _places.LocationName(r.Zone)),
+                (StopCol.FromRuin, _places.DistanceText(r.Zone)),
                 (StopCol.Batches, MissionsText(r)),
                 (StopCol.Worker, inp?.Worker ?? ""),
-                (StopCol.Value, StopValueText(r)),
+                (StopCol.Value, _earnings.StopValueText(r)),
                 (StopCol.Notes, inp?.Notes ?? ""));
             row.Tag = r.Zone;
             ColorMissionsCell(row, r);
@@ -1759,11 +1586,11 @@ public sealed partial class MainForm : Form
         {
             _state.Inputs!.Rows.TryGetValue(r.Zone, out var inp);
             var row = _doneGrid.AddRow(
-                (FinishedCol.Location, LocationName(r.Zone)),
-                (FinishedCol.FromRuin, DistanceText(r.Zone)),
+                (FinishedCol.Location, _places.LocationName(r.Zone)),
+                (FinishedCol.FromRuin, _places.DistanceText(r.Zone)),
                 (FinishedCol.Delivered, r.Delivered + "/" + r.Missions),
                 (FinishedCol.Worker, inp?.Worker ?? ""),
-                (FinishedCol.Value, StopValueText(r)),
+                (FinishedCol.Value, _earnings.StopValueText(r)),
                 (FinishedCol.HandedIn, DeliveredText(r)));
             row.Tag = r.Zone;
             row.Cells[FinishedCol.Delivered].Style.BackColor = DoneGreen;
@@ -1775,50 +1602,27 @@ public sealed partial class MainForm : Form
         // the plan is not refreshed here: the runs (_state.Trips) are built after this, and a plan made from the new batches and the old runs is wrong (see ShowSession)
     }
 
-    /// <summary>
-    /// Value of a pickup location: every mission pays its reward split over its stops,
-    /// so a stop of a 2 stop mission is worth reward / 2 and a stop of a 3 stop mission reward / 3.
-    /// </summary>
-    decimal StopValue(LocationRow r)
-    {
-        if (_state.Inputs == null) return 0;
-        return r.Stops2 * Or(_state.Inputs.Reward2, DefaultReward2) / 2m + r.Stops3 * Or(_state.Inputs.Reward3, DefaultReward3) / 3m + r.Stops4 * Or(_state.Inputs.Reward4, DefaultReward4) / 4m;
-    }
-
-    /// <summary>Gm from Ruin Station to this pickup location, empty when the distance table does not know it.</summary>
-    string DistanceText(string zone)
-    {
-        var id = StationOf(zone);
-        return id == null ? "" : PyroDistances.Between(PyroDistances.Ruin, id).ToString("N1", CultureInfo.InvariantCulture) + " Gm";
-    }
-
-    string StopValueText(LocationRow r)
-    {
-        var v = StopValue(r);
-        return v == 0 ? "" : v.ToString("N0");
-    }
-
     void RefreshStopValues()
     {
         foreach (DataGridViewRow row in _logGrid.Rows)
         {
             if (row.Tag is not string zone) continue;
             var info = _state.PickupRows.FirstOrDefault(x => x.Zone == zone);
-            if (info != null) row.Cells[StopCol.Value].Value = StopValueText(info);
+            if (info != null) row.Cells[StopCol.Value].Value = _earnings.StopValueText(info);
         }
         foreach (DataGridViewRow row in _doneGrid.Rows)
         {
             if (row.Tag is not string zone) continue;
             var info = _state.DoneRows.FirstOrDefault(x => x.Zone == zone);
-            if (info != null) row.Cells[FinishedCol.Value].Value = StopValueText(info);
+            if (info != null) row.Cells[FinishedCol.Value].Value = _earnings.StopValueText(info);
         }
         foreach (var grid in new[] { _tripGrid, _planRunsGrid })
         {
             foreach (DataGridViewRow row in grid.Rows)
             {
                 if (row.Tag is not WorkerTrip t) continue;
-                row.Cells[RunCol.Value].Value = RunValueText(t);
-                row.Cells[RunCol.PerHour].Value = RunHourlyText(t);
+                row.Cells[RunCol.Value].Value = _earnings.RunValueText(t);
+                row.Cells[RunCol.PerHour].Value = _runs.RunHourlyText(t);
             }
         }
     }
@@ -1840,22 +1644,14 @@ public sealed partial class MainForm : Form
         switch (_logGrid.ColumnName(e.ColumnIndex))
         {
             case StopCol.Location:
-                if (text.Length == 0 || text.StartsWith("Unknown ...") || text == AutoName(zone))
-                {
-                    _data.LocationNames.Remove(zone);
-                    row.Cells[StopCol.Location].Value = LocationName(zone);
-                }
-                else
-                {
-                    _data.LocationNames[zone] = text;
-                }
-                row.Cells[StopCol.FromRuin].Value = DistanceText(zone);   // a new name can be one the distance table knows
+                if (_places.Rename(zone, text)) row.Cells[StopCol.Location].Value = _places.LocationName(zone);   // back to the name the program knows
+                row.Cells[StopCol.FromRuin].Value = _places.DistanceText(zone);   // a new name can be one the distance table knows
                 break;
             case StopCol.Notes:
                 _state.RowOf(zone).Notes = text;
                 break;
         }
-        Storage.Save(_data);
+        _state.Save();
     }
 
     void RecomputeRewards()
@@ -1917,41 +1713,8 @@ public sealed partial class MainForm : Form
         if (_state.Inputs == null) return;
         _state.Inputs.Start = null;
         _state.Inputs.End = null;
-        Storage.Save(_data);
+        _state.Save();
         ShowSession();
-    }
-
-    /// <summary>The value of the batches a run picked up (reward / stops of each mission).</summary>
-    /// <summary>The value of a run: its pickups (reward / stops of each mission) and the waste it delivered (reward / drop-offs). The Debts tab only counts the pickups.</summary>
-    decimal RunValue(WorkerTrip t) => _state.Current == null || _state.Inputs == null ? 0 : RunValues(t, _state.Current, _state.Inputs).Total + WasteValue(t);
-
-    string RunValueText(WorkerTrip t)
-    {
-        var v = RunValue(t);
-        return v == 0 ? "" : v.ToString("N0");
-    }
-
-    TimeSpan? SessionElapsed()
-    {
-        if (_state.Current == null || _state.Summary == null) return null;
-        DateTime start = _state.Summary.Start;
-        if (_state.Inputs?.Start is { Length: > 0 } typed && TryTime(typed, out var st))
-        {
-            var local = DateTime.Now.Date + st;
-            if (local > DateTime.Now) local = local.AddDays(-1);
-            start = local.ToUniversalTime();
-        }
-        var latest = _state.Sessions.Count > 0 && _state.Current.Key == _state.Sessions[^1].Key;
-        if (_state.Inputs?.Start is not { Length: > 0 })
-        {
-            // a session can go on for days: a stretch with no activity for an hour does not count (the clock just stops, the session goes on)
-            var running = !_state.Current.Stop.HasValue && _state.Live && latest && _state.HasOpenContracts();
-            return SessionBuilder.ActiveTime(_state.Current, running ? DateTime.UtcNow : null);
-        }
-        var active = _state.Live && latest && _state.HasOpenContracts() && (!_state.Summary.End.HasValue || DateTime.UtcNow - _state.Summary.End.Value < SessionBuilder.ClockIdleLimit);
-        var end = active ? DateTime.UtcNow : _state.Summary.End ?? start;
-        var d = end - start;
-        return d > TimeSpan.Zero ? d : TimeSpan.Zero;
     }
 
     decimal _incomeNow;
@@ -1959,22 +1722,17 @@ public sealed partial class MainForm : Form
     /// <summary>Ticks the session time and the hourly rate every second.</summary>
     void UpdateSessionClock()
     {
-        var d = SessionElapsed();
+        var d = _figures.Elapsed();
         var time = d.HasValue ? LongDuration(d.Value) : "";
-        var hourly = d.HasValue && d.Value.TotalHours > 0 && _incomeNow > 0
-            ? (_incomeNow / (decimal)d.Value.TotalHours).ToString("N0")
-            : "";
+        var hourly = SessionFigures.HourlyText(d, _incomeNow);
         if (_durationVal.Text != time) _durationVal.Text = time;   // only repaint what changed
         if (_hourlyVal.Text != hourly) _hourlyVal.Text = hourly;
     }
 
     void RecomputeTimes()
     {
-        // total earned = what completed missions really paid
-        decimal income = 0;
-        if (_state.Current != null && _state.Inputs != null)
-            income = _state.Current.Missions.Where(m => m.Completed).Sum(m => RewardOf(m, _state.Inputs))
-                + SessionWaste(_state.Current).Where(m => m.Completed).Sum(m => WasteRewardOf(m, _state.Inputs));   // and the waste contracts that are done
+        // total earned = what completed missions (and from-Ruin contracts) really paid
+        var income = _earnings.Earned();
         _incomeNow = income;
         _revenueVal.Text = income == 0 ? "" : income.ToString("N0");
         UpdateSessionClock();
@@ -1982,12 +1740,9 @@ public sealed partial class MainForm : Form
         FillStats();
 
         // batches = pickup stops; delivered = the ones in finished runs
-        var totalBatches = _state.Rows.Sum(r => r.Missions);
-        var doneBatches = _state.Trips.Where(t => t.End.HasValue && _state.Inputs != null && !RunFailed(t, _state.Inputs)).Sum(t => t.Pickups.Sum(p => p.Missions));
-        _missionsVal.Text = _state.Summary == null || totalBatches == 0 ? "" : Math.Min(doneBatches, totalBatches) + "/" + totalBatches;
-        _missionsDoneVal.Text = _state.Summary == null ? "" : _state.Summary.Completed.ToString(CultureInfo.InvariantCulture);
-        _missionsActiveVal.Text = _state.Summary == null ? "" : _state.Summary.Active.ToString(CultureInfo.InvariantCulture)
-            + (_state.Missing.Count > 0 ? "  (" + (_state.Missing.Count == _state.Summary.Active ? "" : _state.Missing.Count + " ") + "Cargo Missing)" : "");
+        _missionsVal.Text = _figures.BatchesText();
+        _missionsDoneVal.Text = _figures.CompletedText();
+        _missionsActiveVal.Text = _figures.ActiveText();
     }
 
     // ------------------------------------------------------------------ copy to Google Sheets
@@ -1996,7 +1751,7 @@ public sealed partial class MainForm : Form
     {
         var sb = new StringBuilder();
         // the whole session, also the locations that are gone from the pickup table because their missions are completed
-        foreach (var info in _state.Inputs == null ? new List<LocationRow>() : _state.Rows.OrderByDescending(StopValue).ToList())
+        foreach (var info in _state.Inputs == null ? new List<LocationRow>() : _state.Rows.OrderByDescending(_earnings.StopValue).ToList())
         {
             static string C(string? v) =>
                 (v ?? "").Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ');
@@ -2009,7 +1764,7 @@ public sealed partial class MainForm : Form
                 notes = (notes + " (" + (info.Missions - info.Loaded) + " of " + info.Missions + " still waiting)").Trim();
 
             // Same order as the spreadsheet: Pickup Location, Missions, Assigned Worker, Loaded Time, Delivered Time, Notes
-            sb.Append(string.Join("\t", C(LocationName(info.Zone)), info.Missions.ToString(), C(inp?.Worker), loaded, delivered, notes)).Append('\n');
+            sb.Append(string.Join("\t", C(_places.LocationName(info.Zone)), info.Missions.ToString(), C(inp?.Worker), loaded, delivered, notes)).Append('\n');
         }
 
         if (sb.Length == 0)
@@ -2036,8 +1791,8 @@ public sealed partial class MainForm : Form
         };
         _startBox.TextChanged += TimeBoxChanged;
         _endBox.TextChanged += TimeBoxChanged;
-        _startBox.Leave += (_, _) => Storage.Save(_data);
-        _endBox.Leave += (_, _) => Storage.Save(_data);
+        _startBox.Leave += (_, _) => _state.Save();
+        _endBox.Leave += (_, _) => _state.Save();
 
         // start watching by itself: this also reads the backup logs of the last 24 hours
         Shown += (_, _) =>

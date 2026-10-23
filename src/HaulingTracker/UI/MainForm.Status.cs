@@ -48,48 +48,6 @@ public sealed partial class MainForm
 
     // ------------------------------------------------------------------ quantum travel of a worker (only when his own log is read)
 
-    /// <summary>The quantum travel steps in the log of this worker, or null when there is no log of him.</summary>
-    List<QtEvent>? TravelOf(string name)
-    {
-        if (_state.Log == null) return null;
-        foreach (var kv in _state.Log.QtByPlayer)
-        {
-            if (SameName(kv.Key, name)) return kv.Value;
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// True while a worker whose log shows his quantum travel has taken cargo out (or delivered it) at a place and has not selected the next destination yet: he is still
-    /// loading. A worker without a log of his own is never loading, and neither is one whose log has no quantum travel before this moment (the game did not write it).
-    /// </summary>
-    bool StillLoading(string name, DateTime since)
-    {
-        if (since == default || _state.Log == null) return false;
-        var travel = TravelOf(name);
-        if (travel == null || travel.Count == 0) return false;
-        if (!travel.Any(e => e.Time < since)) return false;
-        if (travel.Any(e => e.Kind == QtKind.Selected && e.Time > since)) return false;
-        var now = _state.Live ? DateTime.UtcNow : _state.Log.LastTime;
-        return now - since < TimeSpan.FromMinutes(15);   // somebody who stopped playing is not loading for hours
-    }
-
-    /// <summary>
-    /// The station a worker is flying to, or has arrived at and is loading at: the latest quantum destination in his own log, when he set it after his last pickup,
-    /// delivery or hand-in. Null when there is no log of him, when it is Ruin or a place that is not in the distance table, or when it was set long ago.
-    /// </summary>
-    string? HeadingFor(string name)
-    {
-        if (_state.Log == null) return null;
-        var travel = TravelOf(name);
-        var last = travel?.Where(e => e.Kind == QtKind.Selected).OrderBy(e => e.Time).LastOrDefault();
-        if (last == null || last.Time <= LastMoveOf(name)) return null;
-        var now = _state.Live ? DateTime.UtcNow : _state.Log.LastTime;
-        if (now - last.Time > TimeSpan.FromHours(1)) return null;   // somebody who stopped playing is not on his way any more
-        var id = PyroDistances.IdOfQuantumTarget(last.Destination);
-        return id == null || id == PyroDistances.Ruin ? null : id;
-    }
-
     // ------------------------------------------------------------------ what is happening now
 
     /// <summary>The members of the crew the line can talk about.</summary>
@@ -97,26 +55,13 @@ public sealed partial class MainForm
     {
         var names = new List<string>();
         IEnumerable<string> logged = _state.Log != null ? _state.Log.Players : new HashSet<string>();
-        foreach (var n in ActiveCrew().Concat(_state.Trips.Select(t => t.Worker)).Concat(logged))
+        foreach (var n in _crew.ActiveCrew().Concat(_state.Trips.Select(t => t.Worker)).Concat(logged))
         {
             if (n.Length == 0 || n == "Unassigned" || names.Any(x => SameName(x, n))) continue;
             names.Add(n);
         }
         return names;
     }
-
-    /// <summary>True while the clocks of the runs are counting: watching live, the newest session, with contracts still going.</summary>
-    bool LiveRunning()
-    {
-        var latest = _state.Sessions.Count > 0 && _state.Current != null && _state.Current.Key == _state.Sessions[^1].Key;
-        return _state.Live && latest && _state.HasOpenContracts();
-    }
-
-    /// <summary>The run a worker is flying now (not handed in). A run with only waste in it counts while it is recent.</summary>
-    WorkerTrip? OpenRunOf(string name) =>
-        _state.Trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue
-                && (t.Pickups.Count > 0 || (t.Drops.Count > 0 && _state.Log != null && _state.Log.LastTime - RunLastActivity(t) <= StaleLeg)))
-            .OrderBy(t => t.Start).LastOrDefault();
 
     /// <summary>The events of the last moments that the line announces, newest last. Every event has a key, so it is only shown once.</summary>
     List<StatusItem> StatusNews(DateTime now)
@@ -173,14 +118,14 @@ public sealed partial class MainForm
                 if (!Fresh(pick.Time)) continue;
                 var key = "pk|" + who + "|" + run.Number + "|" + pick.Zone;
                 var cargo = pick.MissionIds.Select(id => _state.Log.Missions.TryGetValue(id, out var m) ? m.Cargo : null).FirstOrDefault(c => c != null) ?? "cargo";
-                var place = LocationName(pick.Zone);
+                var place = _places.LocationName(pick.Zone);
                 news.Add(new StatusItem
                 {
                     Key = key,
                     Text = Const(Pick(key, who + " is loading " + cargo + " at " + place, who + " pulled " + cargo + " out of the elevator at " + place, who + " is wrestling " + cargo + " crates at " + place)),
                 });
             }
-            foreach (var cluster in Clusters(run.Collects, x => x.Time, x => x.Cargo))
+            foreach (var cluster in CargoRuns.Clusters(run.Collects, x => x.Time, x => x.Cargo))
             {
                 if (!Fresh(cluster[^1].Time)) continue;
                 var key = "wc|" + who + "|" + cluster[0].Time.Ticks;
@@ -191,12 +136,12 @@ public sealed partial class MainForm
                     Text = Const(Pick(key, who + " is loading " + cargo + " at Ruin", who + " took " + cargo + " out of the elevator at Ruin")),
                 });
             }
-            foreach (var cluster in Clusters(run.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone))
+            foreach (var cluster in CargoRuns.Clusters(run.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone))
             {
                 if (!Fresh(cluster[^1].Time)) continue;
                 var key = "wd|" + who + "|" + cluster[0].Time.Ticks;
                 var scu = cluster.Sum(x => x.Scu);
-                var spot = LocationName(cluster[0].Zone);
+                var spot = _places.LocationName(cluster[0].Zone);
                 var cargo = cluster[0].Cargo;
                 news.Add(new StatusItem
                 {
@@ -273,16 +218,16 @@ public sealed partial class MainForm
         var stats = new List<Func<string>>();
         var fun = new List<Func<string>>();
         if (_state.Log == null) return fun;
-        var running = LiveRunning();
+        var running = _state.ClocksRunning;
         var since = _state.Current?.Start ?? DateTime.MinValue;
 
-        var board = _state.Inputs != null ? ComputeStats(_state.Trips, _state.Inputs, StationOf) : new Dictionary<string, WorkerStat>(StringComparer.OrdinalIgnoreCase);
+        var board = _state.Inputs != null ? Leaderboard.ComputeStats(_state.Trips, _state.Inputs, _places.StationOf) : new Dictionary<string, WorkerStat>(StringComparer.OrdinalIgnoreCase);
         foreach (var member in StatusWorkers())
         {
             var name = member;
 
             // on a trip: the clock counts on while the line is shown
-            var open = OpenRunOf(name);
+            var open = _runs.OpenRunOf(name);
             if (open != null && running)
             {
                 var began = open.Start;
@@ -328,7 +273,7 @@ public sealed partial class MainForm
             var gm = board.Values.Sum(s => s.Distance);
             if (gm > 0) stats.Add(Const("Together the crew has flown " + Dist(gm) + " of hauling"));
         }
-        var finished = _state.Trips.Where(t => t.End.HasValue && !t.Manual && !t.Left && t.Pickups.Count > 0 && (_state.Inputs == null || !RunFailed(t, _state.Inputs))).ToList();
+        var finished = _state.Trips.Where(t => t.End.HasValue && !t.Manual && !t.Left && t.Pickups.Count > 0 && (_state.Inputs == null || !CargoRuns.RunFailed(t, _state.Inputs))).ToList();
         if (finished.Count >= 3)
         {
             var quick = finished.OrderBy(t => (t.End ?? t.Start) - t.Start).First();
@@ -374,22 +319,22 @@ public sealed partial class MainForm
             var done = finished.Where(t => t.End.HasValue && t.End.Value >= since).ToList();
             if (done.Count > 0)
             {
-                var best = done.OrderByDescending(RunValue).First();
-                var bestValue = RunValue(best);
+                var best = done.OrderByDescending(_earnings.RunValue).First();
+                var bestValue = _earnings.RunValue(best);
                 if (bestValue > 0) stats.Add(Const("Richest run so far: " + best.Worker + "'s run #" + best.Number + ", " + bestValue.ToString("N0", CultureInfo.InvariantCulture) + " aUEC"));
                 var rated = done.Where(t => (t.End!.Value - t.Start) >= TimeSpan.FromMinutes(5))
-                    .Select(t => (Run: t, Rate: RunValue(t) / (decimal)(t.End!.Value - t.Start).TotalHours)).OrderByDescending(x => x.Rate).FirstOrDefault();
+                    .Select(t => (Run: t, Rate: _earnings.RunValue(t) / (decimal)(t.End!.Value - t.Start).TotalHours)).OrderByDescending(x => x.Rate).FirstOrDefault();
                 if (rated.Run != null && rated.Rate > 0)
                     stats.Add(Const("Best rate so far: " + rated.Run.Worker + "'s run #" + rated.Run.Number + " at " + Millions(rated.Rate) + " aUEC/h"));
-                var crewValue = _state.Trips.Where(t => t.Start >= since || (t.End ?? DateTime.MaxValue) >= since).Sum(RunValue);
+                var crewValue = _state.Trips.Where(t => t.Start >= since || (t.End ?? DateTime.MaxValue) >= since).Sum(_earnings.RunValue);
                 if (crewValue >= 1_000_000) stats.Add(Const("The runs of this session are worth " + Millions(crewValue) + " aUEC so far"));
             }
             var pickups = _state.Trips.Where(t => (t.End ?? DateTime.MaxValue) >= since).SelectMany(t => t.Pickups.Select(p => (t.Worker, Pick: p))).ToList();
             if (pickups.Count >= 3)
             {
                 var biggest = pickups.OrderByDescending(x => x.Pick.Missions).First();
-                if (biggest.Pick.Missions >= 3) stats.Add(Const("Biggest pickup: " + biggest.Pick.Missions + " batches at " + LocationName(biggest.Pick.Zone) + " (" + biggest.Worker + ")"));
-                var favourite = pickups.GroupBy(x => LocationName(x.Pick.Zone)).OrderByDescending(g => g.Count()).First();
+                if (biggest.Pick.Missions >= 3) stats.Add(Const("Biggest pickup: " + biggest.Pick.Missions + " batches at " + _places.LocationName(biggest.Pick.Zone) + " (" + biggest.Worker + ")"));
+                var favourite = pickups.GroupBy(x => _places.LocationName(x.Pick.Zone)).OrderByDescending(g => g.Count()).First();
                 if (favourite.Count() >= 2) stats.Add(Const("Most visited station this session: " + favourite.Key + " (" + favourite.Count() + " landings)"));
             }
             var waste = _state.Trips.Where(t => (t.End ?? DateTime.MaxValue) >= since).SelectMany(t => t.Drops).Sum(d => d.Scu);
