@@ -57,6 +57,44 @@ public class TripPlannerTests
         Assert.Equal(18, planned.Values.Sum());
     }
 
+    /// <summary>
+    /// 23 Oct 14:54: zzoega is flying a run, at Checkmate with 2 batches on board (292 SCU), and Patch City has 5 batches of 167 SCU: more than one ship
+    /// holds, so two trips land there. He was sent there for one batch, the other worker for four.
+    /// </summary>
+    static List<PlannedTrip> PatchCitySplit(int loadedScu = 292, string? from = "Checkmate")
+    {
+        var open = new Dictionary<string, int> { [Id("Patch City")] = 5 };
+        var batchScu = new Dictionary<string, int> { [Id("Patch City")] = 167 };
+        var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, Ts2), ("zzatvo", 3, Ts2) };
+        var shipScu = new Dictionary<string, int> { ["zzoega"] = 742, ["zzatvo"] = 742 };
+        var starts = from == null ? null : new List<WorkerStart> { new() { Worker = "zzoega", Loaded = loadedScu > 0 ? 2 : 0, LoadedScu = loadedScu, From = Id(from) } };
+        return TripPlanner.Plan(open, crew, starts, null, null, batchScu, shipScu);
+    }
+
+    static List<int> PatchCityShares(List<PlannedTrip> trips) =>
+        trips.SelectMany(t => t.Stops).Where(s => s.Id == Id("Patch City")).Select(s => s.Batches).OrderBy(x => x).ToList();
+
+    [Fact]
+    public void Two_trips_at_one_station_share_its_batches_evenly()
+    {
+        Assert.Equal(new[] { 2, 3 }, PatchCityShares(PatchCitySplit(from: null)));   // both from Ruin: 3 + 2, not 4 + 1
+
+        var trips = PatchCitySplit();
+        var now = trips.Single(t => t.Special);
+        Assert.Equal(2, now.Stops.Single(s => s.Id == Id("Patch City")).Batches);   // the run he is flying takes what fits (450 SCU of room: 2 batches)
+        Assert.Equal(new[] { 2, 3 }, PatchCityShares(trips));
+    }
+
+    [Fact]
+    public void The_trip_he_is_flying_takes_the_bigger_half()
+    {
+        var trips = PatchCitySplit(loadedScu: 0);   // at Checkmate with an empty ship (he delivered waste there): room for 4
+        var now = trips.Single(t => t.Special);
+        var shares = PatchCityShares(trips);
+        Assert.DoesNotContain(1, shares);
+        Assert.Equal(shares.Max(), now.Stops.Single(s => s.Id == Id("Patch City")).Batches);
+    }
+
     /// <summary>The start of a session (nothing carried yet), one worker in a C2, waste waiting at four stations.</summary>
     static List<PlannedTrip> SessionStart()
     {

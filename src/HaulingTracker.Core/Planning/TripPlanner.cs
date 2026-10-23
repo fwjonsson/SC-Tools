@@ -677,6 +677,70 @@ public static class TripPlanner
             return false;
         }
 
+        // The search only counts the landings and the flying, so how the batches of a station are divided over the trips that land there anyway makes no difference
+        // to it: 4 + 1 is as good as 3 + 2, and a trip got a landing for one batch (Patch City, 5 batches that do not fit in one ship: 1 for the run he was flying,
+        // 4 for the other worker). Even them out as far as the ships hold them, and with one batch between them the trip he is flying (or heading for) takes the
+        // bigger half: no landing for a lone batch when it can take more. The landings stay the same; a move is only made when the plan does not get worse.
+        void EvenOut(int[][] assign)
+        {
+            var load = new int[slots];
+            var cost = new double[slots];
+            var totals = new double[w];
+            for (var t = 0; t < slots; t++)
+            {
+                for (var i = 0; i < n; i++) load[t] += assign[t][i] * wt[i];
+                cost[t] = Cost(assign[t], t);
+                totals[slotWorker[t]] += cost[t];
+            }
+            var value = Objective(totals);
+            bool Move(int from, int to, int i)
+            {
+                if (IsReserved(assign, from, i) || load[to] + wt[i] > slotCapacity[to]) return false;
+                assign[from][i]--;
+                assign[to][i]++;
+                if (Allowed(assign, i))
+                {
+                    var costFrom = Cost(assign[from], from);
+                    var costTo = Cost(assign[to], to);
+                    totals[slotWorker[from]] += costFrom - cost[from];
+                    totals[slotWorker[to]] += costTo - cost[to];
+                    var v = Objective(totals);
+                    if (v <= value + 1e-9)
+                    {
+                        value = v;
+                        cost[from] = costFrom;
+                        cost[to] = costTo;
+                        load[from] -= wt[i];
+                        load[to] += wt[i];
+                        return true;
+                    }
+                    totals[slotWorker[from]] -= costFrom - cost[from];
+                    totals[slotWorker[to]] -= costTo - cost[to];
+                }
+                assign[from][i]++;
+                assign[to][i]--;
+                return false;
+            }
+            for (var i = 0; i < n; i++)
+            {
+                var moved = true;
+                while (moved)
+                {
+                    moved = false;
+                    for (var a = 0; a < slots && !moved; a++)
+                    {
+                        if (assign[a][i] <= 0) continue;
+                        for (var b = 0; b < slots && !moved; b++)
+                        {
+                            if (a == b || assign[b][i] <= 0) continue;   // only between trips that land there anyway
+                            var gap = assign[a][i] - assign[b][i];
+                            if (gap >= 2 || (gap == 1 && special[b] && !special[a])) moved = Move(a, b, i);
+                        }
+                    }
+                }
+            }
+        }
+
         // random starts, each improved until no move helps; the best one wins. The seed is fixed so the plan does not jump around.
         var rng = new Random(20261020);
         var bestValue = double.MaxValue;
@@ -765,6 +829,7 @@ public static class TripPlanner
         // only when it picks up at the station of the load anyway (that station becomes its first stop), so a load never adds a stop. Only a worker with nothing
         // at all to pick up and no run in progress may get a trip just for a load (the last resort). A load that no trip can take along waits.
         var picks = bestPlan!;
+        EvenOut(picks);
         var picksUp = new bool[w];
         for (var t = 0; t < slots; t++)
         {
