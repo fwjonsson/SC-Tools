@@ -126,18 +126,11 @@ public sealed partial class MainForm
             var firstShown = _contractGrid.FirstDisplayedScrollingRowIndex;
             _contractGrid.Rows.Clear();
             _contractGrid.Columns.Clear();
-            _contractGrid.Columns.Add(Col("Contract", 130, true));
-            _contractGrid.Columns.Add(Col("Cargo", 130, true));
-            _contractGrid.Columns.Add(Col("Stops (\u2713 = picked up / delivered)", 300, true, DataGridViewContentAlignment.MiddleLeft));
-            foreach (var n in members)
-            {
-                var c = Col(n, 130, true);
-                c.Name = "m:" + n;
-                _contractGrid.Columns.Add(c);
-            }
-            var gone = Col("Gone", 130, true);
-            gone.Name = "gone";
-            _contractGrid.Columns.Add(gone);
+            _contractGrid.Columns.Add(Col(ContractCol.Contract, "Contract", 130, true));
+            _contractGrid.Columns.Add(Col(ContractCol.Cargo, "Cargo", 130, true));
+            _contractGrid.Columns.Add(Col(ContractCol.Stops, "Stops (\u2713 = picked up / delivered)", 300, true, DataGridViewContentAlignment.MiddleLeft));
+            foreach (var n in members) _contractGrid.Columns.Add(Col(ContractCol.Member(n), n, 130, true));
+            _contractGrid.Columns.Add(Col(ContractCol.Gone, "Gone", 130, true));
             AddNumberColumn(_contractGrid);
             foreach (DataGridViewColumn c in _contractGrid.Columns)
             {
@@ -150,23 +143,28 @@ public sealed partial class MainForm
             foreach (var m in missions)
             {
                 var contract = m.IsOut ? m.OutDrops + " From Ruin" : m.Multi > 0 ? m.Multi + " To Ruin" : "?";   // the same names as the rewards table
-                var cells = new List<object?> { contract, m.IsOut ? m.OutCargo ?? "Cargo" : string.IsNullOrEmpty(m.Cargo) ? "" : m.Cargo, ContractStopsText(m) };
-                cells.AddRange(members.Select(_ => (object?)""));
-                cells.Add(m.Dropped ? "Bring back" : "Gone");
-                cells.Add("");   // the # column
-                var row = _contractGrid.Rows[_contractGrid.Rows.Add(cells.ToArray())];
+                var cells = new List<(string, object?)>
+                {
+                    (ContractCol.Contract, contract),
+                    (ContractCol.Cargo, m.IsOut ? m.OutCargo ?? "Cargo" : string.IsNullOrEmpty(m.Cargo) ? "" : m.Cargo),
+                    (ContractCol.Stops, ContractStopsText(m)),
+                };
+                cells.AddRange(members.Select(n => (ContractCol.Member(n), (object?)"")));
+                cells.Add((ContractCol.Gone, m.Dropped ? "Bring back" : "Gone"));
+                cells.Add((GridCol.Number, ""));
+                var row = _contractGrid.AddRow(cells.ToArray());
                 row.Tag = m;
                 if (m.Dropped)
                 {
                     // marked as gone: grey, the boxes do not count
                     row.DefaultCellStyle.ForeColor = Theme.Muted;
-                    for (var k = 0; k < members.Count; k++) row.Cells[3 + k].Value = "";
+                    foreach (var n in members) row.Cells[ContractCol.Member(n)].Value = "";
                 }
                 else
                 {
-                    for (var k = 0; k < members.Count; k++) ShowHas(row.Cells[3 + k], m, members[k], HasMission(m, members[k]));
+                    foreach (var n in members) ShowHas(row.Cells[ContractCol.Member(n)], m, n, HasMission(m, n));
                 }
-                var goneCell = row.Cells[3 + members.Count];
+                var goneCell = row.Cells[ContractCol.Gone];
                 goneCell.Style.ForeColor = Theme.Text;
                 goneCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 goneCell.ToolTipText = m.Dropped ? "Count this mission again" : "This mission is not in the game any more: do not plan or count it";
@@ -200,8 +198,8 @@ public sealed partial class MainForm
     void ContractClicked(object? sender, DataGridViewCellEventArgs e)
     {
         if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
-        var col = _contractGrid.Columns[e.ColumnIndex];
-        if (col.Name == "gone" && _contractGrid.Rows[e.RowIndex].Tag is Mission gm)
+        var column = _contractGrid.ColumnName(e.ColumnIndex);
+        if (column == ContractCol.Gone && _contractGrid.Rows[e.RowIndex].Tag is Mission gm)
         {
             // drop the mission (or bring it back): it counts as abandoned everywhere, so the planner, the Session tab and the payouts forget it
             if (gm.Dropped) _data.DroppedMissions.Remove(gm.Id);
@@ -218,8 +216,7 @@ public sealed partial class MainForm
             }));
             return;
         }
-        if (!col.Name.StartsWith("m:") || _contractGrid.Rows[e.RowIndex].Tag is not Mission m || m.Dropped) return;
-        var member = col.Name[2..];
+        if (ContractCol.MemberOf(column) is not { } member || _contractGrid.Rows[e.RowIndex].Tag is not Mission m || m.Dropped) return;
         var on = !HasMission(m, member);
         if (!_data.MissionHolders.TryGetValue(m.Id, out var ticked)) _data.MissionHolders[m.Id] = ticked = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         if (on == LogSaysHas(m, member)) ticked.Remove(member);

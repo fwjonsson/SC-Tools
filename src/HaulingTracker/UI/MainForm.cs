@@ -11,6 +11,26 @@ public sealed partial class MainForm : Form
     const decimal DefaultReward3 = 1691000m;   // payout of a 3 stop mission
     const decimal DefaultReward4 = 2113750m;   // payout of a 4 stop mission (Master rank)
     // a from-Ruin contract pays the same as a to-Ruin one with as many stops (2, 3 or 4 drop-offs)
+
+    /// <summary>The built-in payout of a contract with this many stops (2, 3 or 4); to and from Ruin pay the same.</summary>
+    static decimal DefaultReward(int stops) => stops == 2 ? DefaultReward2 : stops == 3 ? DefaultReward3 : DefaultReward4;
+
+    /// <summary>A row of the rewards table: a kind of contract (2, 3 or 4 stops, to or from Ruin) and where its payout is kept in the session.</summary>
+    sealed record RewardLine(int Stops, bool FromRuin, Func<SessionInputs, decimal> Get, Action<SessionInputs, decimal> Set)
+    {
+        public string Contract => Stops + (FromRuin ? " From Ruin" : " To Ruin");
+    }
+
+    /// <summary>The rows of the rewards table, in order: the hauling contracts to Ruin, then the from-Ruin (waste) contracts.</summary>
+    static readonly RewardLine[] RewardLines =
+    {
+        new(2, false, i => i.Reward2, (i, v) => i.Reward2 = v),
+        new(3, false, i => i.Reward3, (i, v) => i.Reward3 = v),
+        new(4, false, i => i.Reward4, (i, v) => i.Reward4 = v),   // Master rank
+        new(2, true, i => i.WasteReward2, (i, v) => i.WasteReward2 = v),
+        new(3, true, i => i.WasteReward3, (i, v) => i.WasteReward3 = v),
+        new(4, true, i => i.WasteReward4, (i, v) => i.WasteReward4 = v),
+    };
     static Color LostRed => Theme.Red;
     static Color DoneGreen => Theme.Green;
     static Color LostOrange => Theme.Orange;
@@ -241,7 +261,6 @@ public sealed partial class MainForm : Form
     const int TitleHeight = 30;
     const int SideWidth = 560;     // the column on the right: the party, the contracts and the times
     const int ContractsHeight = 204;   // the contracts table: header and seven rows (hauling 2, 3, 4 stops, waste 2, 3, 4 drop-offs, Total)
-    const int RewardRows = 6;          // the rows of the rewards table before its Total row
     const int SummaryHeight = 190;     // the times and totals table: seven rows of 25 with their borders
     TableLayoutPanel? _header;
 
@@ -268,7 +287,7 @@ public sealed partial class MainForm : Form
         g.ScrollBars = ScrollBars.None;
         foreach (DataGridViewColumn c in g.Columns)
         {
-            if (c.Name == "num")
+            if (c.Name == GridCol.Number)
             {
                 // the # column keeps its small width, the others share the rest
                 c.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
@@ -554,20 +573,19 @@ public sealed partial class MainForm : Form
         _rewards.AllowUserToAddRows = false;
         _rewards.AllowUserToDeleteRows = false;
         _rewards.ScrollBars = ScrollBars.None;
-        _rewards.Columns.Add(Col("Contract", 110, true, DataGridViewContentAlignment.MiddleLeft));
-        _rewards.Columns.Add(Col("Mission Reward", 120, false, DataGridViewContentAlignment.MiddleRight));
-        _rewards.Columns.Add(Col("# Missions", 90, true, DataGridViewContentAlignment.MiddleRight));
-        _rewards.Columns.Add(Col("Total", 100, true, DataGridViewContentAlignment.MiddleRight, true));
+        _rewards.Columns.Add(Col(RewardCol.Contract, "Contract", 110, true, DataGridViewContentAlignment.MiddleLeft));
+        _rewards.Columns.Add(Col(RewardCol.Reward, "Mission Reward", 120, false, DataGridViewContentAlignment.MiddleRight));
+        _rewards.Columns.Add(Col(RewardCol.Count, "# Missions", 90, true, DataGridViewContentAlignment.MiddleRight));
+        _rewards.Columns.Add(Col(RewardCol.Total, "Total", 100, true, DataGridViewContentAlignment.MiddleRight, true));
         _rewards.CellEndEdit += (_, _) =>
         {
-            if (_inputs != null && _rewards.Rows.Count >= RewardRows)
+            if (_inputs != null)
             {
-                _inputs.Reward2 = ParseNumber(_rewards.Rows[0].Cells[1].Value);
-                _inputs.Reward3 = ParseNumber(_rewards.Rows[1].Cells[1].Value);
-                _inputs.Reward4 = ParseNumber(_rewards.Rows[2].Cells[1].Value);
-                _inputs.WasteReward2 = ParseNumber(_rewards.Rows[3].Cells[1].Value);
-                _inputs.WasteReward3 = ParseNumber(_rewards.Rows[4].Cells[1].Value);
-                _inputs.WasteReward4 = ParseNumber(_rewards.Rows[5].Cells[1].Value);
+                // every row knows which payout of the session it is
+                foreach (DataGridViewRow row in _rewards.Rows)
+                {
+                    if (row.Tag is RewardLine line) line.Set(_inputs, ParseNumber(row.Cells[RewardCol.Reward].Value));
+                }
             }
             RecomputeRewards();
             _planShown = "";   // the values in the Trip Planner change with the payouts
@@ -633,11 +651,12 @@ public sealed partial class MainForm : Form
         _logGrid.AllowUserToDeleteRows = false;
 
         // Columns you type in are white. Columns filled in from the log are tinted.
-        _logGrid.Columns.Add(Col("Pickup Location", 190, false, DataGridViewContentAlignment.MiddleLeft));
-        _logGrid.Columns.Add(Col("From Ruin", 90, true, DataGridViewContentAlignment.MiddleRight));
-        _logGrid.Columns.Add(Col("Batches", 90, true));
+        _logGrid.Columns.Add(Col(StopCol.Location, "Pickup Location", 190, false, DataGridViewContentAlignment.MiddleLeft));
+        _logGrid.Columns.Add(Col(StopCol.FromRuin, "From Ruin", 90, true, DataGridViewContentAlignment.MiddleRight));
+        _logGrid.Columns.Add(Col(StopCol.Batches, "Batches", 90, true));
         var workerCol = new DataGridViewComboBoxColumn
         {
+            Name = StopCol.Worker,
             HeaderText = "Assigned Worker",
             Width = 150,
             FlatStyle = FlatStyle.Flat,
@@ -646,9 +665,9 @@ public sealed partial class MainForm : Form
         workerCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         workerCol.Visible = false;   // the runs get their workers from the logs and the Trip Planner now (the column stays so older sessions keep what was assigned)
         _logGrid.Columns.Add(workerCol);
-        _logGrid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
-        _logGrid.Columns.Add(Col("Notes", 120, false, DataGridViewContentAlignment.MiddleLeft, true));
-        _logGrid.Columns.Add(Col("Drop-off", 120, true, DataGridViewContentAlignment.MiddleCenter));   // cargo to bring out from Ruin (from-Ruin contracts)
+        _logGrid.Columns.Add(Col(StopCol.Value, "Value", 100, true, DataGridViewContentAlignment.MiddleRight));
+        _logGrid.Columns.Add(Col(StopCol.Notes, "Notes", 120, false, DataGridViewContentAlignment.MiddleLeft, true));
+        _logGrid.Columns.Add(Col(StopCol.DropOff, "Drop-off", 120, true, DataGridViewContentAlignment.MiddleCenter));   // cargo to bring out from Ruin (from-Ruin contracts)
         AddNumberColumn(_logGrid);
         _logGrid.CellEndEdit += LogGrid_CellEndEdit;
         _logGrid.DataError += (_, e) => e.ThrowException = false;
@@ -665,12 +684,12 @@ public sealed partial class MainForm : Form
         StyleGrid(_doneGrid);
         _doneGrid.AllowUserToAddRows = false;
         _doneGrid.AllowUserToDeleteRows = false;
-        _doneGrid.Columns.Add(Col("Pickup Location", 190, true, DataGridViewContentAlignment.MiddleLeft));
-        _doneGrid.Columns.Add(Col("From Ruin", 90, true, DataGridViewContentAlignment.MiddleRight));
-        _doneGrid.Columns.Add(Col("Delivered", 90, true));
-        _doneGrid.Columns.Add(Col("Worker", 150, true));
-        _doneGrid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
-        _doneGrid.Columns.Add(Col("Handed In", 120, true, DataGridViewContentAlignment.MiddleCenter, true));
+        _doneGrid.Columns.Add(Col(FinishedCol.Location, "Pickup Location", 190, true, DataGridViewContentAlignment.MiddleLeft));
+        _doneGrid.Columns.Add(Col(FinishedCol.FromRuin, "From Ruin", 90, true, DataGridViewContentAlignment.MiddleRight));
+        _doneGrid.Columns.Add(Col(FinishedCol.Delivered, "Delivered", 90, true));
+        _doneGrid.Columns.Add(Col(FinishedCol.Worker, "Worker", 150, true));
+        _doneGrid.Columns.Add(Col(FinishedCol.Value, "Value", 100, true, DataGridViewContentAlignment.MiddleRight));
+        _doneGrid.Columns.Add(Col(FinishedCol.HandedIn, "Handed In", 120, true, DataGridViewContentAlignment.MiddleCenter, true));
         AddNumberColumn(_doneGrid);
     }
 
@@ -681,20 +700,21 @@ public sealed partial class MainForm : Form
         StyleGrid(_tripGrid);
         _tripGrid.AllowUserToAddRows = false;
         _tripGrid.AllowUserToDeleteRows = false;
-        _tripGrid.Columns.Add(Col("Worker", 190, true));   // as wide as Pickup Location above
-        var runCol = Col("#", 36, true);   // the run number, at the far left like the # of the boards above
+        _tripGrid.Columns.Add(Col(RunCol.Worker, "Worker", 190, true));   // as wide as Pickup Location above
+        var runCol = Col(RunCol.Number, "#", 36, true);   // the run number, at the far left like the # of the boards above
         _tripGrid.Columns.Add(runCol);
         runCol.DisplayIndex = 0;
-        _tripGrid.Columns.Add(Col("Pickup Location & Time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
+        _tripGrid.Columns.Add(Col(RunCol.Places, "Pickup Location & Time", 420, true, DataGridViewContentAlignment.MiddleLeft, true));
         // the columns after Pickups add up to the width of the right panel, so Pickups ends where the boards above end
-        _tripGrid.Columns.Add(Col("Batches", 90, true));
-        _tripGrid.Columns.Add(Col("Value", 100, true, DataGridViewContentAlignment.MiddleRight));
-        _tripGrid.Columns.Add(Col("Started", 76, true));
-        _tripGrid.Columns.Add(Col("Completed", 108, true));
-        _tripGrid.Columns.Add(Col("Time", 90, true));
-        _tripGrid.Columns.Add(Col("Flight time", 90, true));   // the estimated flying time of the run (the Flight time of the Trip Planner)
+        _tripGrid.Columns.Add(Col(RunCol.Batches, "Batches", 90, true));
+        _tripGrid.Columns.Add(Col(RunCol.Value, "Value", 100, true, DataGridViewContentAlignment.MiddleRight));
+        _tripGrid.Columns.Add(Col(RunCol.Started, "Started", 76, true));
+        _tripGrid.Columns.Add(Col(RunCol.Completed, "Completed", 108, true));
+        _tripGrid.Columns.Add(Col(RunCol.Time, "Time", 90, true));
+        _tripGrid.Columns.Add(Col(RunCol.Flight, "Flight time", 90, true));   // the estimated flying time of the run (the Flight time of the Trip Planner)
         var lostCol = new DataGridViewComboBoxColumn
         {
+            Name = RunCol.Lost,
             HeaderText = "Lost Cargo",
             Width = 116,
             FlatStyle = FlatStyle.Flat,
@@ -703,9 +723,9 @@ public sealed partial class MainForm : Form
         lostCol.Items.AddRange("None", "Little", "All");
         lostCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         _tripGrid.Columns.Add(lostCol);
-        var hourly = Col("aUEC/h", 96, true, DataGridViewContentAlignment.MiddleRight);   // what the run earned per hour (cell 10), shown right of Flight time
+        var hourly = Col(RunCol.PerHour, "aUEC/h", 96, true, DataGridViewContentAlignment.MiddleRight);   // what the run earned per hour, shown right of Flight time
         _tripGrid.Columns.Add(hourly);
-        hourly.DisplayIndex = 9;
+        hourly.DisplayIndex = lostCol.DisplayIndex;
         _tripGrid.DataError += (_, e) => e.ThrowException = false;
         _tripGrid.CurrentCellDirtyStateChanged += (_, _) =>
         {
@@ -713,10 +733,10 @@ public sealed partial class MainForm : Form
         };
         _tripGrid.CellValueChanged += (_, e) =>
         {
-            if (_updating || _inputs == null || e.RowIndex < 0 || e.ColumnIndex != 9) return;
+            if (_updating || _inputs == null || e.RowIndex < 0 || _tripGrid.ColumnName(e.ColumnIndex) != RunCol.Lost) return;
             var row = _tripGrid.Rows[e.RowIndex];
             if (row.Tag is not WorkerTrip trip) return;
-            var level = Convert.ToString(row.Cells[9].Value) ?? "None";
+            var level = Convert.ToString(row.Cells[RunCol.Lost].Value) ?? "None";
             _inputs.LostRuns.Remove(trip.Key);
             if (level == "None") _inputs.LostCargo.Remove(trip.Key);
             else _inputs.LostCargo[trip.Key] = level;
@@ -797,9 +817,9 @@ public sealed partial class MainForm : Form
             {
                 if (row.Tag is not WorkerTrip t || t.End.HasValue) continue;
                 var text = RunDuration(t);
-                if (!Equals(row.Cells[7].Value, text)) row.Cells[7].Value = text;
+                if (!Equals(row.Cells[RunCol.Time].Value, text)) row.Cells[RunCol.Time].Value = text;
                 var perHour = RunHourlyText(t);
-                if (!Equals(row.Cells[10].Value, perHour)) row.Cells[10].Value = perHour;
+                if (!Equals(row.Cells[RunCol.PerHour].Value, perHour)) row.Cells[RunCol.PerHour].Value = perHour;
             }
         }
     }
@@ -886,27 +906,28 @@ public sealed partial class MainForm : Form
 
             foreach (var t in _trips)
             {
-                var pickups = RunStepsText(t);
                 var level = LostLevel(t.Key);
-                var values = new object[]
+                var batches = t.Manual || level == "All" ? "failed" : t.Left ? "left" : t.End.HasValue ? t.HandedIn.ToString() : "";
+                var value = RunValueText(t);
+                var completed = t.End.HasValue ? FormatTime(t.End.Value) : "";
+                var duration = RunDuration(t);
+                var flight = RunFlightText(t);
+                var perHour = RunHourlyText(t);
+                // the short copy under the map in the Trip Planner shows just the places
+                foreach (var (grid, places) in new[] { (_tripGrid, RunStepsText(t)), (_planRunsGrid, RunPlacesText(t)) })
                 {
-                    t.Worker,
-                    t.Number.ToString(CultureInfo.InvariantCulture),
-                    pickups,
-                    t.Manual || level == "All" ? "failed" : t.Left ? "left" : t.End.HasValue ? t.HandedIn.ToString() : "",
-                    RunValueText(t),
-                    FormatTime(t.Start),
-                    t.End.HasValue ? FormatTime(t.End.Value) : "",
-                    RunDuration(t),
-                    RunFlightText(t),
-                    level,
-                    RunHourlyText(t),
-                };
-                var brief = (object[])values.Clone();
-                brief[2] = RunPlacesText(t);   // the short copy under the map in the Trip Planner shows just the places
-                foreach (var (grid, cells) in new[] { (_tripGrid, values), (_planRunsGrid, brief) })
-                {
-                    var row = grid.Rows[grid.Rows.Add(cells)];
+                    var row = grid.AddRow(
+                        (RunCol.Worker, t.Worker),
+                        (RunCol.Number, t.Number.ToString(CultureInfo.InvariantCulture)),
+                        (RunCol.Places, places),
+                        (RunCol.Batches, batches),
+                        (RunCol.Value, value),
+                        (RunCol.Started, FormatTime(t.Start)),
+                        (RunCol.Completed, completed),
+                        (RunCol.Time, duration),
+                        (RunCol.Flight, flight),
+                        (RunCol.Lost, level),
+                        (RunCol.PerHour, perHour));
                     row.Tag = t;
                     row.DefaultCellStyle.BackColor = RunColor(t.Manual ? "All" : level, t.End.HasValue);
                 }
@@ -916,7 +937,7 @@ public sealed partial class MainForm : Form
             foreach (DataGridViewRow row in _doneGrid.Rows)
             {
                 if (row.Tag is not string zone) continue;
-                row.Cells[3].Value = string.Join(", ", _trips.Where(t => t.Pickups.Any(p => p.Zone == zone)).Select(t => t.Worker).Distinct(StringComparer.OrdinalIgnoreCase));
+                row.Cells[FinishedCol.Worker].Value = string.Join(", ", _trips.Where(t => t.Pickups.Any(p => p.Zone == zone)).Select(t => t.Worker).Distinct(StringComparer.OrdinalIgnoreCase));
             }
         }
         finally
@@ -946,13 +967,15 @@ public sealed partial class MainForm : Form
         return f;
     }
 
+    /// <summary>A text column: its name (the code finds its cells by it, see Columns.cs), the header that is shown, its width, and whether it is read-only (tinted).</summary>
     static DataGridViewTextBoxColumn Col(
-        string header, int width, bool readOnly,
+        string name, string header, int width, bool readOnly,
         DataGridViewContentAlignment align = DataGridViewContentAlignment.MiddleCenter,
         bool fill = false)
     {
         var c = new DataGridViewTextBoxColumn
         {
+            Name = name,
             HeaderText = header,
             Width = width,
             ReadOnly = readOnly,
@@ -968,14 +991,10 @@ public sealed partial class MainForm : Form
         return c;
     }
 
-    /// <summary>
-    /// A "#" column at the far left that counts the rows 1, 2, 3... It is added last (so the other columns keep their numbers in the code)
-    /// and moved to the left on screen. NumberRows fills it.
-    /// </summary>
+    /// <summary>A "#" column at the far left that counts the rows 1, 2, 3... It is added last and moved to the left on screen. NumberRows fills it.</summary>
     static void AddNumberColumn(DataGridView g)
     {
-        var c = Col("#", 36, true);
-        c.Name = "num";
+        var c = Col(GridCol.Number, "#", 36, true);
         g.Columns.Add(c);
         c.DisplayIndex = 0;
     }
@@ -983,9 +1002,9 @@ public sealed partial class MainForm : Form
     /// <summary>Numbers the first `count` rows 1, 2, 3... (the rest, like a Total row, stay empty).</summary>
     static void NumberRows(DataGridView g, int? count = null)
     {
-        if (!g.Columns.Contains("num")) return;
+        if (!g.Columns.Contains(GridCol.Number)) return;
         var n = count ?? g.Rows.Count;
-        for (var i = 0; i < g.Rows.Count; i++) g.Rows[i].Cells["num"].Value = i < n ? (i + 1).ToString(CultureInfo.InvariantCulture) : "";
+        for (var i = 0; i < g.Rows.Count; i++) g.Rows[i].Cells[GridCol.Number].Value = i < n ? (i + 1).ToString(CultureInfo.InvariantCulture) : "";
     }
 
     static readonly System.Runtime.CompilerServices.ConditionalWeakTable<DataGridView, object> HookedGrids = new();
@@ -1182,9 +1201,9 @@ public sealed partial class MainForm : Form
         grid.AllowUserToDeleteRows = false;
         grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         grid.MultiSelect = false;
-        grid.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = "Enabled", Width = 70, SortMode = DataGridViewColumnSortMode.NotSortable });
-        grid.Columns.Add(Col("Source", 330, true, DataGridViewContentAlignment.MiddleLeft));
-        grid.Columns.Add(Col("Reads", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
+        grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = SourceCol.Enabled, HeaderText = "Enabled", Width = 70, SortMode = DataGridViewColumnSortMode.NotSortable });
+        grid.Columns.Add(Col(SourceCol.Source, "Source", 330, true, DataGridViewContentAlignment.MiddleLeft));
+        grid.Columns.Add(Col(SourceCol.Reads, "Reads", 400, true, DataGridViewContentAlignment.MiddleLeft, true));
 
         var bar = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 44, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(6) };
         var close = new Button { Text = "Close", AutoSize = true, DialogResult = DialogResult.OK };
@@ -1204,7 +1223,7 @@ public sealed partial class MainForm : Form
             foreach (var path in _data.WatchPaths)
             {
                 var on = !_data.DisabledWatchPaths.Contains(path);
-                var row = grid.Rows[grid.Rows.Add(on, path, "")];
+                var row = grid.AddRow((SourceCol.Enabled, on), (SourceCol.Source, path), (SourceCol.Reads, ""));
                 row.Tag = path;
                 RefreshStatus(row);
             }
@@ -1213,8 +1232,8 @@ public sealed partial class MainForm : Form
         void RefreshStatus(DataGridViewRow row)
         {
             var path = (string)row.Tag!;
-            if (row.Cells[0].Value is false) { row.Cells[2].Value = "switched off"; return; }
-            row.Cells[2].Value = ResolveLog(path) ?? "cannot be reached right now";
+            if (row.Cells[SourceCol.Enabled].Value is false) { row.Cells[SourceCol.Reads].Value = "switched off"; return; }
+            row.Cells[SourceCol.Reads].Value = ResolveLog(path) ?? "cannot be reached right now";
         }
         grid.CurrentCellDirtyStateChanged += (_, _) =>
         {
@@ -1222,10 +1241,10 @@ public sealed partial class MainForm : Form
         };
         grid.CellValueChanged += (_, e) =>
         {
-            if (filling || e.ColumnIndex != 0 || e.RowIndex < 0) return;
+            if (filling || grid.ColumnName(e.ColumnIndex) != SourceCol.Enabled || e.RowIndex < 0) return;
             var row = grid.Rows[e.RowIndex];
             var path = (string)row.Tag!;
-            if (row.Cells[0].Value is false)
+            if (row.Cells[SourceCol.Enabled].Value is false)
             {
                 if (!_data.DisabledWatchPaths.Contains(path)) _data.DisabledWatchPaths.Add(path);
             }
@@ -1624,24 +1643,22 @@ public sealed partial class MainForm : Form
 
             // the mission counts come from the log (2, 3 and 4 stop contracts), you only type the payouts
             _rewards.Rows.Clear();
-            if (_inputs.Reward2 == 0) _inputs.Reward2 = DefaultReward2;
-            if (_inputs.Reward3 == 0) _inputs.Reward3 = DefaultReward3;
-            if (_inputs.Reward4 == 0) _inputs.Reward4 = DefaultReward4;
-            if (_inputs.WasteReward2 == 0) _inputs.WasteReward2 = DefaultReward2;
-            if (_inputs.WasteReward3 == 0) _inputs.WasteReward3 = DefaultReward3;
-            if (_inputs.WasteReward4 == 0) _inputs.WasteReward4 = DefaultReward4;
+            foreach (var line in RewardLines)
+            {
+                if (line.Get(_inputs) == 0) line.Set(_inputs, DefaultReward(line.Stops));   // nothing typed: the built-in payout
+            }
             var accepted = _current.Missions;   // every accepted mission of the session (abandoned ones are already left out)
-            _rewards.Rows.Add("2 To Ruin", _inputs.Reward2.ToString("N0"), accepted.Count(m => m.Multi == 2), "");
-            _rewards.Rows.Add("3 To Ruin", _inputs.Reward3.ToString("N0"), accepted.Count(m => m.Multi == 3), "");
-            _rewards.Rows.Add("4 To Ruin", _inputs.Reward4.ToString("N0"), accepted.Count(m => m.Multi == 4), "");   // Master rank
             // the from-Ruin (waste) contracts: the log does not say what they pay either, so you type it once, by the number of drop-offs
             var waste = SessionWaste(_current);
-            _rewards.Rows.Add("2 From Ruin", _inputs.WasteReward2.ToString("N0"), waste.Count(m => m.OutDrops == 2), "");
-            _rewards.Rows.Add("3 From Ruin", _inputs.WasteReward3.ToString("N0"), waste.Count(m => m.OutDrops == 3), "");
-            _rewards.Rows.Add("4 From Ruin", _inputs.WasteReward4.ToString("N0"), waste.Count(m => m.OutDrops == 4), "");
-            var totalIdx = _rewards.Rows.Add("Total", "", 0, "");
-            _rewards.Rows[totalIdx].ReadOnly = true;
-            _rewards.Rows[totalIdx].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+            foreach (var line in RewardLines)
+            {
+                var count = line.FromRuin ? waste.Count(m => m.OutDrops == line.Stops) : accepted.Count(m => m.Multi == line.Stops);
+                var row = _rewards.AddRow((RewardCol.Contract, line.Contract), (RewardCol.Reward, line.Get(_inputs).ToString("N0")), (RewardCol.Count, count), (RewardCol.Total, ""));
+                row.Tag = line;
+            }
+            var totalRow = _rewards.AddRow((RewardCol.Contract, "Total"), (RewardCol.Reward, ""), (RewardCol.Count, 0), (RewardCol.Total, ""));
+            totalRow.ReadOnly = true;
+            totalRow.DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
 
             FillLog();
             FillTrips();
@@ -1709,7 +1726,7 @@ public sealed partial class MainForm : Form
 
     void RefreshWorkerChoices()
     {
-        var col = (DataGridViewComboBoxColumn)_logGrid.Columns[3];
+        var col = (DataGridViewComboBoxColumn)_logGrid.Columns[StopCol.Worker]!;
         col.Items.Clear();
         col.Items.Add("");
         // only the active party members can be picked; someone already assigned stays in the list so the cell can show him
@@ -1759,15 +1776,13 @@ public sealed partial class MainForm : Form
         foreach (var r in _pickupRows.OrderByDescending(StopValue))
         {
             _inputs!.Rows.TryGetValue(r.Zone, out var inp);
-            var idx = _logGrid.Rows.Add(
-                LocationName(r.Zone),
-                DistanceText(r.Zone),
-                MissionsText(r),
-                inp?.Worker ?? "",
-                StopValueText(r),
-                inp?.Notes ?? "");
-
-            var row = _logGrid.Rows[idx];
+            var row = _logGrid.AddRow(
+                (StopCol.Location, LocationName(r.Zone)),
+                (StopCol.FromRuin, DistanceText(r.Zone)),
+                (StopCol.Batches, MissionsText(r)),
+                (StopCol.Worker, inp?.Worker ?? ""),
+                (StopCol.Value, StopValueText(r)),
+                (StopCol.Notes, inp?.Notes ?? ""));
             row.Tag = r.Zone;
             ColorMissionsCell(row, r);
         }
@@ -1779,17 +1794,16 @@ public sealed partial class MainForm : Form
         foreach (var r in _doneRows.OrderByDescending(x => x.DeliveredTime ?? x.LoadedTime ?? DateTime.MinValue))
         {
             _inputs!.Rows.TryGetValue(r.Zone, out var inp);
-            var idx = _doneGrid.Rows.Add(
-                LocationName(r.Zone),
-                DistanceText(r.Zone),
-                r.Delivered + "/" + r.Missions,
-                inp?.Worker ?? "",
-                StopValueText(r),
-                DeliveredText(r));
-            var row = _doneGrid.Rows[idx];
+            var row = _doneGrid.AddRow(
+                (FinishedCol.Location, LocationName(r.Zone)),
+                (FinishedCol.FromRuin, DistanceText(r.Zone)),
+                (FinishedCol.Delivered, r.Delivered + "/" + r.Missions),
+                (FinishedCol.Worker, inp?.Worker ?? ""),
+                (FinishedCol.Value, StopValueText(r)),
+                (FinishedCol.HandedIn, DeliveredText(r)));
             row.Tag = r.Zone;
-            row.Cells[2].Style.BackColor = DoneGreen;
-            if (r.Missing > 0) row.Cells[5].Style.BackColor = LostOrange;   // cargo is missing from a mission that has this stop
+            row.Cells[FinishedCol.Delivered].Style.BackColor = DoneGreen;
+            if (r.Missing > 0) row.Cells[FinishedCol.HandedIn].Style.BackColor = LostOrange;   // cargo is missing from a mission that has this stop
         }
         NumberRows(_doneGrid);
         FitTopArea();
@@ -1826,28 +1840,28 @@ public sealed partial class MainForm : Form
         {
             if (row.Tag is not string zone) continue;
             var info = _pickupRows.FirstOrDefault(x => x.Zone == zone);
-            if (info != null) row.Cells[4].Value = StopValueText(info);
+            if (info != null) row.Cells[StopCol.Value].Value = StopValueText(info);
         }
         foreach (DataGridViewRow row in _doneGrid.Rows)
         {
             if (row.Tag is not string zone) continue;
             var info = _doneRows.FirstOrDefault(x => x.Zone == zone);
-            if (info != null) row.Cells[4].Value = StopValueText(info);
+            if (info != null) row.Cells[FinishedCol.Value].Value = StopValueText(info);
         }
         foreach (var grid in new[] { _tripGrid, _planRunsGrid })
         {
             foreach (DataGridViewRow row in grid.Rows)
             {
                 if (row.Tag is not WorkerTrip t) continue;
-                row.Cells[4].Value = RunValueText(t);
-                row.Cells[10].Value = RunHourlyText(t);
+                row.Cells[RunCol.Value].Value = RunValueText(t);
+                row.Cells[RunCol.PerHour].Value = RunHourlyText(t);
             }
         }
     }
 
     void ColorMissionsCell(DataGridViewRow row, LocationRow r)
     {
-        row.Cells[2].Style.BackColor = r.Loaded >= r.Missions ? DoneGreen : CalcBlue;
+        row.Cells[StopCol.Batches].Style.BackColor = r.Loaded >= r.Missions ? DoneGreen : CalcBlue;
     }
 
     // ------------------------------------------------------------------ editing
@@ -1859,21 +1873,21 @@ public sealed partial class MainForm : Form
         if (row.Tag is not string zone) return;
         var text = (Convert.ToString(row.Cells[e.ColumnIndex].Value) ?? "").Trim();
 
-        switch (e.ColumnIndex)
+        switch (_logGrid.ColumnName(e.ColumnIndex))
         {
-            case 0:
+            case StopCol.Location:
                 if (text.Length == 0 || text.StartsWith("Unknown ...") || text == AutoName(zone))
                 {
                     _data.LocationNames.Remove(zone);
-                    row.Cells[0].Value = LocationName(zone);
+                    row.Cells[StopCol.Location].Value = LocationName(zone);
                 }
                 else
                 {
                     _data.LocationNames[zone] = text;
                 }
-                row.Cells[1].Value = DistanceText(zone);   // a new name can be one the distance table knows
+                row.Cells[StopCol.FromRuin].Value = DistanceText(zone);   // a new name can be one the distance table knows
                 break;
-            case 5:
+            case StopCol.Notes:
                 GetRow(zone).Notes = text;
                 break;
         }
@@ -1886,6 +1900,7 @@ public sealed partial class MainForm : Form
 
         decimal revenue = 0;
         var missions = 0;
+        DataGridViewRow? totalRow = null;
 
         var wasUpdating = _updating;
         _updating = true;
@@ -1893,11 +1908,15 @@ public sealed partial class MainForm : Form
         {
             foreach (DataGridViewRow row in _rewards.Rows)
             {
-                if (row.Index >= RewardRows) continue;   // the Total row
-                var reward = ParseNumber(row.Cells[1].Value);
-                var count = (int)ParseNumber(row.Cells[2].Value);
+                if (row.Tag is not RewardLine)
+                {
+                    totalRow = row;   // the Total row
+                    continue;
+                }
+                var reward = ParseNumber(row.Cells[RewardCol.Reward].Value);
+                var count = (int)ParseNumber(row.Cells[RewardCol.Count].Value);
                 var total = reward * count;
-                row.Cells[3].Value = total == 0 ? "" : total.ToString("N0");
+                row.Cells[RewardCol.Total].Value = total == 0 ? "" : total.ToString("N0");
                 revenue += total;
                 missions += count;
             }
@@ -1910,10 +1929,10 @@ public sealed partial class MainForm : Form
         _revenue = revenue;
         _rewardsTotalMissions.Text = missions.ToString("N0");
         _rewardsTotalRevenue.Text = revenue.ToString("N0");
-        if (_rewards.Rows.Count > RewardRows)
+        if (totalRow != null)
         {
-            _rewards.Rows[RewardRows].Cells[2].Value = missions;
-            _rewards.Rows[RewardRows].Cells[3].Value = revenue == 0 ? "" : revenue.ToString("N0");
+            totalRow.Cells[RewardCol.Count].Value = missions;
+            totalRow.Cells[RewardCol.Total].Value = revenue == 0 ? "" : revenue.ToString("N0");
         }
         RefreshStopValues();
         RecomputeTimes();

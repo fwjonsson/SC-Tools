@@ -261,7 +261,7 @@ public sealed partial class MainForm
     /// <summary>The Drop-off column of the Stops board: what has to be brought out to every station (a station with only drop-offs gets a row of its own).</summary>
     void FillDropOffs()
     {
-        if (_logGrid.Columns.Count < 7) return;
+        if (!_logGrid.Columns.Contains(StopCol.DropOff)) return;
         var drops = OpenDrops();
         foreach (var byStation in drops.GroupBy(d => d.Station ?? ("zone " + d.Zone)))
         {
@@ -274,13 +274,13 @@ public sealed partial class MainForm
             }
             if (row == null)
             {
-                var idx = _logGrid.Rows.Add(LocationName(zone), DistanceText(zone), "", "", "", "");
-                row = _logGrid.Rows[idx];
+                row = _logGrid.AddRow((StopCol.Location, LocationName(zone)), (StopCol.FromRuin, DistanceText(zone)), (StopCol.Batches, ""), (StopCol.Worker, ""), (StopCol.Value, ""), (StopCol.Notes, ""));
                 row.Tag = zone;
             }
-            row.Cells[6].Value = text;
-            row.Cells[6].Style.BackColor = Theme.Gold;
-            row.Cells[6].Style.ForeColor = Color.Black;
+            var cell = row.Cells[StopCol.DropOff];
+            cell.Value = text;
+            cell.Style.BackColor = Theme.Gold;
+            cell.Style.ForeColor = Color.Black;
         }
     }
 }

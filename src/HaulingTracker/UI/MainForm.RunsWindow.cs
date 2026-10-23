@@ -54,12 +54,11 @@ public sealed partial class MainForm
         grid.ReadOnly = true;
         grid.AllowUserToAddRows = false;
         grid.AllowUserToDeleteRows = false;
-        // the same columns as the Cargo Runs board, in the same order; Tag = the index of the cell on the board
+        // the same columns as the Cargo Runs board, with the same names, in the order they are shown there
         foreach (var c in ShownColumns(_tripGrid))
         {
-            var wide = c.HeaderText.StartsWith("Pickup", StringComparison.Ordinal);
-            var col = Col(c.HeaderText, c.Width, true, c.DefaultCellStyle.Alignment == DataGridViewContentAlignment.NotSet ? DataGridViewContentAlignment.MiddleCenter : c.DefaultCellStyle.Alignment, wide);
-            col.Tag = c.Index;
+            var wide = c.Name == RunCol.Places;
+            var col = Col(c.Name, c.HeaderText, c.Width, true, c.DefaultCellStyle.Alignment == DataGridViewContentAlignment.NotSet ? DataGridViewContentAlignment.MiddleCenter : c.DefaultCellStyle.Alignment, wide);
             if (wide) col.DefaultCellStyle.WrapMode = DataGridViewTriState.True;   // a long run takes two lines instead of being cut off
             grid.Columns.Add(col);
         }
@@ -128,8 +127,7 @@ public sealed partial class MainForm
             foreach (DataGridViewRow r in _tripGrid.Rows)
             {
                 if (r.IsNewRow) continue;
-                var cells = g.Columns.Cast<DataGridViewColumn>().Select(c => (object)(Convert.ToString(r.Cells[(int)c.Tag!].Value) ?? "")).ToArray();
-                var row = g.Rows[g.Rows.Add(cells)];
+                var row = g.AddRow(g.Columns.Cast<DataGridViewColumn>().Select(c => (c.Name, (object?)(Convert.ToString(r.Cells[c.Name].Value) ?? ""))).ToArray());
                 row.DefaultCellStyle.BackColor = r.DefaultCellStyle.BackColor;
             }
             if (top > 0 && top < g.Rows.Count) g.FirstDisplayedScrollingRowIndex = top;
