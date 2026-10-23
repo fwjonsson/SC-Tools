@@ -16,7 +16,7 @@ public static class TripPlanner
     const double TopUpSeconds = 600;   // a small stop added to a ship that is nearly full already counts this much more: it is left for a later trip, where new missions can make it worth the landing (a half full ship does fill up on the way home)
     // What a plan costs is mostly its LANDINGS, not its flying: set the destination, fly in, ask for a hangar, land, leave the seat, load, back in the seat,
     // ask to take off. That is the work. Quantum travel is close to free (with two accounts the other one is played meanwhile), so it only counts for a part.
-    const double StopSeconds = 900;    // every station a trip lands at: that many seconds when comparing plans (not in the times shown), so every landing has to be worth it (about 15 min each, measured)
+    internal const double StopSeconds = 900;    // every station a trip lands at: that many seconds when comparing plans (not in the times shown), so every landing has to be worth it (about 15 min each, measured)
     const double TripSeconds = StopSeconds;   // every trip ends with a landing at Ruin to hand in (a run of 38 min: 9 flying, 3-4 loading waste at the elevator, the rest two landings of about 13-15 min), so two half empty trips cost a landing more than one full one
     const double FlightWeight = 0.25;  // the part of the flying time that counts when comparing plans (the times shown are the real ones)
     const double SyncSeconds = StopSeconds;   // delivering cargo from Ruin where the trip picks up anyway: one landing does both, so that is a landing saved
@@ -922,7 +922,7 @@ public static class TripPlanner
             trips.Add(trip);
         }
 
-        // the Trip Planner shows the most valuable trip first (PlanService.Queue, it knows what the batches are worth); this order decides between trips worth the same
+        // the Trip Planner orders the trips again (PlanService.Queue: one stop trips first, the waste first, then what they earn per hour); this order decides between trips the same on that
         var order2 = workers.Select(c => c.Name).ToList();
         return trips
             .OrderBy(tp => order2.IndexOf(tp.Worker))
