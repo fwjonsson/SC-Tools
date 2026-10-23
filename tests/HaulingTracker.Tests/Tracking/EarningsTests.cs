@@ -16,6 +16,9 @@ public class EarningsTests
         // a from-Ruin contract pays the same as a to-Ruin one with as many stops
         Assert.Equal(Earnings.DefaultReward2, Earnings.WasteRewardOf(new Mission { OutDrops = 2 }, inp));
         Assert.Equal(0m, Earnings.WasteRewardOf(new Mission { OutDrops = 2 }, null));
+        Assert.Equal(795_750m, Earnings.WasteRewardOf(new Mission { OutDrops = 1 }, inp));   // a direct one
+        inp.DirectReward = 800_000m;
+        Assert.Equal(800_000m, Earnings.WasteRewardOf(new Mission { OutDrops = 1 }, inp));
     }
 
     [Fact]
@@ -28,15 +31,16 @@ public class EarningsTests
         Assert.Equal(Earnings.DefaultReward4, inp.Reward4);
         Assert.Equal(Earnings.DefaultReward2, inp.WasteReward2);
         Assert.Equal(Earnings.DefaultReward4, inp.WasteReward4);
+        Assert.Equal(Earnings.DefaultDirectReward, inp.DirectReward);
     }
 
     [Fact]
     public void The_rewards_table_has_a_row_for_every_kind_of_contract()
     {
-        Assert.Equal(new[] { "2 To Ruin", "3 To Ruin", "4 To Ruin", "2 From Ruin", "3 From Ruin", "4 From Ruin" }, Earnings.RewardLines.Select(l => l.Contract));
+        Assert.Equal(new[] { "2 To Ruin", "3 To Ruin", "4 To Ruin", "2 From Ruin", "3 From Ruin", "4 From Ruin", "Direct From Ruin" }, Earnings.RewardLines.Select(l => l.Contract));
         var accepted = new[] { new Mission { Multi = 2 }, new Mission { Multi = 3 }, new Mission { Multi = 3 } };
-        var waste = new[] { new Mission { OutDrops = 3 } };
-        Assert.Equal(new[] { 1, 2, 0, 0, 1, 0 }, Earnings.RewardLines.Select(l => l.CountIn(accepted, waste)));
+        var waste = new[] { new Mission { OutDrops = 3 }, new Mission { OutDrops = 1 }, new Mission { OutDrops = 1 } };
+        Assert.Equal(new[] { 1, 2, 0, 0, 1, 0, 2 }, Earnings.RewardLines.Select(l => l.CountIn(accepted, waste)));
         var inp = new SessionInputs();
         Earnings.RewardLines[4].Set(inp, 123m);
         Assert.Equal(123m, inp.WasteReward3);

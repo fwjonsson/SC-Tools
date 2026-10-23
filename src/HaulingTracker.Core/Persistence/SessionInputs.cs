@@ -14,6 +14,7 @@ public sealed class SessionInputs
     public decimal WasteReward2 { get; set; }   // payout of a from-Ruin (waste) contract with 2 drop-offs
     public decimal WasteReward3 { get; set; }   // ... with 3 drop-offs
     public decimal WasteReward4 { get; set; }   // ... with 4 drop-offs
+    public decimal DirectReward { get; set; }   // payout of a direct from-Ruin contract (one drop-off: "DIRECT Stellar Large Haul")
     public List<string> LostRuns { get; set; } = new();   // old format: runs ticked as "lost cargo" (counts as All)
     public Dictionary<string, string> LostCargo { get; set; } = new();   // run key -> Little or All
     public List<ManualEnd> ManualEnds { get; set; } = new();

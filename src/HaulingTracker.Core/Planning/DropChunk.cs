@@ -1,8 +1,8 @@
 namespace HaulingTracker.Planning;
 
 /// <summary>
-/// The load of ONE from-Ruin mission for ONE station (no more than a ship holds). The waste of different missions looks the same, so a trip only ever leaves Ruin
-/// with the load for its first stop.
+/// The load for ONE station: its drop-offs of the from-Ruin missions (no more than a ship holds). The waste of different missions looks the same, so a trip only
+/// ever leaves Ruin with the load for its first stop (and unloads all of it there).
 /// </summary>
 public sealed class DropChunk
 {

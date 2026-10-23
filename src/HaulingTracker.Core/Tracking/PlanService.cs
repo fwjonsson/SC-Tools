@@ -702,7 +702,9 @@ public sealed class PlanService
         if (drops.Count > 0)
         {
             var cap = flyers.Count == 0 ? 0 : crew.Where(c => c.Capacity > 0).Min(c => c.Capacity);
-            chunks = _dropOffs.DropChunks(drops, flyers, cap);
+            // the loads for one station go together as far as the biggest ship holds them (the plan's 90%, like the pickups); only a ship that holds a load gets it
+            var maxScu = flyers.Count == 0 ? 0 : crew.Where(c => c.Capacity > 0).Max(c => (int)((_crew.ShipOf(c.Name)?.Total ?? c.Capacity * 232) * PlanFill));
+            chunks = _dropOffs.DropChunks(drops, flyers, cap, maxScu);
             var lost = drops.Count(d => d.Station == null);
             if (lost > 0) dropNote = "From Ruin: " + lost + (lost == 1 ? " drop-off is" : " drop-offs are") + " to a place that is not in the distance table, so left out.";
         }

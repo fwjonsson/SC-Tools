@@ -74,8 +74,10 @@ public sealed class HaulingLog
         @"_StationToRuin_(?<cargo>[A-Za-z]+)_CargoHauling_Multi(?<n>\d)ToSingle",
         RegexOptions.Compiled);
 
+    // from Ruin: "..._RuinToStation_Waste_CargoHauling_SingleToMulti2" (2 to 4 drop-offs), or a direct one ("DIRECT Stellar Large Haul", one drop-off):
+    // "..._RuinToStation_RegionC_Waste_CargoHauling_AtoB" (the cargo is the last part before _CargoHauling)
     static readonly Regex OutContract = new(
-        @"_RuinToStation_(?<cargo>[A-Za-z]+)_CargoHauling_SingleToMulti(?<n>\d)",
+        @"_RuinToStation_(?:[A-Za-z0-9]+_)*(?<cargo>[A-Za-z]+)_CargoHauling_(?:SingleToMulti(?<n>\d)|(?<direct>AtoB))",
         RegexOptions.Compiled);
 
     public Dictionary<string, Mission> Missions { get; } = new();
@@ -479,7 +481,7 @@ public sealed class HaulingLog
                 if (o.Success)
                 {
                     m.OutCargo = o.Groups["cargo"].Value;
-                    m.OutDrops = int.Parse(o.Groups["n"].Value, CultureInfo.InvariantCulture);
+                    m.OutDrops = o.Groups["direct"].Success ? 1 : int.Parse(o.Groups["n"].Value, CultureInfo.InvariantCulture);
                 }
             }
             m.ObjZone[x.Groups["o"].Value] = x.Groups["z"].Value;

@@ -63,6 +63,46 @@ public class DropOffsTests
         Assert.Empty(t.DropOffs.DropChunks(t.DropOffs.OpenDrops(), new List<string> { "Pilot_A" }, 0));   // nobody has room
     }
 
+    static readonly string D = GameLogWriter.MissionId(42);
+
+    /// <summary>The waste contract above, and a direct one for Gaslight as well (one drop-off, 421 SCU), as zzatvo's log of 23 Oct 15:09 writes it.</summary>
+    static Tracker WithDirect()
+    {
+        var w = WasteLog().Minutes(1).Accepted(D)
+            .Marker(D, GameLogWriter.DirectContract, "pickup_d_0", "900000004204", GameLogWriter.RuinStation)
+            .Marker(D, GameLogWriter.DirectContract, "dropoff_d_0", "900000004203", GameLogWriter.Gaslight)
+            .DeliverPopup(D, "dropoff_d_0", 421, "Waste", "Gaslight at the L2 Lagrange of Pyro V");
+        var t = new Tracker(new AppData { Party = new List<string> { "Pilot_A" } }, _ => { });
+        t.Load(new[] { w.Read() });
+        return t;
+    }
+
+    [Fact]
+    public void A_direct_contract_is_a_drop_off_to_do_like_the_waste()
+    {
+        var t = WithDirect();
+        var direct = t.DropOffs.OpenDrops().Single(d => d.Mission.Id == D);
+        Assert.True(direct.Mission.IsDirect);
+        Assert.Equal(PlayedSession.Gaslight, direct.Station);
+        Assert.Equal(421, direct.Scu);
+        Assert.Equal("Direct From Ruin", Contracts.ContractName(direct.Mission));
+    }
+
+    [Fact]
+    public void A_direct_load_goes_out_with_the_waste_for_the_same_station_as_far_as_a_ship_holds_them()
+    {
+        var t = WithDirect();
+        var together = Assert.Single(t.DropOffs.DropChunks(t.DropOffs.OpenDrops(), new List<string> { "Pilot_A" }, 3, 741));
+        Assert.Equal(PlayedSession.Gaslight, together.Station);
+        Assert.Equal(2, together.Batches);
+        Assert.Equal(76 + 421, together.Scu);
+        Assert.Equal("Waste", together.Cargo);
+        Assert.Equal(new[] { W + "|dropoff_w_0", D + "|dropoff_d_0" }, together.Keys);
+
+        var apart = t.DropOffs.DropChunks(t.DropOffs.OpenDrops(), new List<string> { "Pilot_A" }, 3, 450);   // a smaller ship: 76 + 421 does not fit
+        Assert.Equal(new[] { 1, 1 }, apart.Select(c => c.Batches));
+    }
+
     [Fact]
     public void Typed_scu_fills_in_what_the_game_did_not_say_and_the_game_wins()
     {

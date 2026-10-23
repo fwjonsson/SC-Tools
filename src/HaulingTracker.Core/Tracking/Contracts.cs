@@ -40,8 +40,8 @@ public sealed class Contracts
             && !((m.Accepted ?? m.FirstSeen) is { } seen && log.LastTime - seen > TimeSpan.FromHours(12))).ToList();
     }
 
-    /// <summary>The name of a contract in the tables, the same as the rows of the rewards table: "3 To Ruin", "2 From Ruin".</summary>
-    public static string ContractName(Mission m) => m.IsOut ? m.OutDrops + " From Ruin" : m.Multi > 0 ? m.Multi + " To Ruin" : "?";
+    /// <summary>The name of a contract in the tables, the same as the rows of the rewards table: "3 To Ruin", "2 From Ruin", "Direct From Ruin".</summary>
+    public static string ContractName(Mission m) => m.IsDirect ? "Direct From Ruin" : m.IsOut ? m.OutDrops + " From Ruin" : m.Multi > 0 ? m.Multi + " To Ruin" : "?";
 
     /// <summary>The Stops cell of a contract: its pickups (✓ = picked up), or for a from-Ruin contract its drop-offs with their SCU (✓ = delivered).</summary>
     public string ContractStopsText(Mission m)

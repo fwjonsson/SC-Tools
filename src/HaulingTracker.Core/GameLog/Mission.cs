@@ -25,10 +25,14 @@ public sealed class Mission
     /// <summary>The mission was marked as gone on the Contracts tab (it is not in the game any more, but the logs never said so). Only set on the missions of the merged log.</summary>
     public bool Dropped;
 
-    /// <summary>A from-Ruin contract ("Single to Multi"): the cargo is loaded at Ruin and dropped off at 2 to 4 stations. Its cargo and the number of drop-offs.</summary>
+    /// <summary>
+    /// A from-Ruin contract: the cargo is loaded at Ruin and dropped off at 2 to 4 stations ("Single to Multi"), or at one ("DIRECT Stellar Large Haul", A to B).
+    /// Its cargo and the number of drop-offs.
+    /// </summary>
     public string? OutCargo;
     public int OutDrops;
     public bool IsOut => OutDrops > 0;
+    public bool IsDirect => OutDrops == 1;
 
     /// <summary>The SCU of every objective, from its "Deliver 0/147 SCU of Waste to ..." popup (objective id to the total SCU). For a from-Ruin contract that is the load for that drop-off.</summary>
     public Dictionary<string, int> ObjScu = new();
