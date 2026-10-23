@@ -11,7 +11,7 @@ public sealed partial class MainForm
     {
         Theme.Dark = !Theme.Dark;
         _data.DarkMode = Theme.Dark;
-        Storage.Save(_data);
+        _state.Save();
         _themeBtn.Text = ThemeButtonText();
 
         SuspendLayout();
@@ -20,7 +20,7 @@ public sealed partial class MainForm
 
         // rows carry their own colours: draw them again
         _renderedVersion = -1;
-        if (_log != null) RefreshFromLog();
+        if (_state.Log != null) RefreshFromLog();
         RefreshDebts();
         RefreshPartyPanel();
         if (_planBody.Visible && _planBody.IsHandleCreated) RefreshPlanner();

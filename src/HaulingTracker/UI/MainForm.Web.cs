@@ -30,14 +30,14 @@ public sealed partial class MainForm
         {
             StopWeb();
             _data.WebView = false;
-            Storage.Save(_data);
+            _state.Save();
             SetStatus("The live web view is off.");
             return;
         }
         if (StartWeb(true))
         {
             _data.WebView = true;
-            Storage.Save(_data);
+            _state.Save();
         }
     }
 
@@ -136,7 +136,7 @@ public sealed partial class MainForm
     /// <summary>The Debts tab for everybody: earnings, the balance of every member with the others, and all money transfers.</summary>
     object WebDebts()
     {
-        var party = DebtPartyNames();
+        var party = _payouts.DebtPartyNames();
         var nets = DebtCalc.Nets(_data.Sessions.Values, _data.Transfers);
         var settle = DebtCalc.Settle(nets);
         var headers = new[] { ("Party Member", "left"), ("Balance", "right"), ("Meaning", "left") };
@@ -145,8 +145,8 @@ public sealed partial class MainForm
             name = me,
             grid = WebSimple(headers, party.Where(o => !SameName(o, me)).Select(o =>
             {
-                var shown = DebtCalc.Between(settle, me, o) + GetAdj(me, o);
-                return new[] { o, Signed(shown), Meaning(me, o, shown) };
+                var shown = DebtCalc.Between(settle, me, o) + _payouts.GetAdj(me, o);
+                return new[] { o, Signed(shown), Payouts.Meaning(me, o, shown) };
             })),
         }).ToList();
         var transfers = WebSimple(
@@ -181,15 +181,15 @@ public sealed partial class MainForm
             headers = headers.Select(h => new { text = h.Item1, align = h.Item2 }).ToList(),
             rows = _data.Party.Select(n =>
             {
-                var active = IsActiveAt(n, DateTime.UtcNow);
+                var active = _crew.IsActiveAt(n, DateTime.UtcNow);
                 var color = WorkerColor(n);
                 var back = active ? color : Faded(color);
                 var cells = new[]
                 {
                     n.ToUpperInvariant(),
                     active ? "Yes" : "No",
-                    Math.Max(1, ShipCapacityOf(n)).ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    DriveOf(n)?.Label ?? "",
+                    Math.Max(1, _crew.ShipCapacityOf(n)).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    _crew.DriveOf(n)?.Label ?? "",
                 };
                 return new
                 {

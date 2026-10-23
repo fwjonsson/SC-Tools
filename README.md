@@ -23,8 +23,12 @@ To make a single exe: `dotnet publish src/HaulingTracker -c Release -r win-x64 -
         GameData/              the Pyro stations and distances, quantum drives, ships
         Debts/                 who owes whom (DebtCalc)
         Persistence/           the saved data (AppData and the classes in it) and where it is saved (Storage)
-      HaulingTracker/          the Windows program (WinForms)
+        Tracking/              the logic of the tabs, working from what the program knows now (TrackerState: the merged log, the
+                               sessions, the session shown with its stops and runs). Tracker makes the services and wires them:
+                               Places, Crew, Contracts, Earnings, DropOffs, CargoRuns, Whereabouts, SessionFigures, Payouts, Leaderboard
+      HaulingTracker/          the Windows program (WinForms): it shows what the services give it
         UI/                    the main window, one file per part of it: MainForm.Planner.cs, MainForm.Debts.cs, ...
+        UI/Tables/             the names of the table columns (cells are found by name, never by number) and AddRow
         UI/Controls/           the map (PyroMapView) and the themed controls
         UI/Theming/            the light and dark colours
         UI/MainForm.Web.cs     what the live web view shows (the data it sends)

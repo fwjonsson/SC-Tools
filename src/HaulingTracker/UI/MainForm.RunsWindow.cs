@@ -69,7 +69,7 @@ public sealed partial class MainForm
 
         var f = new Form
         {
-            Text = "Cargo Runs" + (_current != null ? " – " + _sessionBox.Text : ""),
+            Text = "Cargo Runs" + (_state.Current != null ? " – " + _sessionBox.Text : ""),
             Width = Math.Min(1600, Screen.FromControl(this).WorkingArea.Width - 80),
             Height = Math.Min(900, Screen.FromControl(this).WorkingArea.Height - 80),
             StartPosition = FormStartPosition.CenterParent,
@@ -136,6 +136,6 @@ public sealed partial class MainForm
         {
             g.ResumeLayout();
         }
-        if (_runsWindow != null) _runsWindow.Text = "Cargo Runs – " + _tripGrid.Rows.Count + (_tripGrid.Rows.Count == 1 ? " run" : " runs") + (_current != null ? " – " + _sessionBox.Text : "");
+        if (_runsWindow != null) _runsWindow.Text = "Cargo Runs – " + _tripGrid.Rows.Count + (_tripGrid.Rows.Count == 1 ? " run" : " runs") + (_state.Current != null ? " – " + _sessionBox.Text : "");
     }
 }

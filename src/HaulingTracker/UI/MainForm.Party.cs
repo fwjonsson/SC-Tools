@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace HaulingTracker.UI;
 
 // The Party table on the front page (top right): who is in the party, who is active, and since when.
@@ -12,78 +10,6 @@ public sealed partial class MainForm
     readonly Button _partyAddBtn = new();
     readonly Button _partyRemoveBtn = new();
     bool _partyUpdating;
-
-    // ------------------------------------------------------------------ who was in the party when
-
-    /// <summary>All names that are or were in the party.</summary>
-    List<string> PartyNamesAll()
-    {
-        var list = new List<string>(_data.Party);
-        foreach (var c in _data.PartyChanges)
-        {
-            if (!list.Any(x => SameName(x, c.Name))) list.Add(c.Name);
-        }
-        return list;
-    }
-
-    /// <summary>
-    /// Was this person active in the party at this time? Without any saved change that is simply the Active tick now.
-    /// Before his first saved change he was the opposite of what that change says (a first "joined" means he was not there before).
-    /// </summary>
-    bool IsActiveAt(string name, DateTime utc)
-    {
-        var changes = _data.PartyChanges.Where(c => SameName(c.Name, name)).OrderBy(c => c.TimeUtc).ToList();
-        if (changes.Count == 0) return !_data.InactiveParty.Any(x => SameName(x, name));
-        PartyChange? last = null;
-        foreach (var c in changes)
-        {
-            if (c.TimeUtc <= utc) last = c;
-            else break;
-        }
-        return last != null ? last.Active : !changes[0].Active;
-    }
-
-    List<string> PartyAt(DateTime utc) => PartyNamesAll().Where(n => IsActiveAt(n, utc)).ToList();
-
-    /// <summary>From this time on the payouts are split by who was in the party at that moment. Earlier missions keep the old split.</summary>
-    DateTime PartyTrackingStart()
-    {
-        var t = _data.PartyTrackingSince ?? DateTime.UtcNow;
-        foreach (var c in _data.PartyChanges)
-        {
-            if (c.TimeUtc < t) t = c.TimeUtc;
-        }
-        return t;
-    }
-
-    void SetMemberActive(string name, bool active, DateTime? at = null)
-    {
-        _data.PartyTrackingSince ??= DateTime.UtcNow;
-        _data.PartyChanges.Add(new PartyChange { Name = name, TimeUtc = at ?? DateTime.UtcNow, Active = active });
-        _data.InactiveParty.RemoveAll(x => SameName(x, name));
-        if (!active) _data.InactiveParty.Add(name);
-    }
-
-    // ------------------------------------------------------------------ ships
-
-    /// <summary>The ship set for this worker, or null.</summary>
-    Ship? ShipOf(string name)
-    {
-        var key = _data.Ship.FirstOrDefault(kv => SameName(kv.Key, name)).Value;
-        return Ships.Find(key);
-    }
-
-    // ------------------------------------------------------------------ quantum drives
-
-    /// <summary>The quantum drive set for this worker, or null.</summary>
-    QtDrive? DriveOf(string name)
-    {
-        var key = _data.QuantumDrive.FirstOrDefault(kv => SameName(kv.Key, name)).Value;
-        return QuantumDrives.Find(key);
-    }
-
-    /// <summary>The drive for the travel time estimates. Without a drive set, a common one is assumed.</summary>
-    QtDrive QtOf(string name) => DriveOf(name) ?? QuantumDrives.Assumed;
 
     // ------------------------------------------------------------------ the panel
 
@@ -153,8 +79,7 @@ public sealed partial class MainForm
             if (name.Length == 0) return;
             using var dlg = new ColorDialog { Color = WorkerColor(name), FullOpen = true };
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
-            foreach (var k in _data.WorkerColors.Keys.Where(k => SameName(k, name)).ToList()) _data.WorkerColors.Remove(k);
-            _data.WorkerColors[name] = dlg.Color.ToArgb();
+            _crew.SetColor(name, dlg.Color.ToArgb());
             PartyChanged();
         };
         _partyGrid.DataError += (_, e) => e.ThrowException = false;
@@ -235,13 +160,13 @@ public sealed partial class MainForm
             _partyGrid.Rows.Clear();
             foreach (var name in _data.Party)
             {
-                var active = IsActiveAt(name, DateTime.UtcNow);
+                var active = _crew.IsActiveAt(name, DateTime.UtcNow);
                 var row = _partyGrid.AddRow(
                     (PartyCol.Member, name),
                     (PartyCol.Active, active),
-                    (PartyCol.Batches, Math.Max(1, ShipCapacityOf(name))),
-                    (PartyCol.Ship, ShipOf(name)?.Label ?? ""),
-                    (PartyCol.Drive, DriveOf(name)?.Label ?? ""),
+                    (PartyCol.Batches, Math.Max(1, _crew.ShipCapacityOf(name))),
+                    (PartyCol.Ship, _crew.ShipOf(name)?.Label ?? ""),
+                    (PartyCol.Drive, _crew.DriveOf(name)?.Label ?? ""),
                     (PartyCol.Color, ""));
                 if (!active) row.DefaultCellStyle.ForeColor = Theme.Muted;
                 var swatch = row.Cells[PartyCol.Color].Style;
@@ -265,7 +190,7 @@ public sealed partial class MainForm
 
     void PartyChanged()
     {
-        Storage.Save(_data);
+        _state.Save();
         BeginInvoke(new Action(() =>
         {
             _renderedVersion = -1;
@@ -287,29 +212,13 @@ public sealed partial class MainForm
         if (column == PartyCol.Active)
         {
             var active = row.Cells[PartyCol.Active].Value is true;
-            if (active == IsActiveAt(name, DateTime.UtcNow)) return;
-            SetMemberActive(name, active);
+            if (active == _crew.IsActiveAt(name, DateTime.UtcNow)) return;
+            _crew.SetMemberActive(name, active);
             SetStatus(name + (active ? " joined the party." : " left the party.") + " Mission payouts from now on are split between the active members.");
         }
-        else if (column == PartyCol.Batches)
-        {
-            var typed = (Convert.ToString(row.Cells[PartyCol.Batches].Value) ?? "").Trim();
-            _data.ShipCapacity[name] = int.TryParse(typed, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)
-                ? Math.Clamp(n, 1, MaxShipCapacity)
-                : DefaultShipCapacity;
-        }
-        else if (column == PartyCol.Ship)
-        {
-            var ship = Ships.Find(Convert.ToString(row.Cells[PartyCol.Ship].Value));
-            foreach (var k in _data.Ship.Keys.Where(k => SameName(k, name)).ToList()) _data.Ship.Remove(k);
-            if (ship != null) _data.Ship[name] = ship.Name;
-        }
-        else if (column == PartyCol.Drive)
-        {
-            var picked = QuantumDrives.Find(Convert.ToString(row.Cells[PartyCol.Drive].Value));
-            foreach (var k in _data.QuantumDrive.Keys.Where(k => SameName(k, name)).ToList()) _data.QuantumDrive.Remove(k);
-            if (picked != null) _data.QuantumDrive[name] = picked.Key;
-        }
+        else if (column == PartyCol.Batches) _crew.SetShipCapacity(name, Convert.ToString(row.Cells[PartyCol.Batches].Value) ?? "");
+        else if (column == PartyCol.Ship) _crew.SetShip(name, Convert.ToString(row.Cells[PartyCol.Ship].Value));
+        else if (column == PartyCol.Drive) _crew.SetDrive(name, Convert.ToString(row.Cells[PartyCol.Drive].Value));
         PartyChanged();
     }
 
@@ -317,22 +226,11 @@ public sealed partial class MainForm
     {
         var name = _partyName.Text.Trim();
         if (name.Length == 0) return;
-        var existing = _data.Party.FirstOrDefault(x => SameName(x, name));
-        if (existing != null)
+        if (!_crew.Join(name))
         {
-            if (IsActiveAt(existing, DateTime.UtcNow))
-            {
-                SetStatus(existing + " is already in the party.");
-                _partyName.Clear();
-                return;
-            }
-            SetMemberActive(existing, true);
-        }
-        else
-        {
-            _data.Party.Add(name);
-            if (!_data.ShipCapacity.ContainsKey(name)) _data.ShipCapacity[name] = DefaultShipCapacity;
-            SetMemberActive(name, true);
+            SetStatus(_data.Party.First(x => SameName(x, name)) + " is already in the party.");
+            _partyName.Clear();
+            return;
         }
         _partyName.Clear();
         SetStatus(name + " joined the party.");
@@ -352,9 +250,7 @@ public sealed partial class MainForm
             "Remove from Party", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
         if (answer != DialogResult.Yes) return;
 
-        if (IsActiveAt(name, DateTime.UtcNow)) SetMemberActive(name, false);
-        _data.Party.RemoveAll(x => SameName(x, name));
-        _data.InactiveParty.RemoveAll(x => SameName(x, name));
+        _crew.Remove(name);
         SetStatus(name + " was removed from the party.");
         PartyChanged();
     }

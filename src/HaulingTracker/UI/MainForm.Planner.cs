@@ -7,14 +7,10 @@ namespace HaulingTracker.UI;
 // the planned trips and a table: the runs so far (coloured like Cargo Runs) followed by the planned trips.
 public sealed partial class MainForm
 {
-    const int DefaultShipCapacity = 3;
-    const int MaxShipCapacity = 24;
-
     /// <summary>The colour of a worker on the Overview: the one picked in the Party table, else zzoega orange, zzatvo green, the others one of the palette.</summary>
     Color WorkerColor(string name)
     {
-        var picked = _data.WorkerColors.FirstOrDefault(kv => SameName(kv.Key, name));
-        if (picked.Key != null) return Color.FromArgb(picked.Value);
+        if (_crew.PickedColor(name) is int picked) return Color.FromArgb(picked);
         if (SameName(name, "zzoega")) return Color.FromArgb(255, 150, 40);
         if (SameName(name, "zzatvo")) return Color.FromArgb(60, 205, 95);
         var index = Math.Max(0, _data.Party.FindIndex(x => SameName(x, name)));
@@ -172,7 +168,7 @@ public sealed partial class MainForm
     /// <summary>The text of the button follows the session: Unlocked (the plan is free) or Locked (the next stop of everybody is kept for him).</summary>
     void UpdateLockButton()
     {
-        var on = _inputs?.NextStopsLocked == true;
+        var on = _state.Inputs?.NextStopsLocked == true;
         _lockBtn.Text = on ? "Next Stops: Locked" : "Next Stops: Unlocked";
         if (_lockBtn.Font.Bold != on) _lockBtn.Font = new Font(_lockBtn.Font, on ? FontStyle.Bold : FontStyle.Regular);
     }
@@ -183,12 +179,12 @@ public sealed partial class MainForm
     /// </summary>
     void ToggleLocks()
     {
-        if (_inputs == null)
+        if (_state.Inputs == null)
         {
             SetStatus("There is no session to plan.");
             return;
         }
-        var lockedNow = _inputs.NextStopsLocked;
+        var lockedNow = _state.Inputs.NextStopsLocked;
         var answer = MessageBox.Show(this,
             lockedNow
                 ? "Unlock the next stops?\n\nThe plan is free again, so it can change while people are on their way to a stop."
@@ -199,19 +195,19 @@ public sealed partial class MainForm
         _planShown = "";
         if (lockedNow)
         {
-            _inputs.NextStopsLocked = false;
-            _inputs.LockedTrips.Clear();
-            Storage.Save(_data);
+            _state.Inputs.NextStopsLocked = false;
+            _state.Inputs.LockedTrips.Clear();
+            _state.Save();
             SetStatus("The next stops are unlocked: the plan is free.");
             UpdateLockButton();
             RefreshPlanner();
             return;
         }
 
-        _inputs.LockedTrips.Clear();
+        _state.Inputs.LockedTrips.Clear();
         GetPlan();   // nothing is locked yet, so this is the free plan
         var core = _planCore;
-        _inputs.NextStopsLocked = true;
+        _state.Inputs.NextStopsLocked = true;
         var locked = 0;
         if (core != null)
         {
@@ -219,19 +215,19 @@ public sealed partial class MainForm
             foreach (var trip in core.Trips)
             {
                 if (!seen.Add(trip.Worker)) continue;   // the first trip of a worker is his Current
-                if (HasActiveRun(trip.Worker))
+                if (_runs.HasActiveRun(trip.Worker))
                 {
                     // he is flying a run now: the next stop of its continuation gets locked as soon as the plan is shown (see CoreFor)
-                    if (LockKey(trip.Worker) == null) _inputs.LockedTrips[trip.Worker] = new List<LockedStop>();
+                    if (LockKey(trip.Worker) == null) _state.Inputs.LockedTrips[trip.Worker] = new List<LockedStop>();
                     continue;
                 }
                 if (NothingToLock(trip)) continue;
-                _inputs.LockedTrips[LockKey(trip.Worker) ?? trip.Worker] = new List<LockedStop> { new() { Id = trip.Stops[0].Id, Batches = trip.Stops[0].Batches } };   // only his next stop
+                _state.Inputs.LockedTrips[LockKey(trip.Worker) ?? trip.Worker] = new List<LockedStop> { new() { Id = trip.Stops[0].Id, Batches = trip.Stops[0].Batches } };   // only his next stop
                 locked++;
             }
         }
         _planCore = null;
-        Storage.Save(_data);
+        _state.Save();
         SetStatus("The next stops are locked" + (locked > 0 ? " (" + locked + (locked == 1 ? " worker)." : " workers).") : "."));
         UpdateLockButton();
         RefreshPlanner();
@@ -240,7 +236,7 @@ public sealed partial class MainForm
     // ------------------------------------------------------------------ locked trips and who gets the credit
 
     /// <summary>The name a worker has in the locked trips of this session, or null when he has none.</summary>
-    string? LockKey(string name) => _inputs?.LockedTrips.Keys.FirstOrDefault(k => SameName(k, name));
+    string? LockKey(string name) => _state.Inputs?.LockedTrips.Keys.FirstOrDefault(k => SameName(k, name));
 
     /// <summary>
     /// A pickup that no log names (a member without a log) is credited to somebody once, and the credit is saved, so it never changes again (not when
@@ -250,11 +246,11 @@ public sealed partial class MainForm
     /// </summary>
     void ClaimNewPickups()
     {
-        if (_current == null || _inputs == null || _log == null) return;
+        if (_state.Current == null || _state.Inputs == null || _state.Log == null) return;
         var since = _data.PlanCreditSince ??= DateTime.UtcNow;
 
         var fresh = new List<(string Key, string Station, DateTime Time)>();
-        foreach (var m in _current.Missions)
+        foreach (var m in _state.Current.Missions)
         {
             foreach (var kv in m.ObjZone)
             {
@@ -263,19 +259,19 @@ public sealed partial class MainForm
                 var first = ev.Min(e => e.Time);
                 if (first < since) continue;
                 var key = m.Id + "|" + kv.Key;
-                if (_inputs.PickupClaims.ContainsKey(key)) continue;
-                if (WorkerTripBuilder.ActorAt(_log, true, first) != null) continue;   // a log shows who it was
-                var station = StationOf(kv.Value);
+                if (_state.Inputs.PickupClaims.ContainsKey(key)) continue;
+                if (WorkerTripBuilder.ActorAt(_state.Log, true, first) != null) continue;   // a log shows who it was
+                var station = _places.StationOf(kv.Value);
                 if (station == null) continue;
                 fresh.Add((key, station, first));
             }
         }
         if (fresh.Count == 0) return;
 
-        var crew = ActiveCrew().Where(n => ShipCapacityOf(n) > 0).ToList();
+        var crew = _crew.ActiveCrew().Where(n => _crew.ShipCapacityOf(n) > 0).ToList();
         var used = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);   // claimed just now
-        bool HasRoom(string n) => ShipCapacityOf(n) - (ActiveRunOf(n)?.Loaded ?? 0) - used.GetValueOrDefault(n) > 0;
-        var logged = new HashSet<string>(_log.UnstowByPlayer.Keys.Concat(_log.PlatformByPlayer.Keys), StringComparer.OrdinalIgnoreCase);
+        bool HasRoom(string n) => _crew.ShipCapacityOf(n) - (_runs.ActiveRunOf(n)?.Loaded ?? 0) - used.GetValueOrDefault(n) > 0;
+        var logged = new HashSet<string>(_state.Log.UnstowByPlayer.Keys.Concat(_state.Log.PlatformByPlayer.Keys), StringComparer.OrdinalIgnoreCase);
         var core = _planCore;
         var changed = false;
 
@@ -287,7 +283,7 @@ public sealed partial class MainForm
             {
                 var lk = LockKey(n);
                 if (lk == null) continue;
-                var stored = _inputs.LockedTrips[lk];
+                var stored = _state.Inputs.LockedTrips[lk];
                 if (stored.Count == 0 || stored[0].Id != group.Key) continue;
                 for (var i = 0; i < stored[0].Batches; i++) locked.Add(n);
             }
@@ -322,12 +318,12 @@ public sealed partial class MainForm
                     if (able.Count == 1) who = able[0];
                 }
                 if (who == null) continue;
-                _inputs.PickupClaims[f.Key] = who;
+                _state.Inputs.PickupClaims[f.Key] = who;
                 used[who] = used.GetValueOrDefault(who) + 1;
                 changed = true;
             }
         }
-        if (changed) Storage.Save(_data);
+        if (changed) _state.Save();
     }
 
     /// <summary>
@@ -371,11 +367,6 @@ public sealed partial class MainForm
         g.ScrollBars = ScrollBars.Vertical;
     }
 
-    int ShipCapacityOf(string name) =>
-        _data.ShipCapacity.TryGetValue(name, out var c) ? Math.Clamp(c, 0, MaxShipCapacity) : DefaultShipCapacity;
-
-    List<string> ActiveCrew() => _data.Party.Where(n => !_data.InactiveParty.Any(x => SameName(x, n))).ToList();
-
     /// <summary>
     /// The route of a planned trip as a short tag for the Queued routes table: just the stations, with Ruin as the first and the last stop
     /// (<c>Ruin → Rod's Fuel → Endgame → Ruin</c>). A trip that continues from a station (<c>From</c>) starts there. What is done at every stop is in the Current Route table.
@@ -400,7 +391,7 @@ public sealed partial class MainForm
     /// </summary>
     List<StopLine> LinesOf(PlannedTrip trip, string worker, Func<string, decimal> perBatch, Func<string, double> scuPerBatch, string? at = null)
     {
-        var drive = QtOf(worker);
+        var drive = _crew.QtOf(worker);
         var lines = new List<StopLine>();
         var prev = trip.From ?? at ?? PyroDistances.Ruin;
         var hasDrop = trip.Drops.Count > 0;
@@ -430,9 +421,9 @@ public sealed partial class MainForm
             var ruin = Add(PyroDistances.Ruin, "Ruin", false, collect);
             if (hasDrop)
             {
-                ruin.Loads.Add(LoadText(trip.DropParts));   // the SCU of the load and the containers it is cut into
+                ruin.Loads.Add(DropOffs.LoadText(trip.DropParts));   // the SCU of the load and the containers it is cut into
                 ruin.WasteScu = trip.DropParts.Where(x => x > 0).Sum();
-                ruin.Value = WasteValue(trip.DropKeys);     // what the load pays (reward / drop-offs of its contract), from the From Ruin rows of the rewards table
+                ruin.Value = _earnings.WasteValue(trip.DropKeys);     // what the load pays (reward / drop-offs of its contract), from the From Ruin rows of the rewards table
                 ruin.Unknown.AddRange(unknownKeys);
             }
         }
@@ -477,7 +468,7 @@ public sealed partial class MainForm
         }
         var prev = lines.LastOrDefault(l => l.Id.Length > 0)?.Id ?? PyroDistances.Ruin;
         var gm = PyroDistances.Between(prev, id);
-        var line = new StopLine { Id = id, Name = PyroDistances.NameOf(id), Batches = batches, Value = batches * perBatch, Scu = batches * scuPerBatch, Gm = gm, Seconds = gm > 0 ? QtOf(worker).Seconds(gm) : 0 };
+        var line = new StopLine { Id = id, Name = PyroDistances.NameOf(id), Batches = batches, Value = batches * perBatch, Scu = batches * scuPerBatch, Gm = gm, Seconds = gm > 0 ? _crew.QtOf(worker).Seconds(gm) : 0 };
         line.Actions.Add("Collect");
         line.Count = batches;
         lines.Add(line);
@@ -488,7 +479,7 @@ public sealed partial class MainForm
     {
         var prev = lines.LastOrDefault(l => l.Id.Length > 0)?.Id ?? PyroDistances.Ruin;
         var gm = PyroDistances.Between(prev, PyroDistances.Ruin);
-        var line = new StopLine { Id = PyroDistances.Ruin, Name = "Ruin", Stop = false, Gm = gm, Seconds = gm > 0 ? QtOf(worker).Seconds(gm) : 0 };
+        var line = new StopLine { Id = PyroDistances.Ruin, Name = "Ruin", Stop = false, Gm = gm, Seconds = gm > 0 ? _crew.QtOf(worker).Seconds(gm) : 0 };
         if (batches > 0) line.Actions.Add("Deliver");   // the Cargo column only says how much where it is collected
         var handedIn = lines.Sum(l => l.Scu);
         if (ShowPickupScu && handedIn > 0) line.Loads.Add(ScuGuess(handedIn));   // everything picked up is handed in here
@@ -515,49 +506,8 @@ public sealed partial class MainForm
         return !lines[lastDone].Busy && !lines[lastDone].Pending && lastDone + 1 < lines.Count ? lastDone + 1 : lastDone;
     }
 
-    /// <summary>What the batches of one pickup are worth: every mission pays its reward split over its stops (the same sum as the value of a run).</summary>
-    decimal PickupValue(TripPickup p)
-    {
-        if (_current == null || _inputs == null) return 0;
-        decimal total = 0;
-        foreach (var id in p.MissionIds)
-        {
-            var m = _current.Missions.FirstOrDefault(x => x.Id == id) ?? _current.Failed.FirstOrDefault(x => x.Id == id);
-            if (m == null || m.Multi == 0) continue;
-            total += RewardOf(m, _inputs) / m.Multi;
-        }
-        return total;
-    }
-
-    /// <summary>
-    /// One stop's share of the SCU of a hauling mission: the SCU of the whole mission (the "Deliver 0/490 SCU of Carbon to Ruin Station" popup) divided by its pickup stops.
-    /// The log does not say how much is loaded at each stop, so this is a guess; 0 when the SCU of the mission is not known.
-    /// </summary>
-    static double StopScu(Mission m)
-    {
-        if (m.Multi <= 0) return 0;
-        var all = m.ObjScu.Values.Sum();
-        return (all > 0 ? all : AssumedMissionScu) / (double)m.Multi;   // the game did not say (yet): these contracts are about 500 SCU
-    }
-
-    /// <summary>The SCU of a hauling mission when the game has not written it (its "Deliver 0/N SCU" popup): they are all about 500 SCU, give or take 30.</summary>
-    const int AssumedMissionScu = 500;
-
     /// <summary>How full the plan fills a ship (by the estimated SCU of the batches): the rest is headroom for missions that are bigger than the estimate.</summary>
     const double PlanFill = 0.9;
-
-    /// <summary>The SCU of the batches of one pickup (a guess, see StopScu).</summary>
-    double PickupScu(TripPickup p)
-    {
-        if (_current == null) return 0;
-        double total = 0;
-        foreach (var id in p.MissionIds)
-        {
-            var m = _current.Missions.FirstOrDefault(x => x.Id == id) ?? _current.Failed.FirstOrDefault(x => x.Id == id);
-            if (m != null) total += StopScu(m);
-        }
-        return total;
-    }
 
     /// <summary>
     /// Whether the Cargo column also guesses the SCU (as containers, "~5×32 + 2 + 1") of the cargo that is picked up for Ruin. Off: every pickup goes to the same place, so the
@@ -569,79 +519,15 @@ public sealed partial class MainForm
     static string BatchText(int n, double scu = 0) => n + (n == 1 ? " Batch" : " Batches") + (scu >= 1 ? " (~" + Math.Round(scu).ToString(CultureInfo.InvariantCulture) + " SCU)" : "");   // the SCU is an estimate: mission SCU / its stops
 
     /// <summary>A guessed amount of SCU as containers, like "~12×32 + 8".</summary>
-    static string ScuGuess(double scu) => Math.Round(scu) < 1 ? "? SCU" : "~" + ContainersText((int)Math.Round(scu));
-
-    /// <summary>The latest time the logs show the worker picking up, handing in or delivering a load from Ruin (the minimum time = nothing yet).</summary>
-    DateTime LastMoveOf(string name)
-    {
-        var last = DateTime.MinValue;
-        foreach (var t in _trips.Where(t => SameName(t.Worker, name)))
-        {
-            if (t.End.HasValue && t.End.Value > last) last = t.End.Value;
-            foreach (var p in t.Pickups)
-            {
-                if (p.Time > last) last = p.Time;
-            }
-        }
-        var drop = LastDropOf(name);
-        return drop != null && drop.Value.Time > last ? drop.Value.Time : last;
-    }
-
-    /// <summary>
-    /// Where the logs say the worker is: at the station of his last pickup (a run in progress), or of the last load of a from-Ruin mission he delivered, whichever
-    /// is later; else at Ruin Station (nothing yet, or his run is handed in).
-    /// </summary>
-    string AutoLocationOf(string name)
-    {
-        var run = ActiveRunOf(name);
-        var drop = DropStartOf(name);
-        if (run?.From != null && (drop == null || run.Value.Last >= drop.Value.Time)) return run.Value.From!;
-        return drop?.Station ?? PyroDistances.Ruin;
-    }
-
-    /// <summary>
-    /// True when the logs show the worker doing something after this time that a station set by hand cannot outlast: taking waste out at Ruin (he is at Ruin then),
-    /// or selecting a quantum destination in his own log (he is on his way, and the logs follow him from there).
-    /// </summary>
-    bool ActedSince(string name, DateTime since)
-    {
-        if (_trips.Any(t => SameName(t.Worker, name) && t.Collects.Any(c => c.Time > since))) return true;
-        var travel = TravelOf(name);
-        return travel != null && travel.Any(e => e.Kind == QtKind.Selected && e.Time > since);
-    }
-
-    /// <summary>
-    /// The Current location of a worker: where he is now, and where the plan starts his next trip. The logs keep it up to date (AutoLocationOf: every pickup, every
-    /// delivery from Ruin, every hand-in). A station set by hand (for example at the start of a session, or when the logs miss something) holds until the logs
-    /// show him doing something after that, then the logs take over again.
-    /// </summary>
-    (string Id, bool ByHand) LocationOf(string name)
-    {
-        var kv = _data.StartPoints.FirstOrDefault(k => SameName(k.Key, name));
-        if (kv.Value != null)
-        {
-            if (LastMoveOf(name) > kv.Value.Since || ActedSince(name, kv.Value.Since))
-            {
-                _data.StartPoints.Remove(kv.Key);   // he has picked up, delivered, handed in, taken waste out or set a quantum destination since: the logs know better
-                Storage.Save(_data);
-            }
-            else if (PyroDistances.Points.Any(s => s.Id == kv.Value.Id))
-            {
-                return (kv.Value.Id, true);
-            }
-        }
-        return (AutoLocationOf(name), false);
-    }
+    static string ScuGuess(double scu) => Math.Round(scu) < 1 ? "? SCU" : "~" + DropOffs.ContainersText((int)Math.Round(scu));
 
     /// <summary>Sets (or, with null, clears) where a worker is by hand. His locked next stop is released, so the plan is free to start with a stop near him.</summary>
     void SetLocation(string name, string? stationId)
     {
-        foreach (var k in _data.StartPoints.Keys.Where(k => SameName(k, name)).ToList()) _data.StartPoints.Remove(k);
-        // the same station as the logs say is no choice at all; Ruin Station by hand is one (the station of his last delivery from Ruin does not take over then)
-        if (stationId != null && stationId != AutoLocationOf(name)) _data.StartPoints[name] = new StartPoint { Id = stationId, Since = DateTime.UtcNow };
+        _where.SetLocation(name, stationId);
         var lockKey = LockKey(name);
-        if (lockKey != null) _inputs!.LockedTrips.Remove(lockKey);
-        Storage.Save(_data);
+        if (lockKey != null) _state.Inputs!.LockedTrips.Remove(lockKey);
+        _state.Save();
         BeginInvoke(new Action(() =>
         {
             _planCore = null;
@@ -740,9 +626,6 @@ public sealed partial class MainForm
         _ => null,
     };
 
-    /// <summary>A run that has only waste taken out at Ruin or delivered in it (nothing picked up) is not shown as the worker's Current route once it is this old: nobody is flying it any more.</summary>
-    static readonly TimeSpan StaleLeg = TimeSpan.FromHours(3);
-
     /// <summary>
     /// The runs of one worker in the selected session, oldest first, as lines for his table. The lines are everything that was done in the run so far, in the order it
     /// happened, and stay until the run is handed in: Ruin (with the waste taken out there), the stations where waste was delivered, and the pickups.
@@ -750,17 +633,17 @@ public sealed partial class MainForm
     List<PlanRow> RunRows(string name)
     {
         var rows = new List<PlanRow>();
-        foreach (var t in _trips.Where(x => SameName(x.Worker, name) && !x.End.HasValue).OrderBy(RunStartedAt))   // finished runs are only on Cargo Runs
+        foreach (var t in _state.Trips.Where(x => SameName(x.Worker, name) && !x.End.HasValue).OrderBy(CargoRuns.RunStartedAt))   // finished runs are only on Cargo Runs
         {
             // a run with only waste in it: taking it out at Ruin is not a route yet (the plan still collects it), and a delivery from long ago is no run on the way
-            if (t.Pickups.Count == 0 && (t.Drops.Count == 0 || _log == null || _log.LastTime - RunLastActivity(t) > StaleLeg)) continue;
+            if (t.Pickups.Count == 0 && (t.Drops.Count == 0 || _state.Log == null || _state.Log.LastTime - CargoRuns.RunLastActivity(t) > CargoRuns.StaleLeg)) continue;
 
-            var level = t.Manual ? "All" : LostLevel(t.Key);
+            var level = t.Manual ? "All" : _runs.LostLevel(t.Key);
             var stops = new List<string>();
             var lines = new List<StopLine>();   // what is done, stop by stop (things done at the same place in a row are one line)
             var done = new Dictionary<StopLine, DoneAt>();
             var picked = 0;
-            var drive = QtOf(name);
+            var drive = _crew.QtOf(name);
             var from = PyroDistances.Ruin;
 
             // the run starts at Ruin: the waste taken out there is on this line
@@ -780,7 +663,7 @@ public sealed partial class MainForm
             }
 
             var steps = new List<(DateTime Time, Action Do)>();
-            foreach (var cluster in Clusters(t.Collects, x => x.Time, x => x.Cargo))
+            foreach (var cluster in CargoRuns.Clusters(t.Collects, x => x.Time, x => x.Cargo))
             {
                 var batch = cluster;
                 steps.Add((batch[0].Time, () =>
@@ -792,13 +675,13 @@ public sealed partial class MainForm
                     d.Last = batch.Max(x => x.Time);
                 }));
             }
-            foreach (var cluster in Clusters(t.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone))
+            foreach (var cluster in CargoRuns.Clusters(t.Drops, x => x.Time, x => x.Cargo + "|" + x.Zone))
             {
                 var batch = cluster;
                 steps.Add((batch[0].Time, () =>
                 {
-                    var id = StationOf(batch[0].Zone);
-                    var line = LineFor(id, LocationName(batch[0].Zone), false);
+                    var id = _places.StationOf(batch[0].Zone);
+                    var line = LineFor(id, _places.LocationName(batch[0].Zone), false);
                     if (id != null && (stops.Count == 0 || stops[^1] != id)) stops.Add(id);
                     var d = done[line];
                     d.Delivered += batch.Count;
@@ -814,12 +697,12 @@ public sealed partial class MainForm
                 {
                     var n = pick.MissionIds.Count > 0 ? pick.MissionIds.Count : pick.Missions;
                     picked += n;
-                    var id = StationOf(pick.Zone);
-                    var line = LineFor(id, LocationName(pick.Zone), false);
+                    var id = _places.StationOf(pick.Zone);
+                    var line = LineFor(id, _places.LocationName(pick.Zone), false);
                     if (id != null && (stops.Count == 0 || stops[^1] != id)) stops.Add(id);
                     line.Batches += n;
-                    line.Value += PickupValue(pick);
-                    line.Scu += PickupScu(pick);
+                    line.Value += _earnings.PickupValue(pick);
+                    line.Scu += _runs.PickupScu(pick);
                     done[line].Picked += n;
                     done[line].Last = pick.Time;
                 }));
@@ -831,7 +714,7 @@ public sealed partial class MainForm
             {
                 var d = done[line];
                 // waste sent down the elevator is delivered at once; only what still has to go into the ship (taken out at Ruin, picked up) keeps him busy
-                var busy = ReferenceEquals(line, lines[^1]) && (d.Taken > 0 || d.Picked > 0) && StillLoading(name, d.Last);
+                var busy = ReferenceEquals(line, lines[^1]) && (d.Taken > 0 || d.Picked > 0) && _where.StillLoading(name, d.Last);
                 var tick = busy ? "" : " \u2713";
                 line.Busy = busy;
                 if (d.Taken > 0)
@@ -840,8 +723,8 @@ public sealed partial class MainForm
                     // what was taken out is only known from what was delivered since: those loads, with their containers
                     if (t.Drops.Count > 0)
                     {
-                        line.Value += WasteValue(t);   // what the waste delivered so far pays (the value of the run counts it too)
-                        line.Loads.Add(LoadText(t.Drops.Select(x => x.Scu)));
+                        line.Value += _earnings.WasteValue(t);   // what the waste delivered so far pays (the value of the run counts it too)
+                        line.Loads.Add(DropOffs.LoadText(t.Drops.Select(x => x.Scu)));
                         line.WasteScu += t.Drops.Where(x => x.Scu > 0).Sum(x => x.Scu);
                         line.Unknown.AddRange(t.Drops.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
                     }
@@ -867,76 +750,24 @@ public sealed partial class MainForm
                 Seconds = t.End.HasValue ? Math.Max(0, (t.End.Value - t.Start).TotalSeconds) : 0,
                 Level = level == "All" ? "all" : level == "Little" ? "little" : t.End.HasValue ? "done" : "active",
                 Stops = stops,
-                Value = RunValue(t),
-                Flight = FlightOf(name, stops),
+                Value = _earnings.RunValue(t),
+                Flight = _runs.FlightOf(name, stops),
             });
         }
         return rows;
     }
-
-    /// <summary>The estimated flying time of Ruin, these stations and back to Ruin with the drive of the worker.</summary>
-    double FlightOf(string name, IEnumerable<string> stops)
-    {
-        var drive = QtOf(name);
-        var from = PyroDistances.Ruin;
-        double seconds = 0;
-        foreach (var id in stops)
-        {
-            seconds += drive.Seconds(PyroDistances.Between(from, id));
-            from = id;
-        }
-        return seconds + drive.Seconds(PyroDistances.Between(from, PyroDistances.Ruin));
-    }
-
-    /// <summary>The estimated flying time of a run on the Cargo Runs board: Ruin, the stations it went to (waste delivered, pickups) in order, and back to Ruin.</summary>
-    string RunFlightText(WorkerTrip t)
-    {
-        var stops = t.VisitedZones().Select(z => StationOf(z)).Where(id => id != null).Select(id => id!).ToList();
-        var seconds = stops.Count > 0 ? FlightOf(t.Worker, stops) : 0;
-        return seconds <= 0 ? "" : "~" + FlightSpan(seconds);
-    }
-
-    /// <summary>The run the worker is flying (picked up, not handed in yet): the batches on board and the station of the last pickup, or null. A run with only waste in it has no cargo of the plan on board.</summary>
-    /// <summary>The SCU he carries in his run in progress (an estimate: mission SCU / stops for every batch).</summary>
-    int LoadedScuOf(string name) =>
-        (int)Math.Round(_trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue).SelectMany(t => t.Pickups).Sum(PickupScu));
-
-    (int Loaded, string? From, DateTime Last)? ActiveRunOf(string name)
-    {
-        var loaded = 0;
-        string? from = null;
-        DateTime? latest = null;
-        var any = false;
-        foreach (var t in _trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue && t.Pickups.Count > 0))
-        {
-            any = true;
-            foreach (var p in t.Pickups)
-            {
-                loaded += p.Missions;
-                if (latest == null || p.Time > latest)
-                {
-                    latest = p.Time;
-                    from = StationOf(p.Zone);
-                }
-            }
-        }
-        return any ? (loaded, from, latest ?? DateTime.MinValue) : null;
-    }
-
-    /// <summary>True when the worker has a run that has pickups but is not handed in yet.</summary>
-    bool HasActiveRun(string name) => ActiveRunOf(name) != null;
 
     /// <summary>False when he has picked up somewhere else since the lock was set (he did not go where the lock said); true while he is still on his way, or after he picked up at the locked stop.</summary>
     bool FollowsLock(string name, string lockedId, DateTime? since)
     {
         // only the pickups after the lock was set count: a lock made while he was already flying a run is for the next pickup
         var picked = false;
-        foreach (var t in _trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue))
+        foreach (var t in _state.Trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue))
         {
             foreach (var p in t.Pickups.Where(p => since == null || p.Time > since))
             {
                 picked = true;
-                if (StationOf(p.Zone) == lockedId) return true;
+                if (_places.StationOf(p.Zone) == lockedId) return true;
             }
         }
         return !picked;   // no pickup since the lock: he is still on his way
@@ -961,40 +792,40 @@ public sealed partial class MainForm
             var remaining = new Dictionary<string, int>(open);
             var starts = new List<WorkerStart>();
             var waiting = new List<string>();   // on his way to nothing locked: the first stop of his next planned trip gets locked once it is planned
-            if (_inputs != null)
+            if (_state.Inputs != null)
             {
                 var changed = false;
-                var locking = _inputs.NextStopsLocked;
-                if (!locking && _inputs.LockedTrips.Count > 0)
+                var locking = _state.Inputs.NextStopsLocked;
+                if (!locking && _state.Inputs.LockedTrips.Count > 0)
                 {
-                    _inputs.LockedTrips.Clear();   // the button says Unlocked: the plan is free
+                    _state.Inputs.LockedTrips.Clear();   // the button says Unlocked: the plan is free
                     changed = true;
                 }
                 // somebody who left the party (or does not fly) has no locked stop: his batches go back to the others
-                foreach (var gone in _inputs.LockedTrips.Keys.Where(k => !crew.Any(c => c.Capacity > 0 && SameName(c.Name, k))).ToList())
+                foreach (var gone in _state.Inputs.LockedTrips.Keys.Where(k => !crew.Any(c => c.Capacity > 0 && SameName(c.Name, k))).ToList())
                 {
-                    _inputs.LockedTrips.Remove(gone);
+                    _state.Inputs.LockedTrips.Remove(gone);
                     changed = true;
                 }
                 foreach (var c in crew.Where(x => x.Capacity > 0))
                 {
-                    var run = ActiveRunOf(c.Name);
-                    var loc = LocationOf(c.Name).Id;   // where he is: the station of his last pickup or delivery (the logs), or the one set by hand
-                    var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, LoadedScu = LoadedScuOf(c.Name), From = loc == PyroDistances.Ruin ? null : loc };
+                    var run = _runs.ActiveRunOf(c.Name);
+                    var loc = _where.LocationOf(c.Name).Id;   // where he is: the station of his last pickup or delivery (the logs), or the one set by hand
+                    var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, LoadedScu = _runs.LoadedScuOf(c.Name), From = loc == PyroDistances.Ruin ? null : loc };
                     var lockKey = LockKey(c.Name);
                     if (lockKey == null && locking)
                     {
                         // with the button on Locked everybody who flies has his next stop kept for him: the first stop of his planned trip is where he is heading
-                        _inputs.LockedTrips[c.Name] = new List<LockedStop>();
+                        _state.Inputs.LockedTrips[c.Name] = new List<LockedStop>();
                         lockKey = c.Name;
                         changed = true;
                     }
                     if (lockKey != null)
                     {
-                        var stored = _inputs.LockedTrips[lockKey];
+                        var stored = _state.Inputs.LockedTrips[lockKey];
                         if (stored.Count > 0 && run != null && !FollowsLock(c.Name, stored[0].Id, stored[0].Since))
                         {
-                            _inputs.LockedTrips[lockKey] = stored = new List<LockedStop>();   // he picked up somewhere else: his trips are free again
+                            _state.Inputs.LockedTrips[lockKey] = stored = new List<LockedStop>();   // he picked up somewhere else: his trips are free again
                             changed = true;
                         }
                         if (stored.Count > 0)
@@ -1008,7 +839,7 @@ public sealed partial class MainForm
                             }
                             else
                             {
-                                _inputs.LockedTrips[lockKey] = new List<LockedStop>();   // picked up completely
+                                _state.Inputs.LockedTrips[lockKey] = new List<LockedStop>();   // picked up completely
                                 changed = true;
                             }
                         }
@@ -1016,7 +847,7 @@ public sealed partial class MainForm
                     }
                     // his own log shows the station he is flying to (or has arrived at) since his last pickup or delivery: what he can take there stays his,
                     // locked or not, so planning again for somebody else never takes it away from him while he is on his way or about to load
-                    var heading = start.FirstId == null ? HeadingFor(c.Name) : null;
+                    var heading = start.FirstId == null ? _where.HeadingFor(c.Name) : null;
                     if (heading != null && remaining.GetValueOrDefault(heading) > 0)
                     {
                         var notHis = limits.TryGetValue(heading, out var hl) ? hl.Where(x => !x.Workers.Contains(c.Name)).Sum(x => x.Batches) : 0;
@@ -1043,7 +874,7 @@ public sealed partial class MainForm
                     }
                     if (start.FirstId != null || start.Loaded > 0 || start.From != null) starts.Add(start);
                 }
-                if (changed) Storage.Save(_data);
+                if (changed) _state.Save();
             }
 
             var key = string.Join("|", crew.Select(c => c.Name + ":" + c.Capacity + ":" + shipScu.GetValueOrDefault(c.Name) + ":" + c.Drive.Key))
@@ -1067,7 +898,7 @@ public sealed partial class MainForm
                 Settled = settled,
             };
             _planCore = core;
-            if (waiting.Count == 0 || pass > 0 || _inputs == null) return core;
+            if (waiting.Count == 0 || pass > 0 || _state.Inputs == null) return core;
 
             // his run is handed in (or his lock was used up): the first stop of the trip planned for him is where he is going, so lock it (nothing planned = nothing to lock)
             foreach (var name in waiting)
@@ -1075,56 +906,56 @@ public sealed partial class MainForm
                 var lockKey = LockKey(name);
                 if (lockKey == null) continue;
                 var next = core.Trips.FirstOrDefault(t => t.Worker == name);
-                var flying = ActiveRunOf(name);
+                var flying = _runs.ActiveRunOf(name);
                 if (next == null || NothingToLock(next))
                 {
                     settled.Add(name);
-                    if (flying == null) _inputs.LockedTrips.Remove(lockKey);   // with a run in progress the marker stays: his next trip is locked once the run is handed in
+                    if (flying == null) _state.Inputs.LockedTrips.Remove(lockKey);   // with a run in progress the marker stays: his next trip is locked once the run is handed in
                 }
-                else _inputs.LockedTrips[lockKey] = new List<LockedStop> { new() { Id = next.Stops[0].Id, Batches = next.Stops[0].Batches, Since = flying?.Last } };
+                else _state.Inputs.LockedTrips[lockKey] = new List<LockedStop> { new() { Id = next.Stops[0].Id, Batches = next.Stops[0].Batches, Since = flying?.Last } };
             }
-            Storage.Save(_data);
+            _state.Save();
         }
     }
 
     /// <summary>The plan for the open batches of the selected session, with the runs so far. The trips are only worked out again when the batches or the crew change.</summary>
     PlanView GetPlan()
     {
-        var crew = ActiveCrew().Select(n => (Name: n, Capacity: ShipCapacityOf(n), Drive: QtOf(n))).ToList();
+        var crew = _crew.ActiveCrew().Select(n => (Name: n, Capacity: _crew.ShipCapacityOf(n), Drive: _crew.QtOf(n))).ToList();
         var remaining = new Dictionary<string, int>();
         var unknown = new List<string>();
         var worth = new Dictionary<string, (decimal Value, int Batches)>();   // station -> what its batches are worth together (the value of a stop is reward / stops of its mission)
         var volume = new Dictionary<string, (double Scu, int Stops)>();   // station -> the SCU of its open stops together (a guess, see StopScu) and how many stops that is
         var limits = new Dictionary<string, List<(string[] Workers, int Batches)>>();   // station -> batches that only some of the crew can take (they have those missions running, the others do not)
         var flyers = crew.Where(c => c.Capacity > 0).Select(c => c.Name).ToList();
-        if (_inputs != null)
+        if (_state.Inputs != null)
         {
-            foreach (var r in _openRows)
+            foreach (var r in _state.OpenRows)
             {
                 var left = r.Missions - r.Loaded;   // batches not picked up yet
                 if (left <= 0) continue;
-                var id = StationOf(r.Zone);
+                var id = _places.StationOf(r.Zone);
                 if (id != null && r.Missions > 0)
                 {
                     var was = worth.GetValueOrDefault(id);
-                    worth[id] = (was.Value + StopValue(r), was.Batches + r.Missions);
+                    worth[id] = (was.Value + _earnings.StopValue(r), was.Batches + r.Missions);
                 }
                 if (id == null)
                 {
-                    unknown.Add(LocationName(r.Zone) + " (" + left + ")");
+                    unknown.Add(_places.LocationName(r.Zone) + " (" + left + ")");
                     continue;
                 }
                 remaining[id] = remaining.GetValueOrDefault(id) + left;
                 foreach (var open in r.OpenMissions)
                 {
-                    var share = StopScu(open);
+                    var share = CargoRuns.StopScu(open);
                     if (share <= 0) continue;
                     var had = volume.GetValueOrDefault(id);
                     volume[id] = (had.Scu + share, had.Stops + 1);
                 }
                 foreach (var m in r.OpenMissions)
                 {
-                    var can = flyers.Where(n => HasMission(m, n)).ToArray();   // the Contracts tab: who has this mission
+                    var can = flyers.Where(n => _contracts.HasMission(m, n)).ToArray();   // the Contracts tab: who has this mission
                     if (can.Length == 0 || can.Length == flyers.Count) continue;
                     if (!limits.TryGetValue(id, out var gl)) limits[id] = gl = new List<(string[] Workers, int Batches)>();
                     var same = gl.FindIndex(x => x.Workers.SequenceEqual(can));
@@ -1135,21 +966,21 @@ public sealed partial class MainForm
         }
 
         // cargo that goes out from Ruin (from-Ruin contracts): the planner gives every worker the loads of his missions, each in a trip of its own that unloads at its first stop
-        var drops = OpenDrops();
+        var drops = _dropOffs.OpenDrops();
         var chunks = new List<DropChunk>();
         var dropNote = "";
         if (drops.Count > 0)
         {
             var cap = flyers.Count == 0 ? 0 : crew.Where(c => c.Capacity > 0).Min(c => c.Capacity);
-            chunks = DropChunks(drops, flyers, cap);
+            chunks = _dropOffs.DropChunks(drops, flyers, cap);
             var lost = drops.Count(d => d.Station == null);
             if (lost > 0) dropNote = "From Ruin: " + lost + (lost == 1 ? " drop-off is" : " drop-offs are") + " to a place that is not in the distance table, so left out.";
         }
         // the ships are filled by SCU: what a batch of every station takes (its open stops on average: mission SCU / stops), and what every ship holds
-        var batchScu = remaining.Keys.ToDictionary(id => id, id => Math.Max(1, (int)Math.Round(volume.TryGetValue(id, out var v) && v.Stops > 0 ? v.Scu / v.Stops : AssumedMissionScu / 3.0)));
+        var batchScu = remaining.Keys.ToDictionary(id => id, id => Math.Max(1, (int)Math.Round(volume.TryGetValue(id, out var v) && v.Stops > 0 ? v.Scu / v.Stops : CargoRuns.AssumedMissionScu / 3.0)));
         // what every ship holds, less some headroom: the SCU of a batch is an estimate (missions are 500 SCU give or take, and not split evenly over their stations),
         // so the plan fills a ship to 90%, not to the last SCU (a C2: 742 of 824). No ship set: his batches times a third of a C2.
-        var shipScu = crew.Where(c => c.Capacity > 0).ToDictionary(c => c.Name, c => (int)((ShipOf(c.Name)?.Total ?? c.Capacity * 232) * PlanFill));
+        var shipScu = crew.Where(c => c.Capacity > 0).ToDictionary(c => c.Name, c => (int)((_crew.ShipOf(c.Name)?.Total ?? c.Capacity * 232) * PlanFill));
         var core = CoreFor(crew, remaining, unknown, limits, chunks, batchScu, shipScu);
         var dropTrips = core.Trips;
         // the waste only rides along on the pickup trips: a load that none of them can take along waits (the note says so)
@@ -1170,7 +1001,7 @@ public sealed partial class MainForm
         for (var i = 0; i < flying.Count; i++)
         {
             var c = flying[i];
-            var drive = DriveOf(c.Name);
+            var drive = _crew.DriveOf(c.Name);
             var w = new PlanWorkerView
             {
                 Name = c.Name,
@@ -1179,11 +1010,11 @@ public sealed partial class MainForm
                 Drive = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : drive.Key + ", " + (drive.Speed / 1e6).ToString("0", CultureInfo.InvariantCulture) + " Mm/s",
                 Color = WorkerColor(c.Name),
             };
-            w.RunsSoFar = _trips.Count(x => SameName(x.Worker, c.Name));
-            var standing = LocationOf(c.Name);
+            w.RunsSoFar = _state.Trips.Count(x => SameName(x.Worker, c.Name));
+            var standing = _where.LocationOf(c.Name);
             w.LocationId = standing.Id;
             w.LocationByHand = standing.ByHand;
-            w.AutoLocationId = AutoLocationOf(c.Name);
+            w.AutoLocationId = _where.AutoLocationOf(c.Name);
             w.Rows.AddRange(RunRows(c.Name));
             // the run in progress is his Current trip (a locked stop is marked in the Route cell of a planned trip)
             var runRow = w.Rows.LastOrDefault(r => r.Level == "active");
@@ -1204,7 +1035,7 @@ public sealed partial class MainForm
                     Route = RouteText(mine[k]),
                     Batches = mine[k].Batches.ToString(CultureInfo.InvariantCulture),
                     BatchCount = mine[k].Batches,
-                    Value = mine[k].Stops.Sum(s => s.Batches * PerBatch(s.Id)) + WasteValue(mine[k].DropKeys),
+                    Value = mine[k].Stops.Sum(s => s.Batches * PerBatch(s.Id)) + _earnings.WasteValue(mine[k].DropKeys),
                     Gm = mine[k].Distance,
                     Seconds = mine[k].Seconds,
                     Flight = mine[k].Seconds,
@@ -1224,7 +1055,7 @@ public sealed partial class MainForm
                 runRow.Batches = runRow.BatchCount.ToString(CultureInfo.InvariantCulture);
                 runRow.Stops = runRow.Stops.Concat(cont.Stops.Select(s => s.Id)).ToList();
                 runRow.Gm = PyroDistances.Run(runRow.Stops);
-                runRow.Flight = FlightOf(c.Name, runRow.Stops);   // the whole run, Ruin to Ruin
+                runRow.Flight = _runs.FlightOf(c.Name, runRow.Stops);   // the whole run, Ruin to Ruin
                 foreach (var (stopId, stopBatches) in cont.Stops) AddCollectLine(runRow.Lines, c.Name, stopId, stopBatches, PerBatch(stopId), ScuPerBatch(stopId));
                 w.Rows.First(r => r.Trip == cont).Hidden = true;
             }
@@ -1243,16 +1074,16 @@ public sealed partial class MainForm
             // still at it (he has not set his next quantum destination, only known from his own log), then "Collected Waste ✓" and his colour moves on to the next stop
             if (runRow == null && mine.Count > 0 && mine[0].From == null && mine[0].Drops.Count > 0)
             {
-                var takenRun = _trips.Where(x => SameName(x.Worker, c.Name) && !x.End.HasValue && x.Pickups.Count == 0 && x.Drops.Count == 0 && x.Collects.Count > 0)
+                var takenRun = _state.Trips.Where(x => SameName(x.Worker, c.Name) && !x.End.HasValue && x.Pickups.Count == 0 && x.Drops.Count == 0 && x.Collects.Count > 0)
                     .OrderBy(x => x.Start).LastOrDefault();
                 var firstRow = w.Rows.FirstOrDefault(r => r.Trip == mine[0]);
                 var startLine = firstRow?.Lines.FirstOrDefault(l => l.Id == PyroDistances.Ruin && !l.Stop);
                 var loadedAt = takenRun?.Collects.Max(x => x.Time) ?? DateTime.MinValue;
-                if (takenRun != null && startLine != null && _log != null && _log.LastTime - loadedAt <= StaleLeg)
+                if (takenRun != null && startLine != null && _state.Log != null && _state.Log.LastTime - loadedAt <= CargoRuns.StaleLeg)
                 {
                     // the game completes every pickup of the contract at once, however much is taken out, so the load of this trip is taken to be what he took
                     // (its SCU and containers stay as planned)
-                    var stillLoading = StillLoading(c.Name, loadedAt);
+                    var stillLoading = _where.StillLoading(c.Name, loadedAt);
                     var loads = mine[0].Drops[0].Batches;
                     startLine.Actions.Clear();
                     startLine.Actions.Add((stillLoading ? "Collecting " : "Collected ") + (mine[0].DropCargo ?? takenRun.Collects[0].Cargo) + (loads > 1 ? " \u00d7" + loads : "") + (stillLoading ? "" : " \u2713"));
@@ -1854,18 +1685,6 @@ public sealed partial class MainForm
 
     /// <summary>Black or white, whichever reads better on this colour.</summary>
     static Color TextOn(Color c) => (c.R * 299 + c.G * 587 + c.B * 114) / 1000 > 140 ? Color.Black : Color.White;
-
-    static string Gm(double v) => v.ToString("N1", CultureInfo.InvariantCulture) + " Gm";
-
-    /// <summary>m:ss or h:mm:ss.</summary>
-    static string FlightSpan(double seconds)
-    {
-        var t = TimeSpan.FromSeconds(Math.Max(0, Math.Round(seconds)));
-        return t.TotalHours >= 1 ? (int)t.TotalHours + ":" + t.Minutes.ToString("00") + ":" + t.Seconds.ToString("00") : t.Minutes + ":" + t.Seconds.ToString("00");
-    }
-
-    /// <summary>The value with spaces between the thousands, or nothing when there is none.</summary>
-    static string ValueText(decimal v) => v <= 0 ? "" : Math.Round(v).ToString("N0");
 
     /// <summary>The estimated flying time of the route, spool time and jumps with the drive of the worker, no loading.</summary>
     static string FlightText(PlanRow r) => r.Flight <= 0 ? "" : "~" + FlightSpan(r.Flight);
