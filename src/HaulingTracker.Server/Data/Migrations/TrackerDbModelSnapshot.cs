@@ -138,6 +138,9 @@ namespace HaulingTracker.Server.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Source")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("TimeUtc")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -328,6 +331,9 @@ namespace HaulingTracker.Server.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("AutoPartySince")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Channel")
                         .HasColumnType("TEXT");
