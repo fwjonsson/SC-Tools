@@ -214,7 +214,7 @@ public sealed class Earnings
     {
         var list = new List<Mission>();
         if (_s.Log == null) return list;
-        foreach (var m in _s.Log.Missions.Values.Where(x => x.IsOut && !x.Dead && !x.Dropped))
+        foreach (var m in _s.Log.Missions.Values.Where(x => x.IsOut && !x.Dead && !x.Dropped && (_s.Focus == null || _s.Focus(x))))
         {
             var owner = m.EndedAt is { } ended
                 ? _s.Sessions.Where(s => s.Start <= ended).OrderBy(s => s.Start).LastOrDefault()

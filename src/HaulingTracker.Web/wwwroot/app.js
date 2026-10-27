@@ -1,6 +1,22 @@
 var last = null;
 var shownStatus = -1;   // the last status line text that was faded in
 
+// who is looking (a player logged in by his tracker, or the admin): the server puts his name in the page; empty for everybody else
+const ME = ((document.querySelector('meta[name="me"]') || {}).content || '').toLowerCase();
+// what was picked last (the party tab, what the Trip Planner shows), kept in this browser only
+function remembered(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+function remember(key, value) { try { localStorage.setItem(key, value); } catch (e) { } }
+function among(names, name) { return names.some(function (n) { return n.toLowerCase() === name.toLowerCase(); }); }
+function myParty() { return ME ? (last.parties || []).find(function (p) { return among(p.names, ME); }) : null; }
+function tabButtons(el, choices, on, pick) {
+  el.textContent = '';
+  choices.forEach(function (c) {
+    const b = document.createElement('button'); b.textContent = c.text; if (c.key === on) b.className = 'on';
+    b.onclick = function () { pick(c.key); };
+    el.appendChild(b);
+  });
+}
+
 function table(el, g) {
   el.textContent = '';
   if (!g || !g.headers || !g.rows) {
@@ -248,11 +264,40 @@ function mapSvg(el, stations, routes, bg) {
   el.appendChild(svg);
 }
 
+// What the Trip Planner shows: Everyone, one party (its members' routes), or Only me (the viewer's own, when he is logged in and one of the workers).
+// The viewer's party first. The plan itself is the same: this only picks whose routes are drawn and listed.
+let planShown = null;   // 'all', 'me', or the leader of a party
+function planChoices(p) {
+  const choices = [{ key: 'all', text: 'Everyone' }];
+  const parties = last.parties || [];
+  if (parties.length > 1) parties.forEach(function (x) { choices.push({ key: x.leader, text: x.title }); });
+  if (ME && p.workers.some(function (w) { return (w.name || '').toLowerCase() === ME; })) choices.push({ key: 'me', text: 'Only me' });
+  return choices;
+}
+function planNames(p, choices) {
+  if (planShown === null) {
+    const kept = remembered('plan'), mine = myParty();
+    planShown = kept !== null ? kept : (mine && (last.parties || []).length > 1 ? mine.leader : 'all');
+  }
+  if (!choices.some(function (c) { return c.key === planShown; })) planShown = 'all';
+  if (planShown === 'me') return [ME];
+  if (planShown === 'all') return null;
+  return (last.parties || []).find(function (x) { return x.leader === planShown; }).names;
+}
+
 function renderPlanner() {
   const p = last.planner;
   document.getElementById('planNote').textContent = '';   // no line above the map (like in the program): the tables get the room
   const body = document.getElementById('planBody');
   body.textContent = '';
+  const choices = planChoices(p);
+  const names = planNames(p, choices);
+  if (choices.length > 1) {
+    const pick = document.createElement('div'); pick.className = 'sub'; body.appendChild(pick);
+    tabButtons(pick, choices, planShown, function (key) { planShown = key; remember('plan', key); renderPlanner(); fitHeaders(); });
+  }
+  const shown = function (name) { return !names || among(names, name || ''); };
+  const workers = p.workers.filter(function (w) { return shown(w.name); });
   // the map on the left with the short copy of Cargo Runs under it, the tables of everybody on the right (like in the program)
   const wrap = document.createElement('div'); wrap.className = 'planwrap';
   const left = document.createElement('div'); left.className = 'planleft';
@@ -260,7 +305,7 @@ function renderPlanner() {
   const tables = document.createElement('div'); tables.className = 'plantables';
   left.appendChild(mapBox); wrap.appendChild(left); wrap.appendChild(tables); body.appendChild(wrap);
   const routes = [];
-  p.workers.forEach(function (w) {
+  workers.forEach(function (w) {
     w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, passed: r.passed || 0, bold: !!r.solid, dashed: !r.solid }); });
   });
   mapSvg(mapBox, p.stations, routes, p.backdrop);
@@ -270,7 +315,7 @@ function renderPlanner() {
     if (p.statusKey !== shownStatus) { st.classList.add('fade'); shownStatus = p.statusKey; }
     mapBox.appendChild(st);
   }
-  p.workers.forEach(function (w) {
+  workers.forEach(function (w) {
     const frame = document.createElement('div'); frame.className = 'planworker'; tables.appendChild(frame);   // every worker in his own frame
     const h = document.createElement('h2'); frame.appendChild(h);
     const nm = document.createElement('span'); nm.textContent = w.heading || w.name || ''; if (w.color) nm.style.color = w.color; h.appendChild(nm);   // his name in capitals, in his colour
@@ -286,7 +331,8 @@ function renderPlanner() {
     });
   });
   // the short copy of Cargo Runs under the map: #, Worker, Value, Started, Completed, Time and In flight (the Session tab has the whole table)
-  section(left, 'h2', 'Cargo Runs', last.planRuns || last.runs);
+  const runs = last.planRuns || last.runs;
+  section(left, 'h2', 'Cargo Runs', runs && names ? { headers: runs.headers, rows: runs.rows.filter(function (r) { return shown(r.cells[1]); }) } : runs);
 }
 
 function renderDebts() {
@@ -326,6 +372,49 @@ function show(which) {
 ['S', 'P', 'D', 'H'].forEach(function (k) { document.getElementById('tab' + k).onclick = function () { show(k); }; });
 show({ '#plan': 'P', '#debts': 'D', '#history': 'H' }[location.hash] || 'S');
 
+// The party tabs under Session: with more than one party in the game, All and every party (named by its leader: "zzoega's party"), each with its own
+// stops, contracts, session, leaderboard and runs; the viewer's own party first. With one party, its name alone (the whole session is theirs).
+let partyShown = null;   // the leader of the party shown, '' for All
+function partyView() {
+  const el = document.getElementById('partyTabs');
+  const parties = last.parties || [];
+  el.classList.toggle('hidden', parties.length === 0);
+  if (parties.length === 0) { el.textContent = ''; return last; }
+  if (parties.length === 1) { tabButtons(el, [{ key: '', text: parties[0].title }], '', function () { }); return last; }
+  if (partyShown === null) { const kept = remembered('party'); partyShown = kept !== null ? kept : ((myParty() || {}).leader || ''); }
+  const shown = parties.find(function (p) { return p.leader === partyShown; });
+  if (!shown) partyShown = '';
+  tabButtons(el, [{ key: '', text: 'All' }].concat(parties.map(function (p) { return { key: p.leader, text: p.title }; })), partyShown, function (key) {
+    partyShown = key; remember('party', key); render();
+  });
+  return shown && shown.view ? shown.view : last;
+}
+
+// Everything on the page from the data fetched last (again when a tab of a party or a choice on the Trip Planner is clicked).
+function render() {
+  const d = last;
+  tickers = [];
+  const v = partyView();
+  document.getElementById('session').textContent = v.session || d.session || '';
+  table(document.getElementById('pickups'), v.pickups);
+  document.getElementById('finishedBox').classList.toggle('hidden', !v.finished || !v.finished.rows || v.finished.rows.length === 0);
+  table(document.getElementById('finished'), v.finished);
+  table(document.getElementById('rewards'), v.rewards);
+  summary(document.getElementById('summary'), v.summary || []);
+  table(document.getElementById('party'), d.party);
+  table(document.getElementById('leaders'), v.leaders);
+  table(document.getElementById('runs'), v.runs);
+  alignColumns();
+  if (v.runsLive) {
+    const runRows = document.querySelectorAll('#runs tbody tr');
+    v.runsLive.forEach(function (live, i) { if (live && runRows[i] && runRows[i].cells[7]) addTicker(runRows[i].cells[7]); });
+  }
+  if (d.planner) renderPlanner();
+  if (d.debts) renderDebts();
+  if (d.history) renderHistory();
+  fitHeaders();
+}
+
 async function refresh() {
   const live = document.getElementById('live');
   try {
@@ -333,30 +422,12 @@ async function refresh() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
     last = d;
-    tickers = [];
     fetchedAt = Date.now();
     const root = document.documentElement.style;
     if (d.theme) { root.setProperty('--bg', d.theme.bg); root.setProperty('--fg', d.theme.fg); root.setProperty('--header', d.theme.header); root.setProperty('--line', d.theme.line); root.setProperty('--cell', d.theme.cell); }
-    document.getElementById('session').textContent = d.session || '';
     document.getElementById('updated').textContent = 'updated ' + d.updated;
     live.textContent = '● live'; live.className = 'live ok';
-    table(document.getElementById('pickups'), d.pickups);
-    document.getElementById('finishedBox').classList.toggle('hidden', !d.finished || !d.finished.rows || d.finished.rows.length === 0);
-    table(document.getElementById('finished'), d.finished);
-    table(document.getElementById('rewards'), d.rewards);
-    summary(document.getElementById('summary'), d.summary || []);
-    table(document.getElementById('party'), d.party);
-    table(document.getElementById('leaders'), d.leaders);
-    table(document.getElementById('runs'), d.runs);
-    alignColumns();
-    if (d.runsLive) {
-      const runRows = document.querySelectorAll('#runs tbody tr');
-      d.runsLive.forEach(function (live, i) { if (live && runRows[i] && runRows[i].cells[7]) addTicker(runRows[i].cells[7]); });
-    }
-    if (d.planner) renderPlanner();
-    if (d.debts) renderDebts();
-    if (d.history) renderHistory();
-    fitHeaders();
+    render();
   } catch (e) {
     live.textContent = '● connection lost, trying again'; live.className = 'live bad';
   }
