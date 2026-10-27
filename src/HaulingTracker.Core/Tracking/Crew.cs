@@ -64,13 +64,23 @@ public sealed class Crew
         return t;
     }
 
-    /// <summary>Marks a member active or not from now (or from the time given), and remembers the change.</summary>
-    public void SetMemberActive(string name, bool active, DateTime? at = null)
+    /// <summary>Marks a member active or not from now (or from the time given), and remembers the change (and who made it, see PartyChange.Source).</summary>
+    public void SetMemberActive(string name, bool active, DateTime? at = null, string? source = null)
     {
         Data.PartyTrackingSince ??= DateTime.UtcNow;
-        Data.PartyChanges.Add(new PartyChange { Name = name, TimeUtc = at ?? DateTime.UtcNow, Active = active });
+        Data.PartyChanges.Add(new PartyChange { Name = name, TimeUtc = at ?? DateTime.UtcNow, Active = active, Source = source });
         Data.InactiveParty.RemoveAll(x => SameName(x, name));
         if (!active) Data.InactiveParty.Add(name);
+    }
+
+    /// <summary>
+    /// What the admin set for this member on the Party page while the logs decide: true (In) or false (Out) while it holds, null when the logs decide (Auto).
+    /// It holds until the logs change their mind about him (see AutoParty.Apply).
+    /// </summary>
+    public bool? OverrideOf(string name)
+    {
+        var last = Data.PartyChanges.Where(c => SameName(c.Name, name)).OrderBy(c => c.TimeUtc).LastOrDefault();
+        return last?.Source == PartyChange.ByAdmin ? last.Active : null;
     }
 
     /// <summary>The members who are active now.</summary>

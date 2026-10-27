@@ -13,6 +13,9 @@ public sealed class PartyChangeRow : IListRow
     public string Name { get; set; } = "";
     public DateTime TimeUtc { get; set; }
     public bool Active { get; set; }
+
+    /// <summary>Who made the change: the logs, the admin, back to the logs, or null (a tick of the program).</summary>
+    public string? Source { get; set; }
 }
 
 /// <summary>A session started (and stopped) with the Start Session / Stop Session buttons.</summary>

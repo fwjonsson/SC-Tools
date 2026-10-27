@@ -8,6 +8,7 @@ public sealed class AppData
     public List<string> Party { get; set; } = new() { "zzoega", "zzatvo", "bildog123" };
     public List<PartyChange> PartyChanges { get; set; } = new();   // when each member joined or left (Active / inactive)
     public DateTime? PartyTrackingSince { get; set; }   // payouts of missions that ended before this time are split the old way (the whole session party)
+    public DateTime? AutoPartySince { get; set; }   // from this time on the logs decide who is active (the server's AutoParty); before it, the Active ticks
     public List<string> InactiveParty { get; set; } = new();   // party members that are not shown in the party list of the Session tab
     public DateTime? PlanCreditSince { get; set; }   // from this time on the runs get their workers from the logs and the Trip Planner, not from Assigned Worker (earlier pickups keep the old rule)
     public bool DarkMode { get; set; }   // the dark look

@@ -21,7 +21,7 @@ public sealed class HttpLogServer : ILogServer, IDisposable
     sealed record At(long at);
     sealed record Me(string player);
     sealed record Link(string url);
-    sealed record Piece(string file, long from, long to, IReadOnlyList<string> lines);
+    sealed record Piece(string file, long from, long to, IReadOnlyList<string> lines, DateTime? last);
 
     /// <summary>The player of this key, or null when the server does not know it.</summary>
     public async Task<string?> PlayerAsync(CancellationToken ct)
@@ -52,9 +52,9 @@ public sealed class HttpLogServer : ILogServer, IDisposable
         return (await resp.Content.ReadFromJsonAsync<At>(ct))?.at ?? 0;
     }
 
-    public async Task<UploadResult> UploadAsync(string file, long from, long to, IReadOnlyList<string> lines, CancellationToken ct)
+    public async Task<UploadResult> UploadAsync(string file, long from, long to, IReadOnlyList<string> lines, DateTime? last, CancellationToken ct)
     {
-        using var resp = await _http.PostAsJsonAsync("api/log", new Piece(file, from, to, lines), ct);
+        using var resp = await _http.PostAsJsonAsync("api/log", new Piece(file, from, to, lines, last), ct);
         if (resp.StatusCode == HttpStatusCode.Conflict) return new UploadResult(false, (await resp.Content.ReadFromJsonAsync<At>(ct))?.at ?? from);
         Check(resp);
         return new UploadResult(true, (await resp.Content.ReadFromJsonAsync<At>(ct))?.at ?? to);

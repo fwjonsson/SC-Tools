@@ -9,8 +9,11 @@ public interface ILogServer
     /// <summary>How far this log file is uploaded.</summary>
     Task<long> CursorAsync(string file, CancellationToken ct);
 
-    /// <summary>A piece of a log file: the lines the tracker reads between the byte positions from and to.</summary>
-    Task<UploadResult> UploadAsync(string file, long from, long to, IReadOnlyList<string> lines, CancellationToken ct);
+    /// <summary>
+    /// A piece of a log file: the lines the tracker reads between the byte positions from and to, and the time of the last line of the piece (also when that
+    /// line is not sent): it tells the server the game was still running then.
+    /// </summary>
+    Task<UploadResult> UploadAsync(string file, long from, long to, IReadOnlyList<string> lines, DateTime? last, CancellationToken ct);
 }
 
 /// <summary>
@@ -108,12 +111,14 @@ public sealed class LogSender
                 var consumed = end + 1;
                 var lines = Encoding.UTF8.GetString(buffer, 0, consumed).Split('\n');
                 var kept = new List<string>();
+                DateTime? last = null;
                 for (var i = 0; i < lines.Length - 1; i++)   // the last part is empty: the piece ends with a line end
                 {
                     var line = lines[i].TrimEnd('\r');
                     if (state.Filter.Keep(line)) kept.Add(line);
+                    if (line.Length > 0 && line[0] == '<') last = HaulingLog.TimeOf(line) ?? last;
                 }
-                var result = await _server.UploadAsync(id, state.At, state.At + consumed, kept, ct);
+                var result = await _server.UploadAsync(id, state.At, state.At + consumed, kept, last, ct);
                 if (result.Ok)
                 {
                     LinesSent += kept.Count;

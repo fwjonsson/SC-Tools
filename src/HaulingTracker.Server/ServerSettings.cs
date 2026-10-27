@@ -21,6 +21,9 @@ public sealed class ServerSettings
     /// <summary>How numbers and dates are written (sv-SE: 3 614 083, like the program on Frank's computer).</summary>
     public string Culture { get; set; } = "sv-SE";
 
+    /// <summary>The logs decide who of the party is active (the in-game party and the trackers, see AutoParty); the admin can still set In or Out.</summary>
+    public bool FollowParty { get; set; } = true;
+
     /// <summary>
     /// Keys of trackers and the player each belongs to (the key is the player: his tracker sends it with every upload). They are added to the database when
     /// the server starts (only a hash of each), so they can be removed from here afterwards; removing one here does not take it back.

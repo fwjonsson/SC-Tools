@@ -3,8 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HaulingTracker.Server.Controllers;
 
-/// <summary>A piece of a log file: its name (the time of its first line), the byte positions in the file it covers, and its lines.</summary>
-public sealed record LogPiece(string File, long From, long To, List<string>? Lines);
+/// <summary>
+/// A piece of a log file: its name (the time of its first line), the byte positions in the file it covers, its lines, and the time of its last line (also
+/// of one that is not sent; an older tracker does not send it).
+/// </summary>
+public sealed record LogPiece(string File, long From, long To, List<string>? Lines, DateTime? Last = null);
 
 /// <summary>
 /// Where the trackers upload their logs. Every request has the tracker's key in the X-Tracker-Key header: it says whose log it is. A tracker asks how far a
@@ -52,7 +55,7 @@ public sealed class LogController : ControllerBase
     {
         if (Player() is not { } player) return Unauthorized();
         if (string.IsNullOrWhiteSpace(piece.File)) return BadRequest();
-        var result = _uploads.Add(player, piece.File, piece.From, piece.To, piece.Lines ?? new List<string>());
+        var result = _uploads.Add(player, piece.File, piece.From, piece.To, piece.Lines ?? new List<string>(), piece.Last?.ToUniversalTime());
         return result.Ok ? Ok(new { at = result.At }) : Conflict(new { at = result.At });
     }
 }

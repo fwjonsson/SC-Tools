@@ -40,6 +40,13 @@ public sealed class HaulingLog
         @"<Player(?<k>Joined|Left)> Received Player\k<k> push message for: mission_id (?<m>[0-9a-f-]{36}) - player_id (?<p>\d+)",
         RegexOptions.Compiled);
 
+    // The in-game party, from the game's notifications: the line with their text as it goes to the queue (once per notification; it has "MissionId" in it,
+    // so the trackers upload it). "zzatvo has joined the party.", "Bileh123 has left the party.", "zzoega is now party leader.", "Initiated by party leader
+    // zzoega." (a party launch), "The party has been disbanded.", and "party" (the second line of "You have joined party" and "You have created party").
+    static readonly Regex PartyNote = new(
+        @"^<[^>]+> (?:(?<n>[A-Za-z0-9_.-]+) has (?<k>joined|left) the party\.|(?<n>[A-Za-z0-9_.-]+) is now party (?<k>leader)\.|Initiated by party (?<k>leader) (?<n>[A-Za-z0-9_.-]+)\.|The party has been (?<k>disbanded)\.|(?<k>party)): "" \[\d+\] to queue\.",
+        RegexOptions.Compiled);
+
     // the game names where the player is when he plans a quantum route: "Projected Start Location is Stanton Gateway for route to ..."
     static readonly Regex StartLocation = new(
         @"Projected Start Location is (?<n>Nyx Gateway|Stanton Gateway) for route to destination",
@@ -112,6 +119,15 @@ public sealed class HaulingLog
 
     /// <summary>Player id to the name of the character, as far as the logs show it.</summary>
     public Dictionary<string, string> IdNames { get; } = new();
+
+    /// <summary>What the game told the player of this log about his in-game party, in the order of the log (see PartyNote).</summary>
+    public List<PartyEvent> PartyEvents { get; } = new();
+
+    /// <summary>On the server: whose tracker uploads this log (the player of its key).</summary>
+    public string? Uploader { get; set; }
+
+    /// <summary>On the server: the games of this player, by log file (see LogUploads): when each started, and the latest time his tracker saw in it.</summary>
+    public Dictionary<string, GameRun> GameRuns { get; } = new(StringComparer.Ordinal);
 
     /// <summary>The characters of the logs that were read (a party member without a log is not in it).</summary>
     public HashSet<string> Players { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -339,6 +355,13 @@ public sealed class HaulingLog
     static DateTime ParseTime(string text) =>
         DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
+    /// <summary>The time a line of the log was written (UTC), or null when it does not start with one.</summary>
+    public static DateTime? TimeOf(string line)
+    {
+        var m = Ts.Match(line);
+        return m.Success ? ParseTime(m.Groups[1].Value) : null;
+    }
+
     public void ProcessLine(string line)
     {
         if (line.Length < 30 || line[0] != '<') return;
@@ -489,6 +512,25 @@ public sealed class HaulingLog
             MemberEvents.Add(new MemberEvent { Mission = x.Groups["m"].Value, Player = x.Groups["p"].Value, Time = t, Left = x.Groups["k"].Value == "Left" });
             Touch(t);
             return;
+        }
+
+        if (line.Contains("\" [", StringComparison.Ordinal) && line.Contains("] to queue.", StringComparison.Ordinal))
+        {
+            var pn = PartyNote.Match(line);
+            if (pn.Success)
+            {
+                var kind = pn.Groups["k"].Value switch
+                {
+                    "joined" => PartyEventKind.Joined,
+                    "left" => PartyEventKind.Left,
+                    "leader" => PartyEventKind.Leader,
+                    "disbanded" => PartyEventKind.Disbanded,
+                    _ => PartyEventKind.Self,
+                };
+                PartyEvents.Add(new PartyEvent(t, kind, pn.Groups["n"].Success ? pn.Groups["n"].Value : null));
+                Version++;   // not a mission line: the time of the last mission line stays
+                return;
+            }
         }
 
         x = Marker.Match(line);

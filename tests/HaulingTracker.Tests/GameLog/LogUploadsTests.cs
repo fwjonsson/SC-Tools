@@ -35,6 +35,29 @@ public sealed class LogUploadsTests : IDisposable
     }
 
     [Fact]
+    public void How_long_each_game_ran_is_kept_with_the_cursor()
+    {
+        const string file = "2026-10-21T08:00:00.000Z";   // named by the time of its first line: when the game started
+        var lines = Lines.ToList();
+        var u = new LogUploads(_dir);
+        Assert.True(u.Add("Pilot_A", file, 0, 100, lines, GameLogWriter.Start.AddHours(3)).Ok);   // the time of the piece's last line, sent or not
+        var run = u.Logs.Single().GameRuns[file];
+        Assert.Equal(new GameRun(GameLogWriter.Start, GameLogWriter.Start.AddHours(3)), run);
+        Assert.True(u.Add("Pilot_A", file, 100, 150, new List<string>()).Ok);   // a piece without lines from an older tracker: the time stays
+        Assert.Equal(run, u.Logs.Single().GameRuns[file]);
+        Assert.Equal("Pilot_A", u.Logs.Single().Uploader);
+
+        var again = new LogUploads(_dir);   // the server started again
+        again.LoadKept(TimeSpan.FromHours(36));
+        Assert.Equal(run, again.Logs.Single().GameRuns[file]);
+        Assert.Equal("Pilot_A", again.Logs.Single().Uploader);
+
+        var older = new LogUploads();   // a tracker that does not send the time: the time of the last line it sent
+        older.Add("Pilot_A", file, 0, 100, lines);
+        Assert.Equal(lines.Select(HaulingLog.TimeOf).Last(t => t != null), older.Logs.Single().GameRuns[file].Last);
+    }
+
+    [Fact]
     public void Every_player_has_a_log_of_his_own()
     {
         var u = new LogUploads();

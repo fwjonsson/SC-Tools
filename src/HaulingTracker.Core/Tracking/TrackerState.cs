@@ -26,6 +26,9 @@ public sealed class TrackerState
     /// <summary>The logs of all players merged into one (a mission shared in the party is in it once). Null while no log is read.</summary>
     public HaulingLog? Log { get; set; }
 
+    /// <summary>On the server: who is playing and with whom, as the logs said last (see AutoParty). Null where the logs do not decide (the program).</summary>
+    public AutoParty.Result? Parties { get; set; }
+
     /// <summary>The sessions found in the log, oldest first.</summary>
     public List<SessionGroup> Sessions { get; set; } = new();
 

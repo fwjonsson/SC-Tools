@@ -67,26 +67,47 @@ public sealed class AdminPartyModel
     public List<Choice> Ships { get; set; } = new();
     public List<Choice> Drives { get; set; } = new();
 
+    /// <summary>The logs decide who is active (the server); otherwise Active is the tick as in the program.</summary>
+    public bool FollowsLogs { get; set; }
+
+    /// <summary>The parties now, as the logs show them ("zzoega's party: zzoega, zzatvo").</summary>
+    public List<PartyGroup> Groups { get; set; } = new();
+
+    /// <summary>What the logs say about a member now: "In zzoega's party", "Playing alone", "Not playing".</summary>
+    public static string StatusOf(Tracker t, string name)
+    {
+        var group = t.State.Parties?.GroupOf(name);
+        if (group == null) return "Not playing";
+        if (group.Names.Count == 1) return "Playing alone";
+        return PlayerNames.SameName(group.Leader, name) ? "Leads his party" : "In " + group.Leader + "'s party";
+    }
+
     public static AdminPartyModel Of(Tracker t, DateTime nowUtc)
     {
+        var follows = t.State.Data.AutoPartySince != null;
         return new AdminPartyModel
         {
+            FollowsLogs = follows,
+            Groups = t.State.Parties?.Groups.ToList() ?? new List<PartyGroup>(),
             Stations = MeModel.StationChoices(),   // the same lists as My page
             Ships = MeModel.ShipChoices(),
             Drives = MeModel.DriveChoices(),
             Members = t.State.Data.Party.Select(n =>
             {
                 var (location, byHand) = t.Whereabouts.LocationOf(n);
+                var mode = t.Crew.OverrideOf(n) switch { true => "in", false => "out", null => "auto" };
                 return new MemberInput(
                     n, t.Crew.IsActiveAt(n, nowUtc), Math.Max(1, t.Crew.ShipCapacityOf(n)),
                     byHand ? location : "", PyroDistances.NameOf(t.Whereabouts.AutoLocationOf(n)),
-                    ViewPalette.Hex(Edits.ColorOf(t, n)), t.Crew.ShipOf(n)?.Label ?? "", t.Crew.DriveOf(n)?.Label ?? "");
+                    ViewPalette.Hex(Edits.ColorOf(t, n)), t.Crew.ShipOf(n)?.Label ?? "", t.Crew.DriveOf(n)?.Label ?? "",
+                    follows ? StatusOf(t, n) : "", mode);
             }).ToList(),
         };
     }
 }
 
-public sealed record MemberInput(string Name, bool Active, int Batches, string Location, string AutoLocation, string Color, string Ship, string Drive);
+public sealed record MemberInput(
+    string Name, bool Active, int Batches, string Location, string AutoLocation, string Color, string Ship, string Drive, string Status = "", string Mode = "auto");
 
 /// <summary>The admin's Contracts page: every mission still going (and the ones marked as gone), with who of the party has it.</summary>
 public sealed class AdminContractsModel
