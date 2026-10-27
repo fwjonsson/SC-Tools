@@ -1,4 +1,5 @@
 using HaulingTracker.Server.Accounts;
+using HaulingTracker.Server.Data;
 using HaulingTracker.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -78,25 +79,58 @@ public sealed class AccountController : Controller
     [HttpGet("/login/denied")]
     public IActionResult Denied() => View();
 
+    AccountModel Page(NameModel? rename = null, PasswordModel? password = null) =>
+        new() { Name = User.Identity?.Name ?? "", Rename = rename ?? new NameModel(), Password = password ?? new PasswordModel() };
+
+    /// <summary>The admin's Account page: his name and his password.</summary>
+    [Authorize(Roles = Roles.Admin)]
+    [HttpGet("/account")]
+    public IActionResult Account() => View("Account", Page());
+
     [Authorize(Roles = Roles.Admin)]
     [HttpGet("/account/password")]
-    public IActionResult Password() => View(new PasswordModel());
+    public IActionResult Password() => LocalRedirect("/account");
+
+    [Authorize(Roles = Roles.Admin)]
+    [HttpPost("/account/name")]
+    public async Task<IActionResult> Name([Bind(Prefix = "Rename")] NameModel model, [FromServices] DataStore store, [FromServices] LiveTracker live)
+    {
+        if (!ModelState.IsValid) return View("Account", Page(model));
+        var name = model.NewName.Trim();
+        // a name of a player (in the party, or with a tracker key) stays his: his tracker logs in with it
+        if (store.TrackerKeys().Any(k => PlayerNames.SameName(k.Player, name)) || live.Read(t => t.State.Data.Party.Any(n => PlayerNames.SameName(n, name))))
+        {
+            ModelState.AddModelError("Rename.NewName", name + " is a player's name: his tracker logs in with it. Choose another one.");
+            return View("Account", Page(model));
+        }
+        var user = await _users.GetUserAsync(User);
+        if (user == null) return Challenge();
+        var result = await _users.SetUserNameAsync(user, name);
+        if (!result.Succeeded)
+        {
+            foreach (var e in result.Errors) ModelState.AddModelError("Rename.NewName", e.Description);
+            return View("Account", Page(model));
+        }
+        await _signIn.RefreshSignInAsync(user);
+        ModelState.Clear();
+        return View("Account", new AccountModel { Name = name, Rename = new NameModel { Done = true } });
+    }
 
     [Authorize(Roles = Roles.Admin)]
     [HttpPost("/account/password")]
-    public async Task<IActionResult> Password(PasswordModel model)
+    public async Task<IActionResult> Password([Bind(Prefix = "Password")] PasswordModel model)
     {
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid) return View("Account", Page(password: model));
         var user = await _users.GetUserAsync(User);
         if (user == null) return Challenge();
         var result = await _users.ChangePasswordAsync(user, model.Current, model.New);
         if (!result.Succeeded)
         {
-            foreach (var e in result.Errors) ModelState.AddModelError("", e.Description);
-            return View(model);
+            foreach (var e in result.Errors) ModelState.AddModelError("Password", e.Description);
+            return View("Account", Page(password: model));
         }
         await _signIn.RefreshSignInAsync(user);
         ModelState.Clear();
-        return View(new PasswordModel { Done = true });
+        return View("Account", Page(password: new PasswordModel { Done = true }));
     }
 }

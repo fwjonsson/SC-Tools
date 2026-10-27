@@ -49,12 +49,27 @@ public sealed class Earnings
     public static decimal Or(decimal typed, decimal builtIn) => typed == 0 ? builtIn : typed;
 
     /// <summary>A payout nobody typed is set to the built-in one (so the rewards table shows it).</summary>
-    public static void FillDefaults(SessionInputs inp)
+    public static void FillDefaults(SessionInputs inp, AppData? data = null)
     {
         foreach (var line in RewardLines)
         {
-            if (line.Get(inp) == 0) line.Set(inp, DefaultReward(line.Stops));
+            if (line.Get(inp) == 0) line.Set(inp, StartReward(line, data));
         }
+    }
+
+    /// <summary>What a new session starts with for this contract line: the reward typed last, or the built-in one.</summary>
+    public static decimal StartReward(RewardLine line, AppData? data) =>
+        data != null && data.DefaultRewards.TryGetValue(line.Contract, out var typed) && typed > 0 ? typed : DefaultReward(line.Stops);
+
+    /// <summary>
+    /// The reward of a contract line was typed: the session (when there is one) gets it, and so does every new session from now on (0 = the built-in reward
+    /// again).
+    /// </summary>
+    public static void SetReward(AppData data, SessionInputs? inp, RewardLine line, decimal reward)
+    {
+        if (reward > 0) data.DefaultRewards[line.Contract] = reward;
+        else data.DefaultRewards.Remove(line.Contract);
+        if (inp != null) line.Set(inp, reward > 0 ? reward : DefaultReward(line.Stops));
     }
 
     /// <summary>What a hauling contract pays: the To Ruin rows of the rewards table, by its number of stops.</summary>

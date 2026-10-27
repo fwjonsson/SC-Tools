@@ -116,14 +116,15 @@ public static class Edits
         return "The next stops are locked" + (locked > 0 ? " (" + locked + (locked == 1 ? " worker)." : " workers).") : ".");
     }
 
-    /// <summary>The Mission Reward of every contract line (in the order of Earnings.RewardLines); null or 0 = the built-in reward.</summary>
+    /// <summary>
+    /// The Mission Reward of every contract line (in the order of Earnings.RewardLines); null or 0 = the built-in reward. The session shown gets them (when
+    /// there is one), and every new session starts with them.
+    /// </summary>
     public static string SetRewards(Tracker t, IReadOnlyList<decimal?> rewards)
     {
         var inp = t.State.Inputs;
-        if (inp == null) return "There is no session.";
-        for (var i = 0; i < Earnings.RewardLines.Count && i < rewards.Count; i++) Earnings.RewardLines[i].Set(inp, rewards[i] ?? 0);
-        Earnings.FillDefaults(inp);
-        return "The mission rewards are saved.";
+        for (var i = 0; i < Earnings.RewardLines.Count && i < rewards.Count; i++) Earnings.SetReward(t.State.Data, inp, Earnings.RewardLines[i], rewards[i] ?? 0);
+        return inp == null ? "The mission rewards are saved: the next session starts with them." : "The mission rewards are saved, also for the next sessions.";
     }
 
     /// <summary>The start time of the session, typed as HH:mm (the session time runs from it); empty = from the logs.</summary>

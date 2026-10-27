@@ -22,6 +22,25 @@ public sealed class LoginModel
     public string? Error { get; set; }
 }
 
+/// <summary>The admin's Account page: his name, and the forms to change it and his password.</summary>
+public sealed class AccountModel
+{
+    public string Name { get; set; } = "";
+    public NameModel Rename { get; set; } = new();
+    public PasswordModel Password { get; set; } = new();
+}
+
+/// <summary>The admin changes his name (the one he logs in with).</summary>
+public sealed class NameModel
+{
+    [Required(ErrorMessage = "Type the new name.")]
+    [RegularExpression("^[A-Za-z0-9_.@+-]{1,40}$", ErrorMessage = "A name has only letters, digits and - _ . @ +")]
+    [Display(Name = "New name")]
+    public string NewName { get; set; } = "";
+
+    public bool Done { get; set; }
+}
+
 /// <summary>The admin changes his password.</summary>
 public sealed class PasswordModel
 {

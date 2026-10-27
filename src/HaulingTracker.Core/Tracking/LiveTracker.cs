@@ -79,7 +79,7 @@ public sealed class LiveTracker
             t.Select(newest);
             t.Plan.ClaimNewPickups();   // before the stops change: the plan still has the batches that were just picked up
             t.LoadStops();
-            Earnings.FillDefaults(state.Inputs!);   // nothing typed: the built-in payouts
+            Earnings.FillDefaults(state.Inputs!, state.Data);   // nothing typed: the rewards typed last, or the built-in ones
             t.LoadRuns();
         }
         t.Payouts.UpdateSnapshots();

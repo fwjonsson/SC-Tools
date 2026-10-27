@@ -577,7 +577,7 @@ public sealed partial class MainForm : Form
                 // every row knows which payout of the session it is
                 foreach (DataGridViewRow row in _rewards.Rows)
                 {
-                    if (row.Tag is RewardLine line) line.Set(_state.Inputs, ParseNumber(row.Cells[RewardCol.Reward].Value));
+                    if (row.Tag is RewardLine line) Earnings.SetReward(_data, _state.Inputs, line, ParseNumber(row.Cells[RewardCol.Reward].Value));   // also for the next sessions
                 }
             }
             RecomputeRewards();
@@ -1270,7 +1270,7 @@ public sealed partial class MainForm : Form
 
             // the mission counts come from the log (2, 3 and 4 stop contracts), you only type the payouts
             _rewards.Rows.Clear();
-            Earnings.FillDefaults(_state.Inputs);   // nothing typed: the built-in payouts
+            Earnings.FillDefaults(_state.Inputs, _data);   // nothing typed: the rewards typed last, or the built-in ones
             var accepted = _state.Current.Missions;   // every accepted mission of the session (abandoned ones are already left out)
             // the from-Ruin (waste) contracts: the log does not say what they pay either, so you type it once, by the number of drop-offs
             var waste = _earnings.SessionWaste(_state.Current);
