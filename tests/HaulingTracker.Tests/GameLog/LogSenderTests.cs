@@ -37,6 +37,9 @@ public sealed class LogSenderTests : IDisposable
         public HaulingLog Log => Uploads.Logs.Single();
     }
 
+    /// <summary>The played session takes cargo out of a freight elevator three times (Gaslight, Patch City, Gaslight): a line read twice would count four.</summary>
+    const int SessionUnstows = 3;
+
     LogSender Sender() => new(_server) { Path = Path.Combine(_dir, "StarCitizen"), Channel = "Auto" };
 
     static string Text(IEnumerable<string> lines) => string.Join("\r\n", lines) + "\r\n";
@@ -80,7 +83,7 @@ public sealed class LogSenderTests : IDisposable
         sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();
         Assert.Equal(new FileInfo(GameLog).Length, _server.Uploads.Cursor("Pilot_A", id));
         Assert.True(_server.Log.Missions.ContainsKey(PlayedSession.M2));
-        Assert.Equal(2, _server.Log.Unstows.Count);   // every line once
+        Assert.Equal(SessionUnstows, _server.Log.Unstows.Count);   // every line once
     }
 
     [Fact]
@@ -97,7 +100,7 @@ public sealed class LogSenderTests : IDisposable
         File.WriteAllText(GameLog, Text(new GameLogWriter().At(first.Now.AddHours(1)).Login("Pilot_A").Unstow().Lines));
         sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();
 
-        Assert.Equal(2 + 1 + 1, _server.Log.Unstows.Count);   // the session's two, the last line of the old log, the new log's one: none twice
+        Assert.Equal(SessionUnstows + 1 + 1, _server.Log.Unstows.Count);   // the session's, the last line of the old log, the new log's one: none twice
     }
 
     [Fact]
@@ -109,7 +112,7 @@ public sealed class LogSenderTests : IDisposable
         File.AppendAllText(GameLog, Text(new GameLogWriter().At(PlayedSession.LastPickup.AddMinutes(1)).Unstow().Lines));
 
         Sender().TickAsync(CancellationToken.None).GetAwaiter().GetResult();   // a new tracker (restarted): it asks the server how far the file is
-        Assert.Equal(3, _server.Log.Unstows.Count);
+        Assert.Equal(SessionUnstows + 1, _server.Log.Unstows.Count);
     }
 
     [Fact]
