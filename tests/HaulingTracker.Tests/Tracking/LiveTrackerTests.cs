@@ -46,4 +46,21 @@ public class LiveTrackerTests
         Assert.All(live.Tracker.State.Trips, t => Assert.True(t.End.HasValue));   // both runs handed in
         Assert.Empty(live.Tracker.State.PickupRows.Where(r => r.Loaded < r.Missions));
     }
+
+    [Fact]
+    public void A_change_on_a_page_is_saved_and_shown_at_once()
+    {
+        var uploads = new LogUploads();
+        var saves = 0;
+        var live = new LiveTracker(PlayedSession.Data(), _ => saves++, uploads);
+        uploads.Add(PlayedSession.Player, "f", 0, 100, PlayedSession.Writer().Lines.ToList());
+        live.Refresh(DateTime.UtcNow);
+        var before = saves;
+
+        live.Edit(t => t.Crew.SetColor(PlayedSession.Player, unchecked((int)0xFF112233)), DateTime.UtcNow);
+        Assert.True(saves > before);
+        var party = JsonDocument.Parse(live.Json).RootElement.GetProperty("party").GetProperty("rows")[0];
+        Assert.Equal("#112233", party.GetProperty("back")[0].GetString());   // data.json has the new colour already
+        Assert.Equal(unchecked((int)0xFF112233), live.Read(t => t.Crew.PickedColor(PlayedSession.Player)));
+    }
 }

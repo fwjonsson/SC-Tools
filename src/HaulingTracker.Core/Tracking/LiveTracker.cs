@@ -41,6 +41,28 @@ public sealed class LiveTracker
         }
     }
 
+    /// <summary>Reads something of the tracker for a page, under the lock (so nothing changes it meanwhile).</summary>
+    public T Read<T>(Func<Tracker, T> read)
+    {
+        lock (Uploads.Sync) return read(Tracker);
+    }
+
+    /// <summary>
+    /// A change made on a page (the party, a location, a colour...): made under the lock, saved, and everything is worked out again at once, so the next
+    /// data.json already shows it.
+    /// </summary>
+    public void Edit(Action<Tracker> change, DateTime nowUtc)
+    {
+        lock (Uploads.Sync)
+        {
+            change(Tracker);
+            Tracker.State.Save();
+            Tracker.Plan.Invalidate();
+            _version = -1;
+            Refresh(nowUtc);
+        }
+    }
+
     /// <summary>The newest session, as the program shows it when it follows the logs.</summary>
     void Show()
     {

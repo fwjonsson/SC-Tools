@@ -32,6 +32,7 @@ sealed class TrayApp : ApplicationContext
         menu.Items.Add(_status);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Open the tracker page", null, (_, _) => Open(_settings.ServerUrl));
+        menu.Items.Add("Open my page (location, colour, ship)", null, async (_, _) => await OpenMyPageAsync());
         menu.Items.Add("Settings...", null, (_, _) => ShowSettings());
         menu.Items.Add(_startWithWindows);
         menu.Items.Add(new ToolStripSeparator());
@@ -67,6 +68,27 @@ sealed class TrayApp : ApplicationContext
     {
         try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
         catch (Exception) { }
+    }
+
+    /// <summary>My page on the website, logged in as this tracker's player (a link from the server that works once).</summary>
+    async Task OpenMyPageAsync()
+    {
+        if (!_settings.Complete)
+        {
+            ShowSettings();
+            return;
+        }
+        try
+        {
+            using var server = new HttpLogServer(_settings.ServerUrl.Trim(), _settings.Key.Trim());
+            var link = await server.LoginLinkAsync(_stop.Token);
+            if (link == null) _icon.ShowBalloonTip(5000, "Hauling Tracker", "The server does not know this key: check it in Settings.", ToolTipIcon.Warning);
+            else Open(link);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException)
+        {
+            _icon.ShowBalloonTip(5000, "Hauling Tracker", "The server could not be reached: " + ex.Message, ToolTipIcon.Warning);
+        }
     }
 
     void ShowSettings()

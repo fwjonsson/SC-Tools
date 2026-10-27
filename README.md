@@ -180,8 +180,8 @@ The **History** tab has the same table for **all saved sessions** (with an extra
 ## The web app (being built)
 
 The tracker is moving to a server, so the website is always up and everybody with a tracker is tracked, also when Frank's computer is off. The plan is
-`claude/webapp-plan.md` in the project: the server and the live page (done), the trackers (done), the database (done), then the logins and the editing,
-then going live.
+`claude/webapp-plan.md` in the project: the server and the live page (done), the trackers (done), the database (done), the logins (done), then the
+editing pages of the admin, then going live.
 
 - **HaulingTrackerSender.exe** (in the Releases download, `HaulingTrackerSender.zip`) is the tracker: a tray icon on every gaming PC. Its settings are the
   server, your **key** (Frank gives every player his own; **Test** asks the server whose key it is), the Star Citizen folder and the log channel. Every
@@ -189,9 +189,18 @@ then going live.
   restart of the tracker or the game). It only sends the lines the tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money
   transfers, the freight elevator and the loading platform); the rest of the game's log stays on the PC. It can start with Windows, and it updates itself.
 - **HaulingTracker.Server** keeps the uploads (one log per player, also on disk, so a restart reads them again), works the session out every two seconds
-  with the same logic as the program, and serves the live page to everybody. An upload without a known key is refused. New keys go in its settings
-  (`appsettings.json`, `HaulingTracker:Trackers`: key to player): when the server starts they are added to the database, as a hash only, and can then be
-  removed from the settings (removing one there does not take it back). A key: `[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))`.
+  with the same logic as the program, and serves the live page to everybody. An upload without a known key is refused. The admin makes the keys on the
+  **Tracker keys** page (`/admin/keys`): a new key is shown once (the database keeps only a hash of it), and a key can be taken back (that tracker stops,
+  and its player's browser is logged out within a minute). Keys in the settings (`HaulingTracker:Trackers`: key to player) are still added when the server
+  starts.
+- **Logins** (ASP.NET Core Identity, its tables in the same database). Watching needs no login. The **admin** logs in at `/login` with his name and
+  password; his login is made when the server starts and has no admin yet, from `HaulingTracker:Admin:UserName` (default `admin`, not a player's name)
+  and `HaulingTracker:Admin:Password` (at least 12 characters). Those are never in `appsettings.json` (it is in the repository): on your own computer
+  right-click HaulingTracker.Server, **Manage User Secrets**, and put in
+  `{ "HaulingTracker": { "Admin": { "UserName": "admin", "Password": "..." } } }`; on the server they are in its environment. The password can be changed
+  on the page afterwards (`/account/password`). A **player** is logged in by his tracker: **Open my page** in its menu asks the server for a link that
+  works once, within two minutes, so the key is never in an address. **My page** (`/me`) is his own Current location, colour, ship and quantum drive (the
+  same lists as the Party table and the Trip Planner of the program); nobody else's. Five wrong passwords lock the login for ten minutes.
 - **The database** (`App_Data/tracker.db`, SQLite, EF Core in `HaulingTracker.Server/Data`) has everything the program keeps in its data file: the party and
   every member's ship, colour and location, the sessions, the transfers and payouts, what was typed on the Contracts and Debts tabs, and the tracker keys.
   The first time the server starts with an empty database, the program's data file (`App_Data/data.json`) goes into it; after that the database is the data.

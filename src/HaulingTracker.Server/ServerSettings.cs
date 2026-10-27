@@ -26,4 +26,20 @@ public sealed class ServerSettings
     /// the server starts (only a hash of each), so they can be removed from here afterwards; removing one here does not take it back.
     /// </summary>
     public Dictionary<string, string> Trackers { get; set; } = new();
+
+    /// <summary>
+    /// The admin login, made when the server starts and has no admin yet. Never in appsettings.json (it is in the repository): on your own computer in the user
+    /// secrets (Manage User Secrets in Visual Studio), on the server in its environment (HaulingTracker__Admin__UserName, HaulingTracker__Admin__Password).
+    /// After that the password is changed on the page, and these can be removed.
+    /// </summary>
+    public AdminSettings Admin { get; set; } = new();
+}
+
+/// <summary>The name and the first password of the admin.</summary>
+public sealed class AdminSettings
+{
+    /// <summary>Not a player's name: a tracker of that player would log in as the admin.</summary>
+    public string UserName { get; set; } = "admin";
+
+    public string? Password { get; set; }
 }

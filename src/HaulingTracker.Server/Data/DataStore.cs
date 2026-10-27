@@ -22,8 +22,11 @@ public sealed class DataStore
     {
         var dir = Path.GetDirectoryName(Path.GetFullPath(file));
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-        return new DataStore(new DbContextOptionsBuilder<TrackerDb>().UseSqlite("Data Source=" + file).Options);
+        return new DataStore(new DbContextOptionsBuilder<TrackerDb>().UseSqlite(ConnectionString(file)).Options);
     }
+
+    /// <summary>How SQLite opens this file.</summary>
+    public static string ConnectionString(string file) => "Data Source=" + file;
 
     /// <summary>A connection to the database, for one piece of work.</summary>
     public TrackerDb Open() => new(_options);
@@ -184,6 +187,27 @@ public sealed class DataStore
     {
         using var db = Open();
         return db.TrackerKeys.AsNoTracking().OrderBy(k => k.Id).ToList();
+    }
+
+    /// <summary>Adds a key for this player (only its hash is kept).</summary>
+    public TrackerKeyRow AddTrackerKey(string player, string key, DateTime nowUtc)
+    {
+        using var db = Open();
+        var row = new TrackerKeyRow { Player = player.Trim(), KeyHash = Server.TrackerKeys.Hash(key), CreatedUtc = nowUtc };
+        db.TrackerKeys.Add(row);
+        db.SaveChanges();
+        return row;
+    }
+
+    /// <summary>Takes a key back: the tracker that has it can no longer upload. The removed key, or null when there was none with this id.</summary>
+    public TrackerKeyRow? RemoveTrackerKey(int id)
+    {
+        using var db = Open();
+        var row = db.TrackerKeys.Find(id);
+        if (row == null) return null;
+        db.TrackerKeys.Remove(row);
+        db.SaveChanges();
+        return row;
     }
 
     /// <summary>
