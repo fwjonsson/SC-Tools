@@ -48,16 +48,20 @@ function alignColumns() {
   function measure() {
     lead.style.tableLayout = 'auto'; lead.style.width = 'auto';
     cells.forEach(function (c) { c.style.width = ''; });
-    return cells.map(function (c, i) { return Math.max(Math.ceil(c.getBoundingClientRect().width), least[i] || 0); });
+    return cells.map(function (c, i) { return Math.max(Math.ceil(c.getBoundingClientRect().width) + 1, least[i] || 0); });   // + 1: rounding
   }
   lead.classList.remove('tight');
   const need = measure();
-  const room = lead.parentElement.clientWidth - need.reduce(function (x, y) { return x + y; }, 0);
+  const total = need.reduce(function (x, y) { return x + y; }, 0);
+  const room = lead.parentElement.clientWidth - 2 - total;   // - 2: the outer borders
   let w;
   if (room >= 0) {
-    w = need.map(function (n, i) { return i > 0 ? n + room / (cells.length - 1) : n; });
+    // the widths as shares of the table's width (100%), so together they never come out a pixel wider than the page and make it scroll sideways
+    const share = need.map(function (n, i) { return i > 0 ? n + room / (cells.length - 1) : n; });
+    const sum = share.reduce(function (x, y) { return x + y; }, 0);
     lead.style.width = ''; lead.style.tableLayout = 'fixed';
-    cells.forEach(function (c, i) { c.style.width = w[i] + 'px'; });
+    cells.forEach(function (c, i) { c.style.width = (share[i] / sum * 100).toFixed(4) + '%'; });
+    w = cells.map(function (c) { return c.getBoundingClientRect().width; });
   } else {
     // a narrow window, where the titles on one line do not fit: as before, they may take two lines (.tight), with the first six columns as wide as Stops needs
     lead.classList.add('tight'); lead.style.width = ''; lead.style.tableLayout = '';
@@ -85,7 +89,8 @@ function alignColumns() {
 // title needs, instead of cutting it.
 function fitHeaders() {
   document.querySelectorAll('table').forEach(function (t) {
-    if (!t.tHead || !t.offsetParent || t.classList.contains('tight') || getComputedStyle(t).tableLayout !== 'fixed') return;
+    // (the leaderboard is left alone: alignColumns made every column as wide as its title)
+    if (!t.tHead || !t.offsetParent || t.closest('#leaders') || getComputedStyle(t).tableLayout !== 'fixed') return;
     Array.prototype.forEach.call(t.tHead.rows[0].cells, function (th) {
       const over = th.scrollWidth - th.clientWidth;
       if (over > 0) th.style.width = Math.ceil(th.getBoundingClientRect().width + over + 1) + 'px';
