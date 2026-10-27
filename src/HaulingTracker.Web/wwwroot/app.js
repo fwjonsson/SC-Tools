@@ -39,6 +39,10 @@ setInterval(function () {
 function alignColumns() {
   const lead = document.querySelector('#leaders table');
   if (!lead || !lead.tHead) return;
+  // the lined-up columns are never narrower than Stops needs them: with nobody on the leaderboard yet its columns are only as wide as their titles,
+  // so Pickup Location wrapped and the rest of Stops moved (#, Pickup Location, From Ruin, Batches, Cargo, Value)
+  const least = [36, 140, 90, 80, 110, 110];
+  Array.prototype.forEach.call(lead.tHead.rows[0].cells, function (c, i) { if (i < least.length) c.style.width = least[i] + 'px'; });
   const w = Array.prototype.map.call(lead.tHead.rows[0].cells, function (c) { return c.getBoundingClientRect().width; });
   // after the lined-up columns: the column with the long text (wide) takes what is left, the others are as wide as their numbers need
   const narrow = { 'Batches': 70, 'Value': 100, 'Started': 76, 'Completed': 90, 'Time': 80, 'In flight': 76, 'aUEC/h': 96, 'Lost Cargo': 96 };
