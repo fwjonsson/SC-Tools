@@ -97,7 +97,7 @@ public sealed class DropOffs
         var res = new List<DropBatch>();
         var log = _s.Log;
         if (log == null) return res;
-        foreach (var m in log.Missions.Values.Where(x => x.IsOut && x.EndState == null))
+        foreach (var m in log.Missions.Values.Where(x => x.IsOut && x.EndState == null && (_s.Focus == null || _s.Focus(x))))
         {
             var seen = m.Accepted ?? m.FirstSeen;
             if (seen.HasValue && log.LastTime - seen.Value > TimeSpan.FromHours(12)) continue;   // an old one that never ended

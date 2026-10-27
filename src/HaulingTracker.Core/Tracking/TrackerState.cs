@@ -29,6 +29,9 @@ public sealed class TrackerState
     /// <summary>On the server: who is playing and with whom, as the logs said last (see AutoParty). Null where the logs do not decide (the program).</summary>
     public AutoParty.Result? Parties { get; set; }
 
+    /// <summary>While the session is worked out for one party only (Tracker.Focus): the missions that are theirs. Null: everybody's.</summary>
+    public Func<Mission, bool>? Focus { get; set; }
+
     /// <summary>The sessions found in the log, oldest first.</summary>
     public List<SessionGroup> Sessions { get; set; } = new();
 

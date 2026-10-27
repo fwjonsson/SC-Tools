@@ -29,7 +29,11 @@ public sealed class PageController : Controller
         const string Heading = "<h1>Hauling Tracker</h1>";
         var nav = "<nav style=\"position:absolute;top:16px;right:20px;display:flex;gap:16px;font-weight:600;opacity:.85\">"
             + string.Join("", links).Replace("<a ", "<a style=\"color:inherit\" ") + "</nav>";
-        return page.Replace(Heading, Heading + nav);
+        page = page.Replace(Heading, Heading + nav);
+        // who is looking, so the page can show his party first and his own runs on the Trip Planner (a player logged in by his tracker, or the admin)
+        if (User.Identity?.IsAuthenticated == true && !string.IsNullOrEmpty(User.Identity.Name))
+            page = page.Replace("<head>", "<head>\n<meta name=\"me\" content=\"" + WebUtility.HtmlEncode(User.Identity.Name) + "\">");
+        return page;
     }
 
     [HttpGet("/data.json")]

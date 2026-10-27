@@ -78,6 +78,45 @@ public sealed class Tracker
     /// <summary>Works out the runs of the session shown, latest activity first (none while no session is shown).</summary>
     public void LoadRuns() => State.Trips = Runs.SessionRuns();
 
+    /// <summary>
+    /// Works out the session shown for these players only, for the party tabs of the page: the missions one of them has by his own log (the to-Ruin and the
+    /// from-Ruin ones; a player without a log is seen with the missions of those he plays with), the stops of those, and their runs. The session as it was
+    /// comes back when the result is disposed.
+    /// </summary>
+    public IDisposable Focus(IReadOnlyCollection<string> names)
+    {
+        var s = State;
+        var saved = (s.Current, s.Summary, s.Rows, s.OpenRows, s.PickupRows, s.DoneRows, s.Trips, s.Missing, s.Focus);
+        if (s.Current != null && s.Inputs != null)
+        {
+            var g = s.Current;
+            var logged = names.Where(n => s.Log?.Players.Contains(n) == true).ToList();
+            bool Theirs(Mission m) => logged.Any(n => Contracts.HasMission(m, n));
+            s.Focus = Theirs;
+            s.Current = new SessionGroup
+            {
+                Missions = g.Missions.Where(Theirs).ToList(),
+                Failed = g.Failed.Where(Theirs).ToList(),
+                Start = g.Start,
+                End = g.End,
+                Manual = g.Manual,
+                Stop = g.Stop,
+                CustomKey = g.Key,   // the same session: what was typed for it
+            };
+            LoadStops();
+            LoadRuns();
+            s.Trips = s.Trips.Where(t => names.Any(n => PlayerNames.SameName(n, t.Worker))).ToList();
+        }
+        return new Restore(() => (s.Current, s.Summary, s.Rows, s.OpenRows, s.PickupRows, s.DoneRows, s.Trips, s.Missing, s.Focus) = saved);
+    }
+
+    sealed class Restore : IDisposable
+    {
+        readonly Action _back;
+        public Restore(Action back) => _back = back;
+        public void Dispose() => _back();
+    }
+
     /// <summary>No session is shown: nothing typed, no stops.</summary>
     public void ClearSession()
     {
