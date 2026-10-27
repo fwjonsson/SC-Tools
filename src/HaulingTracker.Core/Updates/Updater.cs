@@ -8,10 +8,11 @@ using System.Text.RegularExpressions;
 namespace HaulingTracker.Updates;
 
 /// <summary>
-/// Looks for a newer build on GitHub (the "latest" release the build makes from main) and replaces the running exe with it.
-/// Only builds made by GitHub know their version (the commit), so a program you built yourself in Visual Studio never updates itself.
+/// Looks for a newer build on GitHub (the "latest" release the build makes from main) and replaces the running exe with it: the program, or the tracker that
+/// uploads the logs (each its own zip in the release). Only builds made by GitHub know their version (the commit), so a program you built yourself in Visual
+/// Studio never updates itself.
 /// </summary>
-static class Updater
+public static class Updater
 {
     const string Repo = "fwjonsson/SCHaulingTracker";
 
@@ -30,7 +31,7 @@ static class Updater
     {
         get
         {
-            var v = typeof(Updater).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            var v = (Assembly.GetEntryAssembly() ?? typeof(Updater).Assembly).GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
             var m = Regex.Match(v ?? "", "release-([0-9a-f]{40})");
             return m.Success ? m.Groups[1].Value : null;
         }
@@ -57,27 +58,27 @@ static class Updater
         return doc.RootElement.TryGetProperty("status", out var s) && s.GetString() == "ahead";
     }
 
-    /// <summary>Downloads the newest exe into a temporary folder and returns its path.</summary>
-    public static async Task<string> DownloadAsync()
+    /// <summary>Downloads the newest exe (zipName of the latest release, with exeName in it) into a temporary folder and returns its path.</summary>
+    public static async Task<string> DownloadAsync(string zipName, string exeName)
     {
         var dir = Path.Combine(Path.GetTempPath(), "HaulingTrackerUpdate-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        var zip = Path.Combine(dir, "HaulingTracker.zip");
-        using (var resp = await Http.GetAsync("https://github.com/" + Repo + "/releases/download/latest/HaulingTracker.zip", HttpCompletionOption.ResponseHeadersRead))
+        var zip = Path.Combine(dir, zipName);
+        using (var resp = await Http.GetAsync("https://github.com/" + Repo + "/releases/download/latest/" + zipName, HttpCompletionOption.ResponseHeadersRead))
         {
             resp.EnsureSuccessStatusCode();
             await using var file = File.Create(zip);
             await resp.Content.CopyToAsync(file);
         }
         ZipFile.ExtractToDirectory(zip, dir);
-        var exe = Path.Combine(dir, "HaulingTracker.exe");
-        if (!File.Exists(exe)) throw new FileNotFoundException("The download does not contain HaulingTracker.exe.");
+        var exe = Path.Combine(dir, exeName);
+        if (!File.Exists(exe)) throw new FileNotFoundException("The download does not contain " + exeName + ".");
         return exe;
     }
 
     /// <summary>
     /// Windows does not let a program overwrite itself while it runs, but it does let the running exe be renamed. So the running exe becomes
-    /// HaulingTracker.old.exe (kept as a backup until the next update), the new exe takes its place and is started.
+    /// HaulingTracker.old.exe (kept as a backup until the next update), the new exe takes its place and is started (the same for the tracker's exe).
     /// </summary>
     public static void ReplaceAndStart(string newExe)
     {

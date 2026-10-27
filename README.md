@@ -17,7 +17,9 @@ To make a single exe: `dotnet publish src/HaulingTracker -c Release -r win-x64 -
     src/
       HaulingTracker.Core/     the logic, without any user interface (runs anywhere .NET runs, so it can be tested on any machine)
         GameLog/               reading Game.log: missions, objectives, quantum travel, money transfers (HaulingLog), and the files
-                               that are read, opened by hand or followed live with their backup logs (LogSources)
+                               that are read, opened by hand or followed live with their backup logs (LogSources); for the web app:
+                               the lines a tracker uploads (LineFilter), its sending side (LogSender, HttpLogServer) and the server's
+                               side (LogUploads)
         Sessions/              which missions belong to a session, the pickup locations (SessionBuilder)
         Runs/                  the runs of every worker: pickups, deliveries, hand-ins (WorkerTripBuilder)
         Planning/              the trip planner (TripPlanner), the loads from Ruin (DropChunk), and the plan as the tab shows it
@@ -28,15 +30,19 @@ To make a single exe: `dotnet publish src/HaulingTracker -c Release -r win-x64 -
         Tracking/              the logic of the tabs, working from what the program knows now (TrackerState: the merged log, the
                                sessions, the session shown with its stops and runs). Tracker makes the services and wires them:
                                Places, Crew, Contracts, Earnings, DropOffs, CargoRuns, Whereabouts, SessionFigures, Payouts, Leaderboard,
-                               PlanService (the plan of the session, the locks) and StatusFeed (the team status line)
+                               PlanService (the plan of the session, the locks) and StatusFeed (the team status line); LiveTracker
+                               works it all out on the server
+        View/                  the live web view as data (WebSnapshot: data.json, every tab with its tables and colours)
+        Updates/               the self-update from the GitHub release (the program and the tracker)
       HaulingTracker/          the Windows program (WinForms): it shows what the services give it
         UI/                    the main window, one file per part of it: MainForm.Planner.cs, MainForm.Debts.cs, ...
         UI/Tables/             the names of the table columns (cells are found by name, never by number) and AddRow
         UI/Controls/           the map (PyroMapView) and the themed controls
         UI/Theming/            the light and dark colours
-        UI/MainForm.Web.cs     what the live web view shows (the data it sends)
-        Updates/               the self-update from the GitHub release
+        UI/MainForm.Web.cs     the program's own live web view (on this computer)
       HaulingTracker.Web/      the live web view: the small read-only server, and the page itself in wwwroot (index.html, app.css, app.js)
+      HaulingTracker.Server/   the web app (ASP.NET Core MVC): the trackers upload their logs to it, everybody watches the page
+      HaulingTracker.Sender/   the tracker every player runs on his gaming PC (HaulingTrackerSender.exe, a tray icon)
       ScApiTool/               the separate Star Citizen Wiki API tool
     tests/HaulingTracker.Tests/  the tests (xUnit): dotnet test tests/HaulingTracker.Tests
     tools/PlanTest/            prints the plans the trip planner makes for situations from real sessions
@@ -170,6 +176,20 @@ The **History** tab has the same table for **all saved sessions** (with an extra
 **Options → Live Web View** switches on a small read-only web server inside the program. It shows all the tabs (Session, Trip Planner with its map and pages, Debts and History) with buttons on the page to switch between them, in the colours of your theme, and refreshes every few seconds (the running clocks, the session time and the run time of runs on the way, count up on the page every second in between). The page has the program icon as its icon (also in a bookmark). It only listens on your own computer (`http://localhost:8765`), and it can only show things: there is nothing to click or change, all changes are made in the program. The setting is remembered.
 - To let somebody else watch, point a Cloudflare tunnel at `http://localhost:8765` on the same computer. Quick and free, no account: install `cloudflared` (`winget install Cloudflare.cloudflared`) and run `cloudflared tunnel --url http://localhost:8765`; it prints an `https://...trycloudflare.com` address that changes every time. For a fixed address, make a tunnel in the Cloudflare dashboard (Networking, Tunnels) with a published application for your own domain and the service URL `http://localhost:8765`; its connector runs as a Windows service. Anybody with the address can look, so share it only with people you trust.
 - The program (with the web view on) and the tunnel connector have to be running on the same computer for the page to work.
+
+## The web app (being built)
+
+The tracker is moving to a server, so the website is always up and everybody with a tracker is tracked, also when Frank's computer is off. The plan is
+`claude/webapp-plan.md` in the project: the server and the live page (done), the trackers (done), then the database, the logins and the editing, then going live.
+
+- **HaulingTrackerSender.exe** (in the Releases download, `HaulingTrackerSender.zip`) is the tracker: a tray icon on every gaming PC. Its settings are the
+  server, your **key** (Frank gives every player his own; **Test** asks the server whose key it is), the Star Citizen folder and the log channel. Every
+  3 seconds it uploads what is new in the Game.log, and the backup logs of the last day, from where the server is, so nothing is sent twice (also after a
+  restart of the tracker or the game). It only sends the lines the tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money
+  transfers, the freight elevator and the loading platform); the rest of the game's log stays on the PC. It can start with Windows, and it updates itself.
+- **HaulingTracker.Server** keeps the uploads (one log per player, also on disk, so a restart reads them again), works the session out every two seconds
+  with the same logic as the program, and serves the live page to everybody. The keys are in its settings (`appsettings.json`, `HaulingTracker:Trackers`:
+  key to player); an upload without a known key is refused. A key: `[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))`.
 
 ## ScApiTool (Star Citizen Wiki API)
 

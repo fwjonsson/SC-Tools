@@ -53,7 +53,32 @@ public sealed class HaulingLog
 
     // The game no longer writes kill lines (CIG took "<Actor Death>" out after 4.3). What is still written when the player of this log dies is the list of the items of his
     // body for the item recovery (one line for every item): a burst of those lines is a death.
-    const string CorpseLine = "Adding non kept item [CSCActorCorpseUtils::PopulateItemPortForItemRecoveryEntitlement]";
+    internal const string CorpseLine = "Adding non kept item [CSCActorCorpseUtils::PopulateItemPortForItemRecoveryEntitlement]";
+
+    /// <summary>
+    /// The kinds of lines the tracker reads: a line with none of these in it is skipped at once (ProcessLine), and a tracker does not upload it (LineFilter).
+    /// A new kind of line that is read (a new mission type, a new event) goes here, and the trackers send it from their next update.
+    /// </summary>
+    internal static readonly string[] LineKinds =
+    {
+        "sent you:", "You sent ",                                       // money transfers (the amount is on the next line)
+        "AccountLoginCharacterStatus_Character",                        // who the player is
+        "[QuantumTravel]", CorpseLine,                                  // quantum travel, and the items of a body (he died)
+        "Projected Start Location is ",                                 // which gateway he is at
+        "FreightElevatorUIProvider::FillUnstowRequest",                 // he takes cargo out of a freight elevator
+        "CSCLoadingPlatformManager::OnLoadingPlatformStateChanged",     // he hands cargo in at a loading platform
+        "Mission",                                                      // the missions: markers, objectives, notifications, members
+    };
+
+    /// <summary>Is this a kind of line the tracker reads (see LineKinds)?</summary>
+    internal static bool IsRead(string line)
+    {
+        foreach (var kind in LineKinds)
+        {
+            if (line.Contains(kind, StringComparison.Ordinal)) return true;
+        }
+        return false;
+    }
     DateTime _corpseFirst;
     int _corpseCount;
 
@@ -336,6 +361,7 @@ public sealed class HaulingLog
                 return;
             }
         }
+        if (!IsRead(line)) return;   // only the kinds of lines in LineKinds are read (and uploaded by the trackers): a new kind goes there first
         if (line.Contains("sent you:") || line.Contains("You sent "))
         {
             var sm = SentOut.Match(line);

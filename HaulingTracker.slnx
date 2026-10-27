@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/HaulingTracker/HaulingTracker.csproj" />
     <Project Path="src/HaulingTracker.Core/HaulingTracker.Core.csproj" />
+    <Project Path="src/HaulingTracker.Sender/HaulingTracker.Sender.csproj" />
     <Project Path="src/HaulingTracker.Server/HaulingTracker.Server.csproj" />
     <Project Path="src/HaulingTracker.Web/HaulingTracker.Web.csproj" />
     <Project Path="src/ScApiTool/ScApiTool.csproj" />

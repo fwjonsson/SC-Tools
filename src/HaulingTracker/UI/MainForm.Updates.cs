@@ -59,7 +59,7 @@ public sealed partial class MainForm
             if (answer != DialogResult.Yes) return;
 
             SetStatus("Downloading the update…");
-            var exe = await Updater.DownloadAsync();
+            var exe = await Updater.DownloadAsync("HaulingTracker.zip", "HaulingTracker.exe");
             SetStatus("Installing the update…");
             Updater.ReplaceAndStart(exe);
             Application.Exit();
