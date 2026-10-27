@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- The web app (plan: claude/webapp-plan.md in the project): the trackers upload their Game.log lines here, the server works out the sessions with the core
+       (the same logic as the program), and everybody watches the live page. Phase 1: the page and the upload; the database, the logins and the editing come later. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>HaulingTracker.Server</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../HaulingTracker.Core/HaulingTracker.Core.csproj" />
+    <ProjectReference Include="../HaulingTracker.Web/HaulingTracker.Web.csproj" />
+  </ItemGroup>
+
+</Project>

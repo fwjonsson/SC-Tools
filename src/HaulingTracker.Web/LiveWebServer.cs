@@ -107,7 +107,7 @@ sealed class LiveWebServer : IDisposable
                     type = "application/json; charset=utf-8";
                     body = Encoding.UTF8.GetBytes(_json);
                 }
-                else if (path == "/favicon.ico" && Icon() is { } icon)
+                else if (path == "/favicon.ico" && WebAssets.Icon is { } icon)
                 {
                     type = "image/x-icon";
                     body = icon;
@@ -140,28 +140,6 @@ sealed class LiveWebServer : IDisposable
         }
     }
 
-    static byte[]? _icon;
-    static bool _iconRead;
-
-    /// <summary>The program icon (built into the exe), shown as the icon of the page and of the bookmark. Null when it cannot be read.</summary>
-    static byte[]? Icon()
-    {
-        if (_iconRead) return _icon;
-        _iconRead = true;
-        try
-        {
-            using var stream = typeof(LiveWebServer).Assembly.GetManifestResourceStream("icon.ico");
-            if (stream == null) return null;
-            using var memory = new MemoryStream();
-            stream.CopyTo(memory);
-            _icon = memory.ToArray();
-        }
-        catch (Exception)
-        {
-            _icon = null;
-        }
-        return _icon;
-    }
 
     /// <summary>The page: wwwroot (index.html with its app.css and app.js), embedded in this library and put together once.</summary>
     static string Page => WebAssets.Page;
