@@ -2,6 +2,8 @@ using System.Net;
 using System.Text.RegularExpressions;
 using HaulingTracker.Server;
 using HaulingTracker.Server.Accounts;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace HaulingTracker.Tests.ServerPages;
 
@@ -144,6 +146,27 @@ public class LoginTests
         var old = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", ServerFactory.AdminName), ("Password", ServerFactory.AdminPassword));
         Assert.Contains("Wrong name or password.", await old.Content.ReadAsStringAsync());
         var now = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", ServerFactory.AdminName), ("Password", NewPassword));
+        Assert.Equal(HttpStatusCode.Redirect, now.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_forgotten_password_is_set_again_from_the_settings()
+    {
+        using var f = new ServerFactory();
+        var admin = await f.Admin();
+        await ServerFactory.Send(admin, "/account/password", "/account/password", ("Current", ServerFactory.AdminPassword), ("New", "forgotten password 1"), ("Again", "forgotten password 1"));
+        for (var i = 0; i < 5; i++) await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", ServerFactory.AdminName), ("Password", "a wrong guess " + i));
+        var locked = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", ServerFactory.AdminName), ("Password", "forgotten password 1"));
+        Assert.Contains("Too many wrong passwords", await locked.Content.ReadAsStringAsync());
+
+        // the server starts again with ResetPassword on
+        using (var scope = f.Services.CreateScope())
+        {
+            await AccountSetup.RunAsync(scope.ServiceProvider,
+                new AdminSettings { UserName = ServerFactory.AdminName, Password = "the password again", ResetPassword = true },
+                scope.ServiceProvider.GetRequiredService<ILogger<LoginTests>>());
+        }
+        var now = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", ServerFactory.AdminName), ("Password", "the password again"));
         Assert.Equal(HttpStatusCode.Redirect, now.StatusCode);
     }
 

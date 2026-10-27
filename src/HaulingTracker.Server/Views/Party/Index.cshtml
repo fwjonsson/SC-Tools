@@ -16,6 +16,7 @@
   {
     var m = Model.Members[i];
     var id = "member-" + i;
+    var automatic = "Automatic: " + m.AutoLocation;
     <tr class="@(m.Active ? "" : "inactive")">
       <td><b>@m.Name.ToUpperInvariant()</b></td>
       <td class="center"><input type="checkbox" name="active" value="true" checked="@m.Active" form="@id"></td>
@@ -23,7 +24,7 @@
       <td><select name="ship" form="@id" asp-items="Items(Model.Ships, m.Ship)"></select></td>
       <td><select name="drive" form="@id" asp-items="Items(Model.Drives, m.Drive)"></select></td>
       <td class="center"><input type="color" name="color" value="@m.Color" form="@id"></td>
-      <td><select name="location" form="@id" asp-items="Items(Model.Stations, m.Location, "Automatic: " + m.AutoLocation)"></select></td>
+      <td><select name="location" form="@id" asp-items="Items(Model.Stations, m.Location, automatic)"></select></td>
       <td class="right nowrap">
         <form id="@id" method="post" action="/admin/party/save" asp-antiforgery="true" class="inline"><input type="hidden" name="name" value="@m.Name"><button type="submit">Save</button></form>
         <form method="post" action="/admin/party/remove" asp-antiforgery="true" class="inline"
