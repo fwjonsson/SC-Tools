@@ -32,9 +32,10 @@ public sealed class AdminSessionModel
             Locked = inp?.NextStopsLocked == true,
             StartTime = inp?.Start ?? "",
         };
+        m.Rewards = Earnings.RewardLines
+            .Select((l, i) => new RewardInput(i, l.Contract, Amounts.Edit(inp != null && l.Get(inp) > 0 ? l.Get(inp) : Earnings.StartReward(l, s.Data)))).ToList();
         if (inp == null) return m;
 
-        m.Rewards = Earnings.RewardLines.Select((l, i) => new RewardInput(i, l.Contract, Amounts.Edit(l.Get(inp)))).ToList();
         m.Stops = s.OpenRows.Select(r => new StopInput(
             r.Zone, t.Places.LocationName(r.Zone), inp.Rows.TryGetValue(r.Zone, out var row) ? row.Notes : "", BoardTexts.MissionsText(r))).ToList();
         m.Runs = s.Trips.Select(r => new RunInput(

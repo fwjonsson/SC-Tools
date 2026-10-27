@@ -26,7 +26,7 @@ public class LoginTests
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/data.json")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/site.css")).StatusCode);
 
-        foreach (var url in new[] { "/me", "/admin/keys", "/account/password" })
+        foreach (var url in new[] { "/me", "/admin/keys", "/account", "/account/password" })
         {
             var r = await c.GetAsync(url);
             Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);
@@ -140,7 +140,7 @@ public class LoginTests
         using var f = new ServerFactory();
         var admin = await f.Admin();
         const string NewPassword = "another password 456";
-        var r = await ServerFactory.Send(admin, "/account/password", "/account/password", ("Current", ServerFactory.AdminPassword), ("New", NewPassword), ("Again", NewPassword));
+        var r = await ServerFactory.Send(admin, "/account", "/account/password", ("Password.Current", ServerFactory.AdminPassword), ("Password.New", NewPassword), ("Password.Again", NewPassword));
         Assert.Contains("The password is changed.", await r.Content.ReadAsStringAsync());
 
         var old = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", ServerFactory.AdminName), ("Password", ServerFactory.AdminPassword));
@@ -150,11 +150,29 @@ public class LoginTests
     }
 
     [Fact]
+    public async Task The_admin_changes_his_name_but_not_to_a_players_name()
+    {
+        using var f = new ServerFactory();
+        var admin = await f.Admin();
+        var taken = await ServerFactory.Send(admin, "/account", "/account/name", ("Rename.NewName", "zzoega"));   // in the party
+        Assert.Contains("is a player", WebUtility.HtmlDecode(await taken.Content.ReadAsStringAsync()));
+
+        var r = await ServerFactory.Send(admin, "/account", "/account/name", ("Rename.NewName", "frank"));
+        Assert.Contains("Your name is frank now", await r.Content.ReadAsStringAsync());
+        Assert.Contains("frank", await admin.GetStringAsync("/admin"));   // still logged in, with the new name
+
+        var old = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", ServerFactory.AdminName), ("Password", ServerFactory.AdminPassword));
+        Assert.Contains("Wrong name or password.", await old.Content.ReadAsStringAsync());
+        var now = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", "frank"), ("Password", ServerFactory.AdminPassword));
+        Assert.Equal(HttpStatusCode.Redirect, now.StatusCode);
+    }
+
+    [Fact]
     public async Task A_forgotten_password_is_set_again_from_the_settings()
     {
         using var f = new ServerFactory();
         var admin = await f.Admin();
-        await ServerFactory.Send(admin, "/account/password", "/account/password", ("Current", ServerFactory.AdminPassword), ("New", "forgotten password 1"), ("Again", "forgotten password 1"));
+        await ServerFactory.Send(admin, "/account", "/account/password", ("Password.Current", ServerFactory.AdminPassword), ("Password.New", "forgotten password 1"), ("Password.Again", "forgotten password 1"));
         for (var i = 0; i < 5; i++) await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", ServerFactory.AdminName), ("Password", "a wrong guess " + i));
         var locked = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", ServerFactory.AdminName), ("Password", "forgotten password 1"));
         Assert.Contains("Too many wrong passwords", await locked.Content.ReadAsStringAsync());

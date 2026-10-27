@@ -56,6 +56,7 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.WatchPaths).AsJson();
             e.Property(x => x.DisabledWatchPaths).AsJson();
+            e.Property(x => x.DefaultRewards).AsJson();
         });
 
         b.Entity<MemberRow>(e =>

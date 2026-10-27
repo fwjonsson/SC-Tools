@@ -24,21 +24,25 @@
     </form>
     <span class="hint">@(Model.Locked ? "Planning again only changes the trips after everybody's next stop." : "The plan is free: it can change while people are on their way.")</span>
   </div>
+}
 
-  <h2>Mission rewards</h2>
-  <form method="post" action="/admin/rewards" asp-antiforgery="true">
-    <table class="narrow">
-      <thead><tr><th>Contract</th><th>Mission Reward</th></tr></thead>
-      <tbody>
-      @foreach (var r in Model.Rewards)
-      {
-        <tr><td>@r.Contract</td><td><input name="rewards[@r.Index]" value="@r.Value" inputmode="numeric" class="num"></td></tr>
-      }
-      </tbody>
-    </table>
-    <button type="submit">Save the rewards</button>
-  </form>
+<h2>Mission rewards</h2>
+<p class="hint">@(Model.HasSession ? "For this session, and every new session starts with them." : "No session now: the next session starts with these.") Empty = the built-in reward.</p>
+<form method="post" action="/admin/rewards" asp-antiforgery="true">
+  <table class="narrow">
+    <thead><tr><th>Contract</th><th>Mission Reward</th></tr></thead>
+    <tbody>
+    @foreach (var r in Model.Rewards)
+    {
+      <tr><td>@r.Contract</td><td><input name="rewards[@r.Index]" value="@r.Value" inputmode="numeric" class="num"></td></tr>
+    }
+    </tbody>
+  </table>
+  <button type="submit">Save the rewards</button>
+</form>
 
+@if (Model.HasSession)
+{
   <h2>Start time</h2>
   <form method="post" action="/admin/start-time" asp-antiforgery="true" class="line">
     <input name="startTime" value="@Model.StartTime" placeholder="19:30" class="time">

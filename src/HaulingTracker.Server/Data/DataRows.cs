@@ -29,6 +29,7 @@ public sealed class DataRows
             {
                 PartyTrackingSince = d.PartyTrackingSince,
                 PlanCreditSince = d.PlanCreditSince,
+                DefaultRewards = d.DefaultRewards,
                 GameLogPath = d.GameLogPath,
                 DarkMode = d.DarkMode,
                 Channel = d.Channel,
@@ -167,6 +168,7 @@ public sealed class DataRows
         {
             PartyTrackingSince = s.PartyTrackingSince,
             PlanCreditSince = s.PlanCreditSince,
+            DefaultRewards = s.DefaultRewards,
             GameLogPath = s.GameLogPath,
             DarkMode = s.DarkMode,
             Channel = s.Channel,

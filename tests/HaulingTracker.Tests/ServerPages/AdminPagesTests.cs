@@ -40,8 +40,9 @@ public class AdminPagesTests
         Assert.Contains("Next Stops: Unlocked", page);
         Assert.Contains("Stop Session", page);   // the played session was started by hand and runs
 
-        Assert.Contains("The mission rewards are saved.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/rewards", ("rewards[0]", "1 300 000")), "/admin"));
+        Assert.Contains("The mission rewards are saved", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/rewards", ("rewards[0]", "1 300 000")), "/admin"));
         Assert.Equal(1_300_000m, Read(f, t => t.State.Inputs!.Reward2));
+        Assert.Equal(1_300_000m, Read(f, t => t.State.Data.DefaultRewards["2 To Ruin"]));   // and the next sessions start with it
 
         Assert.Contains("The session time runs from 07:05.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/start-time", ("startTime", "7:05")), "/admin"));
         Assert.Contains("Type the start time as 19:30.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/start-time", ("startTime", "soon")), "/admin"));
@@ -66,6 +67,24 @@ public class AdminPagesTests
         Assert.Null(Read(f, t => t.State.Data.ManualSessions.LastOrDefault(s => !s.StopUtc.HasValue)));
         Assert.Contains("Session started.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/session"), "/admin"));
         Assert.Equal(2, Read(f, t => t.State.Data.ManualSessions.Count));
+    }
+
+    [Fact]
+    public async Task The_rewards_can_be_set_without_a_session_and_a_new_session_starts_with_them()
+    {
+        using var f = new ServerFactory();   // no data, no logs: no session
+        var admin = await f.Admin();
+        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin"));
+        Assert.Contains("No session now", page);
+        Assert.Contains("value=\"" + Earnings.DefaultReward2.ToString("0") + "\"", page);   // the built-in reward
+
+        var r = await ServerFactory.Send(admin, "/admin", "/admin/rewards", ("rewards[0]", "1400000"), ("rewards[1]", ""));
+        Assert.Contains("the next session starts with them", await Said(admin, r, "/admin"));
+        Assert.Contains("value=\"1400000\"", await admin.GetStringAsync("/admin"));
+
+        await ServerFactory.Send(admin, "/admin", "/admin/session");   // Start Session
+        Assert.Equal(1_400_000m, Read(f, t => t.State.Inputs!.Reward2));
+        Assert.Equal(Earnings.DefaultReward3, Read(f, t => t.State.Inputs!.Reward3));   // nothing typed: the built-in one
     }
 
     [Fact]

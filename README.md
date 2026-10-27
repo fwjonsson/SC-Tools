@@ -198,7 +198,7 @@ admin (done), then going live.
   and `HaulingTracker:Admin:Password` (at least 12 characters). Those are never in `appsettings.json` (it is in the repository): on your own computer
   right-click HaulingTracker.Server, **Manage User Secrets**, and put in
   `{ "HaulingTracker": { "Admin": { "UserName": "admin", "Password": "..." } } }`; on the server they are in its environment. The settings are only read to make
-  the admin the first time: after that the password is changed on the page (`/account/password`). A forgotten one: add `"ResetPassword": true` next to
+  the admin the first time: after that the name and the password are changed on the **Account** page (`/account`). A forgotten one: add `"ResetPassword": true` next to
   the password in the settings, start the server (it sets that password again and lifts a lockout), then remove it. A **player** is logged in by his tracker: **Open my page** in its menu asks the server for a link that
   works once, within two minutes, so the key is never in an address. **My page** (`/me`) is his own Current location, colour, ship and quantum drive (the
   same lists as the Party table and the Trip Planner of the program); nobody else's. Five wrong passwords lock the login for ten minutes.
