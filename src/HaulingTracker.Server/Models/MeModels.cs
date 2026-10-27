@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using HaulingTracker.Server.Editing;
 
 namespace HaulingTracker.Server.Models;
 
@@ -45,18 +46,21 @@ public sealed class MeModel
             InParty = party.Any(n => PlayerNames.SameName(n, player)),
             AutoLocation = PyroDistances.NameOf(t.Whereabouts.AutoLocationOf(player)),
             Location = byHand ? location : "",
-            Color = ViewPalette.Hex(ColorOf(t, player)),
+            Color = ViewPalette.Hex(Edits.ColorOf(t, player)),
             Ship = t.Crew.ShipOf(player)?.Label ?? "",
             Drive = t.Crew.DriveOf(player)?.Label ?? "",
             Stations = StationChoices(),
-            Ships = global::HaulingTracker.GameData.Ships.All.Select(s => new Choice(s.Label, s.Label)).ToList(),
-            Drives = QuantumDrives.All.OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase).ThenBy(d => d.Size).Select(d => new Choice(d.Label, d.Label)).ToList(),
+            Ships = ShipChoices(),
+            Drives = DriveChoices(),
         };
     }
 
-    /// <summary>His colour on the page and the map (0xRRGGBB): the one he picked, or the built-in one.</summary>
-    public static int ColorOf(Tracker t, string player) =>
-        ViewPalette.WorkerColor(player, t.Crew.PickedColor(player), t.State.Data.Party.FindIndex(n => PlayerNames.SameName(n, player)));
+    /// <summary>The ships, as in the Party table of the program.</summary>
+    public static List<Choice> ShipChoices() => global::HaulingTracker.GameData.Ships.All.Select(s => new Choice(s.Label, s.Label)).ToList();
+
+    /// <summary>The quantum drives by name and size, as in the Party table of the program.</summary>
+    public static List<Choice> DriveChoices() =>
+        QuantumDrives.All.OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase).ThenBy(d => d.Size).Select(d => new Choice(d.Label, d.Label)).ToList();
 
     /// <summary>The stations, Ruin Station first (as on the Trip Planner of the program).</summary>
     public static List<Choice> StationChoices() =>

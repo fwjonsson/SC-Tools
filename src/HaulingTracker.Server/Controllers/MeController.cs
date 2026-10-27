@@ -1,4 +1,5 @@
 using HaulingTracker.Server.Accounts;
+using HaulingTracker.Server.Editing;
 using HaulingTracker.Server.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -40,33 +41,8 @@ public sealed class MeController : Controller
         }
 
         var changed = new List<string>();
-        _live.Edit(t =>
-        {
-            var now = MeModel.Of(t, player);
-            if ((location ?? "") != now.Location)
-            {
-                // his locked next stop is released, so the plan is free to start with a stop near him (as in the program)
-                t.Whereabouts.SetLocation(player, location);
-                t.Plan.ReleaseLock(player);
-                changed.Add("location");
-            }
-            if (color.Value != MeModel.ColorOf(t, player))
-            {
-                t.Crew.SetColor(player, unchecked((int)0xFF000000) | color.Value);
-                changed.Add("colour");
-            }
-            if ((ship?.Label ?? "") != now.Ship)
-            {
-                t.Crew.SetShip(player, ship?.Name);
-                changed.Add("ship");
-            }
-            if ((drive?.Label ?? "") != now.Drive)
-            {
-                t.Crew.SetDrive(player, drive?.Key);
-                changed.Add("quantum drive");
-            }
-        }, DateTime.UtcNow);
-        TempData["Message"] = changed.Count == 0 ? "Nothing changed." : "Saved: " + string.Join(", ", changed) + ".";
+        _live.Edit(t => changed = Edits.ApplySettings(t, player, location, color.Value, ship, drive), DateTime.UtcNow);
+        TempData["Message"] = Edits.Saved("", changed);
         return LocalRedirect("/me");
     }
 }

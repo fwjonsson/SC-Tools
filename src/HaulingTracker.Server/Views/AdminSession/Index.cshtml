@@ -1,0 +1,124 @@
+@model AdminSessionModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Session";
+    IEnumerable<SelectListItem> Levels(string now) => new[] { "None", "Little", "All" }.Select(l => new SelectListItem(l, l, l == now));
+}
+<h1>Session</h1>
+<p class="muted">@Model.Session</p>
+
+<div class="buttons">
+  <form method="post" action="/admin/session" asp-antiforgery="true" class="inline"
+        onsubmit="return confirm('@(Model.OpenSince == null ? "Start a new session now? Only what happens from this moment is read, until Stop Session." : "Stop the session that started " + Model.OpenSince + "? The logs are not read for it after this moment.")');">
+    <button type="submit">@(Model.OpenSince == null ? "Start Session" : "Stop Session")</button>
+  </form>
+  <span class="hint">@(Model.OpenSince == null ? "Starts a session now (a session also starts by itself with the first missions in the logs)." : "Started " + Model.OpenSince + ".")</span>
+</div>
+
+@if (Model.HasSession)
+{
+  <div class="buttons">
+    <form method="post" action="/admin/locks" asp-antiforgery="true" class="inline"
+          onsubmit="return confirm('@(Model.Locked ? "Unlock the next stops? The plan is free again, so it can change while people are on their way to a stop." : "Lock the next stops? The plan is worked out now and the next stop of everybody is locked to him.")');">
+      <button type="submit">Next Stops: @(Model.Locked ? "Locked" : "Unlocked")</button>
+    </form>
+    <span class="hint">@(Model.Locked ? "Planning again only changes the trips after everybody's next stop." : "The plan is free: it can change while people are on their way.")</span>
+  </div>
+
+  <h2>Mission rewards</h2>
+  <form method="post" action="/admin/rewards" asp-antiforgery="true">
+    <table class="narrow">
+      <thead><tr><th>Contract</th><th>Mission Reward</th></tr></thead>
+      <tbody>
+      @foreach (var r in Model.Rewards)
+      {
+        <tr><td>@r.Contract</td><td><input name="rewards[@r.Index]" value="@r.Value" inputmode="numeric" class="num"></td></tr>
+      }
+      </tbody>
+    </table>
+    <button type="submit">Save the rewards</button>
+  </form>
+
+  <h2>Start time</h2>
+  <form method="post" action="/admin/start-time" asp-antiforgery="true" class="line">
+    <input name="startTime" value="@Model.StartTime" placeholder="19:30" class="time">
+    <button type="submit">Save</button>
+    <span class="hint">The session time runs from it. Empty = from the logs.</span>
+  </form>
+
+  <h2>Stops</h2>
+  @if (Model.Stops.Count == 0)
+  {
+    <p class="muted">No stops.</p>
+  }
+  else
+  {
+    <table class="wide">
+      <thead><tr><th>Pickup Location</th><th>Batches</th><th>Notes</th><th></th></tr></thead>
+      <tbody>
+      @for (var i = 0; i < Model.Stops.Count; i++)
+      {
+        var s = Model.Stops[i];
+        var id = "stop-" + i;
+        <tr>
+          <td><input name="name" value="@s.Name" form="@id"></td>
+          <td class="center">@s.Batches</td>
+          <td><input name="notes" value="@s.Notes" form="@id"></td>
+          <td class="right"><form id="@id" method="post" action="/admin/stop" asp-antiforgery="true"><input type="hidden" name="zone" value="@s.Zone"><button type="submit">Save</button></form></td>
+        </tr>
+      }
+      </tbody>
+    </table>
+    <p class="hint">A name you type replaces the one the program knows; an empty name gives that one back.</p>
+  }
+
+  <h2>Cargo runs</h2>
+  @if (Model.Runs.Count == 0)
+  {
+    <p class="muted">No runs yet.</p>
+  }
+  else
+  {
+    <table class="wide">
+      <thead><tr><th>#</th><th>Worker</th><th>Pickups</th><th>Started</th><th>Completed</th><th>Lost Cargo</th><th></th></tr></thead>
+      <tbody>
+      @for (var i = 0; i < Model.Runs.Count; i++)
+      {
+        var r = Model.Runs[i];
+        var id = "run-" + i;
+        <tr>
+          <td class="center">@r.Number</td>
+          <td>@r.Worker</td>
+          <td>@r.Places</td>
+          <td class="center">@r.Started</td>
+          <td class="center">@r.Completed</td>
+          <td><select name="level" form="@id" asp-items="Levels(r.Lost)"></select></td>
+          <td class="right"><form id="@id" method="post" action="/admin/run" asp-antiforgery="true"><input type="hidden" name="key" value="@r.Key"><button type="submit">Save</button></form></td>
+        </tr>
+      }
+      </tbody>
+    </table>
+    <p class="hint">All = the run failed: one still on the way ends there, and picking something else brings it back.</p>
+  }
+
+  @if (Model.Scu.Count > 0)
+  {
+    <h2>SCU of the drop-offs</h2>
+    <p class="hint">The game has not said how many SCU these are. Type the SCU from the contract, and the program works out the containers (0 forgets it; the game's own number wins once it writes it).</p>
+    <table class="narrow">
+      <thead><tr><th>Drop-off</th><th>SCU</th><th></th></tr></thead>
+      <tbody>
+      @for (var i = 0; i < Model.Scu.Count; i++)
+      {
+        var d = Model.Scu[i];
+        var id = "scu-" + i;
+        <tr>
+          <td>@d.Label</td>
+          <td><input name="scu" value="@(d.Scu > 0 ? d.Scu.ToString() : "")" inputmode="numeric" class="num" form="@id"></td>
+          <td class="right"><form id="@id" method="post" action="/admin/scu" asp-antiforgery="true"><input type="hidden" name="key" value="@d.Key"><button type="submit">Save</button></form></td>
+        </tr>
+      }
+      </tbody>
+    </table>
+  }
+}

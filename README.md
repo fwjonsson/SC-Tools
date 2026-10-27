@@ -180,8 +180,8 @@ The **History** tab has the same table for **all saved sessions** (with an extra
 ## The web app (being built)
 
 The tracker is moving to a server, so the website is always up and everybody with a tracker is tracked, also when Frank's computer is off. The plan is
-`claude/webapp-plan.md` in the project: the server and the live page (done), the trackers (done), the database (done), the logins (done), then the
-editing pages of the admin, then going live.
+`claude/webapp-plan.md` in the project: the server and the live page (done), the trackers (done), the database (done), the logins and the editing pages of the
+admin (done), then going live.
 
 - **HaulingTrackerSender.exe** (in the Releases download, `HaulingTrackerSender.zip`) is the tracker: a tray icon on every gaming PC. Its settings are the
   server, your **key** (Frank gives every player his own; **Test** asks the server whose key it is), the Star Citizen folder and the log channel. Every
@@ -197,10 +197,16 @@ editing pages of the admin, then going live.
   password; his login is made when the server starts and has no admin yet, from `HaulingTracker:Admin:UserName` (default `admin`, not a player's name)
   and `HaulingTracker:Admin:Password` (at least 12 characters). Those are never in `appsettings.json` (it is in the repository): on your own computer
   right-click HaulingTracker.Server, **Manage User Secrets**, and put in
-  `{ "HaulingTracker": { "Admin": { "UserName": "admin", "Password": "..." } } }`; on the server they are in its environment. The password can be changed
-  on the page afterwards (`/account/password`). A **player** is logged in by his tracker: **Open my page** in its menu asks the server for a link that
+  `{ "HaulingTracker": { "Admin": { "UserName": "admin", "Password": "..." } } }`; on the server they are in its environment. The settings are only read to make
+  the admin the first time: after that the password is changed on the page (`/account/password`). A forgotten one: add `"ResetPassword": true` next to
+  the password in the settings, start the server (it sets that password again and lifts a lockout), then remove it. A **player** is logged in by his tracker: **Open my page** in its menu asks the server for a link that
   works once, within two minutes, so the key is never in an address. **My page** (`/me`) is his own Current location, colour, ship and quantum drive (the
   same lists as the Party table and the Trip Planner of the program); nobody else's. Five wrong passwords lock the login for ten minutes.
+- **The admin's pages** change what the program changes, with the same logic (`Editing/Edits.cs`, each change saved and worked out again at once):
+  **Session** (`/admin`: Start / Stop Session, Next Stops locked or not, the mission rewards, the start time, the names and notes of the stops, the lost
+  cargo of the runs, the SCU of from-Ruin drop-offs the game did not tell), **Party** (add, remove, active, batches, ship, drive, colour, location of every
+  member), **Contracts** (who has every mission, Gone / Bring back) and **Debts** (a member's balances typed over, the Payment tick of his transfers, what a
+  mission really paid, the party of the session). What only the program on a PC has (the log sources, the channel, the data file, the look) is not there.
 - **The database** (`App_Data/tracker.db`, SQLite, EF Core in `HaulingTracker.Server/Data`) has everything the program keeps in its data file: the party and
   every member's ship, colour and location, the sessions, the transfers and payouts, what was typed on the Contracts and Debts tabs, and the tracker keys.
   The first time the server starts with an empty database, the program's data file (`App_Data/data.json`) goes into it; after that the database is the data.

@@ -42,4 +42,10 @@ public sealed class AdminSettings
     public string UserName { get; set; } = "admin";
 
     public string? Password { get; set; }
+
+    /// <summary>
+    /// True: when the server starts, the admin's password is set to Password again and his lockout is lifted (a forgotten password). Remove it afterwards,
+    /// or every start sets it again.
+    /// </summary>
+    public bool ResetPassword { get; set; }
 }
