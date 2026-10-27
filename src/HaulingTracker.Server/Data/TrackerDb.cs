@@ -37,6 +37,11 @@ public sealed class TrackerDb : DbContext
         v => v.ToString("O", CultureInfo.InvariantCulture),
         s => DateTime.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind));
 
+    /// <summary>An amount is kept as text exactly as it is written (1056875 stays 1056875, not 1056875.0).</summary>
+    static readonly ValueConverter<decimal, string> Amount = new(
+        v => v.ToString(CultureInfo.InvariantCulture),
+        s => decimal.Parse(s, NumberStyles.Number, CultureInfo.InvariantCulture));
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<SettingsRow>(e =>
@@ -148,12 +153,13 @@ public sealed class TrackerDb : DbContext
             e.HasIndex(x => x.KeyHash).IsUnique();
         });
 
-        // every time with its kind (see Time)
+        // every time with its kind, every amount as it is written (see Time and Amount)
         foreach (var entity in b.Model.GetEntityTypes())
         {
             foreach (var p in entity.GetProperties())
             {
                 if (p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?)) p.SetValueConverter(Time);
+                if (p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?)) p.SetValueConverter(Amount);
             }
         }
     }
