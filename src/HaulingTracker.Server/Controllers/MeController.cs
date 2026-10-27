@@ -40,9 +40,9 @@ public sealed class MeController : Controller
             return LocalRedirect("/me");
         }
 
-        var changed = new List<string>();
-        _live.Edit(t => changed = Edits.ApplySettings(t, player, location, color.Value, ship, drive), DateTime.UtcNow);
-        TempData["Message"] = Edits.Saved("", changed);
+        (List<string> Changed, string? Refused) result = (new List<string>(), null);
+        _live.Edit(t => result = Edits.ApplySettings(t, player, location, color.Value, ship, drive), DateTime.UtcNow);
+        TempData["Message"] = Edits.Saved("", result);
         return LocalRedirect("/me");
     }
 }

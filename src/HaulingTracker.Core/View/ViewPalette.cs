@@ -31,6 +31,37 @@ public sealed record ViewPalette(
         (((c >> 8) & 255) * 55 + ((Cell >> 8) & 255) * 45) / 100,
         ((c & 255) * 55 + (Cell & 255) * 45) / 100);
 
+    /// <summary>
+    /// How different two colours look (0xRRGGBB): the distance in the Lab colour space (CIE76), where about 2 is just noticeable. Two members whose colours are
+    /// closer than TooClose are easily mixed up on the map and in the tables.
+    /// </summary>
+    public static double Difference(int a, int b)
+    {
+        var (l1, a1, b1) = Lab(a);
+        var (l2, a2, b2) = Lab(b);
+        return Math.Sqrt((l1 - l2) * (l1 - l2) + (a1 - a2) * (a1 - a2) + (b1 - b2) * (b1 - b2));
+    }
+
+    /// <summary>Colours closer than this (see Difference) are too alike for two members: two greens, two oranges, a red and a dark red.</summary>
+    public const double TooClose = 30;
+
+    static (double L, double A, double B) Lab(int rgb)
+    {
+        static double Linear(int c)
+        {
+            var v = c / 255.0;
+            return v <= 0.04045 ? v / 12.92 : Math.Pow((v + 0.055) / 1.055, 2.4);
+        }
+        static double F(double t) => t > 0.008856 ? Math.Cbrt(t) : 7.787 * t + 16.0 / 116;
+        var r = Linear((rgb >> 16) & 255);
+        var g = Linear((rgb >> 8) & 255);
+        var b = Linear(rgb & 255);
+        var x = F((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047);
+        var y = F(0.2126 * r + 0.7152 * g + 0.0722 * b);
+        var z = F((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+        return (116 * y - 16, 500 * (x - y), 200 * (y - z));
+    }
+
     /// <summary>Black on a light colour, white on a dark one.</summary>
     public static int TextOn(int c) => (((c >> 16) & 255) * 299 + ((c >> 8) & 255) * 587 + (c & 255) * 114) / 1000 > 140 ? 0x000000 : 0xFFFFFF;
 

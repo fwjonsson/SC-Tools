@@ -1,6 +1,7 @@
 using HaulingTracker.Server.Accounts;
 using HaulingTracker.Server.Data;
 using HaulingTracker.Server.Models;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -64,13 +65,10 @@ public sealed class AccountController : Controller
             var made = await _users.CreateAsync(user);
             if (!made.Succeeded) return LinkProblem("The login of " + player + " could not be made: " + string.Join(" ", made.Errors.Select(e => e.Description)));
         }
-        else if (await _users.IsInRoleAsync(user, Roles.Admin))
-        {
-            return LinkProblem(player + " is the name of the admin's login, so a tracker cannot log in with it. Log in with the password instead.");
-        }
         if (!await _users.IsInRoleAsync(user, Roles.Player)) await _users.AddToRoleAsync(user, Roles.Player);
 
-        await _signIn.SignInAsync(user, isPersistent: true);
+        // the admin's own player (Frank's zzoega): his tracker logs him in as the player only, so a tracker key never opens the admin pages
+        await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, await TrackerLogins.PrincipalAsync(_signIn, user), new AuthenticationProperties { IsPersistent = true });
         return LocalRedirect("/me");
     }
 
@@ -97,14 +95,20 @@ public sealed class AccountController : Controller
     {
         if (!ModelState.IsValid) return View("Account", Page(model));
         var name = model.NewName.Trim();
-        // a name of a player (in the party, or with a tracker key) stays his: his tracker logs in with it
-        if (store.TrackerKeys().Any(k => PlayerNames.SameName(k.Player, name)) || live.Read(t => t.State.Data.Party.Any(n => PlayerNames.SameName(n, name))))
-        {
-            ModelState.AddModelError("Rename.NewName", name + " is a player's name: his tracker logs in with it. Choose another one.");
-            return View("Account", Page(model));
-        }
         var user = await _users.GetUserAsync(User);
         if (user == null) return Challenge();
+        // the admin's own player (zzoega): the login his tracker made is taken over, so it is one login (the password: admin, the tracker: player only)
+        if (await _users.FindByNameAsync(name) is { } other && other.Id != user.Id)
+        {
+            if (await _users.IsInRoleAsync(other, Roles.Admin))
+            {
+                ModelState.AddModelError("Rename.NewName", name + " is another admin's name.");
+                return View("Account", Page(model));
+            }
+            await _users.DeleteAsync(other);
+        }
+        var isPlayer = store.TrackerKeys().Any(k => PlayerNames.SameName(k.Player, name)) || live.Read(t => t.State.Data.Party.Any(n => PlayerNames.SameName(n, name)));
+        if (isPlayer && !await _users.IsInRoleAsync(user, Roles.Player)) await _users.AddToRoleAsync(user, Roles.Player);
         var result = await _users.SetUserNameAsync(user, name);
         if (!result.Succeeded)
         {

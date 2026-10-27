@@ -170,6 +170,10 @@ The **History** tab has the same table for **all saved sessions** (with an extra
 - **Money transfers:** `You sent <name>: <amount> aUEC` and `<name> has sent you: <amount> aUEC` are read from the logs (a transfer seen in both accounts' logs counts once). The list shows the transfers of the selected member. Tick **Payment** on the ones that pay off a debt, other transfers (like buying a ship) are ignored.
 - On the Debts tab the **Balances** and the **Earnings** tables are side by side, under them are the **Money Transfers** (left) and the **Mission Payouts** (right). Mission Payouts lists every finished mission, newest first: when it completed, its payout, the party members who were active at that moment and shared it, and how much each of them got. The list is saved in the data file, so it stays after the logs are gone. The **Payout** box can be typed in: a mission that was handed in short pays less than its contract, so type what it really paid (it turns gold); the shares, the *Each* column and the debts then follow that amount, spread over the batches that were carried. Empty the box to use the reward of the contract again. A positive sum (somebody owes the selected member) is green and a negative one (he owes them) is red, in Balance and in Net Balance. The Meaning has the colour of its Balance.
 - Balances add up over all saved sessions, so earlier money you settled by hand can be fixed with the typed corrections.
+- **Balances are pair by pair**, from what really happened: in every session the members who carried more than their share of its payouts are owed by
+  those who carried less (each in proportion to how much less), and a ticked payment counts between exactly the two who made it. So paying one member
+  never moves a debt to somebody else (it used to show the fewest payments that settle everybody, which could route one member's debt through another),
+  and the balances of a member add up to his Net Balance. Two accounts of one player are two members: the work on each is counted.
 
 ## Live Web View (let somebody watch)
 
@@ -200,7 +204,9 @@ admin (done), then going live.
   `{ "HaulingTracker": { "Admin": { "UserName": "admin", "Password": "..." } } }`; on the server they are in its environment. The settings are only read to make
   the admin the first time: after that the name and the password are changed on the **Account** page (`/account`). A forgotten one: add `"ResetPassword": true` next to
   the password in the settings, start the server (it sets that password again and lifts a lockout), then remove it. A **player** is logged in by his tracker: **Open my page** in its menu asks the server for a link that
-  works once, within two minutes, so the key is never in an address. **My page** (`/me`) is his own Current location, colour, ship and quantum drive (the
+  works once, within two minutes, so the key is never in an address. The admin can have his own player's name (Frank is zzoega): with the password he is
+  the admin, and his tracker logs him in as the player only, so a tracker key never opens the admin pages. A colour too close to another member's (two
+  greens, a red and a dark red) is not taken, on My page and on the Party page. **My page** (`/me`) is his own Current location, colour, ship and quantum drive (the
   same lists as the Party table and the Trip Planner of the program); nobody else's. Five wrong passwords lock the login for ten minutes.
 - **The admin's pages** change what the program changes, with the same logic (`Editing/Edits.cs`, each change saved and worked out again at once):
   **Session** (`/admin`: Start / Stop Session, Next Stops locked or not, the mission rewards, the start time, the names and notes of the stops, the lost
