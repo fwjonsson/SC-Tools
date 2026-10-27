@@ -1,31 +1,81 @@
+using HaulingTracker.Server.Data;
+
 namespace HaulingTracker.Server;
 
-/// <summary>Every two seconds: works out what the trackers uploaded (only when something new came in), moves the team status line on and makes data.json.</summary>
+/// <summary>
+/// Every two seconds: works out what the trackers uploaded (only when something new came in), moves the team status line on and makes data.json, then writes
+/// what changed to the database. Once a day a copy of the database is made. When the server stops, the last changes are written.
+/// </summary>
 public sealed class RefreshService : BackgroundService
 {
     readonly LiveTracker _live;
+    readonly DataStore _store;
+    readonly ServerSettings _settings;
+    readonly IHostEnvironment _env;
     readonly ILogger<RefreshService> _log;
 
-    public RefreshService(LiveTracker live, ILogger<RefreshService> log)
+    public RefreshService(LiveTracker live, DataStore store, ServerSettings settings, IHostEnvironment env, ILogger<RefreshService> log)
     {
         _live = live;
+        _store = store;
+        _settings = settings;
+        _env = env;
         _log = log;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
-        do
+        try
         {
-            try
+            do
             {
-                _live.Refresh(DateTime.UtcNow);
+                Tick();
             }
-            catch (Exception ex)
-            {
-                _log.LogError(ex, "Working out the logs failed");
-            }
+            while (await timer.WaitForNextTickAsync(stop));
         }
-        while (await timer.WaitForNextTickAsync(stop));
+        catch (OperationCanceledException)
+        {
+            // the server stops
+        }
+        finally
+        {
+            Save();
+        }
+    }
+
+    void Tick()
+    {
+        try
+        {
+            _live.Refresh(DateTime.UtcNow);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Working out the logs failed");
+        }
+        Save();
+        try
+        {
+            var dir = Path.IsPathRooted(_settings.BackupDir) ? _settings.BackupDir : Path.Combine(_env.ContentRootPath, _settings.BackupDir);
+            if (_store.BackupDaily(dir, DateTime.Now)) _log.LogInformation("Made the daily copy of the database in {Dir}", dir);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "The daily copy of the database failed");
+        }
+    }
+
+    /// <summary>Writes what changed to the database (under the lock of the data, so nothing changes it meanwhile).</summary>
+    void Save()
+    {
+        try
+        {
+            lock (_live.Uploads.Sync) _store.Flush(_live.Tracker.State.Data);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Writing to the database failed (tried again in two seconds)");
+        }
     }
 }
