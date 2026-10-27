@@ -29,6 +29,7 @@ jobs:
           if [ -z "$name" ]; then echo "::error::Write the name as [migration: AName] (letters, digits and _, starting with a letter)"; exit 1; fi
           echo "NAME=$name" >> "$GITHUB_ENV"
           dotnet tool install --global dotnet-ef --version "10.0.*"
+          dotnet restore src/HaulingTracker.Server   # the tools read the project before they build it
           dotnet ef migrations add "$name" --project src/HaulingTracker.Server --output-dir Data/Migrations
       - name: Commit it to the branch
         shell: bash
