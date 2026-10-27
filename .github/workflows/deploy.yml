@@ -1,0 +1,57 @@
+name: Deploy
+
+# Puts the web app on the server (Hetzner, Arm64) when main changes, or by hand (Run workflow). It builds the server for linux-arm64 with .NET inside
+# (nothing to install on the server), copies it there as the user "deploy" and runs haulingtracker-install, which switches to it, restarts the service and
+# puts the version before back when the new one does not answer. Nothing happens until the three secrets exist (see "Going live" in the README):
+# DEPLOY_HOST (the server's IP), DEPLOY_KEY (the private key setup.sh made) and DEPLOY_KNOWN_HOSTS (the server's key, so nobody can pose as it).
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/HaulingTracker.Server/**'
+      - 'src/HaulingTracker.Core/**'
+      - 'src/HaulingTracker.Web/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build the server for the Arm server
+        run: |
+          dotnet publish src/HaulingTracker.Server -c Release -r linux-arm64 --self-contained true -p:InformationalVersion=release-${{ github.sha }} -o publish
+          rm -f publish/appsettings.Development.json
+          tar -czf app.tgz -C publish .
+          ls -la app.tgz
+
+      - name: Is the server set up?
+        if: env.DEPLOY_HOST == ''
+        run: echo "::notice title=Not deployed::There are no DEPLOY_ secrets yet, so the build is not put on a server (see Going live in the README)."
+
+      - name: Put it on the server
+        if: env.DEPLOY_HOST != ''
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          scp -i ~/.ssh/deploy -o BatchMode=yes app.tgz "deploy@$DEPLOY_HOST:/opt/haulingtracker/incoming/app.tgz"
+          ssh -i ~/.ssh/deploy -o BatchMode=yes "deploy@$DEPLOY_HOST" haulingtracker-install /opt/haulingtracker/incoming/app.tgz
+          echo "::notice title=Deployed::The web app of ${GITHUB_SHA::7} runs on the server."

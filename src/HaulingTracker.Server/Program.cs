@@ -2,6 +2,9 @@ using System.Globalization;
 using HaulingTracker.Server;
 using HaulingTracker.Server.Accounts;
 using HaulingTracker.Server.Data;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +58,10 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(o =>
     })
     .AddEntityFrameworkStores<TrackerDb>()
     .AddDefaultTokenProviders();
+// the keys of the login cookies are kept with the database, so a restart of the server (an update) does not log everybody out
+builder.Services.AddDataProtection().SetApplicationName("HaulingTracker");
+builder.Services.AddOptions<KeyManagementOptions>().Configure<ServerPaths, ILoggerFactory>((o, paths, logs) =>
+    o.XmlRepository = new FileSystemXmlRepository(new DirectoryInfo(Path.Combine(Path.GetDirectoryName(paths.Database)!, "keys")), logs));
 builder.Services.ConfigureApplicationCookie(o =>
 {
     o.Cookie.Name = "HaulingTracker";
