@@ -29,11 +29,14 @@ public static class AccountSetup
         var user = await users.FindByNameAsync(name);
         if (user != null)
         {
-            log.LogWarning("There is no admin yet, and the name {Name} is taken by a player: choose another admin name", name);
-            return;
+            // the admin's own player (zzoega), whose tracker made his login before: that login becomes the admin's (the password: admin, the tracker: player only)
+            Check(await users.AddPasswordAsync(user, admin.Password), "the password of the admin " + name);
         }
-        user = new IdentityUser(name);
-        Check(await users.CreateAsync(user, admin.Password), "the admin " + name);
+        else
+        {
+            user = new IdentityUser(name);
+            Check(await users.CreateAsync(user, admin.Password), "the admin " + name);
+        }
         Check(await users.AddToRoleAsync(user, Roles.Admin), "the admin role of " + name);
         log.LogInformation("The admin {Name} is made: log in at /login (the password can be changed there, and removed from the settings)", name);
     }

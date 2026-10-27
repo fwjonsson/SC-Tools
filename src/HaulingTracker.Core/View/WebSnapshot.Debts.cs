@@ -10,14 +10,14 @@ public sealed partial class WebSnapshot
         var data = _s.Data;
         var party = _t.Payouts.DebtPartyNames();
         var nets = DebtCalc.Nets(data.Sessions.Values, data.Transfers);
-        var settle = DebtCalc.Settle(nets);
+        var pairs = DebtCalc.Pairs(data.Sessions.Values, data.Transfers);
 
         var balances = party.Select(me =>
         {
             var grid = new ViewTable(_p, new ViewColumn("Party Member", "left", false), new ViewColumn("Balance", "right", false), new ViewColumn("Meaning", "left", false));
             foreach (var o in party.Where(o => !SameName(o, me)))
             {
-                var shown = DebtCalc.Between(settle, me, o) + _t.Payouts.GetAdj(me, o);
+                var shown = DebtCalc.Between(pairs, me, o) + _t.Payouts.GetAdj(me, o);
                 grid.Add(o, Signed(shown), Payouts.Meaning(me, o, shown));
             }
             return new { name = me, grid };

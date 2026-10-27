@@ -65,7 +65,11 @@ builder.Services.ConfigureApplicationCookie(o =>
     o.SlidingExpiration = true;
 });
 // a tracker key taken back logs that player's browser out within a minute
-builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromMinutes(1));
+builder.Services.Configure<SecurityStampValidatorOptions>(o =>
+{
+    o.ValidationInterval = TimeSpan.FromMinutes(1);
+    o.OnRefreshingPrincipal = TrackerLogins.KeepAsync;   // a login made by a tracker keeps the player's rights only
+});
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();

@@ -125,13 +125,19 @@ public class LoginTests
     }
 
     [Fact]
-    public async Task A_tracker_cannot_log_in_as_the_admin()
+    public async Task The_tracker_of_the_admins_own_player_logs_in_as_the_player_only()
     {
         using var f = new ServerFactory();
-        var link = await f.LoginLink(f.AddKey(ServerFactory.AdminName));
-        var r = await f.Browser().GetAsync(link);
-        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
-        Assert.Contains("the admin's login", WebUtility.HtmlDecode(await r.Content.ReadAsStringAsync()));   // the page writes ' as &#x27;
+        var player = await f.Player(f.AddKey(ServerFactory.AdminName));   // the admin plays too (Frank is zzoega)
+        Assert.Equal(HttpStatusCode.OK, (await player.GetAsync("/me")).StatusCode);
+        foreach (var url in new[] { "/admin", "/admin/keys", "/account" })
+        {
+            var r = await player.GetAsync(url);   // checked again on every request in the tests: the tracker's login stays a player's
+            Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);
+            Assert.StartsWith("/login/denied", r.Headers.Location!.PathOf());
+        }
+        var admin = await f.Admin();   // the password still opens everything
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/admin")).StatusCode);
     }
 
     [Fact]
@@ -150,21 +156,50 @@ public class LoginTests
     }
 
     [Fact]
-    public async Task The_admin_changes_his_name_but_not_to_a_players_name()
+    public async Task The_admin_takes_the_name_of_his_own_player()
     {
         using var f = new ServerFactory();
-        var admin = await f.Admin();
-        var taken = await ServerFactory.Send(admin, "/account", "/account/name", ("Rename.NewName", "zzoega"));   // in the party
-        Assert.Contains("is a player", WebUtility.HtmlDecode(await taken.Content.ReadAsStringAsync()));
+        var key = f.AddKey("zzoega");
+        await f.Player(key);   // zzoega's tracker made his login before
 
-        var r = await ServerFactory.Send(admin, "/account", "/account/name", ("Rename.NewName", "frank"));
-        Assert.Contains("Your name is frank now", await r.Content.ReadAsStringAsync());
-        Assert.Contains("frank", await admin.GetStringAsync("/admin"));   // still logged in, with the new name
+        var admin = await f.Admin();
+        var r = await ServerFactory.Send(admin, "/account", "/account/name", ("Rename.NewName", "zzoega"));
+        Assert.Contains("Your name is zzoega now", await r.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/admin")).StatusCode);   // still logged in, with the new name
 
         var old = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", ServerFactory.AdminName), ("Password", ServerFactory.AdminPassword));
         Assert.Contains("Wrong name or password.", await old.Content.ReadAsStringAsync());
-        var now = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", "frank"), ("Password", ServerFactory.AdminPassword));
+        var now = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", "zzoega"), ("Password", ServerFactory.AdminPassword));
         Assert.Equal(HttpStatusCode.Redirect, now.StatusCode);
+
+        // his tracker logs in to the same login, as the player only
+        var player = await f.Player(key);
+        Assert.Contains("ZZOEGA", await player.GetStringAsync("/me"));
+        Assert.StartsWith("/login/denied", (await player.GetAsync("/admin")).Headers.Location!.PathOf());
+    }
+
+    [Fact]
+    public async Task A_colour_too_close_to_another_members_is_not_taken()
+    {
+        using var f = new ServerFactory();
+        var player = await f.Player(f.AddKey("zzatvo"));
+        var orange = ViewPalette.Hex(ViewPalette.WorkerColor("zzoega", null, 0));   // zzoega's colour
+        await ServerFactory.Send(player, "/me", "/me", ("Location", ""), ("Color", "#ff8c1e"), ("Ship", ""), ("Drive", ""));   // almost his orange
+        Assert.Contains("too close to zzoega", WebUtility.HtmlDecode(await player.GetStringAsync("/me")));
+        Assert.False(f.Live.Read(t => t.State.Data.WorkerColors.ContainsKey("zzatvo")));
+        Assert.NotEqual("#ff8c1e", orange);
+
+        await ServerFactory.Send(player, "/me", "/me", ("Location", ""), ("Color", "#3c46ff"), ("Ship", ""), ("Drive", ""));   // a blue
+        Assert.Contains("Saved: colour.", await player.GetStringAsync("/me"));
+    }
+
+    [Fact]
+    public void How_different_colours_look()
+    {
+        Assert.True(ViewPalette.Difference(ViewPalette.Rgb(255, 150, 40), ViewPalette.Rgb(255, 120, 0)) < ViewPalette.TooClose);   // two oranges
+        Assert.True(ViewPalette.Difference(ViewPalette.Rgb(255, 0, 0), ViewPalette.Rgb(200, 0, 0)) < ViewPalette.TooClose);       // red and dark red
+        Assert.True(ViewPalette.Difference(ViewPalette.Rgb(255, 150, 40), ViewPalette.Rgb(60, 205, 95)) > ViewPalette.TooClose);   // zzoega and zzatvo
+        Assert.Equal(0, ViewPalette.Difference(0x123456, 0x123456), 6);
     }
 
     [Fact]

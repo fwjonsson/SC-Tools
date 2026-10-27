@@ -12,11 +12,13 @@ public static class Edits
 
     /// <summary>
     /// His Current location (null = Automatic), colour (0xRRGGBB), ship and quantum drive: only what is different from now is changed. A location set by hand
-    /// releases his locked next stop, so the plan is free to start with a stop near him (as in the program). What was changed, for the message.
+    /// releases his locked next stop, so the plan is free to start with a stop near him (as in the program). A colour too close to another member's is not
+    /// taken. What was changed, and what was refused, for the message.
     /// </summary>
-    public static List<string> ApplySettings(Tracker t, string name, string? location, int color, Ship? ship, QtDrive? drive)
+    public static (List<string> Changed, string? Refused) ApplySettings(Tracker t, string name, string? location, int color, Ship? ship, QtDrive? drive)
     {
         var changed = new List<string>();
+        string? refused = null;
         var (now, byHand) = t.Whereabouts.LocationOf(name);
         if ((location ?? "") != (byHand ? now : ""))
         {
@@ -26,8 +28,15 @@ public static class Edits
         }
         if (color != ColorOf(t, name))
         {
-            t.Crew.SetColor(name, unchecked((int)0xFF000000) | color);
-            changed.Add("colour");
+            if (TooCloseTo(t, name, color) is { } other)
+            {
+                refused = "The colour is not saved: it is too close to " + other + "'s. Pick one that stands out more.";
+            }
+            else
+            {
+                t.Crew.SetColor(name, unchecked((int)0xFF000000) | color);
+                changed.Add("colour");
+            }
         }
         if ((ship?.Name ?? "") != (t.Crew.ShipOf(name)?.Name ?? ""))
         {
@@ -39,16 +48,24 @@ public static class Edits
             t.Crew.SetDrive(name, drive?.Key);
             changed.Add("quantum drive");
         }
-        return changed;
+        return (changed, refused);
     }
+
+    /// <summary>The other party member whose colour this one is too close to (see ViewPalette.Difference), or null.</summary>
+    public static string? TooCloseTo(Tracker t, string name, int color) =>
+        t.State.Data.Party.Where(n => !PlayerNames.SameName(n, name)).FirstOrDefault(n => ViewPalette.Difference(ColorOf(t, n), color) < ViewPalette.TooClose);
 
     /// <summary>A member's colour on the page and the map (0xRRGGBB): the one picked, or the built-in one.</summary>
     public static int ColorOf(Tracker t, string name) =>
         ViewPalette.WorkerColor(name, t.Crew.PickedColor(name), t.State.Data.Party.FindIndex(n => PlayerNames.SameName(n, name)));
 
-    /// <summary>"Saved: colour, ship." or "Nothing changed."</summary>
-    public static string Saved(string who, List<string> changed) =>
-        changed.Count == 0 ? "Nothing changed." : "Saved" + (who.Length > 0 ? " for " + who : "") + ": " + string.Join(", ", changed) + ".";
+    /// <summary>"Saved: colour, ship." or "Nothing changed.", and what was refused.</summary>
+    public static string Saved(string who, (List<string> Changed, string? Refused) result)
+    {
+        var said = result.Changed.Count == 0 ? (result.Refused == null ? "Nothing changed." : "") :
+            "Saved" + (who.Length > 0 ? " for " + who : "") + ": " + string.Join(", ", result.Changed) + ".";
+        return result.Refused == null ? said : (said + " " + result.Refused).Trim();
+    }
 
     // ------------------------------------------------------------------ the party
 
@@ -81,8 +98,9 @@ public static class Edits
         var capacity = t.Crew.ShipCapacityOf(member);
         t.Crew.SetShipCapacity(member, batches);
         if (t.Crew.ShipCapacityOf(member) != capacity) changed.Add("batches");
-        changed.AddRange(ApplySettings(t, member, location, color, ship, drive));
-        return Saved(member, changed);
+        var (own, refused) = ApplySettings(t, member, location, color, ship, drive);
+        changed.AddRange(own);
+        return Saved(member, (changed, refused));
     }
 
     // ------------------------------------------------------------------ the session
@@ -235,11 +253,11 @@ public static class Edits
     public static List<(string Other, decimal Calculated, decimal Shown)> Balances(Tracker t, string me)
     {
         var data = t.State.Data;
-        var settle = DebtCalc.Settle(DebtCalc.Nets(data.Sessions.Values, data.Transfers));
+        var pairs = DebtCalc.Pairs(data.Sessions.Values, data.Transfers);
         return t.Payouts.DebtPartyNames().Where(o => !PlayerNames.SameName(o, me))
             .Select(o =>
             {
-                var calc = DebtCalc.Between(settle, me, o);
+                var calc = DebtCalc.Between(pairs, me, o);
                 return (o, calc, calc + t.Payouts.GetAdj(me, o));
             })
             .ToList();

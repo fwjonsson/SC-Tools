@@ -243,7 +243,7 @@ public sealed partial class MainForm
             _debtSelected = idx >= 0 ? party[idx] : "";
 
             var nets = DebtCalc.Nets(_data.Sessions.Values, _data.Transfers);
-            var settle = DebtCalc.Settle(nets);
+            var pairs = DebtCalc.Pairs(_data.Sessions.Values, _data.Transfers);   // who owes whom, pair by pair
 
             _balanceGrid.Rows.Clear();
             if (_debtSelected.Length > 0)
@@ -251,7 +251,7 @@ public sealed partial class MainForm
                 foreach (var o in party)
                 {
                     if (SameName(o, _debtSelected)) continue;
-                    var calc = DebtCalc.Between(settle, _debtSelected, o);
+                    var calc = DebtCalc.Between(pairs, _debtSelected, o);
                     var shown = calc + _payouts.GetAdj(_debtSelected, o);
                     var row = _balanceGrid.AddRow((BalanceCol.Member, o), (BalanceCol.Balance, Signed(shown)), (BalanceCol.Meaning, Payouts.Meaning(_debtSelected, o, shown)));
                     row.Tag = calc;

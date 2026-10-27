@@ -4,6 +4,8 @@ using System.Text.RegularExpressions;
 using HaulingTracker.Server;
 using HaulingTracker.Server.Data;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
@@ -37,6 +39,8 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
             ["HaulingTracker:Admin:UserName"] = AdminName,
             ["HaulingTracker:Admin:Password"] = AdminPassword,
         }));
+        // every login is checked again on every request (the server does it every minute), so a test sees what a login keeps after that check
+        builder.ConfigureTestServices(s => s.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero));
     }
 
     protected override void Dispose(bool disposing)
