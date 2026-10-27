@@ -174,7 +174,8 @@ public sealed class DataStore
         if (!File.Exists(target))
         {
             using var db = Open();
-            db.Database.ExecuteSqlRaw("VACUUM INTO '" + Path.GetFullPath(target).Replace("'", "''") + "'");
+            var file = Path.GetFullPath(target);
+            db.Database.ExecuteSql($"VACUUM INTO {file}");   // the file name as a parameter of the command
             made = true;
         }
         foreach (var old in Directory.GetFiles(dir, "tracker-*.db").OrderByDescending(f => f, StringComparer.Ordinal).Skip(BackupsToKeep))
