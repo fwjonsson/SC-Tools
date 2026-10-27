@@ -1215,7 +1215,7 @@ public sealed partial class MainForm : Form
         try
         {
             _sessionBox.Items.Clear();
-            foreach (var g in _state.Sessions) _sessionBox.Items.Add(DescribeSession(g));
+            foreach (var g in _state.Sessions) _sessionBox.Items.Add(BoardTexts.DescribeSession(g));
 
             var idx = keep == null ? -1 : _state.Sessions.FindIndex(g => g.Key == keep);
             if (idx < 0) idx = _state.Sessions.Count - 1;
@@ -1239,19 +1239,6 @@ public sealed partial class MainForm : Form
         _payouts.UpdateSnapshots();
         RefreshDebts();
         if (_tabs != null && _tabs.SelectedTab == _contractsPage) RefreshContracts();
-    }
-
-    static string DescribeSession(SessionGroup g)
-    {
-        var s = SessionBuilder.Summarize(g);
-        var start = s.Start.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture);
-        if (g.Manual)
-        {
-            var until = g.Stop.HasValue ? g.Stop.Value.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture) : "now";
-            return "Session: " + start + " to " + until + (g.Stop.HasValue ? "" : " (running)") + "  (" + g.Missions.Count + " missions)";
-        }
-        var end = s.End.HasValue ? s.End.Value.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture) : "ongoing";
-        return start + " to " + end + "  (" + g.Missions.Count + " missions)";
     }
 
     void SessionChanged(object? sender, EventArgs e)
@@ -1344,16 +1331,6 @@ public sealed partial class MainForm : Form
     }
 
     /// <summary>Missions still waiting at this location / missions that have cargo there. 5 missions start as 5/5.</summary>
-    static string MissionsText(LocationRow r) => (r.Missions - r.Loaded) + "/" + r.Missions;
-
-    static string DeliveredText(LocationRow r)
-    {
-        if (r.Missing > 0 && r.Missing >= r.Missions) return "Cargo Missing";
-        if (r.DeliveredTime.HasValue) return FormatTime(r.DeliveredTime.Value) + (r.Missing > 0 ? "  (" + r.Missing + " missing)" : "");
-        if (r.Delivered > 0) return "Partial " + r.Delivered + "/" + r.Missions;
-        return "";
-    }
-
     void RefreshWorkerChoices()
     {
         var col = (DataGridViewComboBoxColumn)_logGrid.Columns[StopCol.Worker]!;
@@ -1410,7 +1387,7 @@ public sealed partial class MainForm : Form
             var row = _logGrid.AddRow(
                 (StopCol.Location, _places.LocationName(stop.Zone)),
                 (StopCol.FromRuin, _places.DistanceText(stop.Zone)),
-                (StopCol.Batches, r == null ? "" : MissionsText(r)),
+                (StopCol.Batches, r == null ? "" : BoardTexts.MissionsText(r)),
                 (StopCol.Cargo, r == null ? "" : CargoRuns.WaitingScuText(r)),
                 (StopCol.Worker, inp?.Worker ?? ""),
                 (StopCol.Value, ValueText(stop.Value)),
@@ -1432,7 +1409,7 @@ public sealed partial class MainForm : Form
                 (FinishedCol.Delivered, r.Delivered + "/" + r.Missions),
                 (FinishedCol.Worker, inp?.Worker ?? ""),
                 (FinishedCol.Value, _earnings.StopValueText(r)),
-                (FinishedCol.HandedIn, DeliveredText(r)));
+                (FinishedCol.HandedIn, BoardTexts.DeliveredText(r)));
             row.Tag = r.Zone;
             row.Cells[FinishedCol.Delivered].Style.BackColor = DoneGreen;
             if (r.Missing > 0) row.Cells[FinishedCol.HandedIn].Style.BackColor = LostOrange;   // cargo is missing from a mission that has this stop
@@ -1599,7 +1576,7 @@ public sealed partial class MainForm : Form
             _state.Inputs!.Rows.TryGetValue(info.Zone, out var inp);
             var notes = C(inp?.Notes);
             var loaded = info.LoadedTime.HasValue ? FormatTime(info.LoadedTime.Value) : "";
-            var delivered = DeliveredText(info);
+            var delivered = BoardTexts.DeliveredText(info);
             if (info.Loaded < info.Missions)
                 notes = (notes + " (" + (info.Missions - info.Loaded) + " of " + info.Missions + " still waiting)").Trim();
 
