@@ -1,3 +1,4 @@
+using HaulingTracker.Server.Accounts;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HaulingTracker.Server.Controllers;
@@ -15,11 +16,13 @@ public sealed class LogController : ControllerBase
 {
     readonly LogUploads _uploads;
     readonly TrackerKeys _keys;
+    readonly LoginLinks _links;
 
-    public LogController(LogUploads uploads, TrackerKeys keys)
+    public LogController(LogUploads uploads, TrackerKeys keys, LoginLinks links)
     {
         _uploads = uploads;
         _keys = keys;
+        _links = links;
     }
 
     string? Player() => _keys.PlayerOf(Request.Headers["X-Tracker-Key"].FirstOrDefault());
@@ -27,6 +30,11 @@ public sealed class LogController : ControllerBase
     /// <summary>Whose key this is (so a tracker can tell its settings are right).</summary>
     [HttpGet("me")]
     public IActionResult Me() => Player() is { } player ? Ok(new { player }) : Unauthorized();
+
+    /// <summary>A link that logs the player of this key in once, within two minutes ("Open my page" in the tracker). It is relative: the tracker puts its server in front.</summary>
+    [HttpPost("login-link")]
+    public IActionResult LoginLink() =>
+        Player() is { } player ? Ok(new { url = "/login/tracker?token=" + _links.Make(player, DateTime.UtcNow) }) : Unauthorized();
 
     /// <summary>How far this log file is uploaded.</summary>
     [HttpGet("log/cursor")]

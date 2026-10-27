@@ -13,10 +13,16 @@ public sealed class TrackerKeys
     /// <summary>A shorter key is too easy to guess and is never accepted.</summary>
     public const int MinLength = 16;
 
-    readonly List<(byte[] Hash, string Player)> _keys;
+    volatile List<(byte[] Hash, string Player)> _keys = new();
 
-    public TrackerKeys(IEnumerable<TrackerKeyRow> rows) =>
+    public TrackerKeys(IEnumerable<TrackerKeyRow> rows) => Reload(rows);
+
+    /// <summary>The keys from now on (a key was made or taken back on the admin page).</summary>
+    public void Reload(IEnumerable<TrackerKeyRow> rows) =>
         _keys = rows.Where(r => !string.IsNullOrWhiteSpace(r.Player)).Select(r => (Convert.FromHexString(r.KeyHash), r.Player.Trim())).ToList();
+
+    /// <summary>A new key: 48 hex characters, made from 24 random bytes.</summary>
+    public static string NewKey() => Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
 
     /// <summary>The hash of a key as the database keeps it (SHA-256, hex).</summary>
     public static string Hash(string key) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
@@ -27,7 +33,7 @@ public sealed class TrackerKeys
         if (string.IsNullOrEmpty(key) || key.Length < MinLength) return null;
         var given = SHA256.HashData(Encoding.UTF8.GetBytes(key));
         string? player = null;
-        foreach (var (hash, p) in _keys)
+        foreach (var (hash, p) in _keys)   // the list is replaced, never changed, by Reload
         {
             if (CryptographicOperations.FixedTimeEquals(hash, given)) player = p;
         }

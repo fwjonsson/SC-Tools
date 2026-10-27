@@ -1,0 +1,21 @@
+@model LoginModel
+@{
+    ViewData["Title"] = "Log in";
+}
+<h1>Log in</h1>
+<p class="muted">The admin logs in here. A player opens his page from the tracker: <b>Open my page</b> in its menu.</p>
+<form method="post" action="/login" asp-antiforgery="true" class="card">
+  <input type="hidden" asp-for="ReturnUrl">
+  @if (Model.Error != null)
+  {
+    <p class="error">@Model.Error</p>
+  }
+  <label asp-for="UserName"></label>
+  <input asp-for="UserName" autocomplete="username" autofocus>
+  <span asp-validation-for="UserName" class="error"></span>
+  <label asp-for="Password"></label>
+  <input asp-for="Password" autocomplete="current-password">
+  <span asp-validation-for="Password" class="error"></span>
+  <label class="check"><input asp-for="Remember"> @Html.DisplayNameFor(m => m.Remember)</label>
+  <button type="submit">Log in</button>
+</form>

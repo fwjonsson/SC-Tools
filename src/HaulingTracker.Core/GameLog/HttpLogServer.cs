@@ -20,6 +20,7 @@ public sealed class HttpLogServer : ILogServer, IDisposable
 
     sealed record At(long at);
     sealed record Me(string player);
+    sealed record Link(string url);
     sealed record Piece(string file, long from, long to, IReadOnlyList<string> lines);
 
     /// <summary>The player of this key, or null when the server does not know it.</summary>
@@ -29,6 +30,19 @@ public sealed class HttpLogServer : ILogServer, IDisposable
         if (resp.StatusCode == HttpStatusCode.Unauthorized) return null;
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<Me>(ct))?.player;
+    }
+
+    /// <summary>
+    /// The address that logs the player of this key in on the website ("Open my page"): it works once, within two minutes, so the key itself is never in an
+    /// address. Null when the server does not know the key.
+    /// </summary>
+    public async Task<string?> LoginLinkAsync(CancellationToken ct)
+    {
+        using var resp = await _http.PostAsync("api/login-link", null, ct);
+        if (resp.StatusCode == HttpStatusCode.Unauthorized) return null;
+        resp.EnsureSuccessStatusCode();
+        var url = (await resp.Content.ReadFromJsonAsync<Link>(ct))?.url;
+        return url == null ? null : new Uri(_http.BaseAddress!, url.TrimStart('/')).ToString();
     }
 
     public async Task<long> CursorAsync(string file, CancellationToken ct)

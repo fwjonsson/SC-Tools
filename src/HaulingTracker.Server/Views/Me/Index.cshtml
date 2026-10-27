@@ -1,0 +1,35 @@
+@model MeModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "My page";
+    IEnumerable<SelectListItem> Items(List<Choice> choices) => choices.Select(c => new SelectListItem(c.Text, c.Value));
+}
+<h1>@Model.Player.ToUpperInvariant()</h1>
+@if (!Model.InParty)
+{
+  <p class="muted">You are not in the party yet: what you set here is kept, and used once Frank adds you.</p>
+}
+<form method="post" action="/me" asp-antiforgery="true" class="card">
+  <label asp-for="Location">Current location</label>
+  <select asp-for="Location" asp-items="Items(Model.Stations)">
+    <option value="">Automatic: @Model.AutoLocation</option>
+  </select>
+  <p class="hint">Automatic follows your pickups, deliveries and hand-ins. A station you pick holds until the logs show you moving (a pickup, a delivery, a hand-in, waste or a quantum jump).</p>
+
+  <label for="Color">Colour</label>
+  <input type="color" id="Color" name="Color" value="@Model.Color">
+  <p class="hint">Your colour on the Trip Planner, its map and the party table.</p>
+
+  <label asp-for="Ship">Ship</label>
+  <select asp-for="Ship" asp-items="Items(Model.Ships)">
+    <option value=""></option>
+  </select>
+
+  <label asp-for="Drive">Quantum drive</label>
+  <select asp-for="Drive" asp-items="Items(Model.Drives)">
+    <option value=""></option>
+  </select>
+  <p class="hint">The ship and the drive are for the flying times of the Trip Planner.</p>
+
+  <button type="submit">Save</button>
+</form>

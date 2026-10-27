@@ -1,4 +1,6 @@
 using System.Globalization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -6,9 +8,10 @@ namespace HaulingTracker.Server.Data;
 
 /// <summary>
 /// The database of the web app (SQLite, one file): the party and its members, the sessions, the transfers and payouts, what was typed on the Contracts and
-/// Debts tabs, and the keys of the trackers. A change to these tables needs a migration (see Data/Migrations and README).
+/// Debts tabs, the keys of the trackers, and the logins (the AspNet... tables of ASP.NET Core Identity: the users and their roles). A change to these tables
+/// needs a migration (see Data/Migrations and README).
 /// </summary>
-public sealed class TrackerDb : DbContext
+public sealed class TrackerDb : IdentityDbContext<IdentityUser>
 {
     public TrackerDb(DbContextOptions<TrackerDb> options) : base(options)
     {
@@ -44,6 +47,8 @@ public sealed class TrackerDb : DbContext
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        base.OnModelCreating(b);   // the tables of the logins
+
         b.Entity<SettingsRow>(e =>
         {
             e.ToTable("Settings");

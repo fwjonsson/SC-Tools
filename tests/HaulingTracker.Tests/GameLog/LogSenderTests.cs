@@ -161,4 +161,18 @@ public sealed class LogSenderTests : IDisposable
         stub.Answer = _ => Json(HttpStatusCode.OK, "{\"player\":\"zzoega\"}");
         Assert.Equal("zzoega", server.PlayerAsync(CancellationToken.None).GetAwaiter().GetResult());
     }
+
+    [Fact]
+    public void Open_my_page_gets_a_login_link_from_the_server()
+    {
+        var stub = new Stub();
+        using var server = new HttpLogServer("https://example.test", "k3y-k3y-k3y-k3y-k3y", stub);
+        stub.Answer = _ => Json(HttpStatusCode.OK, "{\"url\":\"/login/tracker?token=abc\"}");
+        Assert.Equal("https://example.test/login/tracker?token=abc", server.LoginLinkAsync(CancellationToken.None).GetAwaiter().GetResult());
+        Assert.Equal(HttpMethod.Post, stub.Requests[^1].Method);
+        Assert.Equal("https://example.test/api/login-link", stub.Requests[^1].RequestUri!.ToString());
+
+        stub.Answer = _ => new HttpResponseMessage(HttpStatusCode.Unauthorized);
+        Assert.Null(server.LoginLinkAsync(CancellationToken.None).GetAwaiter().GetResult());
+    }
 }

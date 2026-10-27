@@ -1,0 +1,16 @@
+@model KeyMadeModel
+@{
+    ViewData["Title"] = "New key";
+}
+<h1>A new key for @Model.Player</h1>
+<div class="card">
+  <p>Copy it now: it is shown only this once.</p>
+  <p class="key"><code>@Model.Key</code></p>
+  <p>Give it to @Model.Player with the tracker (HaulingTrackerSender.zip from the Releases page). In the tracker's <b>Settings</b>:</p>
+  <ul>
+    <li>Server: <code>@Model.ServerUrl</code></li>
+    <li>Key: the key above</li>
+  </ul>
+  <p><b>Test</b> in the settings says whose key it is.</p>
+</div>
+<p><a href="/admin/keys">Back to the keys</a></p>

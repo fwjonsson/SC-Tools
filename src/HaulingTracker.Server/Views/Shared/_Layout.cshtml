@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@ViewData["Title"] - Hauling Tracker</title>
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="stylesheet" href="~/site.css" asp-append-version="true">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">Hauling Tracker</a>
+  <nav>
+    <a href="/">Live page</a>
+    @if (User.IsInRole(Roles.Player))
+    {
+      <a href="/me">My page</a>
+    }
+    @if (User.IsInRole(Roles.Admin))
+    {
+      <a href="/admin/keys">Tracker keys</a>
+      <a href="/account/password">Password</a>
+    }
+  </nav>
+  <div class="who">
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+      <span>@User.Identity.Name</span>
+      <form method="post" action="/logout" asp-antiforgery="true" class="inline"><button type="submit" class="link">Log out</button></form>
+    }
+    else
+    {
+      <a href="/login">Log in</a>
+    }
+  </div>
+</header>
+<main>
+  @if (TempData["Message"] is string message)
+  {
+    <p class="message">@message</p>
+  }
+  @RenderBody()
+</main>
+</body>
+</html>

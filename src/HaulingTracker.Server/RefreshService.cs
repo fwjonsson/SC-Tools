@@ -10,16 +10,14 @@ public sealed class RefreshService : BackgroundService
 {
     readonly LiveTracker _live;
     readonly DataStore _store;
-    readonly ServerSettings _settings;
-    readonly IHostEnvironment _env;
+    readonly ServerPaths _paths;
     readonly ILogger<RefreshService> _log;
 
-    public RefreshService(LiveTracker live, DataStore store, ServerSettings settings, IHostEnvironment env, ILogger<RefreshService> log)
+    public RefreshService(LiveTracker live, DataStore store, ServerPaths paths, ILogger<RefreshService> log)
     {
         _live = live;
         _store = store;
-        _settings = settings;
-        _env = env;
+        _paths = paths;
         _log = log;
     }
 
@@ -57,8 +55,7 @@ public sealed class RefreshService : BackgroundService
         Save();
         try
         {
-            var dir = Path.IsPathRooted(_settings.BackupDir) ? _settings.BackupDir : Path.Combine(_env.ContentRootPath, _settings.BackupDir);
-            if (_store.BackupDaily(dir, DateTime.Now)) _log.LogInformation("Made the daily copy of the database in {Dir}", dir);
+            if (_store.BackupDaily(_paths.BackupDir, DateTime.Now)) _log.LogInformation("Made the daily copy of the database in {Dir}", _paths.BackupDir);
         }
         catch (Exception ex)
         {
