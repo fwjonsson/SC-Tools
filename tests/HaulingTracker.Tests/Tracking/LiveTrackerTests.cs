@@ -15,8 +15,7 @@ public class LiveTrackerTests
         var uploads = new LogUploads();
         var live = new LiveTracker(PlayedSession.Data(), null, uploads);
         live.Refresh(DateTime.UtcNow);
-        Assert.Null(live.Tracker.State.Current);   // nothing uploaded yet
-        Assert.Empty(Cells(JsonDocument.Parse(live.Json).RootElement.GetProperty("runs")));
+        Assert.Empty(Cells(JsonDocument.Parse(live.Json).RootElement.GetProperty("runs")));   // nothing uploaded yet: the session started by hand, empty
 
         uploads.Add(PlayedSession.Player, "f", 0, 100, PlayedSession.Writer().Lines.ToList());
         live.Refresh(DateTime.UtcNow);
