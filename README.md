@@ -78,6 +78,9 @@ Your data is saved in `%AppData%\HaulingTracker\data.json`. The first time the p
 - Loaded and delivered times are shown on the run board. "Copy table for Google Sheets" still fills them in per location.
 - If the log misses a final "completed" push, stops of a finished mission count as loaded.
 - Not in the log: location names, SCU per location, rewards. These are typed by you.
+- Quantum travel: the log has when a destination is picked and when the drive arrives, not when the jump starts (only a passenger's game sometimes logs an
+  error when the pilot spools). The time in flight is worked out from the distance and the drive.
+- The in-game party is in the log (who joins, leaves and leads it), as the game's notifications; the web app uses it for who is active.
 
 ## Runs, players and two computers
 
@@ -213,6 +216,15 @@ admin (done), then going live.
   cargo of the runs, the SCU of from-Ruin drop-offs the game did not tell), **Party** (add, remove, active, batches, ship, drive, colour, location of every
   member; a field is saved as soon as it is changed, on its own), **Contracts** (who has every mission, Gone / Bring back) and **Debts** (a member's balances typed over, the Payment tick of his transfers, what a
   mission really paid, the party of the session). What only the program on a PC has (the log sources, the channel, the data file, the look) is not there.
+- **Who is active comes from the logs** on the server (`Tracking/AutoParty.cs`), not from a tick. The game writes the in-game party in its notifications
+  ("zzatvo has joined the party.", "Bileh123 has left the party." also when he quits or crashes, "zzoega is now party leader.", "The party has been
+  disbanded."), and the trackers already send those lines. A tracker also sends the time of the last line of every piece, so the server knows how long each
+  game ran (the log grows at least every few minutes while the game runs; quiet for ten minutes = the game ended). A member is active while his game runs, or
+  while somebody who is playing has him in his party, so a player whose tracker is off is still seen through the others' logs. Gone for less than ten minutes
+  (a crash, a relog) does not count. It is written to the party changes with its time, so payouts and runs go by it as they went by the tick. The Party page
+  shows who is in the game and with whom ("zzoega's party: zzatvo, zzoega"; the leader is the one the game named, else the one who made the party) and has
+  **Auto / In / Out** for every member: In or Out holds until the logs show something new about him (In until he leaves, Out until he plays). It starts the
+  first time the server runs it (the ticks before stay in the history); `HaulingTracker:FollowParty` = false turns it off.
 - **The database** (`App_Data/tracker.db`, SQLite, EF Core in `HaulingTracker.Server/Data`) has everything the program keeps in its data file: the party and
   every member's ship, colour and location, the sessions, the transfers and payouts, what was typed on the Contracts and Debts tabs, and the tracker keys.
   The first time the server starts with an empty database, the program's data file (`App_Data/data.json`) goes into it; after that the database is the data.

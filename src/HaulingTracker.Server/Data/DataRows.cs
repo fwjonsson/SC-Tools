@@ -29,6 +29,7 @@ public sealed class DataRows
             {
                 PartyTrackingSince = d.PartyTrackingSince,
                 PlanCreditSince = d.PlanCreditSince,
+                AutoPartySince = d.AutoPartySince,
                 DefaultRewards = d.DefaultRewards,
                 GameLogPath = d.GameLogPath,
                 DarkMode = d.DarkMode,
@@ -69,7 +70,7 @@ public sealed class DataRows
             m.LocationSince = at.Since;
         }
 
-        rows.PartyChanges = d.PartyChanges.Select((c, i) => new PartyChangeRow { Position = i, Name = c.Name, TimeUtc = c.TimeUtc, Active = c.Active }).ToList();
+        rows.PartyChanges = d.PartyChanges.Select((c, i) => new PartyChangeRow { Position = i, Name = c.Name, TimeUtc = c.TimeUtc, Active = c.Active, Source = c.Source }).ToList();
         rows.ManualSessions = d.ManualSessions.Select((s, i) => new ManualSessionRow { Position = i, StartUtc = s.StartUtc, StopUtc = s.StopUtc }).ToList();
         rows.Sessions = d.Sessions.Select((kv, i) => SessionRowOf(kv.Key, i, kv.Value)).ToList();
         rows.Transfers = d.Transfers.Select((t, i) => new TransferRow { Position = i, Time = t.Time, From = t.From, To = t.To, Amount = t.Amount, Payment = t.Payment }).ToList();
@@ -168,6 +169,7 @@ public sealed class DataRows
         {
             PartyTrackingSince = s.PartyTrackingSince,
             PlanCreditSince = s.PlanCreditSince,
+            AutoPartySince = s.AutoPartySince,
             DefaultRewards = s.DefaultRewards,
             GameLogPath = s.GameLogPath,
             DarkMode = s.DarkMode,
@@ -188,7 +190,7 @@ public sealed class DataRows
             if (m.LocationId != null) d.StartPoints[m.Name] = new StartPoint { Id = m.LocationId, Since = m.LocationSince ?? default };
         }
 
-        d.PartyChanges = PartyChanges.OrderBy(r => r.Position).Select(r => new PartyChange { Name = r.Name, TimeUtc = r.TimeUtc, Active = r.Active }).ToList();
+        d.PartyChanges = PartyChanges.OrderBy(r => r.Position).Select(r => new PartyChange { Name = r.Name, TimeUtc = r.TimeUtc, Active = r.Active, Source = r.Source }).ToList();
         d.ManualSessions = ManualSessions.OrderBy(r => r.Position).Select(r => new ManualSession { StartUtc = r.StartUtc, StopUtc = r.StopUtc }).ToList();
         foreach (var r in Sessions.OrderBy(r => r.Position)) d.Sessions[r.Key] = SessionOf(r);
         d.Transfers = Transfers.OrderBy(r => r.Position).Select(r => new SavedTransfer { Time = r.Time, From = r.From, To = r.To, Amount = r.Amount, Payment = r.Payment }).ToList();

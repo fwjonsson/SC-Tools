@@ -26,7 +26,7 @@ public sealed partial class PartyController : AdminControllerBase
     {
         name = name?.Trim() ?? "";
         if (!GameName().IsMatch(name)) return Say("Type the name in the game (letters, digits and - _ . only).", Back);
-        return Change(t => Edits.AddMember(t, name), Back);
+        return Change(t => Edits.AddMember(t, name, DateTime.UtcNow), Back);
     }
 
     [HttpPost("remove")]
@@ -42,8 +42,9 @@ public sealed partial class PartyController : AdminControllerBase
         value = string.IsNullOrEmpty(value) ? null : value;
         switch (field)
         {
-            case "active":
-                return Change(t => Edits.SetActive(t, name, value == "true", DateTime.UtcNow), Back);
+            case "active":   // auto (the logs decide), in or out (the admin decides until the logs change their mind); the tick: true or nothing
+                bool? active = value switch { "auto" => null, "in" or "true" => true, _ => false };
+                return Change(t => Edits.SetActive(t, name, active, DateTime.UtcNow), Back);
             case "batches":
                 return Change(t => Edits.SetBatches(t, name, value ?? ""), Back);
             case "ship":

@@ -49,9 +49,11 @@ public sealed class LogUploads
 
     /// <summary>
     /// A piece of a log file: the lines between the byte positions from and to of the file. Taken only when it starts where the server's cursor is; otherwise
-    /// nothing changes and the answer says where to start.
+    /// nothing changes and the answer says where to start. last is the time of the last line of the piece (also of a line the tracker does not send): while
+    /// the game runs the log grows all the time, so it says the game was still running then (see HaulingLog.GameRuns). A tracker that does not send it (an
+    /// older one) leaves the time of the last line it sent.
     /// </summary>
-    public UploadResult Add(string player, string file, long from, long to, IReadOnlyList<string> lines)
+    public UploadResult Add(string player, string file, long from, long to, IReadOnlyList<string> lines, DateTime? last = null)
     {
         if (string.IsNullOrWhiteSpace(player) || string.IsNullOrWhiteSpace(file)) throw new ArgumentException("A player and a file are needed.");
         lock (Sync)
@@ -61,9 +63,33 @@ public sealed class LogUploads
             if (from != at || to < from) return new UploadResult(false, at);
             foreach (var line in lines) feed.Log.ProcessLine(line.TrimEnd('\r'));
             feed.At[file] = to;
-            Keep(player, file, to, lines);
+            var seen = Seen(feed.Log, file, last ?? LastTime(lines));
+            Keep(player, file, to, lines, seen);
             return new UploadResult(true, to);
         }
+    }
+
+    /// <summary>The time of the last line that has one, or null.</summary>
+    static DateTime? LastTime(IEnumerable<string> lines)
+    {
+        DateTime? last = null;
+        foreach (var line in lines) last = HaulingLog.TimeOf(line) ?? last;
+        return last;
+    }
+
+    /// <summary>The game of this log file ran at least until this time: its GameRun is made or lengthened. The latest time seen in the file.</summary>
+    static DateTime? Seen(HaulingLog log, string file, DateTime? time)
+    {
+        log.GameRuns.TryGetValue(file, out var run);
+        var known = log.GameRuns.ContainsKey(file);
+        if (time == null) return known ? run.Last : null;
+        var t = time.Value.ToUniversalTime();
+        // the file is named by the time of its first line, which is when the game started
+        var start = known ? run.Start
+            : DateTime.TryParse(file, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var s) && s <= t ? s : t;
+        var lastSeen = known && run.Last > t ? run.Last : t;
+        log.GameRuns[file] = new GameRun(start, lastSeen);
+        return lastSeen;
     }
 
     /// <summary>Reads again what was uploaded and kept on disk in the last while (the log files written to in that time), each player's in the order of the files.</summary>
@@ -88,6 +114,9 @@ public sealed class LogUploads
                     if (kept.Length < 2 || !long.TryParse(kept[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var at)) continue;
                     feed.Log.ProcessFile(path);
                     feed.At[kept[0]] = at;
+                    // how long the game ran: kept next to the cursor (a file kept by an older server: the time of its last line)
+                    DateTime? last = kept.Length >= 3 && DateTime.TryParse(kept[2], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var l) ? l : LastTime(File.ReadLines(path));
+                    Seen(feed.Log, kept[0], last);
                 }
             }
         }
@@ -97,13 +126,17 @@ public sealed class LogUploads
     {
         if (_feeds.TryGetValue(player, out var feed)) return feed;
         feed = new Feed();
+        feed.Log.Uploader = player;
         _feeds[player] = feed;
         _logs.Add(feed.Log);
         return feed;
     }
 
-    /// <summary>Appends the lines to the player's copy of that log file and keeps the cursor next to it (the file's name and how far it is uploaded).</summary>
-    void Keep(string player, string file, long at, IReadOnlyList<string> lines)
+    /// <summary>
+    /// Appends the lines to the player's copy of that log file and keeps the cursor next to it: the file's name, how far it is uploaded, and the latest time
+    /// seen in it.
+    /// </summary>
+    void Keep(string player, string file, long at, IReadOnlyList<string> lines, DateTime? seen)
     {
         if (_dir == null) return;
         var dir = Path.Combine(_dir, SafeName(player));
@@ -111,7 +144,9 @@ public sealed class LogUploads
         var name = Path.Combine(dir, SafeName(file));
         if (lines.Count > 0) File.AppendAllLines(name + ".log", lines.Select(l => l.TrimEnd('\r')));
         else if (!File.Exists(name + ".log")) File.WriteAllText(name + ".log", "");
-        File.WriteAllLines(name + ".pos", new[] { file, at.ToString(CultureInfo.InvariantCulture) });
+        var pos = new List<string> { file, at.ToString(CultureInfo.InvariantCulture) };
+        if (seen != null) pos.Add(seen.Value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
+        File.WriteAllLines(name + ".pos", pos);
     }
 
     /// <summary>A name that is safe as a file name: letters, digits, '-', '_' and '.'; everything else becomes '_'.</summary>

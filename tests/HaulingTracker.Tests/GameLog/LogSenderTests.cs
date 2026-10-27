@@ -28,11 +28,13 @@ public sealed class LogSenderTests : IDisposable
     {
         public LogUploads Uploads { get; } = new();
         public int Pieces;
+        public List<DateTime?> Lasts { get; } = new();
         public Task<long> CursorAsync(string file, CancellationToken ct) => Task.FromResult(Uploads.Cursor("Pilot_A", file));
-        public Task<UploadResult> UploadAsync(string file, long from, long to, IReadOnlyList<string> lines, CancellationToken ct)
+        public Task<UploadResult> UploadAsync(string file, long from, long to, IReadOnlyList<string> lines, DateTime? last, CancellationToken ct)
         {
             Pieces++;
-            return Task.FromResult(Uploads.Add("Pilot_A", file, from, to, lines));
+            Lasts.Add(last);
+            return Task.FromResult(Uploads.Add("Pilot_A", file, from, to, lines, last));
         }
         public HaulingLog Log => Uploads.Logs.Single();
     }
@@ -116,6 +118,17 @@ public sealed class LogSenderTests : IDisposable
     }
 
     [Fact]
+    public void The_time_of_the_last_line_goes_with_the_piece_also_when_that_line_is_not_sent()
+    {
+        var w = PlayedSession.Writer();
+        w.Minutes(7).Noise();   // the game goes on writing: the tracker does not send this line, but its time says the game still ran
+        File.WriteAllText(GameLog, Text(w.Lines));
+        Sender().TickAsync(CancellationToken.None).GetAwaiter().GetResult();
+        Assert.Equal(w.Now, _server.Lasts[^1]);
+        Assert.Equal(new GameRun(GameLogWriter.Start, w.Now), _server.Log.GameRuns[LogSender.FileId(GameLog)!]);
+    }
+
+    [Fact]
     public void A_file_is_named_by_the_time_of_its_first_line()
     {
         File.WriteAllText(GameLog, Text(PlayedSession.Writer().Lines));
@@ -127,11 +140,13 @@ public sealed class LogSenderTests : IDisposable
     sealed class Stub : HttpMessageHandler
     {
         public readonly List<HttpRequestMessage> Requests = new();
+        public readonly List<string> Bodies = new();
         public Func<HttpRequestMessage, HttpResponseMessage> Answer = _ => new HttpResponseMessage(HttpStatusCode.OK);
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             Requests.Add(request);
-            return Task.FromResult(Answer(request));
+            Bodies.Add(request.Content == null ? "" : await request.Content.ReadAsStringAsync(ct));
+            return Answer(request);
         }
     }
 
@@ -149,10 +164,12 @@ public sealed class LogSenderTests : IDisposable
         Assert.Equal("k3y-k3y-k3y-k3y-k3y", stub.Requests[^1].Headers.GetValues("X-Tracker-Key").Single());
 
         stub.Answer = _ => Json(HttpStatusCode.Conflict, "{\"at\":300}");
-        Assert.Equal(new UploadResult(false, 300), server.UploadAsync("f", 120, 200, new[] { "x" }, CancellationToken.None).GetAwaiter().GetResult());
+        Assert.Equal(new UploadResult(false, 300), server.UploadAsync("f", 120, 200, new[] { "x" }, null, CancellationToken.None).GetAwaiter().GetResult());
 
         stub.Answer = _ => Json(HttpStatusCode.OK, "{\"at\":200}");
-        Assert.Equal(new UploadResult(true, 200), server.UploadAsync("f", 120, 200, new[] { "x" }, CancellationToken.None).GetAwaiter().GetResult());
+        var last = new DateTime(2026, 10, 21, 8, 30, 0, DateTimeKind.Utc);
+        Assert.Equal(new UploadResult(true, 200), server.UploadAsync("f", 120, 200, new[] { "x" }, last, CancellationToken.None).GetAwaiter().GetResult());
+        Assert.Contains("\"last\":\"2026-10-21T08:30:00Z\"", stub.Bodies[^1]);   // the time of the piece's last line goes with it
 
         stub.Answer = _ => new HttpResponseMessage(HttpStatusCode.Unauthorized);
         Assert.Null(server.PlayerAsync(CancellationToken.None).GetAwaiter().GetResult());

@@ -69,11 +69,15 @@ public static class Edits
 
     // ------------------------------------------------------------------ the party
 
-    public static string AddMember(Tracker t, string name)
+    public static string AddMember(Tracker t, string name, DateTime nowUtc)
     {
         name = name.Trim();
         if (name.Length == 0) return "Type a name.";
-        return t.Crew.Join(name) ? name + " joined the party." : t.State.Data.Party.First(x => PlayerNames.SameName(x, name)) + " is already in the party.";
+        if (!t.Crew.Join(name)) return t.State.Data.Party.First(x => PlayerNames.SameName(x, name)) + " is already in the party.";
+        var member = t.State.Data.Party.First(x => PlayerNames.SameName(x, name));
+        if (t.State.Data.AutoPartySince == null) return member + " joined the party.";
+        t.Crew.SetMemberActive(member, true, nowUtc, PartyChange.BackToLogs);   // the logs say whether he is playing
+        return member + " is in the party. He is active while the logs show him playing.";
     }
 
     public static string RemoveMember(Tracker t, string name)
@@ -95,14 +99,28 @@ public static class Edits
         return new OwnSettings(byHand ? location : null, ColorOf(t, member), t.Crew.ShipOf(member), t.Crew.DriveOf(member));
     }
 
-    /// <summary>The Active tick of a member on the Party page (saved with its time, so the payouts know who was there).</summary>
-    public static string SetActive(Tracker t, string name, bool active, DateTime nowUtc)
+    /// <summary>
+    /// Active on the Party page, saved with its time (so the payouts know who was there). Where the logs decide (the server): Auto (null) goes back to what the
+    /// logs say, In (true) or Out (false) holds until the logs change their mind about him. Elsewhere it is the tick as in the program.
+    /// </summary>
+    public static string SetActive(Tracker t, string name, bool? active, DateTime nowUtc)
     {
         var member = Member(t, name);
         if (member == null) return name + " is not in the party.";
-        if (active == t.Crew.IsActiveAt(member, nowUtc)) return "Nothing changed.";
-        t.Crew.SetMemberActive(member, active, nowUtc);
-        return member + (active ? " joined: mission payouts from now on are split with him." : " left: no share of payouts from now on.");
+        if (t.State.Data.AutoPartySince == null)
+        {
+            if (active == null || active == t.Crew.IsActiveAt(member, nowUtc)) return "Nothing changed.";
+            t.Crew.SetMemberActive(member, active.Value, nowUtc);
+            return member + (active.Value ? " joined: mission payouts from now on are split with him." : " left: no share of payouts from now on.");
+        }
+        if (active == t.Crew.OverrideOf(member)) return "Nothing changed.";
+        if (active == null)
+        {
+            t.Crew.SetMemberActive(member, t.Crew.IsActiveAt(member, nowUtc), nowUtc, PartyChange.BackToLogs);   // what the logs say then is filled in at once
+            return member + " follows the logs again.";
+        }
+        t.Crew.SetMemberActive(member, active.Value, nowUtc, PartyChange.ByAdmin);
+        return member + (active.Value ? " is In until the logs show him leaving." : " is Out until the logs show him playing.");
     }
 
     /// <summary>The batches a member's ship holds (1 to 24; what is not a number is the default).</summary>

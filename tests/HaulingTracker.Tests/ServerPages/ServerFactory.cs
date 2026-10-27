@@ -24,6 +24,9 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
     /// <summary>The program's data file the server imports when it starts (none: the database starts empty).</summary>
     public AppData? Data { get; init; }
 
+    /// <summary>The logs decide who is active (AutoParty), as on the real server. Off by default, so the other tests keep the Active ticks they set.</summary>
+    public bool FollowParty { get; init; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         Directory.CreateDirectory(Dir);
@@ -36,6 +39,7 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
             ["HaulingTracker:DataFile"] = Path.Combine(Dir, "data.json"),
             ["HaulingTracker:LogDir"] = Path.Combine(Dir, "logs"),
             ["HaulingTracker:Culture"] = "",   // the culture of the machine, as the other tests have it
+            ["HaulingTracker:FollowParty"] = FollowParty ? "true" : "false",
             ["HaulingTracker:Admin:UserName"] = AdminName,
             ["HaulingTracker:Admin:Password"] = AdminPassword,
         }));

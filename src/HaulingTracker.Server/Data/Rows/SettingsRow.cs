@@ -16,6 +16,9 @@ public sealed class SettingsRow
     /// <summary>From this time on the runs get their workers from the logs and the Trip Planner.</summary>
     public DateTime? PlanCreditSince { get; set; }
 
+    /// <summary>From this time on the logs decide who of the party is active (the in-game party and the trackers).</summary>
+    public DateTime? AutoPartySince { get; set; }
+
     /// <summary>The mission rewards typed last, by contract line ("2 To Ruin"): a new session starts with them.</summary>
     public Dictionary<string, decimal> DefaultRewards { get; set; } = new();
 

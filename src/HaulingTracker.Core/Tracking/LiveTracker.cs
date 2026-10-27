@@ -11,16 +11,21 @@ public sealed class LiveTracker
     int _version = -1;
     volatile string _json = "{}";
 
-    public LiveTracker(AppData data, Action<AppData>? save, LogUploads uploads, WebSnapshotOptions? view = null)
+    /// <param name="followParty">the logs decide who of the party is active (AutoParty), instead of the Active ticks</param>
+    public LiveTracker(AppData data, Action<AppData>? save, LogUploads uploads, WebSnapshotOptions? view = null, bool followParty = false)
     {
         Uploads = uploads;
         Tracker = new Tracker(data, save);
         Tracker.State.Live = true;   // the logs are followed while the games write them: the clocks run
         _view = view ?? new WebSnapshotOptions();
+        FollowParty = followParty;
     }
 
     public Tracker Tracker { get; }
     public LogUploads Uploads { get; }
+
+    /// <summary>The logs decide who of the party is active: the in-game party and the trackers (see AutoParty).</summary>
+    public bool FollowParty { get; }
 
     /// <summary>data.json as it was made last (see Refresh).</summary>
     public string Json => _json;
@@ -36,6 +41,7 @@ public sealed class LiveTracker
                 _version = version;
                 Show();
             }
+            if (FollowParty && Party(nowUtc)) Show();   // somebody came or went: the payouts and the runs are worked out again
             Tracker.Status.Advance(nowUtc);
             _json = WebSnapshot.Json(Tracker, _view);
         }
@@ -61,6 +67,21 @@ public sealed class LiveTracker
             _version = -1;
             Refresh(nowUtc);
         }
+    }
+
+    /// <summary>
+    /// Who of the party is active, from the logs (every time: a game that stopped writing its log ends after a while, with nothing new uploaded). True when
+    /// that changed anything, which is then saved.
+    /// </summary>
+    bool Party(DateTime nowUtc)
+    {
+        var data = Tracker.State.Data;
+        var parties = AutoParty.Work(Uploads.Logs, data.Party, nowUtc);
+        Tracker.State.Parties = parties;
+        if (!AutoParty.Apply(data, parties, nowUtc)) return false;
+        Tracker.State.Save();
+        Tracker.Plan.Invalidate();
+        return true;
     }
 
     /// <summary>The newest session, as the program shows it when it follows the logs.</summary>

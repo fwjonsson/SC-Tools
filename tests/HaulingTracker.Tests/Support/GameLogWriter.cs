@@ -92,6 +92,34 @@ sealed class GameLogWriter
         Add($"{Ts} [Notice] <Adding non kept item [CSCActorCorpseUtils::PopulateItemPortForItemRecoveryEntitlement]> Item 'armor_test_123 - Class(armor_test)' [Team_CoreGameplayFeatures]");
 
     /// <summary>The lines written so far, as they would be in Game.log.</summary>
+    // ------------------------------------------------------------------ the in-game party (notifications: the title, then the text as it goes to the queue, then its echoes)
+
+    int _note;
+
+    GameLogWriter Note(string title, string text)
+    {
+        var id = _note++;
+        return Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"{title}")
+            .Add($"{Ts} {text}: \" [{id}] to queue. New queue size: 1, MissionId: [00000000-0000-0000-0000-000000000000], ObjectiveId: [] [Team_CoreGameplayFeatures][Missions][Comms]")
+            .Add($"{Ts}    \"{title}")
+            .Add($"{Ts} {text}: \" [{id}]")
+            .Add($"{Ts} [Notice] <UpdateNotificationItem> Notification \"{title}")
+            .Add($"{Ts} {text}: \" [{id}], Action: Next [Team_CoreGameplayFeatures][Missions][Comms]");
+    }
+
+    public GameLogWriter PartyCreated() => Note("You have created", "party");
+    public GameLogWriter PartyJoined() => Note("You have joined", "party");
+    public GameLogWriter MemberJoined(string name) => Note("New Member Joined", name + " has joined the party.");
+    public GameLogWriter MemberLeft(string name) => Note("Member Left", name + " has left the party.");
+    public GameLogWriter NewLeader(string name) => Note("New Party Leader", name + " is now party leader.");
+    public GameLogWriter PartyLaunch(string leader) => Note("Party Launch", "Initiated by party leader " + leader + ".");
+    public GameLogWriter Disbanded() => Note("Party Disbanded", "The party has been disbanded.");
+    public GameLogWriter ChannelJoined(string name) => Note("New Member Joined", name + " has joined the channel 'RSI Perseus : zzoega'.");   // a ship's channel, not the party
+
+    /// <summary>A line the trackers do not send (the game writes lines like this all the time).</summary>
+    public GameLogWriter Noise() =>
+        Add($"{Ts} [Notice] <StatObjLoad 0x800 Format> 'data/objectcontainers/pu/loc/mod/pyro/station/ext_hangar.cgf' - File exists in P4K [Team_Graphics][CoreTech]");
+
     public IReadOnlyList<string> Lines => _lines;
 
     public HaulingLog Read()
