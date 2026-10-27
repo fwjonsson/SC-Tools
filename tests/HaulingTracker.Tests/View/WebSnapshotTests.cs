@@ -58,7 +58,7 @@ public class WebSnapshotTests
         var stops = d.GetProperty("pickups");
         Assert.Equal(new[] { "#", "Pickup Location", "From Ruin", "Batches", "Cargo", "Value", "Notes", "Drop-off" }, Headers(stops));
         var patch = Rows(stops).Select(Cells).Single(c => c[1] == "Patch City");
-        Assert.Equal("1/2", patch[3]);   // one of its two batches still waiting
+        Assert.Equal("1/1", patch[3]);   // the open mission's batch still waiting (the completed mission is gone from the board)
         Assert.Equal(CargoRuns.WaitingScuText(new LocationRow { Missions = 1, OpenMissions = { new Mission { Multi = 2 } } }), patch[4]);
         Assert.All(Rows(stops).Select(Cells).Select((c, i) => (c, i)), x => Assert.Equal((x.i + 1).ToString(), x.c[0]));   // numbered
 
