@@ -19,9 +19,13 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
 
     public string Dir { get; } = Path.Combine(Path.GetTempPath(), "ht-web-" + Guid.NewGuid().ToString("N"));
 
+    /// <summary>The program's data file the server imports when it starts (none: the database starts empty).</summary>
+    public AppData? Data { get; init; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         Directory.CreateDirectory(Dir);
+        if (Data != null) File.WriteAllText(Path.Combine(Dir, "data.json"), JsonSerializer.Serialize(Data));
         builder.UseEnvironment("Testing");
         builder.ConfigureAppConfiguration((_, c) => c.AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -46,6 +50,13 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
 
     public LiveTracker Live => Services.GetRequiredService<LiveTracker>();
     public DataStore Store => Services.GetRequiredService<DataStore>();
+
+    /// <summary>Uploads these lines as the log of this player, and works them out at once (the server does that every two seconds by itself).</summary>
+    public void Upload(string player, IReadOnlyList<string> lines)
+    {
+        Live.Uploads.Add(player, "test.log", 0, lines.Count, lines.ToList());
+        Live.Refresh(DateTime.UtcNow);
+    }
 
     /// <summary>A browser: it keeps its cookies and does not follow redirects (so a test sees where it is sent).</summary>
     public HttpClient Browser() => CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });

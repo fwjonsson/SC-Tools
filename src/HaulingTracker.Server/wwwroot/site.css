@@ -32,3 +32,27 @@ th { background:var(--header); color:#fff; }
 td.right { text-align:right; }
 code { font-family:Consolas, monospace; }
 .key code { font-size:16px; background:var(--bg); border:1px solid var(--line); padding:6px 10px; display:inline-block; user-select:all; word-break:break-all; }
+
+/* the admin's pages: wider tables with a form in every row */
+main.wide, main:has(table.wide) { max-width:1400px; }
+table.wide { max-width:none; }
+table.narrow { max-width:720px; }
+td input, td select { width:100%; padding:4px 6px; }
+td input[type=checkbox], td input[type=color] { width:auto; }
+input.num { text-align:right; }
+input.small { max-width:80px; }
+input.time { width:90px; }
+input.typed { border-color:#c8a400; }
+td button { margin:0; padding:4px 12px; }
+td.center { text-align:center; }
+.nowrap { white-space:nowrap; }
+tr.inactive td { color:var(--muted); }
+.buttons { display:flex; gap:14px; align-items:center; margin:10px 0; flex-wrap:wrap; }
+.buttons button { margin:0; }
+form.line { display:flex; gap:10px; align-items:center; margin:8px 0; flex-wrap:wrap; }
+form.line button { margin:0; }
+button.box { min-width:46px; font-size:15px; color:#fff; }
+button.has { background:#264832; }
+button.hasnot { background:#642e2e; }
+button.took { background:#685818; }
+button.tooknot { background:#6e4a1e; }

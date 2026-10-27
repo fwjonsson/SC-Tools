@@ -39,7 +39,7 @@ public sealed class AccountController : Controller
             return View(model);
         }
         if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl)) return LocalRedirect(model.ReturnUrl);
-        return LocalRedirect("/admin/keys");
+        return LocalRedirect("/admin");
     }
 
     [HttpPost("/logout")]

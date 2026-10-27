@@ -18,6 +18,10 @@
     }
     @if (User.IsInRole(Roles.Admin))
     {
+      <a href="/admin">Session</a>
+      <a href="/admin/party">Party</a>
+      <a href="/admin/contracts">Contracts</a>
+      <a href="/admin/debts">Debts</a>
       <a href="/admin/keys">Tracker keys</a>
       <a href="/account/password">Password</a>
     }

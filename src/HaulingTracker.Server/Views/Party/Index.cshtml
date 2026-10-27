@@ -1,0 +1,43 @@
+@model AdminPartyModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Party";
+    IEnumerable<SelectListItem> Items(List<Choice> choices, string now, string? empty = "") =>
+        (empty == null ? Enumerable.Empty<SelectListItem>() : new[] { new SelectListItem(empty, "", now == "") })
+            .Concat(choices.Select(c => new SelectListItem(c.Text, c.Value, c.Value == now)));
+}
+<h1>Party</h1>
+<p class="muted">Every change of Active is saved with its time, so mission payouts are split between who was there when they paid out.</p>
+
+<table class="wide">
+  <thead><tr><th>Member</th><th>Active</th><th>Batches</th><th>Ship</th><th>QT Drive</th><th>Colour</th><th>Current location</th><th></th></tr></thead>
+  <tbody>
+  @for (var i = 0; i < Model.Members.Count; i++)
+  {
+    var m = Model.Members[i];
+    var id = "member-" + i;
+    <tr class="@(m.Active ? "" : "inactive")">
+      <td><b>@m.Name.ToUpperInvariant()</b></td>
+      <td class="center"><input type="checkbox" name="active" value="true" checked="@m.Active" form="@id"></td>
+      <td><input type="number" name="batches" value="@m.Batches" min="1" max="@Crew.MaxShipCapacity" class="num small" form="@id"></td>
+      <td><select name="ship" form="@id" asp-items="Items(Model.Ships, m.Ship)"></select></td>
+      <td><select name="drive" form="@id" asp-items="Items(Model.Drives, m.Drive)"></select></td>
+      <td class="center"><input type="color" name="color" value="@m.Color" form="@id"></td>
+      <td><select name="location" form="@id" asp-items="Items(Model.Stations, m.Location, "Automatic: " + m.AutoLocation)"></select></td>
+      <td class="right nowrap">
+        <form id="@id" method="post" action="/admin/party/save" asp-antiforgery="true" class="inline"><input type="hidden" name="name" value="@m.Name"><button type="submit">Save</button></form>
+        <form method="post" action="/admin/party/remove" asp-antiforgery="true" class="inline"
+              onsubmit="return confirm('Remove @m.Name from the party? His earlier work and debts stay in the Debts tab, he just stops getting a share of new payouts.');">
+          <input type="hidden" name="name" value="@m.Name"><button type="submit" class="danger">Remove</button>
+        </form>
+      </td>
+    </tr>
+  }
+  </tbody>
+</table>
+
+<form method="post" action="/admin/party/add" asp-antiforgery="true" class="line">
+  <input name="name" placeholder="New member (his name in the game)" autocomplete="off">
+  <button type="submit">Add</button>
+</form>
+<p class="hint">A player sets his own location, colour, ship and drive on My page too. Batches: how many his ship holds on the Trip Planner.</p>

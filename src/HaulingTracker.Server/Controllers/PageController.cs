@@ -24,7 +24,7 @@ public sealed class PageController : Controller
         {
             links.Add("<span>" + WebUtility.HtmlEncode(User.Identity.Name ?? "") + "</span>");
             if (User.IsInRole(Roles.Player)) links.Add("<a href=\"/me\">My page</a>");
-            if (User.IsInRole(Roles.Admin)) links.Add("<a href=\"/admin/keys\">Admin</a>");
+            if (User.IsInRole(Roles.Admin)) links.Add("<a href=\"/admin\">Admin</a>");
         }
         const string Heading = "<h1>Hauling Tracker</h1>";
         var nav = "<nav style=\"position:absolute;top:16px;right:20px;display:flex;gap:16px;font-weight:600;opacity:.85\">"
