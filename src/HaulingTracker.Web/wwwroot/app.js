@@ -198,7 +198,7 @@ function mapSvg(el, stations, routes, bg) {
     slideWave(waveGrads[waveGrads.length - 1], performance.now());
     add('line', { x1: a[0] + ux * INSET, y1: a[1] + uy * INSET, x2: b[0] - ux * INSET, y2: b[1] - uy * INSET, stroke: 'url(#' + id + ')', 'stroke-width': width });
   }
-  add('rect', { x: 0, y: 0, width: W, height: H, fill: '#08080c' });
+  add('rect', { x: 0, y: 0, width: W, height: H, fill: '#06090e' });
   const sx = cx, sy = cy;
   bg.orbits.forEach(function (r) { add('circle', { cx: sx, cy: sy, r: r * sc, fill: 'none', stroke: '#ebebf5', 'stroke-opacity': 0.37, 'stroke-width': 1 }); });
   bg.planets.forEach(function (q) { const p = at(q[0], q[1]); add('circle', { cx: p[0], cy: p[1], r: Math.max(3.5, 10 * sc), fill: '#8c5514' }); });

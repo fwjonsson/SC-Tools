@@ -1,5 +1,5 @@
 /* The pages to change things: the dark look of the live page and the program. */
-:root { --bg:#1e1e20; --fg:#e8e8e8; --muted:#9898a0; --header:#264064; --line:#4e4e56; --cell:#252528; --accent:#4682ff; --bad:#ff6b6b; --good:#5fd35f; }
+:root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --header:#1f4b7a; --line:#2f3a48; --cell:#151b23; --accent:#4682ff; --bad:#ff6b6b; --good:#5fd35f; }   /* "Deep space", as the live page */
 * { box-sizing:border-box; }
 body { margin:0; background:var(--bg); color:var(--fg); font:14px "Segoe UI", system-ui, sans-serif; }
 a { color:inherit; }
