@@ -32,16 +32,35 @@ public sealed partial class PartyController : AdminControllerBase
     [HttpPost("remove")]
     public IActionResult Remove(string name) => Change(t => Edits.RemoveMember(t, name), Back);
 
-    [HttpPost("save")]
-    public IActionResult Save(string name, bool active, string? batches, string? location, string? color, string? ship, string? drive)
+    /// <summary>
+    /// One field of a member's row, sent as soon as it is changed on the page (there is no Save button): active, batches, ship, drive, colour or location.
+    /// Only that field changes, so a row that was open for a while does not put back the others as they were then.
+    /// </summary>
+    [HttpPost("set")]
+    public IActionResult Set(string name, string? field, string? value)
     {
-        var rgb = MeModel.ParseColor(color);
-        var pickedShip = string.IsNullOrEmpty(ship) ? null : Ships.Find(ship);
-        var pickedDrive = string.IsNullOrEmpty(drive) ? null : QuantumDrives.Find(drive);
-        var place = string.IsNullOrEmpty(location) ? null : location;
-        if (rgb == null || (place != null && MeModel.StationChoices().All(s => s.Value != place))
-            || (!string.IsNullOrEmpty(ship) && pickedShip == null) || (!string.IsNullOrEmpty(drive) && pickedDrive == null))
-            return Say("Nothing was saved: something in the row was not one of the choices.", Back);
-        return Change(t => Edits.SetMember(t, name, active, batches ?? "", place, rgb.Value, pickedShip, pickedDrive, DateTime.UtcNow), Back);
+        value = string.IsNullOrEmpty(value) ? null : value;
+        switch (field)
+        {
+            case "active":
+                return Change(t => Edits.SetActive(t, name, value == "true", DateTime.UtcNow), Back);
+            case "batches":
+                return Change(t => Edits.SetBatches(t, name, value ?? ""), Back);
+            case "ship":
+                var ship = value == null ? null : Ships.Find(value);
+                if (value != null && ship == null) break;
+                return Change(t => Edits.SetOwn(t, name, s => s with { Ship = ship }), Back);
+            case "drive":
+                var drive = value == null ? null : QuantumDrives.Find(value);
+                if (value != null && drive == null) break;
+                return Change(t => Edits.SetOwn(t, name, s => s with { Drive = drive }), Back);
+            case "color":
+                if (MeModel.ParseColor(value) is not { } rgb) break;
+                return Change(t => Edits.SetOwn(t, name, s => s with { Color = rgb }), Back);
+            case "location":
+                if (value != null && MeModel.StationChoices().All(s => s.Value != value)) break;
+                return Change(t => Edits.SetOwn(t, name, s => s with { Location = value }), Back);
+        }
+        return Say("Nothing was saved: that was not one of the choices.", Back);
     }
 }

@@ -97,14 +97,29 @@ public class AdminPagesTests
         Assert.Contains("Pilot_C joined the party.", await Said(admin, await ServerFactory.Send(admin, "/admin/party", "/admin/party/add", ("name", "Pilot_C")), "/admin/party"));
         Assert.Contains("Type the name in the game", await Said(admin, await ServerFactory.Send(admin, "/admin/party", "/admin/party/add", ("name", "two words")), "/admin/party"));
 
+        // every field is saved on its own, as soon as it changes (no Save button): the others stay as they are
+        async Task<string> Set(string field, string? value)
+        {
+            var fields = new List<(string, string)> { ("name", "Pilot_C"), ("field", field) };
+            if (value != null) fields.Add(("value", value));   // an unticked box sends nothing
+            return await Said(admin, await ServerFactory.Send(admin, "/admin/party", "/admin/party/set", fields.ToArray()), "/admin/party");
+        }
         var ship = Ships.All[1];
-        var r = await ServerFactory.Send(admin, "/admin/party", "/admin/party/save",
-            ("name", "Pilot_C"), ("batches", "5"), ("ship", ship.Label), ("drive", ""), ("color", "#00ff00"), ("location", ""));   // Active not ticked
-        Assert.Contains("Saved for Pilot_C", await Said(admin, r, "/admin/party"));
-        Assert.False(Read(f, t => t.Crew.IsActiveAt("Pilot_C", DateTime.UtcNow)));
-        Assert.Equal(5, Read(f, t => t.Crew.ShipCapacityOf("Pilot_C")));
+        Assert.Contains("Saved for Pilot_C: ship.", await Set("ship", ship.Label));
         Assert.Equal(ship.Name, Read(f, t => t.State.Data.Ship["Pilot_C"]));
+        Assert.Contains("Saved for Pilot_C: batches.", await Set("batches", "5"));
+        Assert.Equal(5, Read(f, t => t.Crew.ShipCapacityOf("Pilot_C")));
+        Assert.Contains("Saved for Pilot_C: colour.", await Set("color", "#00ff00"));
         Assert.Equal(unchecked((int)0xFF00FF00), Read(f, t => t.State.Data.WorkerColors["Pilot_C"]));
+        Assert.Equal(ship.Name, Read(f, t => t.State.Data.Ship["Pilot_C"]));   // the colour did not touch the ship
+        Assert.Contains("Pilot_C left", await Set("active", null));
+        Assert.False(Read(f, t => t.Crew.IsActiveAt("Pilot_C", DateTime.UtcNow)));
+        Assert.Equal(5, Read(f, t => t.Crew.ShipCapacityOf("Pilot_C")));   // nor the batches
+        Assert.Contains("Pilot_C joined", await Set("active", "true"));
+        Assert.True(Read(f, t => t.Crew.IsActiveAt("Pilot_C", DateTime.UtcNow)));
+        Assert.Contains("not one of the choices", await Set("ship", "A ship that does not exist"));
+        Assert.Contains("data-autosave", await admin.GetStringAsync("/admin/party"));
+        Assert.DoesNotContain(">Save<", await admin.GetStringAsync("/admin/party"));
 
         await ServerFactory.Send(admin, "/admin/party", "/admin/party/remove", ("name", "Pilot_C"));
         Assert.DoesNotContain("Pilot_C", Read(f, t => t.State.Data.Party));

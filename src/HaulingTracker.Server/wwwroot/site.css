@@ -40,7 +40,8 @@ table.narrow { max-width:720px; }
 td input, td select { width:100%; padding:4px 6px; }
 td input[type=checkbox], td input[type=color] { width:auto; }
 input.num { text-align:right; }
-input.small { max-width:80px; }
+input.small, select.small { max-width:80px; }
+td form { margin:0; }
 input.time { width:90px; }
 input.typed { border-color:#c8a400; }
 td button { margin:0; padding:4px 12px; }
