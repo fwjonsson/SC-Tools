@@ -62,9 +62,11 @@ public class WebSnapshotTests
         Assert.Equal(CargoRuns.WaitingScuText(new LocationRow { Missions = 1, OpenMissions = { new Mission { Multi = 2 } } }), patch[4]);
         Assert.All(Rows(stops).Select(Cells).Select((c, i) => (c, i)), x => Assert.Equal((x.i + 1).ToString(), x.c[0]));   // numbered
 
+        Assert.Equal(new[] { "Contract", "Mission Reward", "Active", "Completed", "Total" }, Headers(d.GetProperty("rewards")));
         var rewards = Rows(d.GetProperty("rewards"));
-        Assert.Equal(Earnings.RewardLines.Count + 1, rewards.Length);
-        Assert.Equal(new[] { "2 To Ruin", Earnings.DefaultReward2.ToString("N0"), "2", (2 * Earnings.DefaultReward2).ToString("N0") }, Cells(rewards[0]));
+        Assert.Equal(2, rewards.Length);   // only the kind of contract the session has, and the Total
+        Assert.Equal(new[] { "2 To Ruin", Earnings.DefaultReward2.ToString("N0"), "1", "1", (2 * Earnings.DefaultReward2).ToString("N0") }, Cells(rewards[0]));   // one still going, one done
+        Assert.Equal(new[] { "Total", "", "1", "1", (2 * Earnings.DefaultReward2).ToString("N0") }, Cells(rewards[^1]));
         Assert.Equal("Total", Cells(rewards[^1])[0]);
         Assert.True(rewards[^1].GetProperty("bold").GetBoolean());
 

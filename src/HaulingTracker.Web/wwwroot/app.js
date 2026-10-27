@@ -64,16 +64,20 @@ function alignColumns() {
   function measure() {
     lead.style.tableLayout = 'auto'; lead.style.width = 'auto';
     cells.forEach(function (c) { c.style.width = ''; });
-    return cells.map(function (c, i) { return Math.max(Math.ceil(c.getBoundingClientRect().width), least[i] || 0); });
+    return cells.map(function (c, i) { return Math.max(Math.ceil(c.getBoundingClientRect().width) + 1, least[i] || 0); });   // + 1: rounding
   }
   lead.classList.remove('tight');
   const need = measure();
-  const room = lead.parentElement.clientWidth - need.reduce(function (x, y) { return x + y; }, 0);
+  const total = need.reduce(function (x, y) { return x + y; }, 0);
+  const room = lead.parentElement.clientWidth - 2 - total;   // - 2: the outer borders
   let w;
   if (room >= 0) {
-    w = need.map(function (n, i) { return i > 0 ? n + room / (cells.length - 1) : n; });
+    // the widths as shares of the table's width (100%), so together they never come out a pixel wider than the page and make it scroll sideways
+    const share = need.map(function (n, i) { return i > 0 ? n + room / (cells.length - 1) : n; });
+    const sum = share.reduce(function (x, y) { return x + y; }, 0);
     lead.style.width = ''; lead.style.tableLayout = 'fixed';
-    cells.forEach(function (c, i) { c.style.width = w[i] + 'px'; });
+    cells.forEach(function (c, i) { c.style.width = (share[i] / sum * 100).toFixed(4) + '%'; });
+    w = cells.map(function (c) { return c.getBoundingClientRect().width; });
   } else {
     // a narrow window, where the titles on one line do not fit: as before, they may take two lines (.tight), with the first six columns as wide as Stops needs
     lead.classList.add('tight'); lead.style.width = ''; lead.style.tableLayout = '';
@@ -101,7 +105,8 @@ function alignColumns() {
 // title needs, instead of cutting it.
 function fitHeaders() {
   document.querySelectorAll('table').forEach(function (t) {
-    if (!t.tHead || !t.offsetParent || t.classList.contains('tight') || getComputedStyle(t).tableLayout !== 'fixed') return;
+    // (the leaderboard is left alone: alignColumns made every column as wide as its title)
+    if (!t.tHead || !t.offsetParent || t.closest('#leaders') || getComputedStyle(t).tableLayout !== 'fixed') return;
     Array.prototype.forEach.call(t.tHead.rows[0].cells, function (th) {
       const over = th.scrollWidth - th.clientWidth;
       if (over > 0) th.style.width = Math.ceil(th.getBoundingClientRect().width + over + 1) + 'px';
@@ -159,17 +164,22 @@ function mapSvg(el, stations, routes, bg) {
   el.textContent = '';
   waveGrads = [];
   const NS = 'http://www.w3.org/2000/svg';
-  const W = 520, H = 560, L = 40, R = 150, B = 24;
+  const W = 520, H = 560, B = 24, PAD = 6;
   const legend = routes.filter(function (r) { return r.label; });
   const cols = Math.max(1, Math.floor(W / 170));
   const T = 14 + Math.ceil(legend.length / cols) * 16;
-  let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
-  stations.forEach(function (s) { minX = Math.min(minX, s.x); maxX = Math.max(maxX, s.x); minY = Math.min(minY, s.y); maxY = Math.max(maxY, s.y); });
-  const w = W - L - R, h = H - T - B;
-  const sc = Math.min(w / (maxX - minX), h / (maxY - minY));
-  const ox = L + (w - (maxX - minX) * sc) / 2, oy = T + (h - (maxY - minY) * sc) / 2;
+  // the sun in the middle of the map, which is as large as the outer orbit (Ruin is on it) and the names of the stations on the right let it be
+  const cx = W / 2, cy = T + (H - T - B) / 2, sun = bg.sun;
+  const outer = Math.max.apply(null, bg.orbits.concat(stations.map(function (s) { return Math.hypot(s.x - sun[0], s.y - sun[1]); })));
+  let sc = Math.min(W / 2 - PAD, (H - T - B) / 2 - PAD) / outer;
+  stations.forEach(function (s) {
+    const dx = s.x - sun[0], name = s.name.length * (s.id === 'Ruin' ? 7.6 : 6.6) + 10;   // about as wide as the name is written
+    if (s.id === '73041') { if (dx < 0) sc = Math.min(sc, (W / 2 - PAD - name) / -dx); }   // Orbituary has its name on the left
+    else if (dx > 0) sc = Math.min(sc, (W / 2 - PAD - name) / dx);
+  });
+  function at(x, y) { return [cx + (x - sun[0]) * sc, cy + (y - sun[1]) * sc]; }
   const pos = {};
-  stations.forEach(function (s) { pos[s.id] = [ox + (s.x - minX) * sc, oy + (s.y - minY) * sc]; });
+  stations.forEach(function (s) { pos[s.id] = at(s.x, s.y); });
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
   svg.setAttribute('width', '100%');
@@ -205,9 +215,9 @@ function mapSvg(el, stations, routes, bg) {
     add('line', { x1: a[0] + ux * INSET, y1: a[1] + uy * INSET, x2: b[0] - ux * INSET, y2: b[1] - uy * INSET, stroke: 'url(#' + id + ')', 'stroke-width': width });
   }
   add('rect', { x: 0, y: 0, width: W, height: H, fill: '#08080c' });
-  const sx = ox + (bg.sun[0] - minX) * sc, sy = oy + (bg.sun[1] - minY) * sc;
+  const sx = cx, sy = cy;
   bg.orbits.forEach(function (r) { add('circle', { cx: sx, cy: sy, r: r * sc, fill: 'none', stroke: '#ebebf5', 'stroke-opacity': 0.37, 'stroke-width': 1 }); });
-  bg.planets.forEach(function (q) { add('circle', { cx: ox + (q[0] - minX) * sc, cy: oy + (q[1] - minY) * sc, r: Math.max(3.5, 10 * sc), fill: '#8c5514' }); });
+  bg.planets.forEach(function (q) { const p = at(q[0], q[1]); add('circle', { cx: p[0], cy: p[1], r: Math.max(3.5, 10 * sc), fill: '#8c5514' }); });
   const sr = Math.max(7, bg.sunRadius * sc);
   add('circle', { cx: sx, cy: sy, r: sr * 1.9, fill: '#ff461e', 'fill-opacity': 0.22 });
   add('circle', { cx: sx, cy: sy, r: sr, fill: '#ff3a18' });

@@ -128,27 +128,35 @@ public sealed partial class WebSnapshot
         };
     }
 
-    /// <summary>The Contracts table: every kind of contract with its payout, how many the session has and what they pay together, and the Total.</summary>
+    /// <summary>
+    /// The Contracts table: the kinds of contract the session has (not the others), each with its payout, how many are still going (Active) and done
+    /// (Completed), and what they pay together; and the Total.
+    /// </summary>
     ViewTable Rewards()
     {
         var table = new ViewTable(_p,
-            new ViewColumn("Contract", "left"), new ViewColumn("Mission Reward", "right", Calc: false), new ViewColumn("# Missions", "right"), new ViewColumn("Total", "right"));
+            new ViewColumn("Contract", "left"), new ViewColumn("Mission Reward", "right", Calc: false), new ViewColumn("Active", "right"), new ViewColumn("Completed", "right"),
+            new ViewColumn("Total", "right"));
         if (_s.Current == null || _s.Inputs == null) return table;
         var inp = _s.Inputs;
         var accepted = _s.Current.Missions;
         var waste = _t.Earnings.SessionWaste(_s.Current);
         decimal revenue = 0;
-        var missions = 0;
+        int active = 0, completed = 0;
+        static string N(int n) => n.ToString(CultureInfo.InvariantCulture);
         foreach (var line in Earnings.RewardLines)
         {
+            var missions = line.MissionsIn(accepted, waste);
+            if (missions.Count == 0) continue;   // a kind of contract the session does not have
             var reward = Earnings.Or(line.Get(inp), Earnings.DefaultReward(line.Stops));
-            var count = line.CountIn(accepted, waste);
-            var total = reward * count;
+            var done = missions.Count(m => m.Completed);
+            var total = reward * missions.Count;
             revenue += total;
-            missions += count;
-            table.Add(line.Contract, reward.ToString("N0", CultureInfo.CurrentCulture), count.ToString(CultureInfo.InvariantCulture), total == 0 ? "" : total.ToString("N0", CultureInfo.CurrentCulture));
+            active += missions.Count - done;
+            completed += done;
+            table.Add(line.Contract, reward.ToString("N0", CultureInfo.CurrentCulture), N(missions.Count - done), N(done), total.ToString("N0", CultureInfo.CurrentCulture));
         }
-        table.Add("Total", "", missions.ToString(CultureInfo.InvariantCulture), revenue == 0 ? "" : revenue.ToString("N0", CultureInfo.CurrentCulture)).Bold = true;
+        table.Add("Total", "", N(active), N(completed), revenue == 0 ? "" : revenue.ToString("N0", CultureInfo.CurrentCulture)).Bold = true;
         return table;
     }
 
