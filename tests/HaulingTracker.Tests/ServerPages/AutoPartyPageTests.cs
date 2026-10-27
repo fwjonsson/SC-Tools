@@ -19,6 +19,7 @@ public class AutoPartyPageTests
     public async Task The_party_page_shows_who_plays_with_whom_and_the_admin_can_override_it()
     {
         using var f = new ServerFactory { Data = new AppData { Party = new List<string> { "zzoega", "zzatvo", "bileh123" } }, FollowParty = true };
+        _ = f.Live;   // the server starts (and the logs take over from then)
         var now = DateTime.UtcNow;
         // zzoega's tracker: he made a party half an hour ago and zzatvo (no tracker) joined it; his game is still writing its log
         var log = new GameLogWriter().At(now.AddMinutes(-30)).Login("zzoega").Minutes(1).PartyCreated().Minutes(1).MemberJoined("zzatvo");

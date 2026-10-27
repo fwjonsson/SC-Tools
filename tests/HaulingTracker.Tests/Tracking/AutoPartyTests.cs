@@ -141,7 +141,7 @@ public class AutoPartyTests
         Assert.False(crew.IsActiveAt("bileh123", At(14)));
 
         crew.SetMemberActive("bileh123", false, At(20), PartyChange.ByAdmin);   // the admin: Out
-        Assert.True(AutoParty.Apply(data, r, At(21)));        // he is not active now
+        Assert.False(AutoParty.Apply(data, r, At(21)));       // the admin's Out is in place as it is: the logs change nothing
         Assert.False(crew.IsActiveAt("bileh123", At(21)));
         Assert.Equal(false, crew.OverrideOf("bileh123"));
         r.Changes["bileh123"] = Changes((15, true), (30, false));   // he leaves: what Out says already
