@@ -245,8 +245,11 @@ public sealed record RewardLine(int Stops, bool FromRuin, Func<SessionInputs, de
     public string Contract => FromRuin && Stops == 1 ? "Direct From Ruin" : Stops + (FromRuin ? " From Ruin" : " To Ruin");
 
     /// <summary>How many contracts of this kind the session has: its accepted missions (to Ruin), or its from-Ruin contracts.</summary>
-    public int CountIn(IEnumerable<Mission> accepted, IEnumerable<Mission> waste) =>
-        FromRuin ? waste.Count(m => m.OutDrops == Stops) : accepted.Count(m => m.Multi == Stops);
+    public int CountIn(IEnumerable<Mission> accepted, IEnumerable<Mission> waste) => MissionsIn(accepted, waste).Count;
+
+    /// <summary>The contracts of this kind the session has: of its accepted missions (to Ruin), or of its from-Ruin contracts.</summary>
+    public List<Mission> MissionsIn(IEnumerable<Mission> accepted, IEnumerable<Mission> waste) =>
+        (FromRuin ? waste.Where(m => m.OutDrops == Stops) : accepted.Where(m => m.Multi == Stops)).ToList();
 }
 
 /// <summary>A stop of the Stops board: a pickup location (Row) and the drop-offs to bring there (a station with only drop-offs has no Row), and what it is worth.</summary>
