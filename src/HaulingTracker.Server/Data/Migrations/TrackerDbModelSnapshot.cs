@@ -335,6 +335,10 @@ namespace HaulingTracker.Server.Data.Migrations
                     b.Property<bool>("DarkMode")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("DefaultRewards")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DisabledWatchPaths")
                         .IsRequired()
                         .HasColumnType("TEXT");
