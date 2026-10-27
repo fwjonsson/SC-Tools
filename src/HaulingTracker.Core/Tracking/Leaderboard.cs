@@ -152,10 +152,11 @@ public sealed class Leaderboard
         return lines.Values.ToList();
     }
 
-    /// <summary>The rows of a leaderboard: the highest earner on top (marked with a star), the Total row last.</summary>
+    /// <summary>The rows of a leaderboard: the highest earner on top (marked with a star), the Total row last. Nobody on it: no rows at all (no Total of zeros).</summary>
     public static List<BoardRow> Board(List<StatLine> lines, int totalSessions, double totalSeconds)
     {
         var rows = new List<BoardRow>();
+        if (lines.Count == 0) return rows;
         var totalValue = lines.Sum(l => l.RunValue);
         var sum = new StatLine();
         var first = true;

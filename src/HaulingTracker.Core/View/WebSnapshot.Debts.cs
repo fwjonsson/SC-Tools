@@ -14,7 +14,7 @@ public sealed partial class WebSnapshot
 
         var balances = party.Select(me =>
         {
-            var grid = new ViewTable(_p, new ViewColumn("Party Member", "left", false), new ViewColumn("Balance", "right", false), new ViewColumn("Meaning", "left", false));
+            var grid = new ViewTable(_p, new ViewColumn("Party Member", "left"), new ViewColumn("Balance", "right"), new ViewColumn("Meaning", "left"));
             foreach (var o in party.Where(o => !SameName(o, me)))
             {
                 var shown = DebtCalc.Between(pairs, me, o) + _t.Payouts.GetAdj(me, o);
@@ -24,8 +24,8 @@ public sealed partial class WebSnapshot
         }).ToList();
 
         var transfers = new ViewTable(_p,
-            new ViewColumn("Time", Calc: false), new ViewColumn("From", Calc: false), new ViewColumn("To", Calc: false), new ViewColumn("Amount", "right", false),
-            new ViewColumn("Payment", Calc: false));
+            new ViewColumn("Time"), new ViewColumn("From"), new ViewColumn("To"), new ViewColumn("Amount", "right"),
+            new ViewColumn("Payment"));
         foreach (var t in data.Transfers.OrderByDescending(t => t.Time))
         {
             transfers.Add(
@@ -37,8 +37,8 @@ public sealed partial class WebSnapshot
         }
 
         var payouts = new ViewTable(_p,
-            new ViewColumn("Time", Calc: false), new ViewColumn("Mission", "left", false), new ViewColumn("Payout", "right", false),
-            new ViewColumn("Shared Between", "left", false), new ViewColumn("Each", "right", false));
+            new ViewColumn("Time"), new ViewColumn("Mission", "left"), new ViewColumn("Payout", "right"),
+            new ViewColumn("Shared Between", "left"), new ViewColumn("Each", "right"));
         foreach (var r in data.Payouts.OrderByDescending(r => r.Time))
         {
             payouts.Add(

@@ -1,7 +1,7 @@
 namespace HaulingTracker.View;
 
-/// <summary>A column of a table of the web view: its header, how its cells are aligned (left, center, right), and whether it is tinted (calculated, not typed).</summary>
-public sealed record ViewColumn(string Text, string Align = "center", bool Calc = true);
+/// <summary>A column of a table of the web view: its header and how its cells are aligned (left, center, right).</summary>
+public sealed record ViewColumn(string Text, string Align = "center");
 
 /// <summary>The header of a column as the page gets it.</summary>
 public sealed record ViewHeader(string Text, string Align);
@@ -46,13 +46,16 @@ public sealed class ViewTable
     public List<ViewHeader> Headers { get; }
     public List<ViewRow> Rows { get; } = new();
 
-    /// <summary>Adds a row: tinted columns get the calculated colour, the others the table colour; the text has the theme's colour.</summary>
+    /// <summary>
+    /// Adds a row: every cell the colour of the tables (Calc; nothing is typed on the page, so no column looks different, unlike the program where the columns
+    /// you type in are not tinted); the text has the theme's colour.
+    /// </summary>
     public ViewRow Add(params string[] cells)
     {
         var row = new ViewRow
         {
             Cells = cells,
-            Back = _columns.Select(c => ViewPalette.Hex(c.Calc ? _p.Calc : _p.Cell)).ToArray(),
+            Back = _columns.Select(_ => ViewPalette.Hex(_p.Calc)).ToArray(),
             Fore = _columns.Select(_ => ViewPalette.Hex(_p.Text)).ToArray(),
         };
         Rows.Add(row);

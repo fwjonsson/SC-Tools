@@ -51,13 +51,13 @@ public sealed class SessionFigures
     }
 
     /// <summary>Missions Completed.</summary>
-    public string CompletedText() => _s.Summary == null ? "" : _s.Summary.Completed.ToString(CultureInfo.InvariantCulture);
+    public string CompletedText() => _s.Summary == null || _s.Summary.Total == 0 ? "" : _s.Summary.Completed.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>Active Missions, with how many of them have cargo missing.</summary>
     public string ActiveText()
     {
         var summary = _s.Summary;
-        if (summary == null) return "";
+        if (summary == null || summary.Total == 0) return "";   // no missions yet: empty, as the other figures
         var missing = _s.Missing.Count;
         return summary.Active.ToString(CultureInfo.InvariantCulture) + (missing > 0 ? "  (" + (missing == summary.Active ? "" : missing + " ") + "Cargo Missing)" : "");
     }

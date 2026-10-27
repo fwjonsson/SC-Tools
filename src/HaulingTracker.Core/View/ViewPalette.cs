@@ -14,9 +14,10 @@ public sealed record ViewPalette(
         Window: 0xFFFFFF, Cell: 0xFFFFFF, Text: 0x000000, Muted: 0x696969, Header: Rgb(54, 92, 138), Calc: Rgb(243, 248, 253), Lines: 0x000000,
         Red: Rgb(253, 224, 224), Green: Rgb(226, 244, 226), Orange: Rgb(255, 222, 178), Yellow: Rgb(255, 244, 204), Gold: Rgb(255, 240, 184));
 
+    /// <summary>"Deep space" (picked 28 Oct 2026): a blue-black window, the tables a shade lighter, a brighter blue for the headers.</summary>
     public static readonly ViewPalette Dark = new(
-        Window: Rgb(30, 30, 32), Cell: Rgb(37, 37, 40), Text: Rgb(232, 232, 232), Muted: Rgb(152, 152, 160), Header: Rgb(38, 64, 100), Calc: Rgb(45, 54, 67),
-        Lines: Rgb(78, 78, 86), Red: Rgb(100, 46, 46), Green: Rgb(38, 72, 50), Orange: Rgb(110, 74, 30), Yellow: Rgb(96, 84, 30), Gold: Rgb(104, 88, 26));
+        Window: Rgb(13, 17, 23), Cell: Rgb(21, 27, 35), Text: Rgb(230, 237, 243), Muted: Rgb(139, 148, 158), Header: Rgb(31, 75, 122), Calc: Rgb(27, 37, 51),
+        Lines: Rgb(47, 58, 72), Red: Rgb(100, 46, 46), Green: Rgb(29, 68, 48), Orange: Rgb(110, 74, 30), Yellow: Rgb(90, 77, 22), Gold: Rgb(107, 87, 20));
 
     public static ViewPalette Of(bool dark) => dark ? Dark : Light;
 

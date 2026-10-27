@@ -1,4 +1,5 @@
-  :root { --bg:#1e1e1e; --fg:#e6e6e6; --header:#1f3a68; --line:#3a3a3a; --cell:#2b2b2b; }
+  /* the colours until data.json brings the theme (ViewPalette.Dark, "Deep space") */
+  :root { --bg:#0d1117; --fg:#e6edf3; --header:#1f4b7a; --line:#2f3a48; --cell:#151b23; }
   * { box-sizing: border-box; }
   body { margin:0; padding:14px 18px 40px; background:var(--bg); color:var(--fg); font:14px "Segoe UI", system-ui, sans-serif; }
   h1 { font-size:20px; margin:0 0 2px; }

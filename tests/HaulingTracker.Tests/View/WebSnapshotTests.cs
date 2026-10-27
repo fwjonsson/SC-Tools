@@ -77,6 +77,26 @@ public class WebSnapshotTests
     }
 
     [Fact]
+    public void Every_column_has_the_same_colour_and_an_empty_session_shows_nothing_rather_than_zeros()
+    {
+        var d = Snapshot();
+        static string[] Backs(JsonElement row) => row.GetProperty("back").EnumerateArray().Select(c => c.GetString()!).ToArray();
+        var stop = Backs(Rows(d.GetProperty("pickups"))[0]);
+        Assert.Equal(stop[2], stop[1]);   // Pickup Location and Notes look like the rest (nothing is typed on the page)
+        Assert.Equal(stop[2], stop[6]);
+        Assert.Equal(Hex(ViewPalette.Dark.Calc), stop[2]);
+        Assert.Single(Backs(Rows(d.GetProperty("rewards"))[0]).Distinct());   // the Mission Reward too
+
+        var live = new LiveTracker(PlayedSession.Data(), null, new LogUploads());   // the session started, nothing uploaded yet
+        live.Refresh(DateTime.UtcNow);
+        var empty = JsonDocument.Parse(live.Json).RootElement;
+        Assert.Empty(Rows(empty.GetProperty("rewards")));   // no Total of zeros
+        Assert.Empty(Rows(empty.GetProperty("leaders")));
+        var summary = empty.GetProperty("summary").EnumerateArray().ToDictionary(x => x.GetProperty("k").GetString()!, x => x.GetProperty("v").GetString()!);
+        Assert.All(new[] { "Batches Delivered", "Active Missions", "Missions Completed", "Total aUEC Earned", "aUEC/Hour" }, k => Assert.Equal("", summary[k]));
+    }
+
+    [Fact]
     public void With_more_than_one_party_in_the_game_each_has_a_session_tab_of_its_own()
     {
         var (t, _) = PlayedSession.Load();
@@ -97,7 +117,7 @@ public class WebSnapshotTests
         Assert.Equal(Cells(Rows(d.GetProperty("rewards"))[0]), Cells(Rows(a.GetProperty("rewards"))[0]));
         Assert.Empty(Rows(b.GetProperty("runs")));      // Pilot_B: no runs,
         Assert.Empty(Rows(b.GetProperty("pickups")));   // no missions
-        Assert.Equal("", Cells(Rows(b.GetProperty("rewards"))[^1])[^1]);   // their contracts pay nothing
+        Assert.Empty(Rows(b.GetProperty("rewards")));   // no contracts: not even a Total row
         Assert.Equal(2, t.State.Current!.Missions.Count);   // and the session is the whole one again
         Assert.Equal(trips, t.State.Trips.Count);
         Assert.Null(t.State.Focus);
@@ -166,6 +186,6 @@ public class WebSnapshotTests
         Assert.Equal(p.Green, p.RunColor("None", true));
         Assert.Equal(p.Yellow, p.RunColor("None", false));
         Assert.Null(p.PlanRowColor("plan"));
-        Assert.Equal("#1e1e20", ViewPalette.Hex(p.Window));
+        Assert.Equal("#0d1117", ViewPalette.Hex(p.Window));
     }
 }

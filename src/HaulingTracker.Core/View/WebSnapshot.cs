@@ -135,7 +135,7 @@ public sealed partial class WebSnapshot
     ViewTable Rewards()
     {
         var table = new ViewTable(_p,
-            new ViewColumn("Contract", "left"), new ViewColumn("Mission Reward", "right", Calc: false), new ViewColumn("Active", "right"), new ViewColumn("Completed", "right"),
+            new ViewColumn("Contract", "left"), new ViewColumn("Mission Reward", "right"), new ViewColumn("Active", "right"), new ViewColumn("Completed", "right"),
             new ViewColumn("Total", "right"));
         if (_s.Current == null || _s.Inputs == null) return table;
         var inp = _s.Inputs;
@@ -156,7 +156,7 @@ public sealed partial class WebSnapshot
             completed += done;
             table.Add(line.Contract, reward.ToString("N0", CultureInfo.CurrentCulture), N(missions.Count - done), N(done), total.ToString("N0", CultureInfo.CurrentCulture));
         }
-        table.Add("Total", "", N(active), N(completed), revenue == 0 ? "" : revenue.ToString("N0", CultureInfo.CurrentCulture)).Bold = true;
+        if (table.Rows.Count > 0) table.Add("Total", "", N(active), N(completed), revenue == 0 ? "" : revenue.ToString("N0", CultureInfo.CurrentCulture)).Bold = true;   // nothing: no Total of zeros
         return table;
     }
 
@@ -182,8 +182,8 @@ public sealed partial class WebSnapshot
     ViewTable Stops()
     {
         var table = new ViewTable(_p,
-            new ViewColumn("#"), new ViewColumn("Pickup Location", "left", Calc: false), new ViewColumn("From Ruin", "right"), new ViewColumn("Batches"),
-            new ViewColumn("Cargo", "right"), new ViewColumn("Value", "right"), new ViewColumn("Notes", "left", Calc: false), new ViewColumn("Drop-off"));
+            new ViewColumn("#"), new ViewColumn("Pickup Location", "left"), new ViewColumn("From Ruin", "right"), new ViewColumn("Batches"),
+            new ViewColumn("Cargo", "right"), new ViewColumn("Value", "right"), new ViewColumn("Notes", "left"), new ViewColumn("Drop-off"));
         if (_s.Current == null || _s.Inputs == null) return table;
         foreach (var stop in _t.Earnings.StopsBoard(_t.DropOffs.OpenDrops()))
         {
@@ -271,7 +271,7 @@ public sealed partial class WebSnapshot
         var full = new ViewTable(_p,
             new ViewColumn("#"), new ViewColumn("Worker"), new ViewColumn("Pickup Location & Time", "left"), new ViewColumn("Batches"), new ViewColumn("Value", "right"),
             new ViewColumn("Started"), new ViewColumn("Completed"), new ViewColumn("Time"), new ViewColumn("In flight"), new ViewColumn("aUEC/h", "right"),
-            new ViewColumn("Lost Cargo", Calc: false));
+            new ViewColumn("Lost Cargo"));
         var brief = new ViewTable(_p,
             new ViewColumn("#"), new ViewColumn("Worker"), new ViewColumn("Value", "right"), new ViewColumn("Started"), new ViewColumn("Completed"), new ViewColumn("Time"),
             new ViewColumn("In flight"), new ViewColumn("aUEC/h", "right"));
