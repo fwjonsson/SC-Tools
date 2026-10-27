@@ -64,7 +64,42 @@ public sealed partial class WebSnapshot
             planner = Planner(),
             debts = Debts(),
             history = History(),
+            parties = Parties(),
         };
+    }
+
+    /// <summary>
+    /// The parties in the game now (see AutoParty) with somebody of the party table in them: their name ("zzoega's party"), leader and players. With more than
+    /// one, each has the Session tab of its own (view: its stops, contracts, session, leaderboard and runs: the missions one of them has, and their runs); the
+    /// page shows them as tabs under Session, and on the Trip Planner. Empty where the logs do not say.
+    /// </summary>
+    object[] Parties()
+    {
+        var groups = _s.Parties?.Groups.Where(g => g.Names.Any(n => _s.Data.Party.Any(m => SameName(m, n)))).ToList();
+        if (groups == null || groups.Count == 0) return Array.Empty<object>();
+        return groups.Select(g =>
+        {
+            if (groups.Count == 1) return (object)new { title = g.Title, leader = g.Leader, names = g.Names };   // the whole session is theirs
+            using var focus = _t.Focus(g.Names);
+            var runs = RunsTables();
+            return new
+            {
+                title = g.Title,
+                leader = g.Leader,
+                names = g.Names,
+                view = new
+                {
+                    session = _s.Current == null ? "" : BoardTexts.DescribeSession(_s.Current),
+                    summary = Summary(),
+                    rewards = Rewards(),
+                    pickups = Stops(),
+                    finished = Finished(),
+                    leaders = SessionLeaders(),
+                    runs = runs.Full,
+                    runsLive = runs.Live,
+                },
+            };
+        }).ToArray();
     }
 
     /// <summary>The colour of a worker (see ViewPalette.WorkerColor).</summary>

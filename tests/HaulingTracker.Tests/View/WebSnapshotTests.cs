@@ -77,6 +77,42 @@ public class WebSnapshotTests
     }
 
     [Fact]
+    public void With_more_than_one_party_in_the_game_each_has_a_session_tab_of_its_own()
+    {
+        var (t, _) = PlayedSession.Load();
+        t.State.Data.Party.Add("Pilot_B");   // no log: he is not in Pilot_A's party
+        var parties = new AutoParty.Result();
+        parties.Groups.Add(new PartyGroup(PlayedSession.Player, new[] { PlayedSession.Player }));
+        parties.Groups.Add(new PartyGroup("Pilot_B", new[] { "Pilot_B" }));
+        t.State.Parties = parties;
+        var trips = t.State.Trips.Count;
+
+        var d = JsonDocument.Parse(WebSnapshot.Json(t, new WebSnapshotOptions())).RootElement;
+        var list = d.GetProperty("parties").EnumerateArray().ToArray();
+        Assert.Equal(new[] { PlayedSession.Player, "Pilot_B" }, list.Select(p => p.GetProperty("title").GetString()));
+        var a = list[0].GetProperty("view");
+        var b = list[1].GetProperty("view");
+        Assert.Equal(Rows(d.GetProperty("runs")).Length, Rows(a.GetProperty("runs")).Length);   // the runs are all Pilot_A's
+        Assert.Contains(Rows(a.GetProperty("pickups")).Select(Cells), c => c[1] == "Patch City");
+        Assert.Equal(Cells(Rows(d.GetProperty("rewards"))[0]), Cells(Rows(a.GetProperty("rewards"))[0]));
+        Assert.Empty(Rows(b.GetProperty("runs")));      // Pilot_B: no runs,
+        Assert.Empty(Rows(b.GetProperty("pickups")));   // no missions
+        Assert.Equal("", Cells(Rows(b.GetProperty("rewards"))[^1])[^1]);   // their contracts pay nothing
+        Assert.Equal(2, t.State.Current!.Missions.Count);   // and the session is the whole one again
+        Assert.Equal(trips, t.State.Trips.Count);
+        Assert.Null(t.State.Focus);
+
+        parties.Groups.RemoveAt(1);   // one party: its name only, the whole session is theirs
+        d = JsonDocument.Parse(WebSnapshot.Json(t, new WebSnapshotOptions())).RootElement;
+        var one = Assert.Single(d.GetProperty("parties").EnumerateArray());
+        Assert.Equal(PlayedSession.Player, one.GetProperty("title").GetString());
+        Assert.False(one.TryGetProperty("view", out _));
+
+        t.State.Parties = null;   // the logs do not say (the program)
+        Assert.Empty(JsonDocument.Parse(WebSnapshot.Json(t, new WebSnapshotOptions())).RootElement.GetProperty("parties").EnumerateArray());
+    }
+
+    [Fact]
     public void Runs_have_the_colour_of_how_they_went()
     {
         var d = Snapshot();
