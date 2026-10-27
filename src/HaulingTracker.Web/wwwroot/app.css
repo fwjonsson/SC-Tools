@@ -16,7 +16,9 @@
   .bal th:nth-child(2) { width:18%; }
   table { border-collapse:collapse; width:100%; }
   th, td { border:1px solid var(--line); padding:4px 8px; white-space:nowrap; }
-  th { background:var(--header); color:#fff; font-weight:600; text-align:center; white-space:normal; }
+  /* every title on one line (a column is at least as wide as its title); only the leaderboard on a narrow window may take two (.tight, see alignColumns) */
+  th { background:var(--header); color:#fff; font-weight:600; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  table.tight th { white-space:normal; }
   .kv td:first-child { font-weight:600; width:50%; }
   /* party, contracts and session: four equal columns, and the session's two columns are two of those, so the middle line is straight */
   #party table, #rewards table, #summary table { table-layout:fixed; }
@@ -33,11 +35,11 @@
   .plantables table { table-layout:fixed; }
   /* Current Route: #, Stops, Drop/Collect, Cargo (takes the rest), Value, Distance, In flight */
   .plancur th:nth-child(1) { width:36px; } .plancur th:nth-child(2) { width:120px; } .plancur th:nth-child(3) { width:200px; } .plancur th:nth-child(5) { width:80px; }
-  .plancur th:nth-child(6) { width:74px; } .plancur th:nth-child(7) { width:68px; }
+  .plancur th:nth-child(6) { width:80px; } .plancur th:nth-child(7) { width:70px; }
   .plancur td:nth-child(3), .plancur td:nth-child(4) { white-space:normal; }
   /* Queued routes: #, Route (takes the rest), Stops (how many), Batches, Value, Distance, In flight */
   .planque th:nth-child(1) { width:36px; } .planque th:nth-child(3) { width:64px; } .planque th:nth-child(4) { width:84px; } .planque th:nth-child(5) { width:80px; }
-  .planque th:nth-child(6) { width:74px; } .planque th:nth-child(7) { width:68px; }
+  .planque th:nth-child(6) { width:80px; } .planque th:nth-child(7) { width:70px; }
   .planque td:nth-child(2) { white-space:normal; }
   /* every worker in his own frame: the Current Route, and the Queued routes under it */
   .planworker { background:var(--cell); border:1px solid var(--line); padding:4px 10px 10px; margin-bottom:12px; }

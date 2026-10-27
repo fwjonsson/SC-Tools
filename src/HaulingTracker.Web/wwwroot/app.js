@@ -38,12 +38,32 @@ setInterval(function () {
 // The first columns of Stops, Finished stops and Cargo runs are as wide as the same columns of the Session leaderboard, so they line up (like in the program).
 function alignColumns() {
   const lead = document.querySelector('#leaders table');
-  if (!lead || !lead.tHead) return;
+  if (!lead || !lead.tHead || !lead.offsetParent) return;   // not drawn yet, or another tab is shown (nothing can be measured then)
+  const cells = Array.prototype.slice.call(lead.tHead.rows[0].cells);
   // the lined-up columns are never narrower than Stops needs them: with nobody on the leaderboard yet its columns are only as wide as their titles,
   // so Pickup Location wrapped and the rest of Stops moved (#, Pickup Location, From Ruin, Batches, Cargo, Value)
   const least = [36, 140, 90, 80, 110, 110];
-  Array.prototype.forEach.call(lead.tHead.rows[0].cells, function (c, i) { if (i < least.length) c.style.width = least[i] + 'px'; });
-  const w = Array.prototype.map.call(lead.tHead.rows[0].cells, function (c) { return c.getBoundingClientRect().width; });
+  // every column of the leaderboard as wide as its title (on one line) and its numbers need, then what is left of the width is shared evenly by all
+  // but #, so the columns are balanced (before, the first six had a set width and the others got all the room, however short their titles)
+  function measure() {
+    lead.style.tableLayout = 'auto'; lead.style.width = 'auto';
+    cells.forEach(function (c) { c.style.width = ''; });
+    return cells.map(function (c, i) { return Math.max(Math.ceil(c.getBoundingClientRect().width), least[i] || 0); });
+  }
+  lead.classList.remove('tight');
+  const need = measure();
+  const room = lead.parentElement.clientWidth - need.reduce(function (x, y) { return x + y; }, 0);
+  let w;
+  if (room >= 0) {
+    w = need.map(function (n, i) { return i > 0 ? n + room / (cells.length - 1) : n; });
+    lead.style.width = ''; lead.style.tableLayout = 'fixed';
+    cells.forEach(function (c, i) { c.style.width = w[i] + 'px'; });
+  } else {
+    // a narrow window, where the titles on one line do not fit: as before, they may take two lines (.tight), with the first six columns as wide as Stops needs
+    lead.classList.add('tight'); lead.style.width = ''; lead.style.tableLayout = '';
+    cells.forEach(function (c, i) { c.style.width = i < least.length ? least[i] + 'px' : ''; });
+    w = cells.map(function (c) { return c.getBoundingClientRect().width; });
+  }
   // after the lined-up columns: the column with the long text (wide) takes what is left, the others are as wide as their numbers need
   const narrow = { 'Batches': 70, 'Value': 100, 'Started': 76, 'Completed': 90, 'Time': 80, 'In flight': 76, 'aUEC/h': 96, 'Lost Cargo': 96 };
   function fix(id, n, wide) {
@@ -60,7 +80,20 @@ function alignColumns() {
   }
   fix('pickups', 6); fix('finished', 6); fix('runs', 2, 'Pickup Location & Time');
 }
-window.addEventListener('resize', alignColumns);
+
+// Every title on one line: a column of a table with set widths that is too narrow for its title (another font, a smaller window) is made as wide as the
+// title needs, instead of cutting it.
+function fitHeaders() {
+  document.querySelectorAll('table').forEach(function (t) {
+    if (!t.tHead || !t.offsetParent || t.classList.contains('tight') || getComputedStyle(t).tableLayout !== 'fixed') return;
+    Array.prototype.forEach.call(t.tHead.rows[0].cells, function (th) {
+      const over = th.scrollWidth - th.clientWidth;
+      if (over > 0) th.style.width = Math.ceil(th.getBoundingClientRect().width + over + 1) + 'px';
+    });
+  });
+}
+function layout() { alignColumns(); fitHeaders(); }
+window.addEventListener('resize', layout);
 
 function summary(el, items) {
   el.textContent = '';
@@ -288,6 +321,7 @@ function show(which) {
     document.getElementById('tab' + k).classList.toggle('on', k === which);
   });
   try { history.replaceState(null, '', '#' + { S: 'session', P: 'plan', D: 'debts', H: 'history' }[which]); } catch (e) { }
+  layout();   // the tables of a tab that was hidden could not be measured
 }
 ['S', 'P', 'D', 'H'].forEach(function (k) { document.getElementById('tab' + k).onclick = function () { show(k); }; });
 show({ '#plan': 'P', '#debts': 'D', '#history': 'H' }[location.hash] || 'S');
@@ -322,6 +356,7 @@ async function refresh() {
     if (d.planner) renderPlanner();
     if (d.debts) renderDebts();
     if (d.history) renderHistory();
+    fitHeaders();
   } catch (e) {
     live.textContent = '● connection lost, trying again'; live.className = 'live bad';
   }
