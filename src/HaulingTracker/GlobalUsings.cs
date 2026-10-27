@@ -7,6 +7,7 @@ global using HaulingTracker.Planning;
 global using HaulingTracker.Runs;
 global using HaulingTracker.Sessions;
 global using HaulingTracker.Tracking;
+global using HaulingTracker.View;
 global using static HaulingTracker.Tracking.Formats;
 global using static HaulingTracker.Tracking.PlayerNames;
 global using HaulingTracker.UI;

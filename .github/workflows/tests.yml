@@ -7,6 +7,7 @@ on:
     paths:
       - 'src/HaulingTracker.Core/**'
       - 'src/HaulingTracker.Web/**'
+      - 'src/HaulingTracker.Server/**'
       - 'tests/**'
       - 'tools/PlanTest/**'
       - '.github/workflows/tests.yml'
@@ -34,6 +35,8 @@ jobs:
           body=$(printf "%s\n%s" "$summary" "$problems" | tail -c 6000 | sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g')
           echo "::notice title=Test results::$body"
           exit $code
+      - name: Build the server
+        run: dotnet build src/HaulingTracker.Server -c Release
       - name: Plan the scenarios
         shell: bash
         run: |

@@ -41,6 +41,9 @@ public static class Storage
         }
     }
 
+    /// <summary>Use this data file, without remembering it anywhere (the server says in its settings where its data is).</summary>
+    public static void UseFile(string path) => _path = path;
+
     /// <summary>Use another data file from now on. It is remembered the next time the program starts.</summary>
     public static void SetLocation(string path)
     {
