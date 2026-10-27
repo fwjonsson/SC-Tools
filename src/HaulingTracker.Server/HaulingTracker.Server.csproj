@@ -8,6 +8,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>HaulingTracker.Server</RootNamespace>
+    <!-- App_Data is the server's own data when it runs (the database, the logs, the data file to import): not part of the program, never copied with it -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);App_Data/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

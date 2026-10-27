@@ -192,10 +192,14 @@ then going live.
   with the same logic as the program, and serves the live page to everybody. An upload without a known key is refused. New keys go in its settings
   (`appsettings.json`, `HaulingTracker:Trackers`: key to player): when the server starts they are added to the database, as a hash only, and can then be
   removed from the settings (removing one there does not take it back). A key: `[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))`.
-- **The database** (`data/tracker.db`, SQLite, EF Core in `HaulingTracker.Server/Data`) has everything the program keeps in its data file: the party and
+- **The database** (`App_Data/tracker.db`, SQLite, EF Core in `HaulingTracker.Server/Data`) has everything the program keeps in its data file: the party and
   every member's ship, colour and location, the sessions, the transfers and payouts, what was typed on the Contracts and Debts tabs, and the tracker keys.
-  The first time the server starts with an empty database, the program's data file (`data/data.json`) goes into it; after that the database is the data.
-  What the tracker changes is written at most every two seconds, and a copy of the database is made every day in `data/backups` (the newest 30 are kept).
+  The first time the server starts with an empty database, the program's data file (`App_Data/data.json`) goes into it; after that the database is the data.
+  What the tracker changes is written at most every two seconds, and a copy of the database is made every day in `App_Data/backups` (the newest 30 are kept).
+- **Running the server on your own computer**: put a copy of the program's data file in `src/HaulingTracker.Server/App_Data/` as `data.json` (the folder
+  is ignored by Git, so it never ends up in the repository). In Visual Studio set HaulingTracker.Server as the startup project and start it (the page
+  opens at `http://localhost:8780`), or run `dotnet run --project src/HaulingTracker.Server`. To import the data file again, stop the server and delete
+  `App_Data/tracker.db`.
 - **Changing the tables** (a new field in the data, a new table): change the classes in `Data/Rows` and `TrackerDb`, then commit with
   `[migration: AName]` in the commit message (for example `[migration: AddMemberNotes]`). GitHub makes the migration (`dotnet ef migrations add AName`)
   and commits it to the same branch; pull it before you go on. The server brings its database up to date when it starts. With the .NET SDK on your own

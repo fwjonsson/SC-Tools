@@ -4,16 +4,16 @@ namespace HaulingTracker.Server;
 public sealed class ServerSettings
 {
     /// <summary>The database (SQLite): the party, the sessions, the payouts, the debts... A path that is not full is in the server's folder.</summary>
-    public string Database { get; set; } = "data/tracker.db";
+    public string Database { get; set; } = "App_Data/tracker.db";
 
     /// <summary>A daily copy of the database is kept here (the newest 30).</summary>
-    public string BackupDir { get; set; } = "data/backups";
+    public string BackupDir { get; set; } = "App_Data/backups";
 
     /// <summary>The program's data file (data.json): it goes into the database the first time the server starts, while the database is still empty.</summary>
-    public string DataFile { get; set; } = "data/data.json";
+    public string DataFile { get; set; } = "App_Data/data.json";
 
     /// <summary>Where the uploaded logs are kept, so a restart of the server reads them again.</summary>
-    public string LogDir { get; set; } = "data/logs";
+    public string LogDir { get; set; } = "App_Data/logs";
 
     /// <summary>How many hours back the kept logs are read again when the server starts.</summary>
     public int KeepHours { get; set; } = 36;
