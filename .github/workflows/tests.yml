@@ -37,6 +37,8 @@ jobs:
           exit $code
       - name: Build the server
         run: dotnet build src/HaulingTracker.Server -c Release
+      - name: Build the server for the Arm server (as Deploy does)
+        run: dotnet publish src/HaulingTracker.Server -c Release -r linux-arm64 --self-contained true -o publish-arm64 && ls publish-arm64 | head -50 && ls publish-arm64/wwwroot
       - name: Plan the scenarios
         shell: bash
         run: |

@@ -227,6 +227,34 @@ admin (done), then going live.
   computer: `dotnet tool install -g dotnet-ef`, then `dotnet ef migrations add AName --project src/HaulingTracker.Server --output-dir Data/Migrations`. A
   test fails when the tables changed without a migration.
 
+### Going live (the server)
+
+The web app runs on a Hetzner server (Ubuntu, Arm64) as the service `haulingtracker`; Cloudflare's tunnel brings haulingtracker.fwjonsson.dev to it (no
+open ports but SSH). GitHub puts every new version of main on it (the **Deploy** workflow). Once:
+
+1. **Set up the server.** Log in (`ssh root@SERVER-IP`) and run
+   `curl -fsSL https://raw.githubusercontent.com/fwjonsson/SCHaulingTracker/main/deploy/setup.sh -o setup.sh && bash setup.sh`. It makes the users, the
+   folders, the settings file, the service and the key GitHub logs in with, and prints three secrets.
+2. **The secrets.** In GitHub: the repository, **Settings**, **Secrets and variables**, **Actions**, **New repository secret**: `DEPLOY_HOST`,
+   `DEPLOY_KNOWN_HOSTS` and `DEPLOY_KEY`, each pasted exactly as printed. Then delete the key's copy on the server: `rm /root/github-deploy`.
+3. **The admin's password.** `nano /etc/haulingtracker/haulingtracker.env`, type it after `HaulingTracker__Admin__Password=` (at least 12 characters),
+   Ctrl+O, Enter, Ctrl+X. The name is already `zzoega`.
+4. **The data.** Close the program on the PC (so its data file is final), then in PowerShell on the PC:
+   `scp "PATH\TO\HaulingTracker-data.json" root@SERVER-IP:/var/lib/haulingtracker/data.json`.
+5. **The first version.** GitHub, **Actions**, **Deploy**, **Run workflow**. When it is green the app runs; `systemctl status haulingtracker` and
+   `journalctl -u haulingtracker -n 50` on the server say how it goes (the import of the data file is in the log).
+6. **Look at it before everybody does.** `ssh -L 8780:127.0.0.1:8780 root@SERVER-IP` in PowerShell, and open `http://localhost:8780` on the PC (while that
+   window stays open). Log in as zzoega and check the Debts and History tabs.
+7. **The tunnel.** In Cloudflare: Zero Trust, **Networks**, **Tunnels**, the tunnel, **Configure**. Add a connector for **Debian**, **arm64** and run the
+   commands it shows on the server. Change the published application haulingtracker.fwjonsson.dev to the service `http://127.0.0.1:8780`. Remove the
+   connector on the PC (an administrator PowerShell: `cloudflared service uninstall`), so every visit goes to the server.
+8. **The trackers.** On the **Tracker keys** page make a key for zzoega, zzatvo and bileh123, and put each in the tracker (HaulingTrackerSender) on his PC
+   (Server `https://haulingtracker.fwjonsson.dev`).
+
+After that every merge to main that changes the server is deployed by itself; a version that does not start is replaced by the one before it. The
+settings are in `/etc/haulingtracker/haulingtracker.env` (`sudo systemctl restart haulingtracker` after a change), the data in `/var/lib/haulingtracker`
+(the database, the uploaded logs, the daily copies, the keys of the login cookies), the versions in `/opt/haulingtracker/releases`.
+
 ## ScApiTool (Star Citizen Wiki API)
 
 A separate small program, `ScApiTool.exe` (in the same Releases download, `ScApiTool.zip`). It asks the [Star Citizen Wiki API](https://api.star-citizen.wiki) for game data (locations, missions, commodities, ships, items, and the API's own list of addresses) and saves the raw answers as `.json` files in a `ScApiData` folder next to it, with a `summary.txt` and a zip of everything.
