@@ -84,23 +84,44 @@ public static class Edits
         return member + " was removed from the party. His earlier work and debts stay; he just stops getting a share of new payouts.";
     }
 
-    /// <summary>A row of the Party table: active, the batches his ship holds, and his own settings.</summary>
-    public static string SetMember(Tracker t, string name, bool active, string batches, string? location, int color, Ship? ship, QtDrive? drive, DateTime nowUtc)
+    /// <summary>A member's own settings as they are now (Location null = Automatic), to change one of them on the Party page.</summary>
+    public sealed record OwnSettings(string? Location, int Color, Ship? Ship, QtDrive? Drive);
+
+    static string? Member(Tracker t, string name) => t.State.Data.Party.FirstOrDefault(x => PlayerNames.SameName(x, name));
+
+    static OwnSettings OwnOf(Tracker t, string member)
     {
-        var member = t.State.Data.Party.FirstOrDefault(x => PlayerNames.SameName(x, name));
+        var (location, byHand) = t.Whereabouts.LocationOf(member);
+        return new OwnSettings(byHand ? location : null, ColorOf(t, member), t.Crew.ShipOf(member), t.Crew.DriveOf(member));
+    }
+
+    /// <summary>The Active tick of a member on the Party page (saved with its time, so the payouts know who was there).</summary>
+    public static string SetActive(Tracker t, string name, bool active, DateTime nowUtc)
+    {
+        var member = Member(t, name);
         if (member == null) return name + " is not in the party.";
-        var changed = new List<string>();
-        if (active != t.Crew.IsActiveAt(member, nowUtc))
-        {
-            t.Crew.SetMemberActive(member, active);
-            changed.Add(active ? "joined (mission payouts from now on are split with him)" : "left (no share of payouts from now on)");
-        }
+        if (active == t.Crew.IsActiveAt(member, nowUtc)) return "Nothing changed.";
+        t.Crew.SetMemberActive(member, active, nowUtc);
+        return member + (active ? " joined: mission payouts from now on are split with him." : " left: no share of payouts from now on.");
+    }
+
+    /// <summary>The batches a member's ship holds (1 to 24; what is not a number is the default).</summary>
+    public static string SetBatches(Tracker t, string name, string batches)
+    {
+        var member = Member(t, name);
+        if (member == null) return name + " is not in the party.";
         var capacity = t.Crew.ShipCapacityOf(member);
         t.Crew.SetShipCapacity(member, batches);
-        if (t.Crew.ShipCapacityOf(member) != capacity) changed.Add("batches");
-        var (own, refused) = ApplySettings(t, member, location, color, ship, drive);
-        changed.AddRange(own);
-        return Saved(member, (changed, refused));
+        return Saved(member, (t.Crew.ShipCapacityOf(member) != capacity ? new List<string> { "batches" } : new List<string>(), null));
+    }
+
+    /// <summary>One of a member's own settings on the Party page (the others stay as they are): his location, colour, ship or quantum drive.</summary>
+    public static string SetOwn(Tracker t, string name, Func<OwnSettings, OwnSettings> change)
+    {
+        var member = Member(t, name);
+        if (member == null) return name + " is not in the party.";
+        var s = change(OwnOf(t, member));
+        return Saved(member, ApplySettings(t, member, s.Location, s.Color, s.Ship, s.Drive));
     }
 
     // ------------------------------------------------------------------ the session
