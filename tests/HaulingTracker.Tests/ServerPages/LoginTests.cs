@@ -129,7 +129,7 @@ public class LoginTests
         var link = await f.LoginLink(f.AddKey(ServerFactory.AdminName));
         var r = await f.Browser().GetAsync(link);
         Assert.Equal(HttpStatusCode.OK, r.StatusCode);
-        Assert.Contains("the admin's login", await r.Content.ReadAsStringAsync());
+        Assert.Contains("the admin's login", WebUtility.HtmlDecode(await r.Content.ReadAsStringAsync()));   // the page writes ' as &#x27;
     }
 
     [Fact]
