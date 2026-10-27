@@ -180,7 +180,8 @@ The **History** tab has the same table for **all saved sessions** (with an extra
 ## The web app (being built)
 
 The tracker is moving to a server, so the website is always up and everybody with a tracker is tracked, also when Frank's computer is off. The plan is
-`claude/webapp-plan.md` in the project: the server and the live page (done), the trackers (done), then the database, the logins and the editing, then going live.
+`claude/webapp-plan.md` in the project: the server and the live page (done), the trackers (done), the database (done), then the logins and the editing,
+then going live.
 
 - **HaulingTrackerSender.exe** (in the Releases download, `HaulingTrackerSender.zip`) is the tracker: a tray icon on every gaming PC. Its settings are the
   server, your **key** (Frank gives every player his own; **Test** asks the server whose key it is), the Star Citizen folder and the log channel. Every
@@ -188,8 +189,18 @@ The tracker is moving to a server, so the website is always up and everybody wit
   restart of the tracker or the game). It only sends the lines the tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money
   transfers, the freight elevator and the loading platform); the rest of the game's log stays on the PC. It can start with Windows, and it updates itself.
 - **HaulingTracker.Server** keeps the uploads (one log per player, also on disk, so a restart reads them again), works the session out every two seconds
-  with the same logic as the program, and serves the live page to everybody. The keys are in its settings (`appsettings.json`, `HaulingTracker:Trackers`:
-  key to player); an upload without a known key is refused. A key: `[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))`.
+  with the same logic as the program, and serves the live page to everybody. An upload without a known key is refused. New keys go in its settings
+  (`appsettings.json`, `HaulingTracker:Trackers`: key to player): when the server starts they are added to the database, as a hash only, and can then be
+  removed from the settings (removing one there does not take it back). A key: `[Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))`.
+- **The database** (`data/tracker.db`, SQLite, EF Core in `HaulingTracker.Server/Data`) has everything the program keeps in its data file: the party and
+  every member's ship, colour and location, the sessions, the transfers and payouts, what was typed on the Contracts and Debts tabs, and the tracker keys.
+  The first time the server starts with an empty database, the program's data file (`data/data.json`) goes into it; after that the database is the data.
+  What the tracker changes is written at most every two seconds, and a copy of the database is made every day in `data/backups` (the newest 30 are kept).
+- **Changing the tables** (a new field in the data, a new table): change the classes in `Data/Rows` and `TrackerDb`, then commit with
+  `[migration: AName]` in the commit message (for example `[migration: AddMemberNotes]`). GitHub makes the migration (`dotnet ef migrations add AName`)
+  and commits it to the same branch; pull it before you go on. The server brings its database up to date when it starts. With the .NET SDK on your own
+  computer: `dotnet tool install -g dotnet-ef`, then `dotnet ef migrations add AName --project src/HaulingTracker.Server --output-dir Data/Migrations`. A
+  test fails when the tables changed without a migration.
 
 ## ScApiTool (Star Citizen Wiki API)
 

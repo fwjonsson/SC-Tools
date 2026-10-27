@@ -363,3 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 # UEX access token (a secret)
 uex-token.txt
+
+# The web app's own data when it runs on a computer (the database, the uploaded logs, the daily copies), and the file of the EF Core tools
+src/HaulingTracker.Server/data/
+design.db

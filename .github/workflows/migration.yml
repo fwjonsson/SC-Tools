@@ -1,0 +1,46 @@
+name: Migration
+
+# Makes an EF Core migration of the server's database when the message of a commit on a branch says [migration: AName], and commits it to the same branch,
+# so no .NET SDK is needed on your own computer. Pull the branch afterwards. See "Changing the tables" in the README.
+on:
+  push:
+    branches-ignore:
+      - main
+
+permissions:
+  contents: write   # to commit the migration
+  actions: write    # to start the tests and the build for that commit
+
+jobs:
+  migration:
+    if: contains(github.event.head_commit.message, '[migration:')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Make the migration
+        shell: bash
+        env:
+          MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          name=$(printf '%s' "$MESSAGE" | grep -oE '\[migration: *[A-Za-z][A-Za-z0-9_]*\]' | head -1 | sed -E 's/\[migration: *([A-Za-z0-9_]+)\]/\1/')
+          if [ -z "$name" ]; then echo "::error::Write the name as [migration: AName] (letters, digits and _, starting with a letter)"; exit 1; fi
+          echo "NAME=$name" >> "$GITHUB_ENV"
+          dotnet tool install --global dotnet-ef --version "10.0.*"
+          dotnet ef migrations add "$name" --project src/HaulingTracker.Server --output-dir Data/Migrations
+      - name: Commit it to the branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/HaulingTracker.Server/Data/Migrations
+          git commit -m "Migration: $NAME" -m "Made by dotnet ef migrations add $NAME (the Migration workflow)."
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          # a commit pushed from here does not start the other workflows by itself: start them for it
+          gh workflow run tests.yml --ref "$GITHUB_REF_NAME"
+          gh workflow run build.yml --ref "$GITHUB_REF_NAME"
+          echo "::notice title=Migration $NAME::Committed to $GITHUB_REF_NAME: pull the branch before you go on."
