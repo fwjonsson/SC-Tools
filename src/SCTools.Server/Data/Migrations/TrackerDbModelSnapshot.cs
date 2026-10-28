@@ -657,6 +657,12 @@ namespace SCTools.Server.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Groups")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("'[]'");
+
                     b.Property<string>("LockedTrips")
                         .IsRequired()
                         .HasColumnType("TEXT");
