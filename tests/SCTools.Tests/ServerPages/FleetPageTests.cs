@@ -19,17 +19,17 @@ public class FleetPageTests
         Assert.Contains("Automatic: no quantum jump in your logs yet", WebUtility.HtmlDecode(await me.GetStringAsync("/me")));
 
         await ServerFactory.Send(me, "/me", "/me/fleet/add", ("ship", "Crusader C2 Hercules Starlifter"), ("drive", "TS-2 S3"), ("quality", "1000"));
-        await ServerFactory.Send(me, "/me", "/me/fleet/add", ("ship", "RSI Perseus"), ("drive", ""), ("quality", ""));
+        await ServerFactory.Send(me, "/me", "/me/fleet/add", ("ship", "Aegis Gladius"), ("drive", ""), ("quality", ""));
         var bad = await ServerFactory.Send(me, "/me", "/me/fleet/add", ("ship", "Carrack"), ("drive", "TS-2 S3"), ("quality", "1200"));
         Assert.Equal("/me#fleet", bad.Headers.Location?.OriginalString);
         var page = WebUtility.HtmlDecode(await me.GetStringAsync("/me"));
         Assert.Contains("The quality of a crafted drive is a whole number from 0 to 1000", page);
         Assert.Contains("611,661,360 m/s (+20 %)", page);   // the TS-2 at quality 1000: 509,717,800 m/s and 20 % more
-        Assert.Contains("not a hauler the planner knows", page);   // the Perseus
+        Assert.Contains("not a hauler the planner knows", page);   // the Gladius
 
         var fleet = f.Services.GetRequiredService<FleetService>();
         var ships = fleet.Fleet("zzoega");
-        Assert.Equal(new[] { "Crusader C2 Hercules Starlifter", "RSI Perseus" }, ships.Select(s => s.Row.Ship));
+        Assert.Equal(new[] { "Crusader C2 Hercules Starlifter", "Aegis Gladius" }, ships.Select(s => s.Row.Ship));
         Assert.Equal("C2 Hercules Starlifter", ships[0].Hauler?.Name);
 
         // Automatic: his latest quantum jump was in a C2 (the logs name it CRUS_Starlifter_C2)
@@ -41,7 +41,7 @@ public class FleetPageTests
         Assert.Equal(611_661_360, f.Live.Read(t => t.Crew.QtOf("zzoega").Speed), 1);
         Assert.Equal("TS-2 S3 +20 %", f.Live.Read(t => t.Crew.DriveTextOf("zzoega")));
 
-        // he picks the Perseus: not a hauler, and no drive set for it
+        // he picks the Gladius: not a hauler, and no drive set for it
         await ServerFactory.Send(me, "/me", "/me/fleet/active", ("id", ships[1].Row.Id.ToString()));
         Assert.True(fleet.Active("zzoega").Picked);
         Assert.Equal(((string?)null, (string?)null, 0.0), f.Live.Read(t => (t.Crew.ShipOf("zzoega")?.Name, t.Crew.DriveOf("zzoega")?.Key, t.Crew.DriveBonusOf("zzoega"))));
