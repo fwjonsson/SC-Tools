@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace SCTools.Server.Controllers;
 
 /// <summary>
-/// The admin's Session page: Start / Stop Session and Next Stops (the buttons of the program), the mission rewards (set in the Mission Library), the start time, the names and notes of
+/// The admin's Session page: the session (it starts and stops by itself; Start / Stop Session only when SCTools:FollowSessions is off), Next Stops, the mission rewards (set in the Mission Library), the start time, the names and notes of
 /// the stops, the lost cargo of the runs, and the SCU of the from-Ruin drop-offs the game did not tell.
 /// </summary>
 [Route("/admin")]
@@ -18,10 +18,17 @@ public sealed class AdminSessionController : AdminControllerBase
     }
 
     [HttpGet("")]
-    public IActionResult Index() => View(Live.Read(AdminSessionModel.Of));
+    public IActionResult Index()
+    {
+        var m = Live.Read(AdminSessionModel.Of);
+        m.Auto = Live.FollowSessions;
+        return View(m);
+    }
 
+    /// <summary>Start / Stop Session, only when the logs do not start and stop the sessions (SCTools:FollowSessions off).</summary>
     [HttpPost("session")]
-    public IActionResult ToggleSession() => Change(t => Edits.ToggleSession(t, DateTime.UtcNow), Back);
+    public IActionResult ToggleSession() =>
+        Live.FollowSessions ? Say("The sessions start and stop by themselves.", Back) : Change(t => Edits.ToggleSession(t, DateTime.UtcNow), Back);
 
     [HttpPost("locks")]
     public IActionResult ToggleLocks() => Change(Edits.ToggleLocks, Back);

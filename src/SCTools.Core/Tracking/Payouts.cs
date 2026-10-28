@@ -157,6 +157,14 @@ public sealed class Payouts
     static bool SameMap(Dictionary<string, decimal> a, Dictionary<string, decimal> b) =>
         a.Count == b.Count && b.All(kv => a.TryGetValue(kv.Key, out var v) && v == kv.Value);
 
+    /// <summary>What a new session starts with: the rewards typed last (the Mission Library's on the server), or the built-in ones.</summary>
+    SessionInputs NewInputs()
+    {
+        var inputs = new SessionInputs();
+        Earnings.FillDefaults(inputs, Data);
+        return inputs;
+    }
+
     /// <summary>Keeps what every session earned per worker, and the money transfers, so they survive closing the program. Saves when something changed.</summary>
     public void UpdateSnapshots()
     {
@@ -168,8 +176,10 @@ public sealed class Payouts
         {
             Data.Sessions.TryGetValue(g.Key, out var stored);
             if (stored != null && WorkerTripBuilder.ResetWorkersForNewBatch(g, stored)) changed = true;
+            // a session never shown (one that started and stopped by itself while a newer one was shown): the rewards a new session starts with
+            var basis = stored ?? NewInputs();
             var payouts = new List<PayoutRecord>();
-            var (carried, received) = ComputePayouts(g, stored ?? new SessionInputs(), payouts);
+            var (carried, received) = ComputePayouts(g, basis, payouts);
             foreach (var r in payouts)
             {
                 var old = Data.Payouts.FirstOrDefault(x => x.MissionId == r.MissionId);
@@ -179,8 +189,8 @@ public sealed class Payouts
                 Data.Payouts.Add(r);
                 changed = true;
             }
-            var runValues = ComputeCarried(g, stored ?? new SessionInputs());
-            var failedValues = ComputeCarried(g, stored ?? new SessionInputs(), CarryMode.Failed);
+            var runValues = ComputeCarried(g, basis);
+            var failedValues = ComputeCarried(g, basis, CarryMode.Failed);
             if (carried.Count == 0 && runValues.Count == 0) continue;
 
             var inp = stored ?? _s.InputsOf(g.Key);

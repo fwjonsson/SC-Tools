@@ -24,6 +24,9 @@ public sealed class ManualSessionRow : IListRow
     public int Position { get; set; }
     public DateTime StartUtc { get; set; }
     public DateTime? StopUtc { get; set; }
+
+    /// <summary>Started or stopped by itself (AutoSessions).</summary>
+    public bool Auto { get; set; }
 }
 
 /// <summary>A money transfer found in a log. Payment = ticked as paying off a debt.</summary>

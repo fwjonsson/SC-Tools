@@ -24,6 +24,9 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
     /// <summary>The program's data file the server imports when it starts (none: the database starts empty).</summary>
     public AppData? Data { get; init; }
 
+    /// <summary>The logs start and stop the hauling sessions, as on the real server. Off by default, so the other tests keep the sessions their data has.</summary>
+    public bool FollowSessions { get; init; }
+
     /// <summary>The logs decide who is active (AutoParty), as on the real server. Off by default, so the other tests keep the Active ticks they set.</summary>
     public bool FollowParty { get; init; }
 
@@ -37,6 +40,7 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Testing");
         builder.ConfigureAppConfiguration((_, c) => c.AddInMemoryCollection(new Dictionary<string, string?>
         {
+            ["SCTools:FollowSessions"] = FollowSessions ? "true" : "false",
             ["SCTools:Database"] = Path.Combine(Dir, "tracker.db"),
             ["SCTools:BackupDir"] = Path.Combine(Dir, "backups"),
             ["SCTools:DataFile"] = Path.Combine(Dir, "data.json"),

@@ -30,6 +30,9 @@ public sealed class GauntletReader
     /// <summary>The missions that ended, in the order of the log.</summary>
     public IReadOnlyList<GauntletRun> Runs => _runs;
 
+    /// <summary>When the missions that were accepted and did not end (yet) were accepted: one going on now starts a grind session (AutoSessions).</summary>
+    public IReadOnlyList<DateTime> Accepted => _pending.Values.Select(p => p.At).ToList();
+
     public void ProcessLine(string line)
     {
         if (line.Length < 30 || line[0] != '<') return;

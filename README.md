@@ -240,10 +240,16 @@ admin (done), then going live.
   is behind a menu button. The pages of the site end with a footer: the tracker's download, how to set it up, and the disclaimer. The admin's pages have
   a second row under it with his pages (Session, Party, Contracts, Debts, Tracker keys, Tools, Account).
 - **The admin's pages** change what the program changes, with the same logic (`Editing/Edits.cs`, each change saved and worked out again at once):
-  **Session** (`/admin`: Start / Stop Session, Next Stops locked or not, the mission rewards (shown: they are set in the Mission Library), the start time, the names and notes of the stops, the lost
+  **Session** (`/admin`: the session, which starts and stops by itself (below), Next Stops locked or not, the mission rewards (shown: they are set in the Mission Library), the start time, the names and notes of the stops, the lost
   cargo of the runs, the SCU of from-Ruin drop-offs the game did not tell), **Party** (add, remove, active, ship, drive, colour, location of every
   member; a field is saved as soon as it is changed, on its own), **Contracts** (who has every mission, Gone / Bring back) and **Debts** (a member's balances typed over, the Payment tick of his transfers, what a
   mission really paid, the party of the session). What only the program on a PC has (the log sources, the channel, the data file, the look) is not there.
+- **Sessions start and stop by themselves** (`Sessions/AutoSessions` in the core): a session starts when a mission of the tool is accepted and goes on
+  while anything happens with its missions; after an hour with nothing (also a crash, or the trackers off) it ended 5 minutes after the last thing that
+  happened. The Hauling Planner: one session for the party (everybody's hauling contracts to and from Ruin: accepted, picked up, delivered, ended),
+  kept in `ManualSessions` (`Auto`) so it keeps its key and what was typed for it; one that stopped goes on again when a log that came late shows it did
+  not end, and it never gets shorter (`SCTools:FollowSessions` = false gives the Start / Stop Session button back). The Gauntlet Tracker: a grind
+  session per player from his runs (`GauntletService.GrindSessions`), the earlier ones too. The Windows program still has its buttons.
 - **The Gauntlet Tracker** (`/gauntlet`, `Gauntlet/` in the core, `GauntletService`) reads Gilly's Combat Gauntlet from the uploaded logs and keeps
   every run in the database. Everybody sees only his own runs (Session, Stats, Earnings ranking) and the **Leaderboard** of everybody: total earned, aUEC,
   MG scrip, total aUEC per hour over the timed runs, completed and completion rate, fastest run, favourite and best scenario, last played. The rewards

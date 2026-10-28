@@ -7,13 +7,22 @@
 <h1>Session</h1>
 <p class="muted">@Model.Session</p>
 
+@if (Model.Auto)
+{
+  <p class="hint">Sessions start and stop by themselves: one starts when somebody in the party accepts a hauling contract (to or from Ruin), and goes on
+    while anything happens with the contracts (accepted, picked up, delivered, completed, abandoned). After an hour with nothing (also a crash, or the
+    trackers off), it ended 5 minutes after the last thing that happened.@(Model.OpenSince == null ? "" : " This one started " + Model.OpenSince + ".")</p>
+}
+else
+{
 <div class="buttons">
   <form method="post" action="/admin/session" asp-antiforgery="true" class="inline"
         onsubmit="return confirm('@(Model.OpenSince == null ? "Start a new session now? Only what happens from this moment is read, until Stop Session." : "Stop the session that started " + Model.OpenSince + "? The logs are not read for it after this moment.")');">
     <button type="submit">@(Model.OpenSince == null ? "Start Session" : "Stop Session")</button>
   </form>
-  <span class="hint">@(Model.OpenSince == null ? "Starts a session now (a session also starts by itself with the first missions in the logs)." : "Started " + Model.OpenSince + ".")</span>
+  <span class="hint">@(Model.OpenSince == null ? "Starts a session now." : "Started " + Model.OpenSince + ".")</span>
 </div>
+}
 
 @if (Model.HasSession)
 {

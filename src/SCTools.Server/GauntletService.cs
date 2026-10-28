@@ -5,7 +5,7 @@ namespace SCTools.Server;
 
 /// <summary>
 /// The Gauntlet Tracker's data. The gauntlet missions that ended in the uploaded logs (LogUploads.GauntletRuns) are written to the database, so they stay
-/// after the logs are no longer kept; a mission is kept once per player. Also the grind sessions of every player. The rewards of the scenarios are in the
+/// after the logs are no longer kept; a mission is kept once per player. The grind sessions come from them (they start and stop by themselves). The rewards of the scenarios are in the
 /// Mission Library (the same for everybody, so the leaderboard compares like with like); what a MG scrip is worth is on the admin's Scrip page.
 /// </summary>
 public sealed class GauntletService
@@ -142,38 +142,19 @@ public sealed class GauntletService
         return map;
     }
 
-    /// <summary>The grind sessions of a player, newest first.</summary>
-    public List<GauntletSessionRow> Sessions(string player)
+    /// <summary>
+    /// The grind sessions of a player, newest first: they start and stop by themselves (AutoSessions). One starts when he accepts a scenario and goes on while
+    /// he accepts, completes or abandons them; after an hour with nothing it ended 5 minutes after the last one. Worked out from his runs (kept for good) and
+    /// the scenario he is in now, so the earlier ones are there too.
+    /// </summary>
+    public List<SCTools.Sessions.AutoSessions.Window> GrindSessions(string player, DateTime nowUtc)
     {
-        lock (_lock)
-        {
-            using var db = _store.Open();
-            return db.GauntletSessions.AsNoTracking().Where(s => s.Player == player).ToList().OrderByDescending(s => s.StartedUtc).ToList();
-        }
-    }
-
-    /// <summary>Starts a grind session (none when one is running already).</summary>
-    public void Start(string player, DateTime now)
-    {
-        lock (_lock)
-        {
-            using var db = _store.Open();
-            if (db.GauntletSessions.Any(s => s.Player == player && s.EndedUtc == null)) return;
-            db.GauntletSessions.Add(new GauntletSessionRow { Player = player, StartedUtc = now });
-            db.SaveChanges();
-        }
-    }
-
-    /// <summary>Ends the running grind session.</summary>
-    public void Stop(string player, DateTime now)
-    {
-        lock (_lock)
-        {
-            using var db = _store.Open();
-            var running = db.GauntletSessions.SingleOrDefault(s => s.Player == player && s.EndedUtc == null);
-            if (running == null) return;
-            running.EndedUtc = now;
-            db.SaveChanges();
-        }
+        var runs = Runs(player);
+        var going = _uploads.GauntletAccepted().GetValueOrDefault(player) ?? Array.Empty<DateTime>();
+        var starts = runs.Select(r => r.AcceptedUtc ?? r.EndedUtc).Concat(going).ToList();
+        var activity = runs.Select(r => r.EndedUtc).Concat(starts);
+        var found = SCTools.Sessions.AutoSessions.Find(starts, activity, nowUtc);
+        found.Reverse();
+        return found;
     }
 }

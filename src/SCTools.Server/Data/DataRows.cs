@@ -71,7 +71,7 @@ public sealed class DataRows
         }
 
         rows.PartyChanges = d.PartyChanges.Select((c, i) => new PartyChangeRow { Position = i, Name = c.Name, TimeUtc = c.TimeUtc, Active = c.Active, Source = c.Source }).ToList();
-        rows.ManualSessions = d.ManualSessions.Select((s, i) => new ManualSessionRow { Position = i, StartUtc = s.StartUtc, StopUtc = s.StopUtc }).ToList();
+        rows.ManualSessions = d.ManualSessions.Select((s, i) => new ManualSessionRow { Position = i, StartUtc = s.StartUtc, StopUtc = s.StopUtc, Auto = s.Auto }).ToList();
         rows.Sessions = d.Sessions.Select((kv, i) => SessionRowOf(kv.Key, i, kv.Value)).ToList();
         rows.Transfers = d.Transfers.Select((t, i) => new TransferRow { Position = i, Time = t.Time, From = t.From, To = t.To, Amount = t.Amount, Payment = t.Payment }).ToList();
         rows.Payouts = d.Payouts.Select((p, i) => new PayoutRow
@@ -191,7 +191,7 @@ public sealed class DataRows
         }
 
         d.PartyChanges = PartyChanges.OrderBy(r => r.Position).Select(r => new PartyChange { Name = r.Name, TimeUtc = r.TimeUtc, Active = r.Active, Source = r.Source }).ToList();
-        d.ManualSessions = ManualSessions.OrderBy(r => r.Position).Select(r => new ManualSession { StartUtc = r.StartUtc, StopUtc = r.StopUtc }).ToList();
+        d.ManualSessions = ManualSessions.OrderBy(r => r.Position).Select(r => new ManualSession { StartUtc = r.StartUtc, StopUtc = r.StopUtc, Auto = r.Auto }).ToList();
         foreach (var r in Sessions.OrderBy(r => r.Position)) d.Sessions[r.Key] = SessionOf(r);
         d.Transfers = Transfers.OrderBy(r => r.Position).Select(r => new SavedTransfer { Time = r.Time, From = r.From, To = r.To, Amount = r.Amount, Payment = r.Payment }).ToList();
         d.Payouts = Payouts.OrderBy(r => r.Position).Select(r => new PayoutRecord
