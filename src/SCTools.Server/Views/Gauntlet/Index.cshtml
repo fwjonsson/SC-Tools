@@ -107,8 +107,9 @@ else if (Model.Tab == "stats")
     </tbody>
   </table>
 
-  <h2>Top 10 fastest</h2>
-  <form method="get" action="/gauntlet/stats" class="line">
+  <h2 id="top10">Top 10 fastest</h2>
+  @* data-autosave: picking a scenario shows it (autosave.js); the page comes back here *@
+  <form method="get" action="/gauntlet/stats#top10" class="line" data-autosave>
     <label for="scenario">Scenario</label>
     <select id="scenario" name="scenario">
       @for (var n = 1; n <= GauntletRewards.Scenarios; n++)
@@ -116,7 +117,7 @@ else if (Model.Tab == "stats")
         <option value="@n" selected="@(n == Model.Selected)">#@n</option>
       }
     </select>
-    <button type="submit">Show</button>
+    <noscript><button type="submit">Show</button></noscript>
   </form>
   var top = Model.Scenarios.First(s => s.Scenario == Model.Selected).Top;
   @if (top.Count == 0)
