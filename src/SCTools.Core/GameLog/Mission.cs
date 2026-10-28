@@ -37,6 +37,9 @@ public sealed class Mission
     /// <summary>The SCU of every objective, from its "Deliver 0/147 SCU of Waste to ..." popup (objective id to the total SCU). For a from-Ruin contract that is the load for that drop-off.</summary>
     public Dictionary<string, int> ObjScu = new();
 
+    /// <summary>Where every objective is (objective id to its position in its zone, ObjZone, as the marker says; metres). For the map.</summary>
+    public Dictionary<string, (double X, double Y, double Z)> ObjPos = new();
+
     public bool IsHauling => Cargo != null;
     public bool Completed => EndState == "COMPLETED";
     public bool Dead => EndState != null && EndState != "COMPLETED";

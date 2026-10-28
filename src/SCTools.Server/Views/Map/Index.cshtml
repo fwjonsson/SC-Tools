@@ -1,0 +1,18 @@
+@{
+    ViewData["Title"] = "Map";
+}
+<h1>Map</h1>
+<p class="muted">Pyro, from above: everybody playing where his quantum jumps put him, and the objectives of the missions going on. In quantum a player moves
+  along his route at the speed of his drive (crafted as it is, from his fleet). The log says when he picks a destination and when he arrives, not when
+  the jump starts, so on the way it is an estimate; the arrival puts him right.</p>
+<div class="maptool">
+  <div class="mapbox"><div id="map"></div></div>
+  <div class="mapside">
+    <h2>Players</h2>
+    <div id="players"><p class="muted">Loading…</p></div>
+    <h2>Objectives</h2>
+    <div id="objectives"></div>
+  </div>
+</div>
+<p class="hint" id="mapState"></p>
+<script src="~/map.js" asp-append-version="true" defer></script>

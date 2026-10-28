@@ -33,7 +33,11 @@ public static class SiteTools
         "Who is playing now and with whom (the game's own party), the ship each one flies, and everybody's fleet.", "/party", false,
         "#b77fdb", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"9\" cy=\"8\" r=\"3.2\"/><circle cx=\"17\" cy=\"9.5\" r=\"2.6\"/><path d=\"M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15 14.5c3 0 5.5 2 5.5 5\"/></svg>");
 
-    public static readonly IReadOnlyList<SiteTool> All = new[] { Hauling, Missions, Gauntlet, Session, Party };   // the ones that work first
+    public static readonly SiteTool Map = new("map", "Map",
+        "Pyro from above: where everybody is by his quantum jumps, moving along his route at his drive's speed, and the objectives of the missions going on.", "/map", false,
+        "#e0734a", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"2.5\"/><circle cx=\"12\" cy=\"12\" r=\"6\"/><circle cx=\"12\" cy=\"12\" r=\"9.5\"/><circle cx=\"18\" cy=\"8.4\" r=\"1.4\" fill=\"currentColor\"/></svg>");
+
+    public static readonly IReadOnlyList<SiteTool> All = new[] { Hauling, Missions, Gauntlet, Session, Party, Map };   // the ones that work first
 
     public static SiteTool? Find(string? id) => All.FirstOrDefault(t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
 }

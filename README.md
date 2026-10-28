@@ -233,6 +233,14 @@ admin (done), then going live.
   ship each one flies; everybody else the site knows (the tracker keys, the Hauling Planner's party, the fleets, the logs) with when he was last seen.
   A player's page (`/party/{name}`): playing or last seen, his party, the ship he flies and its drive (picked, or his last quantum jump), where the
   Hauling Planner has him, his tracker, and his fleet. Only for the admin until it is shown on the Tools page.
+- **The Map tool** (`/map`, `MapService`, `wwwroot/map.js`): Pyro from above as the Trip Planner draws it, with everybody playing where his quantum
+  jumps put him and the objectives of the missions going on (`map.json`, every 3 seconds). The log says when a player picks a destination
+  ("Projected Start Location is Ruin Station for route to destination rs_ext_pyro5_l2") and when he arrives, not when the jump starts: it is taken to
+  start 10 seconds after the destination was picked (`MapService.JumpDelay`), and the page moves him along his route by his drive (`Crew.QtOf`: his
+  fleet's active ship, crafted as it is; the same motion as `QtDrive.Seconds`), with a speed meter (Mm/s, in c, against his drive's top speed). The
+  arrival puts him at the station. Objectives: at a station when their zone is one (`StationIds`), where they are when the marker is in the system's own
+  frame (`PyroDistances.MapOfSystem`, fitted to the stations' real positions within 3 pixels), else counted as on a planet or moon the map cannot
+  place yet. Only for the admin until it is shown on the Tools page.
 - **The fleet.** On My page a player keeps every ship he owns, the quantum drive in each, and the quality of a crafted drive (0 to 1000: 1000 makes the
   drive speed 20 % higher, 500 is as bought, 0 is 20 % lower, in a straight line; only the drive speed changes). His **active ship** is the one he picks,
   or Automatic: the ship of his latest quantum jump (every quantum travel line names it by the game's class, `CRUS_Starlifter_C2`, `VehicleLines`),

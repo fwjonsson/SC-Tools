@@ -561,7 +561,10 @@ public sealed class HaulingLog
                 && double.TryParse(x.Groups["px"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var px)
                 && double.TryParse(x.Groups["py"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var py)
                 && double.TryParse(x.Groups["pz"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var pz))
+            {
                 StationIds.Register(x.Groups["z"].Value, px, py, pz);   // the same station has another id on every server, but the same position
+                m.ObjPos[x.Groups["o"].Value] = (px, py, pz);
+            }
             m.FirstSeen ??= t;
             Touch(t);
             return;

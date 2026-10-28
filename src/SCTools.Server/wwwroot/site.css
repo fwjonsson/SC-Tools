@@ -130,6 +130,22 @@ table.play th:first-child { text-align:left; }
 table.play tbody th { background:var(--cell); color:var(--fg); font-weight:600; }
 table.play tr.sum td, table.play tr.sum th { font-weight:700; }
 tr.crash td { color:#ff9b9b; }
+/* the Map tool: the map, and the players and objectives beside it (under it on a phone) */
+main:has(.maptool) { max-width:1400px; }
+.maptool { display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
+.mapbox { flex:1 1 560px; max-width:820px; min-width:0; }
+.mapside { flex:1 1 280px; min-width:260px; }
+.mapside h2 { margin-top:4px; }
+.mapplayer { border:1px solid var(--line); border-left:4px solid var(--c, #888); background:var(--cell); padding:8px 10px; margin-bottom:8px; }
+.mapplayer .who { font-weight:700; }
+.mapplayer .what { color:var(--muted); font-size:13px; }
+.speed { margin-top:6px; }
+.speed .bar { height:8px; background:#0b1018; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+.speed .bar span { display:block; height:100%; background:linear-gradient(90deg, #2f7dd1, #7fd3ff); }
+.speed .num { font-variant-numeric:tabular-nums; font-size:20px; font-weight:700; }
+.speed .unit { color:var(--muted); font-size:12px; margin-left:4px; }
+ul.objs { list-style:none; margin:0; padding:0; font-size:13px; }
+ul.objs li { padding:3px 0; border-bottom:1px solid var(--line); }
 /* the Party tool: a card per party */
 .parties { display:flex; gap:14px; flex-wrap:wrap; }
 .card.party { min-width:220px; }
