@@ -99,7 +99,8 @@ public class AutoPartyTests
 
         var r = AutoParty.Work(u.Logs, Members, At(40));
         var party = Assert.Single(r.Groups);
-        Assert.Equal(("zzoega", new[] { "zzatvo", "zzoega" }), (party.Leader, party.Names.ToArray()));
+        Assert.Equal("zzoega", party.Leader);
+        Assert.Equal(new[] { "zzatvo", "zzoega" }, party.Names);
         Assert.Equal(Changes((2, true)), r.Changes["zzatvo"]);
 
         // the next day (more than an hour later) a game starts alone, until the game says he is in a party
