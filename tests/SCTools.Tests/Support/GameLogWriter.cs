@@ -116,7 +116,6 @@ sealed class GameLogWriter
     public GameLogWriter Disbanded() => Note("Party Disbanded", "The party has been disbanded.");
     public GameLogWriter ChannelJoined(string name) => Note("New Member Joined", name + " has joined the channel 'RSI Perseus : zzoega'.");   // a ship's channel, not the party
 
-    /// <summary>A line the trackers do not send (the game writes lines like this all the time).</summary>
     /// <summary>He opens the inventory of the place he is at (its id: "Nyx_Levski").</summary>
     public GameLogWriter Inventory(string player, string location) =>
         Add($"{Ts} [Notice] <RequestLocationInventory> Player[{player}] requested inventory for Location[{location}] [Team_CoreGameplayFeatures][Inventory]");
@@ -125,6 +124,7 @@ sealed class GameLogWriter
     public GameLogWriter Quit() =>
         Add($"{Ts} [Notice] <SystemQuit> CSystem::Quit invoked with - cause=30016, reason=Quit via console command, exitCode=0, thread id=25072, main thread id=25072 [Team_Unknown][System]");
 
+    /// <summary>A line the trackers do not send (the game writes lines like this all the time).</summary>
     public GameLogWriter Noise() =>
         Add($"{Ts} [Notice] <StatObjLoad 0x800 Format> 'data/objectcontainers/pu/loc/mod/pyro/station/ext_hangar.cgf' - File exists in P4K [Team_Graphics][CoreTech]");
 
