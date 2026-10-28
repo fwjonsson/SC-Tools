@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HaulingTracker.Server.Controllers;
 
-/// <summary>The admin's Party page: the Party table of the program (who is in it and active, the batches of his ship, his ship, drive, colour and location).</summary>
+/// <summary>The admin's Party page: the Party table of the program (who is in it and active, his ship, drive, colour and location).</summary>
 [Route("/admin/party")]
 public sealed partial class PartyController : AdminControllerBase
 {
@@ -33,7 +33,7 @@ public sealed partial class PartyController : AdminControllerBase
     public IActionResult Remove(string name) => Change(t => Edits.RemoveMember(t, name), Back);
 
     /// <summary>
-    /// One field of a member's row, sent as soon as it is changed on the page (there is no Save button): active, batches, ship, drive, colour or location.
+    /// One field of a member's row, sent as soon as it is changed on the page (there is no Save button): active, ship, drive, colour or location.
     /// Only that field changes, so a row that was open for a while does not put back the others as they were then.
     /// </summary>
     [HttpPost("set")]
@@ -45,8 +45,6 @@ public sealed partial class PartyController : AdminControllerBase
             case "active":   // auto (the logs decide), in or out (the admin decides until the logs change their mind); the tick: true or nothing
                 bool? active = value switch { "auto" => null, "in" or "true" => true, _ => false };
                 return Change(t => Edits.SetActive(t, name, active, DateTime.UtcNow), Back);
-            case "batches":
-                return Change(t => Edits.SetBatches(t, name, value ?? ""), Back);
             case "ship":
                 var ship = value == null ? null : Ships.Find(value);
                 if (value != null && ship == null) break;

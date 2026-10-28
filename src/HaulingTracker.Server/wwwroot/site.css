@@ -17,7 +17,10 @@ form.card { display:flex; flex-direction:column; gap:6px; }
 label { font-weight:600; margin-top:6px; }
 label.check { font-weight:400; display:flex; gap:8px; align-items:center; }
 input, select { font:inherit; color:var(--fg); background:var(--bg); border:1px solid var(--line); padding:6px 8px; border-radius:3px; }
-input[type=color] { width:80px; height:34px; padding:2px; }
+input[type=color] { width:80px; height:34px; padding:2px; cursor:pointer; }
+input[type=color]::-webkit-color-swatch-wrapper { padding:0; }
+input[type=color]::-webkit-color-swatch { border:none; border-radius:2px; }
+input[type=color]::-moz-color-swatch { border:none; border-radius:2px; }
 input[type=checkbox] { width:auto; }
 button { font:inherit; font-weight:600; color:#fff; background:var(--header); border:1px solid var(--line); padding:7px 18px; border-radius:4px; cursor:pointer; align-self:flex-start; margin-top:10px; }
 button:hover { filter:brightness(1.2); }
@@ -28,6 +31,7 @@ form.inline { display:inline; }
 .message { background:#264832; border:1px solid var(--line); padding:8px 12px; max-width:560px; }
 table { border-collapse:collapse; width:100%; max-width:560px; }
 th, td { border:1px solid var(--line); padding:5px 10px; text-align:left; }
+td { background:var(--cell); }   /* the tables a shade lighter than the page, as on the live page; the fields in them darker */
 th { background:var(--header); color:#fff; }
 td.right { text-align:right; }
 code { font-family:Consolas, monospace; }
@@ -38,7 +42,8 @@ main.wide, main:has(table.wide) { max-width:1400px; }
 table.wide { max-width:none; }
 table.narrow { max-width:720px; }
 td input, td select { width:100%; padding:4px 6px; }
-td input[type=checkbox], td input[type=color] { width:auto; }
+td input[type=checkbox] { width:auto; }
+td input[type=color] { width:46px; height:30px; }
 input.num { text-align:right; }
 input.small, select.small { max-width:80px; }
 td form { margin:0; }
@@ -48,6 +53,8 @@ td button { margin:0; padding:4px 12px; }
 td.center { text-align:center; }
 .nowrap { white-space:nowrap; }
 tr.inactive td { color:var(--muted); }
+td.member { font-weight:700; white-space:nowrap; }   /* the member's name on his colour, as in the Party table of the live page */
+tr.inactive td.member { box-shadow:inset 0 0 0 999px rgba(13, 17, 23, .6); color:var(--fg) !important; }   /* not active: his colour darkened, the name still readable */
 .buttons { display:flex; gap:14px; align-items:center; margin:10px 0; flex-wrap:wrap; }
 .buttons button { margin:0; }
 form.line { display:flex; gap:10px; align-items:center; margin:8px 0; flex-wrap:wrap; }

@@ -5,8 +5,6 @@
     IEnumerable<SelectListItem> Items(List<Choice> choices, string now, string? empty = "") =>
         (empty == null ? Enumerable.Empty<SelectListItem>() : new[] { new SelectListItem(empty, "", now == "") })
             .Concat(choices.Select(c => new SelectListItem(c.Text, c.Value, c.Value == now)));
-    IEnumerable<SelectListItem> Batches(int now) =>
-        Enumerable.Range(1, Crew.MaxShipCapacity).Select(n => new SelectListItem(n.ToString(), n.ToString(), n == now));
 }
 <h1>Party</h1>
 @if (Model.FollowsLogs)
@@ -36,13 +34,13 @@ else
 
 @* every field is a little form of its own (data-autosave: autosave.js sends it when it changes), so only that field is saved *@
 <table class="wide">
-  <thead><tr><th>Member</th><th>Active</th><th>Batches</th><th>Ship</th><th>QT Drive</th><th>Colour</th><th>Current location</th><th></th></tr></thead>
+  <thead><tr><th>Member</th><th>Active</th><th>Ship</th><th>QT Drive</th><th>Colour</th><th>Current location</th><th></th></tr></thead>
   <tbody>
   @foreach (var m in Model.Members)
   {
     var automatic = "Automatic: " + m.AutoLocation;
     <tr class="@(m.Active ? "" : "inactive")">
-      <td><b>@m.Name.ToUpperInvariant()</b></td>
+      <td class="member" style="background:@m.Color;color:@m.TextColor">@m.Name.ToUpperInvariant()</td>
       <td class="center">
         <form method="post" action="/admin/party/set" asp-antiforgery="true" data-autosave>
           <input type="hidden" name="name" value="@m.Name"><input type="hidden" name="field" value="active">
@@ -59,12 +57,6 @@ else
           {
             <input type="checkbox" name="value" value="true" checked="@m.Active" aria-label="Active">
           }
-        </form>
-      </td>
-      <td>
-        <form method="post" action="/admin/party/set" asp-antiforgery="true" data-autosave>
-          <input type="hidden" name="name" value="@m.Name"><input type="hidden" name="field" value="batches">
-          <select name="value" asp-items="Batches(m.Batches)" class="small" aria-label="Batches"></select>
         </form>
       </td>
       <td>
@@ -106,4 +98,4 @@ else
   <input name="name" placeholder="New member (his name in the game)" autocomplete="off">
   <button type="submit">Add</button>
 </form>
-<p class="hint">A player sets his own location, colour, ship and drive on My page too. Batches: how many his ship holds on the Trip Planner.</p>
+<p class="hint">A player sets his own location, colour, ship and drive on My page too. The Trip Planner fills a ship by the SCU it holds.</p>
