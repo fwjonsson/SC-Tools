@@ -27,16 +27,24 @@ public sealed class LogController : ControllerBase
     readonly TrackerKeys _keys;
     readonly LoginLinks _links;
     readonly HistoryStore _history;
+    readonly TrackerVersions _versions;
 
-    public LogController(LogUploads uploads, TrackerKeys keys, LoginLinks links, HistoryStore history)
+    public LogController(LogUploads uploads, TrackerKeys keys, LoginLinks links, HistoryStore history, TrackerVersions versions)
     {
         _uploads = uploads;
         _keys = keys;
         _links = links;
         _history = history;
+        _versions = versions;
     }
 
-    string? Player() => _keys.PlayerOf(Request.Headers["X-Tracker-Key"].FirstOrDefault());
+    /// <summary>The player of the tracker's key, or null; a known tracker is in touch now, with the version it says it is.</summary>
+    string? Player()
+    {
+        var player = _keys.PlayerOf(Request.Headers["X-Tracker-Key"].FirstOrDefault());
+        if (player != null) _versions.Seen(player, Request.Headers["X-Tracker-Version"].FirstOrDefault(), DateTime.UtcNow);
+        return player;
+    }
 
     /// <summary>Whose key this is (so a tracker can tell its settings are right).</summary>
     [HttpGet("me")]

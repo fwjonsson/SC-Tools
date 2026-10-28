@@ -26,13 +26,14 @@
 else
 {
   <table>
-    <thead><tr><th>Player</th><th>Made</th><th></th></tr></thead>
+    <thead><tr><th>Player</th><th>Made</th><th>Tracker</th><th></th></tr></thead>
     <tbody>
     @foreach (var k in Model.Keys)
     {
       <tr>
         <td>@k.Player</td>
         <td>@k.Created</td>
+        <td class="@(k.Newest == true ? "good" : k.Newest == false ? "stale" : "muted")">@k.Tracker</td>
         <td class="right">
           <form method="post" action="/admin/keys/@k.Id/remove" asp-antiforgery="true" class="inline" onsubmit="return confirm('Take back this key of @k.Player? His tracker stops uploading until it gets a new key.');">
             <button type="submit" class="danger">Take back</button>

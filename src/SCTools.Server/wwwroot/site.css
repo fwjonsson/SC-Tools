@@ -129,3 +129,7 @@ table.play th:first-child { text-align:left; }
 table.play tbody th { background:var(--cell); color:var(--fg); font-weight:600; }
 table.play tr.sum td, table.play tr.sum th { font-weight:700; }
 tr.crash td { color:#ff9b9b; }
+/* a tracker's version: the newest, or not (Keys page, Tracker page) */
+.good { color:var(--good); }
+.stale { color:#e3b341; }
+p.tracker { font-weight:600; }
