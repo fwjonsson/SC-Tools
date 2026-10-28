@@ -215,7 +215,9 @@ admin (done), then going live.
   `/hauling`. The old address `haulingtracker.fwjonsson.dev` sends every page to the same page at the site for good (301, `OldAddress`), so there is one
   site and one login. Only the uploads of trackers that have not updated yet (`api/...`) are still taken there; once every tracker has updated itself, the
   old address is removed from the Cloudflare tunnel (and from `OldHosts` in the server's settings). The plan of the tools is `claude/sc-tools-roadmap.md` in the
-  project.
+  project. Every page has the same bar at the top (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards),
+  the tools the viewer sees (the one he is in marked), and on the right who is logged in, My page, Admin and Log out (or Log in). The admin's pages have
+  a second row under it with his pages (Session, Party, Contracts, Debts, Tracker keys, Tools, Account).
 - **The admin's pages** change what the program changes, with the same logic (`Editing/Edits.cs`, each change saved and worked out again at once):
   **Session** (`/admin`: Start / Stop Session, Next Stops locked or not, the mission rewards, the start time, the names and notes of the stops, the lost
   cargo of the runs, the SCU of from-Ruin drop-offs the game did not tell), **Party** (add, remove, active, ship, drive, colour, location of every
