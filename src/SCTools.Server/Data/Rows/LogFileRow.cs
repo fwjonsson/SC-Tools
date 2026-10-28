@@ -11,13 +11,17 @@ public sealed class LogFileRow
     /// <summary>The time of the log's first line (LogSender.FileId), which is when the game started.</summary>
     public string File { get; set; } = "";
 
-    /// <summary>HistorySender.Version of what was sent: an older one is asked for again.</summary>
+    /// <summary>HistorySender.Version of what was sent: an older one is asked for again. 0: a game the live log showed (the server asks for its backup log
+    /// later all the same, which has all of it).</summary>
     public int Version { get; set; }
 
     public DateTime StartUtc { get; set; }
 
     /// <summary>The time of the log's last line: when the game ended (null: the log had no time after its first line).</summary>
     public DateTime? EndUtc { get; set; }
+
+    /// <summary>The game was quit the normal way (its log has the quit line); false: it crashed; null: not known (an old log sent before version 2).</summary>
+    public bool? Quit { get; set; }
 
     /// <summary>The game's build, from the log's name (Game Build(9876543) ...).</summary>
     public string? Build { get; set; }

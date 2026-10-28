@@ -120,3 +120,12 @@ table.missions input.name { min-width:280px; }
 table.missions input.num { width:110px; text-align:right; }
 table.missions tr.todo td:first-child { box-shadow:inset 3px 0 0 #c8a400; }   /* no rewards yet */
 td.small { font-size:12px; }
+/* the Session tool */
+.playnow p { font-size:16px; margin:6px 0 14px; }
+.playnow .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--good); margin-right:8px; vertical-align:1px; }
+.playnow .clock { font-variant-numeric:tabular-nums; }
+table.play { max-width:760px; }
+table.play th:first-child { text-align:left; }
+table.play tbody th { background:var(--cell); color:var(--fg); font-weight:600; }
+table.play tr.sum td, table.play tr.sum th { font-weight:700; }
+tr.crash td { color:#ff9b9b; }

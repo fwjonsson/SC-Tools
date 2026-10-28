@@ -14,13 +14,15 @@ public sealed class PageController : Controller
     readonly ToolAccess _tools;
     readonly GauntletService _gauntlet;
     readonly MissionLibrary _missions;
+    readonly Playtime _playtime;
 
-    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions)
+    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions, Playtime playtime)
     {
         _live = live;
         _tools = tools;
         _gauntlet = gauntlet;
         _missions = missions;
+        _playtime = playtime;
     }
 
     /// <summary>A hidden tool's page: the login for somebody not logged in, "not for you" for a player.</summary>
@@ -46,6 +48,17 @@ public sealed class PageController : Controller
             var week = DateTime.UtcNow.AddDays(-7);
             var runs = _gauntlet.Runs(User.Identity.Name).Count(r => r.Outcome == GauntletOutcome.Complete && r.EndedUtc >= week);
             return runs == 0 ? "No runs this week" : runs == 1 ? "1 run this week" : runs + " runs this week";
+        }
+        if (tool == SiteTools.Session)
+        {
+            if (User.Identity?.IsAuthenticated != true || string.IsNullOrEmpty(User.Identity.Name)) return "Log in to see your play";
+            var now = DateTime.UtcNow;
+            var games = _playtime.Games(User.Identity.Name, now);
+            if (games.FirstOrDefault(g => g.Running) is { } running)
+                return "Playing for " + (running.Length.TotalHours >= 1 ? (int)running.Length.TotalHours + " h " : "") + running.Length.Minutes + " min";
+            var week = SCTools.Play.PlayStats.Periods(now, TimeZoneInfo.Local)[1];
+            var played = SCTools.Play.PlayStats.For(week, games, Array.Empty<SCTools.Play.EarnedMission>(), 0, 0).Played;
+            return played.TotalMinutes < 1 ? "Nothing played this week" : played.TotalHours.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " h played this week";
         }
         if (tool == SiteTools.Missions)
         {

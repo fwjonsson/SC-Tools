@@ -1,0 +1,92 @@
+@model SessionPage
+@using System.Globalization
+@using SCTools.Play
+@{
+    var inv = CultureInfo.InvariantCulture;
+    string Money(double v) => Math.Round(v).ToString("N0", inv);
+    string Dur(TimeSpan t) => t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{t.Minutes}:{t.Seconds:00}";
+    string Hours(TimeSpan t) => t.TotalMinutes < 1 ? "0 h" : t.TotalHours < 10 ? t.TotalHours.ToString("0.0", inv) + " h" : Math.Round(t.TotalHours).ToString("N0", inv) + " h";
+    string When(DateTime utc) => utc.ToLocalTime().ToString("d MMM HH:mm", inv);
+    string Iso(DateTime utc) => DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToString("O", inv);
+    string Ended(PlayedGame g) => g.Running ? "Playing" : g.Quit == true ? "Quit" : g.Quit == false ? "Crashed" : "";
+}
+<h1>Session</h1>
+
+<div class="playnow">
+@if (Model.Running != null)
+{
+  <p><span class="dot"></span>Playing now for <b class="clock" data-since="@Iso(Model.Running.StartUtc)">@Dur(Model.Running.Length)</b>, since @When(Model.Running.StartUtc).</p>
+}
+else if (Model.LastGame != null)
+{
+  <p>Not playing. Your last game ended @When(Model.LastGame.EndUtc), after @Dur(Model.LastGame.Length).</p>
+}
+else
+{
+  <p>No games yet: they come in from your tracker as you play (and once from its old logs, so your history is here too).</p>
+}
+</div>
+
+<div class="scroll">
+<table class="wide play">
+  <thead><tr><th></th>@foreach (var p in Model.Periods) { <th>@p.Name</th> }</tr></thead>
+  <tbody>
+    <tr><th>Time played</th>@foreach (var p in Model.Periods) { <td class="right">@Hours(p.Totals.Played)</td> }</tr>
+    <tr><th>Games</th>@foreach (var p in Model.Periods) { <td class="right">@p.Totals.Games</td> }</tr>
+    <tr><th>Crashes</th>@foreach (var p in Model.Periods) { <td class="right">@p.Totals.Crashes</td> }</tr>
+    <tr><th>Missions completed</th>@foreach (var p in Model.Periods) { <td class="right">@p.Totals.Completed</td> }</tr>
+    <tr><th>aUEC</th>@foreach (var p in Model.Periods) { <td class="right">@Money(p.Totals.Auec)</td> }</tr>
+    <tr><th>MG scrip</th>@foreach (var p in Model.Periods) { <td class="right">@p.Totals.Mg.ToString("N0", inv)</td> }</tr>
+    <tr><th>Council scrip</th>@foreach (var p in Model.Periods) { <td class="right">@p.Totals.Council.ToString("N0", inv)</td> }</tr>
+    <tr class="sum"><th>Earned (scrip counted in)</th>@foreach (var p in Model.Periods) { <td class="right">@Money(p.Totals.Value)</td> }</tr>
+    <tr><th>Per hour</th>@foreach (var p in Model.Periods) { <td class="right">@(p.Totals.PerHour == null ? "" : Money(p.Totals.PerHour.Value))</td> }</tr>
+  </tbody>
+</table>
+</div>
+<p class="hint">Earned is what the Mission Library says your completed missions pay (shared ones too), with MG scrip at @Model.MgValue.ToString("N0", inv) aUEC
+  and Council scrip at @Model.CouncilValue.ToString("N0", inv) aUEC. It is worked out again every time, so a reward filled in later counts for the past.
+  @if (Model.WithoutReward > 0) { <text><b>@Model.WithoutReward completed @(Model.WithoutReward == 1 ? "mission has" : "missions have") no reward in the library
+  yet</b>: <a href="/missions?show=todo">fill them in</a>.</text> }</p>
+
+<h2>Games</h2>
+@if (Model.Games.Count == 0)
+{
+  <p class="muted">None yet.</p>
+}
+else
+{
+  <div class="scroll">
+  <table class="wide">
+    <thead><tr><th>Started</th><th>Played</th><th>Ended</th><th>Missions</th><th>Earned</th></tr></thead>
+    <tbody>
+    @foreach (var g in Model.Games)
+    {
+      <tr class="@(g.Game.Crashed ? "crash" : null)">
+        <td>@When(g.Game.StartUtc)</td>
+        <td class="right">@Dur(g.Game.Length)</td>
+        <td>@Ended(g.Game)</td>
+        <td class="right">@g.Earned.Completed</td>
+        <td class="right">@Money(g.Earned.Value)</td>
+      </tr>
+    }
+    </tbody>
+  </table>
+  </div>
+  @if (Model.GameCount > Model.Games.Count) { <p class="hint">The newest @Model.Games.Count of @Model.GameCount games.</p> }
+}
+
+<script>
+  // the clock of the game you play now goes on by itself
+  (function () {
+    var el = document.querySelector('.clock[data-since]');
+    if (!el) return;
+    var since = Date.parse(el.getAttribute('data-since'));
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function tick() {
+      var s = Math.max(0, Math.floor((Date.now() - since) / 1000)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+      el.textContent = h > 0 ? h + ':' + pad(m) + ':' + pad(s % 60) : m + ':' + pad(s % 60);
+    }
+    tick();
+    setInterval(tick, 1000);
+  })();
+</script>

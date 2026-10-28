@@ -23,8 +23,11 @@ public interface IHistoryServer
 /// </summary>
 public sealed class HistorySender
 {
-    /// <summary>The version of what an old log on the server holds. One more when the tracker reads more kinds of lines: the server then asks for them again.</summary>
-    public const int Version = 1;
+    /// <summary>
+    /// The version of what an old log on the server holds. One more when the tracker reads more kinds of lines: the server then asks for them again.
+    /// 2: the quit line (crashes).
+    /// </summary>
+    public const int Version = 2;
 
     /// <summary>The most lines in one piece.</summary>
     public int PieceLines { get; init; } = 10_000;

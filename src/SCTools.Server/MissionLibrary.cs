@@ -168,6 +168,23 @@ public sealed class MissionLibrary
         }
     }
 
+    /// <summary>The missions this player completed, with what the library says they pay (worked out now: a reward typed in later counts for the past).</summary>
+    public List<SCTools.Play.EarnedMission> Earned(string player)
+    {
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            var rewards = db.Library.AsNoTracking().ToDictionary(l => l.ContractId, StringComparer.OrdinalIgnoreCase);
+            return db.Missions.AsNoTracking().Where(m => m.Player == player && m.Outcome == nameof(MissionOutcome.Complete) && m.EndedUtc != null).ToList()
+                .Select(m =>
+                {
+                    rewards.TryGetValue(m.ContractId, out var r);
+                    return new SCTools.Play.EarnedMission(m.EndedUtc!.Value, m.ContractId, m.Shared, r?.Auec, r?.MgScrip, r?.CouncilScrip);
+                })
+                .OrderBy(m => m.EndedUtc).ToList();
+        }
+    }
+
     /// <summary>The fields a player can type in.</summary>
     public static readonly string[] Fields = { "name", "giver", "auec", "mg", "council", "notes" };
 
