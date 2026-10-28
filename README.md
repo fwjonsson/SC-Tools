@@ -202,6 +202,13 @@ admin (done), then going live.
   3 seconds it uploads what is new in the Game.log, and the backup logs of the last day, from where the server is, so nothing is sent twice (also after a
   restart of the tracker or the game). It only sends the lines the tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money
   transfers, the freight elevator and the loading platform); the rest of the game's log stays on the PC. It can start with Windows, and it updates itself.
+- **The old logs.** The tracker also sends the backup logs the server does not have yet (`HistorySender`): the first time all of them, after that only the
+  new ones (it asks the server which it has: `api/history/missing`; it looks when it starts and every six hours). Only the lines it reads, in pieces of
+  whole lines (`api/history`). The server keeps them apart from the live logs, so the Hauling Planner never sees them: their lines in `/var/lib/sctools/history`
+  (gzip, a folder per player) and a row per log in `LogFiles` (when the game ran, its build); the Gauntlet runs in them go to the database at once
+  (`HistoryStore`). A log of another player on the same PC is noted ("zzatvo's game") and not read. When the tracker reads more kinds of lines,
+  `HistorySender.Version` goes up and the server asks for every log again. The tracker's menu says how far it is ("Old logs: sending 3 of 140"), its
+  version (up to date, or updating), and **Check for an update now**; after an update it says "Updated to version ...".
 - **SCTools.Server** keeps the uploads (one log per player, also on disk, so a restart reads them again), works the session out every two seconds
   with the same logic as the program, and serves the live page to everybody. An upload without a known key is refused. The admin makes the keys on the
   **Tracker keys** page (`/admin/keys`): a new key is shown once (the database keeps only a hash of it), and a key can be taken back (that tracker stops,

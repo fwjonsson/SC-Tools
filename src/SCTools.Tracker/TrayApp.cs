@@ -7,8 +7,9 @@ using SCTools.Updates;
 namespace SCTools.Tracker;
 
 /// <summary>
-/// The SC Tools Tracker in the tray: every three seconds it uploads what is new in the Game.log (and the backup logs of the last day) to the server, and it updates
-/// itself from the latest release on GitHub. The menu shows how it goes, opens the tracker website, the settings, and starts it with Windows.
+/// The SC Tools Tracker in the tray: every three seconds it uploads what is new in the Game.log (and the backup logs of the last day) to the server, it sends
+/// the old backup logs the server does not have yet (HistorySender: all of them the first time, then the new ones), and it updates itself from the latest
+/// release on GitHub. The menu shows how each goes and its version, opens the site, the settings, and starts it with Windows.
 /// </summary>
 sealed class TrayApp : ApplicationContext
 {
@@ -18,6 +19,8 @@ sealed class TrayApp : ApplicationContext
 
     readonly NotifyIcon _icon = new();
     readonly ToolStripMenuItem _status = new() { Enabled = false };
+    readonly ToolStripMenuItem _history = new("Old logs: not looked yet") { Enabled = false };
+    readonly ToolStripMenuItem _version = new() { Enabled = false };
     readonly ToolStripMenuItem _startWithWindows = new("Start with Windows") { CheckOnClick = true };
     readonly CancellationTokenSource _stop = new();
 
@@ -27,14 +30,18 @@ sealed class TrayApp : ApplicationContext
     string? _player;
     bool _updating;
 
-    public TrayApp()
+    /// <param name="updated">it was started by an update of itself: it says so</param>
+    public TrayApp(bool updated = false)
     {
         var menu = new ContextMenuStrip();
         menu.Items.Add(_status);
+        menu.Items.Add(_history);
+        menu.Items.Add(_version);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Open SC Tools", null, (_, _) => Open(_settings.ServerUrl.Trim().TrimEnd('/') + "/"));
         menu.Items.Add("Open my page (location, colour, ship)", null, async (_, _) => await OpenMyPageAsync());
         menu.Items.Add("Settings...", null, (_, _) => ShowSettings());
+        menu.Items.Add("Check for an update now", null, async (_, _) => await TryUpdateAsync(true));
         menu.Items.Add(_startWithWindows);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => ExitThread());
@@ -46,11 +53,17 @@ sealed class TrayApp : ApplicationContext
         _icon.DoubleClick += (_, _) => ShowSettings();
         _icon.Visible = true;
         SetStatus("Starting...");
+        _version.Text = "Version " + Version;
+        if (updated) _icon.ShowBalloonTip(5000, AppName.Tracker.Title, "Updated to version " + Version + ".", ToolTipIcon.Info);
 
         if (!_settings.Complete) ShowSettings();
         _ = SendLoopAsync();
+        _ = HistoryLoopAsync();
         _ = UpdateLoopAsync();
     }
+
+    /// <summary>The first letters of the commit this tracker was built from ("own build" for one made on your own computer).</summary>
+    static string Version => Updater.OwnCommit is { } c ? c[..7] : "own build";
 
     static Icon AppIcon()
     {
@@ -170,6 +183,56 @@ sealed class TrayApp : ApplicationContext
         }
     }
 
+    /// <summary>
+    /// The old logs: once the server knows the key, every backup log it does not have is sent (all of them the first time, then only the new ones), and
+    /// again every six hours. It runs beside the uploads of the Game.log, off the window's thread, and the menu says how far it is.
+    /// </summary>
+    async Task HistoryLoopAsync()
+    {
+        var ui = SynchronizationContext.Current;
+        void Show(string text)
+        {
+            if (ui == null) _history.Text = text;
+            else ui.Post(_ => _history.Text = text, null);
+        }
+        while (!_stop.IsCancellationRequested)
+        {
+            if (_player == null || !_settings.Complete)
+            {
+                try { await Task.Delay(TimeSpan.FromSeconds(5), _stop.Token); }
+                catch (TaskCanceledException) { return; }
+                continue;
+            }
+            var settings = _settings;
+            try
+            {
+                await Task.Run(async () =>
+                {
+                    using var server = new HttpLogServer(settings.ServerUrl.Trim(), settings.Key.Trim());
+                    var sender = new HistorySender(server) { Path = settings.StarCitizenFolder.Trim(), Channel = settings.Channel };
+                    Show("Old logs: looking which the server has...");
+                    sender.Progress = () => Show("Old logs: sending " + (sender.Sent + 1) + " of " + sender.Missing + "...");
+                    await sender.RunAsync(_stop.Token);
+                    Show(sender.Found == null ? "Old logs: no Game.log found"
+                        : "Old logs: all on the server (" + sender.Found + (sender.Missing > 0 ? ", " + sender.Missing + " sent now" : "") + ")");
+                }, _stop.Token);
+            }
+            catch (OperationCanceledException) when (_stop.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                Show("Old logs: trying again later (" + ex.Message + ")");
+                try { await Task.Delay(TimeSpan.FromMinutes(10), _stop.Token); }
+                catch (TaskCanceledException) { return; }
+                continue;
+            }
+            try { await Task.Delay(TimeSpan.FromHours(6), _stop.Token); }
+            catch (TaskCanceledException) { return; }
+        }
+    }
+
     /// <summary>Looks for a newer tracker at start and every six hours, and puts it in place (a build made on your own computer never updates).</summary>
     async Task UpdateLoopAsync()
     {
@@ -183,24 +246,39 @@ sealed class TrayApp : ApplicationContext
         }
     }
 
-    async Task TryUpdateAsync()
+    /// <param name="asked">from the menu: it says what it found in a balloon too</param>
+    async Task TryUpdateAsync(bool asked = false)
     {
         var own = Updater.OwnCommit;
-        if (own == null || _updating) return;
+        if (own == null)
+        {
+            _version.Text = "Version " + Version + " (built on this computer: it does not update itself)";
+            if (asked) _icon.ShowBalloonTip(5000, AppName.Tracker.Title, "This tracker was built on this computer: it does not update itself.", ToolTipIcon.Info);
+            return;
+        }
+        if (_updating) return;
         _updating = true;
         try
         {
+            _version.Text = "Version " + Version + ", looking for an update...";
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
             cts.CancelAfter(TimeSpan.FromMinutes(2));
             var latest = await Updater.LatestCommitAsync(cts.Token);
-            if (latest == null || !await Updater.IsNewerAsync(own, latest, cts.Token)) return;
+            if (latest == null || !await Updater.IsNewerAsync(own, latest, cts.Token))
+            {
+                _version.Text = "Version " + Version + (latest == null ? ", no answer from GitHub " : ", up to date ") + "(" + DateTime.Now.ToString("HH:mm") + ")";
+                if (asked) _icon.ShowBalloonTip(5000, AppName.Tracker.Title, latest == null ? "GitHub did not answer: try again later." : "You have the newest version (" + Version + ").", ToolTipIcon.Info);
+                return;
+            }
+            _version.Text = "Version " + Version + ", updating to " + latest[..7] + "...";
             var exe = await Updater.DownloadAsync(AppName.Tracker.Zip, AppName.Tracker.Exe);
-            Updater.ReplaceAndStart(exe);   // the new tracker waits for this one to close
+            Updater.ReplaceAndStart(exe, "--updated");   // the new tracker waits for this one to close, and says it was updated
             ExitThread();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // no update this time: the tracker goes on as it is, and tries again later
+            _version.Text = "Version " + Version + ", the update did not work (" + ex.Message + ")";
         }
         finally
         {
