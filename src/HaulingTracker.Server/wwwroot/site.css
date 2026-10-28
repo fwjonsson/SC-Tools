@@ -3,10 +3,11 @@
 * { box-sizing:border-box; }
 body { margin:0; background:var(--bg); color:var(--fg); font:14px "Segoe UI", system-ui, sans-serif; }
 a { color:inherit; }
-.topbar { display:flex; gap:24px; align-items:center; padding:12px 18px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
-.topbar .brand { font-size:18px; font-weight:700; text-decoration:none; }
-.topbar nav { display:flex; gap:16px; flex:1; font-weight:600; flex-wrap:wrap; }
-.topbar .who { display:flex; gap:12px; align-items:center; opacity:.85; }
+/* the bar at the top is topbar.css; under it on the admin's pages, the admin's pages */
+.subnav { display:flex; gap:6px; flex-wrap:wrap; padding:6px 18px; border-bottom:1px solid var(--line); font-weight:600; }
+.subnav a { text-decoration:none; padding:4px 10px; border-radius:4px; }
+.subnav a:hover { background:var(--cell); }
+.subnav a.on { background:var(--header); color:#fff; }
 main { padding:8px 18px 40px; max-width:900px; }
 h1 { font-size:22px; margin:18px 0 8px; }
 h2 { font-size:16px; margin:24px 0 8px; }
