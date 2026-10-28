@@ -14,7 +14,7 @@ sealed class SettingsForm : Form
     public SettingsForm(SenderSettings settings)
     {
         Settings = settings;
-        Text = "Hauling Tracker: Settings";
+        Text = HaulingTracker.Updates.TrackerName.Name + ": Settings";
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
