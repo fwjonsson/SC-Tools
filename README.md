@@ -191,7 +191,7 @@ The tracker is moving to a server, so the website is always up and everybody wit
 admin (done), then going live.
 
 - **HaulingTrackerSender.exe** (in the Releases download, `HaulingTrackerSender.zip`) is the tracker: a tray icon on every gaming PC. Its settings are the
-  server, your **key** (Frank gives every player his own; **Test** asks the server whose key it is), the Star Citizen folder and the log channel. Every
+  server (`https://sct.fwjonsson.dev`; a tracker with the old `haulingtracker.fwjonsson.dev` saved moves to it by itself, `SiteAddress`), your **key** (Frank gives every player his own; **Test** asks the server whose key it is), the Star Citizen folder and the log channel. Every
   3 seconds it uploads what is new in the Game.log, and the backup logs of the last day, from where the server is, so nothing is sent twice (also after a
   restart of the tracker or the game). It only sends the lines the tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money
   transfers, the freight elevator and the loading platform); the rest of the game's log stays on the PC. It can start with Windows, and it updates itself.
@@ -211,9 +211,10 @@ admin (done), then going live.
   the admin, and his tracker logs him in as the player only, so a tracker key never opens the admin pages. A colour too close to another member's (two
   greens, a red and a dark red) is not taken, on My page and on the Party page. **My page** (`/me`) is his own Current location, colour, ship and quantum drive (the
   same lists as the Party table and the Trip Planner of the program); nobody else's. Five wrong passwords lock the login for ten minutes.
-- **SC Tools.** The site is a landing page with a card for every tool (`/`, `Views/Home`); the hauling tracker's live page is at `/hauling`. The old
-  address `haulingtracker.fwjonsson.dev` (the trackers use it) goes straight to `/hauling`. A new address for the site (like `sct.fwjonsson.dev`) is one
-  more published application route of the same Cloudflare tunnel, to `http://127.0.0.1:8780`. The plan of the tools is `claude/sc-tools-roadmap.md` in the
+- **SC Tools.** The site, `sct.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the hauling tracker's live page is at
+  `/hauling`. The old address `haulingtracker.fwjonsson.dev` sends every page to the same page at the site for good (301, `OldAddress`), so there is one
+  site and one login. Only the uploads of trackers that have not updated yet (`api/...`) are still taken there; once every tracker has updated itself, the
+  old address is removed from the Cloudflare tunnel (and from `OldHosts` in the server's settings). The plan of the tools is `claude/sc-tools-roadmap.md` in the
   project.
 - **The admin's pages** change what the program changes, with the same logic (`Editing/Edits.cs`, each change saved and worked out again at once):
   **Session** (`/admin`: Start / Stop Session, Next Stops locked or not, the mission rewards, the start time, the names and notes of the stops, the lost
@@ -249,7 +250,7 @@ admin (done), then going live.
 
 ### Going live (the server)
 
-The web app runs on a Hetzner server (Ubuntu, Arm64) as the service `haulingtracker`; Cloudflare's tunnel brings haulingtracker.fwjonsson.dev to it (no
+The web app runs on a Hetzner server (Ubuntu, Arm64) as the service `haulingtracker`; Cloudflare's tunnel brings sct.fwjonsson.dev to it (no
 open ports but SSH). GitHub puts every new version of main on it (the **Deploy** workflow). Once:
 
 1. **Set up the server.** Log in (`ssh root@SERVER-IP`) and run
@@ -266,10 +267,10 @@ open ports but SSH). GitHub puts every new version of main on it (the **Deploy**
 6. **Look at it before everybody does.** `ssh -L 8780:127.0.0.1:8780 root@SERVER-IP` in PowerShell, and open `http://localhost:8780` on the PC (while that
    window stays open). Log in as zzoega and check the Debts and History tabs.
 7. **The tunnel.** In Cloudflare: Zero Trust, **Networks**, **Tunnels**, the tunnel, **Configure**. Add a connector for **Debian**, **arm64** and run the
-   commands it shows on the server. Change the published application haulingtracker.fwjonsson.dev to the service `http://127.0.0.1:8780`. Remove the
+   commands it shows on the server. Add the published application sct.fwjonsson.dev with the service `http://127.0.0.1:8780`. Remove the
    connector on the PC (an administrator PowerShell: `cloudflared service uninstall`), so every visit goes to the server.
 8. **The trackers.** On the **Tracker keys** page make a key for zzoega, zzatvo and bileh123, and put each in the tracker (HaulingTrackerSender) on his PC
-   (Server `https://haulingtracker.fwjonsson.dev`).
+   (Server `https://sct.fwjonsson.dev`, the default).
 
 After that every merge to main that changes the server is deployed by itself; a version that does not start is replaced by the one before it. The
 settings are in `/etc/haulingtracker/haulingtracker.env` (`sudo systemctl restart haulingtracker` after a change), the data in `/var/lib/haulingtracker`

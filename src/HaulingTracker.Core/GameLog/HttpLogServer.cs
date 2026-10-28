@@ -8,7 +8,7 @@ public sealed class HttpLogServer : ILogServer, IDisposable
 {
     readonly HttpClient _http;
 
-    /// <param name="baseUrl">the address of the tracker, like https://haulingtracker.fwjonsson.dev</param>
+    /// <param name="baseUrl">the address of the site, like https://sct.fwjonsson.dev</param>
     public HttpLogServer(string baseUrl, string key, HttpMessageHandler? handler = null)
     {
         _http = handler == null ? new HttpClient() : new HttpClient(handler);

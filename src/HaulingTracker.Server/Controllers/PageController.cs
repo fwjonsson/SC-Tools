@@ -15,14 +15,10 @@ public sealed class PageController : Controller
 
     public PageController(LiveTracker live) => _live = live;
 
-    /// <summary>
-    /// The landing page: a card for every tool. The old address of the hauling tracker (haulingtracker.fwjonsson.dev, which the trackers use) goes straight
-    /// to the hauling tracker, as it always did.
-    /// </summary>
+    /// <summary>The landing page: a card for every tool.</summary>
     [HttpGet("/")]
     public IActionResult Home()
     {
-        if (Request.Host.Host.StartsWith("haulingtracker.", StringComparison.OrdinalIgnoreCase)) return LocalRedirect("/hauling");
         return View("~/Views/Home/Index.cshtml", _live.Read(t => new HomeModel(t.State.Current == null ? "" : BoardTexts.DescribeSession(t.State.Current))));
     }
 

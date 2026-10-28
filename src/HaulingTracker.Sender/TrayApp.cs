@@ -31,7 +31,7 @@ sealed class TrayApp : ApplicationContext
         var menu = new ContextMenuStrip();
         menu.Items.Add(_status);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Open the tracker page", null, (_, _) => Open(_settings.ServerUrl));
+        menu.Items.Add("Open the tracker page", null, (_, _) => Open(_settings.ServerUrl.Trim().TrimEnd('/') + "/hauling"));
         menu.Items.Add("Open my page (location, colour, ship)", null, async (_, _) => await OpenMyPageAsync());
         menu.Items.Add("Settings...", null, (_, _) => ShowSettings());
         menu.Items.Add(_startWithWindows);
