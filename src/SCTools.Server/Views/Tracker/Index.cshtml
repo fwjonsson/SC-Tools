@@ -1,0 +1,25 @@
+@using SCTools.GameLog
+@using SCTools.Server.Controllers
+@{
+    ViewData["Title"] = "SC Tools Tracker";
+}
+<h1>SC Tools Tracker</h1>
+<p class="muted">The small program on your gaming PC that the tools need. It sits in the tray, reads Star Citizen's Game.log while you play and sends the
+  lines the tools use to this site. The rest of the log stays on your PC, and it never touches the game itself.</p>
+<p><a class="button" href="@TrackerController.Download">Download SCToolsTracker.zip</a></p>
+
+<h2>Set it up</h2>
+<ol class="steps">
+  <li>Unzip it anywhere and run <code>SCToolsTracker.exe</code>. Windows may warn about an unknown publisher: click <b>More info</b>, then <b>Run anyway</b>.</li>
+  <li>Its settings open. The <b>Server</b> is filled in already (<code>@SiteAddress.Current</code>).</li>
+  <li><b>Your key</b>: the key Frank gave you. <b>Test</b> says whose key it is.</li>
+  <li><b>Star Citizen folder</b>: the folder with LIVE in it (<code>C:\Program Files\Roberts Space Industries\StarCitizen</code> unless you moved it). Then <b>Save</b>.</li>
+  <li>Keep it running while you play. Its tray icon says how it goes; right-click it for SC Tools, My page and Settings.</li>
+</ol>
+
+<h2>Good to know</h2>
+<ul>
+  <li>It updates itself to the newest build, when it starts and every six hours.</li>
+  <li><b>Start with Windows</b> in its menu is off until you turn it on.</li>
+  <li>No key yet? Ask Frank: a key is made for your name in the game.</li>
+</ul>

@@ -6,11 +6,11 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>HaulingTracker</RootNamespace>
+    <RootNamespace>SCTools</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/HaulingTracker.Core/HaulingTracker.Core.csproj" />
+    <ProjectReference Include="../../src/SCTools.Core/SCTools.Core.csproj" />
   </ItemGroup>
 
 </Project>

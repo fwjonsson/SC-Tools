@@ -1,0 +1,37 @@
+@model AccountModel
+@{
+    ViewData["Title"] = "Account";
+}
+<h1>Account</h1>
+<p class="muted">You log in as <b>@Model.Name</b>. The settings of the server (SCTools:Admin) are only used to make the admin the first time: change the name and the password here.</p>
+
+<h2>Name</h2>
+@if (Model.Rename.Done)
+{
+  <p class="message">Your name is @Model.Name now: log in with it from now on.</p>
+}
+<form method="post" action="/account/name" asp-antiforgery="true" class="card">
+  <label asp-for="Rename.NewName"></label>
+  <input asp-for="Rename.NewName" autocomplete="username">
+  <span asp-validation-for="Rename.NewName" class="error"></span>
+  <button type="submit">Change the name</button>
+</form>
+
+<h2>Password</h2>
+@if (Model.Password.Done)
+{
+  <p class="message">The password is changed. If it was in the settings of the server (SCTools:Admin:Password), it can be removed from there now.</p>
+}
+<form method="post" action="/account/password" asp-antiforgery="true" class="card">
+  <span asp-validation-for="Password" class="error"></span>
+  <label asp-for="Password.Current"></label>
+  <input asp-for="Password.Current" autocomplete="current-password">
+  <span asp-validation-for="Password.Current" class="error"></span>
+  <label asp-for="Password.New"></label>
+  <input asp-for="Password.New" autocomplete="new-password">
+  <span asp-validation-for="Password.New" class="error"></span>
+  <label asp-for="Password.Again"></label>
+  <input asp-for="Password.Again" autocomplete="new-password">
+  <span asp-validation-for="Password.Again" class="error"></span>
+  <button type="submit">Change the password</button>
+</form>
