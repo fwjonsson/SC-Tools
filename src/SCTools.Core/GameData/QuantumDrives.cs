@@ -69,6 +69,18 @@ public static class QuantumDrives
         new("Mauler", "Unknown", 4, "A", 1142633000, 2610290, 21840500, 200000000),
     };
 
+    /// <summary>The best quality of a crafted drive.</summary>
+    public const int MaxQuality = 1000;
+
+    /// <summary>
+    /// How much faster a crafted drive of this quality is, in percent: 1000 is +20 %, 500 the same as bought, 0 is -20 %, in a straight line between.
+    /// </summary>
+    public static double CraftedSpeedPercent(int quality) => (Math.Clamp(quality, 0, MaxQuality) - MaxQuality / 2.0) / (MaxQuality / 2.0) * 20;
+
+    /// <summary>"+12 %" (nothing for 0).</summary>
+    public static string PercentText(double percent) =>
+        Math.Abs(percent) < 0.05 ? "" : (percent > 0 ? "+" : "-") + Math.Abs(percent).ToString("0.#", CultureInfo.InvariantCulture) + " %";
+
     public static QtDrive? Find(string? key) =>
         string.IsNullOrWhiteSpace(key) ? null : All.FirstOrDefault(d => string.Equals(d.Key, key, StringComparison.OrdinalIgnoreCase) || string.Equals(d.Label, key, StringComparison.OrdinalIgnoreCase));
 }

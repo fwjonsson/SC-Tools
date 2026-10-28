@@ -142,8 +142,27 @@ public sealed class Crew
         if (picked != null) Data.QuantumDrive[name] = picked.Key;
     }
 
-    /// <summary>The drive for the travel time estimates. Without a drive set, a common one is assumed.</summary>
-    public QtDrive QtOf(string name) => DriveOf(name) ?? QuantumDrives.Assumed;
+    /// <summary>How much faster his drive is, in percent, when it is crafted (0: as bought).</summary>
+    public double DriveBonusOf(string name) => Data.DriveSpeedBonus.FirstOrDefault(kv => SameName(kv.Key, name)).Value;
+
+    /// <summary>Sets how much faster his drive is (0: as bought).</summary>
+    public void SetDriveBonus(string name, double percent)
+    {
+        foreach (var k in Data.DriveSpeedBonus.Keys.Where(k => SameName(k, name)).ToList()) Data.DriveSpeedBonus.Remove(k);
+        if (percent != 0) Data.DriveSpeedBonus[name] = percent;
+    }
+
+    /// <summary>His drive as a text: "TS-2 S3", "TS-2 S3 +20 %" when crafted; "" without a drive.</summary>
+    public string DriveTextOf(string name)
+    {
+        var drive = DriveOf(name);
+        if (drive == null) return "";
+        var bonus = QuantumDrives.PercentText(DriveBonusOf(name));
+        return bonus.Length == 0 ? drive.Label : drive.Label + " " + bonus;
+    }
+
+    /// <summary>The drive for the travel time estimates, crafted as it is. Without a drive set, a common one is assumed.</summary>
+    public QtDrive QtOf(string name) => DriveOf(name) is { } drive ? drive.Crafted(DriveBonusOf(name)) : QuantumDrives.Assumed;
 
     /// <summary>The batches his ship holds (the Trip Planner).</summary>
     public int ShipCapacityOf(string name) =>

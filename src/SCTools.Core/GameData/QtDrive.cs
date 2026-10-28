@@ -12,6 +12,12 @@ public sealed record QtDrive(string Name, string Maker, int Size, string Grade, 
     public string Label => Key;   // the name only (the speed in Mm/s used to be shown after it)
 
     /// <summary>
+    /// The drive as crafted: its drive speed this many percent higher (or lower); the rest is the same (crafting changes only the drive speed: a TS-2 of
+    /// quality 1000 goes 611,661,360 m/s instead of 509,717,800).
+    /// </summary>
+    public QtDrive Crafted(double percent) => percent == 0 ? this : this with { Speed = Speed * (1 + percent / 100) };
+
+    /// <summary>
     /// Seconds for one jump of this many Gm (the time it shows for a distance in the star map, without the spool time).
     /// The drive speeds up with the stage 1 acceleration until it reaches the switch speed, then with the stage 2 acceleration up to the
     /// top speed, flies at the top speed and slows down the same way. A jump that is too short to reach the top speed

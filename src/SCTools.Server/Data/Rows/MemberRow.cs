@@ -20,6 +20,9 @@ public sealed class MemberRow
     /// <summary>The quantum drive in his ship (like "Eos S1").</summary>
     public string? QuantumDrive { get; set; }
 
+    /// <summary>How much faster his drive is, in percent, when it is crafted (from his fleet); null = as bought.</summary>
+    public double? DriveSpeedBonus { get; set; }
+
     /// <summary>His colour (ARGB), picked in the Party table; null = the built-in one.</summary>
     public int? Color { get; set; }
 

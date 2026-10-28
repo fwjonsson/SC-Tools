@@ -61,6 +61,7 @@ public sealed class DataRows
         foreach (var name in d.InactiveParty) Member(name).Inactive = true;
         foreach (var (name, ship) in d.Ship) Member(name).Ship = ship;
         foreach (var (name, drive) in d.QuantumDrive) Member(name).QuantumDrive = drive;
+        foreach (var (name, bonus) in d.DriveSpeedBonus) Member(name).DriveSpeedBonus = bonus;
         foreach (var (name, color) in d.WorkerColors) Member(name).Color = color;
         foreach (var (name, batches) in d.ShipCapacity) Member(name).ShipCapacity = batches;
         foreach (var (name, at) in d.StartPoints)
@@ -187,6 +188,7 @@ public sealed class DataRows
         {
             if (m.Ship != null) d.Ship[m.Name] = m.Ship;
             if (m.QuantumDrive != null) d.QuantumDrive[m.Name] = m.QuantumDrive;
+            if (m.DriveSpeedBonus is double bonus && bonus != 0) d.DriveSpeedBonus[m.Name] = bonus;
             if (m.Color is int color) d.WorkerColors[m.Name] = color;
             if (m.ShipCapacity is int batches) d.ShipCapacity[m.Name] = batches;
             if (m.LocationId != null) d.StartPoints[m.Name] = new StartPoint { Id = m.LocationId, Since = m.LocationSince ?? default };
