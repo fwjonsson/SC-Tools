@@ -18,7 +18,7 @@ public static class SiteTools
         "#4682ff", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><path d=\"M3 7l9-4 9 4-9 4-9-4z\"/><path d=\"M3 7v10l9 4 9-4V7\"/><path d=\"M12 11v10\"/></svg>");
 
     public static readonly SiteTool Session = new("session", "Session",
-        "Any kind of play: the contracts you took, finished and failed, time played, deaths, crashes, and what it earned per hour.", null, false,
+        "Your play: time played today, this week and in all, your games and crashes, and what your missions earned (aUEC, MG and Council scrip) per hour.", "/session", false,
         "#8b949e", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13\" r=\"8\"/><path d=\"M12 9v4l3 2M9 2h6\"/></svg>");
 
     public static readonly SiteTool Missions = new("missions", "Mission Library",

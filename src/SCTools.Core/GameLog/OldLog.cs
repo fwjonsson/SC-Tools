@@ -7,7 +7,8 @@ namespace SCTools.GameLog;
 /// What the server reads from an old log a tracker sent (HistorySender): whose game it was, and what the tools that keep everything want from it. Read on
 /// its own, apart from the live logs.
 /// </summary>
-public sealed record OldLog(string? Player, IReadOnlyList<GauntletRun> GauntletRuns, IReadOnlyList<MissionSeen> Missions, DateTime? FirstLine, DateTime? LastLine)
+/// <param name="Quit">the game was quit the normal way (the log has the quit line); false: it crashed</param>
+public sealed record OldLog(string? Player, IReadOnlyList<GauntletRun> GauntletRuns, IReadOnlyList<MissionSeen> Missions, DateTime? FirstLine, DateTime? LastLine, bool Quit)
 {
     public static OldLog Read(IEnumerable<string> lines)
     {
@@ -15,17 +16,19 @@ public sealed record OldLog(string? Player, IReadOnlyList<GauntletRun> GauntletR
         var gauntlet = new GauntletReader();
         var missions = new MissionReader();
         DateTime? first = null, last = null;
+        var quit = false;
         foreach (var line in lines)
         {
             log.ProcessLine(line);
             gauntlet.ProcessLine(line);
             missions.ProcessLine(line);
+            quit |= line.Contains(HaulingLog.QuitLine, StringComparison.Ordinal);
             if (HaulingLog.TimeOf(line) is { } t)
             {
                 first ??= t;
                 last = t;
             }
         }
-        return new OldLog(log.Player, gauntlet.Runs.ToList(), missions.Missions, first, last);
+        return new OldLog(log.Player, gauntlet.Runs.ToList(), missions.Missions, first, last, quit);
     }
 }

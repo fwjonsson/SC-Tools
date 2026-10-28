@@ -75,7 +75,11 @@ public sealed class HaulingLog
         "FreightElevatorUIProvider::FillUnstowRequest",                 // he takes cargo out of a freight elevator
         "CSCLoadingPlatformManager::OnLoadingPlatformStateChanged",     // he hands cargo in at a loading platform
         "Mission",                                                      // the missions: markers, objectives, notifications, members
+        QuitLine,                                                       // the game was quit (a log without it ended in a crash)
     };
+
+    /// <summary>What the game writes when it is quit the normal way: a log that ends without it crashed (or was killed).</summary>
+    public const string QuitLine = "SystemQuit";
 
     /// <summary>Is this a kind of line the tracker reads (see LineKinds)?</summary>
     internal static bool IsRead(string line)

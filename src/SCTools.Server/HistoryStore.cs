@@ -77,6 +77,7 @@ public sealed class HistoryStore
             row.Lines = all.Length;
             row.ImportedUtc = nowUtc;
             row.Note = other ? log.Player + "'s game" : null;
+            row.Quit = log.Quit;
             db.SaveChanges();
             return new UploadResult(true, from + lines.Count);
         }

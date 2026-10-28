@@ -254,6 +254,12 @@ admin (done), then going live.
   It shows how often each was taken, completed, failed and abandoned, and when it was played last. The server asks the Star Citizen Wiki
   (`api/missions/{ContractId}`) about every new kind, 20 a minute (`MissionWikiService`; `SCTools:MissionWiki` = false turns it off), for its giver
   and reward range. The first time it runs it reads the missions of the old logs already on the server.
+- **The Session tool** (`/session`, `Play/PlayStats` in the core, `Playtime`, `SessionController`): your own play. Time played today, this week (from
+  Monday), this month and in all, the games and the crashes (a log without the game's quit line, `SystemQuit`, crashed), the missions you completed
+  and what they earned (aUEC, MG and Council scrip as the Mission Library says they pay, shared ones too; the scrip at the Scrip page's value), and per
+  hour; the clock of the game you play now; a list of your games. Worked out again on every visit, so a reward typed in later counts for the past. The
+  games are kept for good in `LogFiles`: the old logs (now with the quit line: `HistorySender.Version` 2, so they are sent once more) and the games of
+  the live logs while they run (version 0, so their backup log still comes and takes over).
 - **Which tools everybody sees** is the admin's **Tools** page (`/admin/tools`, `SiteTools.cs`, the table `Tools`): a tick per tool, saved as soon as it
   changes. A tool that is not ticked is only for the admin: its card on the landing page (where he sees "Only you see this") and its page (a visitor gets
   the login, a player "not for you"; the hauling tracker's `data.json` too). A tool never set is as `SiteTools` says: the hauling tracker shown, the tools
