@@ -117,6 +117,9 @@ visudo -cf /etc/sudoers.d/sctools >/dev/null
 systemctl daemon-reload
 systemctl enable sctools >/dev/null 2>&1   # it starts with the first version GitHub puts in place
 
+# run by rename-server.sh: the key and the secrets are in GitHub already
+if [ -n "${SETUP_QUIET:-}" ]; then exit 0; fi
+
 echo "== the key GitHub logs in with"
 install -d -o deploy -g deploy -m 700 /home/deploy/.ssh
 if [ ! -f /root/github-deploy.pub ]; then
@@ -125,9 +128,6 @@ fi
 grep -qF "$(cat /root/github-deploy.pub)" /home/deploy/.ssh/authorized_keys 2>/dev/null || cat /root/github-deploy.pub >> /home/deploy/.ssh/authorized_keys
 chown deploy:deploy /home/deploy/.ssh/authorized_keys
 chmod 600 /home/deploy/.ssh/authorized_keys
-
-# run by rename-server.sh: the secrets are in GitHub already
-if [ -n "${SETUP_QUIET:-}" ]; then exit 0; fi
 
 ip="$(curl -4 -fs https://api.ipify.org || hostname -I | awk '{print $1}')"
 echo
