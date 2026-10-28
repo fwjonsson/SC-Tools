@@ -3,8 +3,23 @@ namespace SCTools.Server.Models;
 /// <summary>A tool on the Tools page: whether everybody sees it.</summary>
 public sealed record ToolLine(SiteTool Tool, bool Public);
 
-/// <summary>The Mission Library page: the kinds of mission shown (all, or the ones without rewards yet, or a search), and how many there are.</summary>
-public sealed record MissionLibraryPage(IReadOnlyList<LibraryEntry> Entries, int Total, int ToDo, string Show, string Query);
+/// <summary>
+/// The Mission Library page: the kinds of mission shown (one page of all, or of the ones without rewards yet, or of a search), how many there are, the page of
+/// how many, and the version of the library it shows (the page asks for the version and gets the list again when it changed).
+/// </summary>
+public sealed record MissionLibraryPage(IReadOnlyList<LibraryEntry> Entries, int Total, int ToDo, string Show, string Query, int Page = 1, int Pages = 1,
+    int Found = 0, int Version = 0)
+{
+    /// <summary>The address of this list (the tab and the search) on another page.</summary>
+    public string Link(int page)
+    {
+        var parts = new List<string>();
+        if (Show == "todo") parts.Add("show=todo");
+        if (Query.Length > 0) parts.Add("q=" + Uri.EscapeDataString(Query));
+        if (page > 1) parts.Add("page=" + page);
+        return "/missions" + (parts.Count > 0 ? "?" + string.Join("&", parts) : "");
+    }
+}
 
 /// <summary>The Session tool's page for one player.</summary>
 public sealed record SessionPage(string Player, SCTools.Play.PlayedGame? Running, SCTools.Play.PlayedGame? LastGame, IReadOnlyList<PeriodLine> Periods,

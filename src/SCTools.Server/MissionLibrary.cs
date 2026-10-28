@@ -7,8 +7,8 @@ using SCTools.Server.Data;
 
 namespace SCTools.Server;
 
-/// <summary>A kind of mission in the library, with how it was played.</summary>
-public sealed record LibraryEntry(MissionKindRow Row, int Taken, int Completed, int Failed, int Abandoned, DateTime? LastPlayed)
+/// <summary>A kind of mission in the library, with how it was played; Running: one of its missions was taken in the last hours and did not end yet.</summary>
+public sealed record LibraryEntry(MissionKindRow Row, int Taken, int Completed, int Failed, int Abandoned, DateTime? LastPlayed, bool Running = false)
 {
     /// <summary>The name shown: the one typed in, else the one the game shows.</summary>
     public string Shown => Row.Name ?? Row.Title;
@@ -42,6 +42,18 @@ public sealed class MissionLibrary
     readonly object _lock = new();
     Dictionary<(string, string), MissionSeen>? _known;   // what is in the database, so an unchanged mission is not written again
     List<LibraryEntry>? _entries;   // the page's list, until a mission or a kind changes (made from every mission in the database)
+
+    /// <summary>How long a mission that did not end yet counts as one being played now.</summary>
+    static readonly TimeSpan RunningFor = TimeSpan.FromHours(6);
+
+    /// <summary>Goes up every time something on the library's page changes (a mission came in or went on, a field was saved): the open pages ask for it.</summary>
+    public int Version { get; private set; }
+
+    void Changed()
+    {
+        _entries = null;
+        Version++;
+    }
     bool _ready;
     bool _readHistoryAgain;
 
@@ -138,8 +150,10 @@ public sealed class MissionLibrary
             {
                 foreach (var m in missions)
                 {
-                    // which offer it is never showed (a mission of the other account): not in the library, unless the Hauling Planner reads it
-                    if (m.ContractId == null && m.Hauling == null) continue;
+                    // a mission he took himself is in it, also when the log never says which offer it is (most missions with comms, like the bounties); a
+                    // mission shared with him whose offer never showed is the other account's (it is in the library from that log), unless the Hauling
+                    // Planner reads it
+                    if (m.ContractId == null && m.Hauling == null && (m.Shared || m.Title == null)) continue;
                     var key = (player.ToLowerInvariant(), m.MissionId.ToLowerInvariant());
                     _known.TryGetValue(key, out var had);
                     var merged = had == null ? m : new MissionSeen(had.MissionId, had.ContractId ?? m.ContractId, MissionKinds.Better(had.Title, m.Title), had.Shared,
@@ -162,7 +176,7 @@ public sealed class MissionLibrary
             if (written > 0)
             {
                 db.SaveChanges();
-                _entries = null;
+                Changed();
             }
             return written;
         }
@@ -182,7 +196,7 @@ public sealed class MissionLibrary
             _readHistoryAgain = false;
             if ((db.Missions.Any() && !again) || !Directory.Exists(_paths.HistoryDir)) return 0;
             _known = null;   // read from the database again
-            _entries = null;
+            Changed();
         }
         var read = 0;
         foreach (var playerDir in Directory.GetDirectories(_paths.HistoryDir))
@@ -224,7 +238,8 @@ public sealed class MissionLibrary
                     var mine = played.GetValueOrDefault(k.Key) ?? new List<MissionRow>();
                     return new LibraryEntry(k, mine.Count, mine.Count(m => m.Outcome == nameof(MissionOutcome.Complete)),
                         mine.Count(m => m.Outcome == nameof(MissionOutcome.Fail)), mine.Count(m => m.Outcome == nameof(MissionOutcome.Abandon)),
-                        mine.Select(m => m.EndedUtc ?? m.StartedUtc).Max());
+                        mine.Select(m => m.EndedUtc ?? m.StartedUtc).Max(),
+                        mine.Any(m => m.Outcome == null && m.EndedUtc == null && m.StartedUtc > DateTime.UtcNow - RunningFor));
                 })
                 .OrderByDescending(e => e.LastPlayed ?? DateTime.MinValue).ThenBy(e => e.Shown, StringComparer.OrdinalIgnoreCase).ToList();
         }
@@ -261,7 +276,7 @@ public sealed class MissionLibrary
             if (changed)
             {
                 db.SaveChanges();
-                _entries = null;
+                Changed();
             }
             return wanted.ToDictionary(w => w.Key, w => kinds[w.Key], StringComparer.OrdinalIgnoreCase);
         }
@@ -320,7 +335,7 @@ public sealed class MissionLibrary
             row.EditedBy = who;
             row.EditedUtc = nowUtc;
             db.SaveChanges();
-            _entries = null;
+            Changed();
         }
         if (field == "auec" && Earnings.RewardLines.FirstOrDefault(l => MissionKinds.HaulingKey(l.Contract) == key) is { } line)
         {

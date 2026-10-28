@@ -308,7 +308,11 @@ admin (done), then going live.
   it (`MissionKinds`; the game's ContractId is one per offer, so the same mission at another place has another one). The contracts the Hauling Planner
   reads are grouped by its contract line instead (Hauling: 2 To Ruin ... Direct From Ruin), which is what they pay by. A logged in player types in what
   the log does not say: the aUEC, MG scrip and Council scrip it pays, another name, the giver (each field saved as soon as it changes, in the
-  background; the Notes column is gone, what was typed in it stays in the database). The scrip columns are narrow (a mission pays two figures at most,
+  background; the Notes column is gone, what was typed in it stays in the database). 20 kinds to a page, the ones played last first; the page keeps
+  itself up to date (`missions.js` asks `/missions/version` every few seconds and gets the list again when it changed, not while you type in it), so
+  a mission you take comes to the top within seconds, marked **Playing now** (taken in the last six hours and not ended). A mission the player took
+  himself is in it also when the log never says which offer it is (most missions with comms, like bounties, do not); one shared with him whose offer
+  never showed is the other account's. The scrip columns are narrow (a mission pays two figures at most,
   their headers on two lines), so the mission and the giver have the room.
   **Without rewards** lists the ones nobody filled in yet. It shows how often each was taken, completed, failed and abandoned, and when it was played
   last. The other tools count with it: the Session tool (all of it), the Gauntlet Tracker (the scenarios) and the Hauling Planner (the aUEC of a Hauling
