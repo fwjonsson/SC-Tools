@@ -1,5 +1,6 @@
 using System.Net;
 using SCTools.Gauntlet;
+using SCTools.Server;
 
 namespace SCTools.Tests.ServerPages;
 

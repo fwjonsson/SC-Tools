@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
+using SCTools.Gauntlet;
 using SCTools.Missions;
 using SCTools.Server;
 using SCTools.Server.Data;
