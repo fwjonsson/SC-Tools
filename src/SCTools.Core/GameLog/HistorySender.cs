@@ -85,26 +85,27 @@ public sealed class HistorySender
 
     async Task SendAsync(string id, string path, CancellationToken ct)
     {
+        // line by line: a backup log can be hundreds of megabytes (a game that spammed its log), and only the few lines the tracker reads are kept
         var filter = new LineFilter();
         var kept = new List<string>();
-        DateTime? last = null;
-        string text;
-        using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+        string? lastStamped = null;   // the last line that starts with a time: when the game ended
+        using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16))
         using (var reader = new StreamReader(fs, Encoding.UTF8))
-            text = await reader.ReadToEndAsync(ct);
-        foreach (var raw in text.Split('\n'))
         {
-            var line = raw.TrimEnd('\r');
-            if (filter.Keep(line)) kept.Add(line);
-            if (line.Length > 0 && line[0] == '<') last = HaulingLog.TimeOf(line) ?? last;
+            while (await reader.ReadLineAsync(ct) is { } line)
+            {
+                if (filter.Keep(line)) kept.Add(line);
+                if (line.Length > 3 && line[0] == '<' && char.IsDigit(line[1])) lastStamped = line;
+            }
         }
+        var last = lastStamped == null ? null : HaulingLog.TimeOf(lastStamped);
         var b = BuildInName.Match(System.IO.Path.GetFileName(path));
         var build = b.Success ? b.Groups["b"].Value : null;
 
         long from = 0;
         while (true)
         {
-            var piece = kept.Skip((int)from).Take(PieceLines).ToList();
+            var piece = kept.GetRange((int)from, (int)Math.Min(PieceLines, kept.Count - from));
             var done = from + piece.Count >= kept.Count;
             var result = await _server.HistoryAsync(id, from, piece, done, done ? last : null, done ? build : null, ct);
             if (!result.Ok)
