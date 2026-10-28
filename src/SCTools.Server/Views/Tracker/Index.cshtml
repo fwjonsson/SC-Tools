@@ -1,3 +1,4 @@
+@model TrackerPage
 @using SCTools.GameLog
 @using SCTools.Server.Controllers
 @{
@@ -7,6 +8,21 @@
 <p class="muted">The small program on your gaming PC that the tools need. It sits in the tray, reads Star Citizen's Game.log while you play and sends the
   lines the tools use to this site. The rest of the log stays on your PC, and it never touches the game itself.</p>
 <p><a class="button" href="@TrackerController.Download">Download SCToolsTracker.zip</a></p>
+
+@if (Model.Player != null)
+{
+  <h2>Your tracker</h2>
+  <p class="tracker @(Model.Newest == true ? "good" : Model.Newest == false ? "stale" : "muted")">@Model.Line</p>
+  @if (Model.Newest == false)
+  {
+    <p class="hint">It updates itself when it starts and every six hours. To update now: right-click its tray icon and pick <b>Check for an update
+      now</b>. When it has restarted, this page (reload it) says it is the newest.</p>
+  }
+  else
+  {
+    <p class="hint">It says its version every time it is in touch: when it starts, and all the time while you play.</p>
+  }
+}
 
 <h2>Set it up</h2>
 <ol class="steps">
@@ -19,7 +35,7 @@
 
 <h2>Good to know</h2>
 <ul>
-  <li>It updates itself to the newest build, when it starts and every six hours.</li>
+  <li>It updates itself to the newest build, when it starts and every six hours. Logged in, this page shows which version yours runs.</li>
   <li><b>Start with Windows</b> in its menu is off until you turn it on.</li>
   <li>No key yet? Ask Frank: a key is made for your name in the game.</li>
 </ul>

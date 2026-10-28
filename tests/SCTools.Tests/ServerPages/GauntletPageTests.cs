@@ -34,6 +34,9 @@ public class GauntletPageTests
         var player = await f.Player(f.AddKey("zzoega"));
         var page = await player.GetStringAsync("/gauntlet");
         Assert.Contains("227,750", page);
+        var stats = await player.GetStringAsync("/gauntlet/stats?scenario=7");
+        Assert.Contains("<option value=\"7\" selected=\"selected\">#7</option>", stats);
+        Assert.Contains("action=\"/gauntlet/stats#top10\" class=\"line\" data-autosave", stats);   // picking a scenario shows it: no Show button
         var ranking = await player.GetStringAsync("/gauntlet/ranking");
         Assert.Contains("Earnings ranking", ranking);
         Assert.Contains("Earlier grind sessions", page);   // his run of 30 Sep was a grind session by itself

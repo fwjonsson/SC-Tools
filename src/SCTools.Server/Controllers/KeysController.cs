@@ -21,31 +21,42 @@ public sealed class KeysController : Controller
     readonly TrackerKeys _keys;
     readonly LiveTracker _live;
     readonly UserManager<IdentityUser> _users;
+    readonly TrackerVersions _versions;
 
-    public KeysController(DataStore store, TrackerKeys keys, LiveTracker live, UserManager<IdentityUser> users)
+    public KeysController(DataStore store, TrackerKeys keys, LiveTracker live, UserManager<IdentityUser> users, TrackerVersions versions)
     {
         _store = store;
         _keys = keys;
         _live = live;
         _users = users;
+        _versions = versions;
     }
 
-    KeysModel Page(NewKeyForm? form = null) => new()
+    async Task<KeysModel> Page(NewKeyForm? form = null)
     {
-        Keys = _store.TrackerKeys()
-            .Select(k => new KeyLine(k.Id, k.Player, k.CreatedUtc.ToLocalTime().ToString("d MMM yyyy HH:mm", CultureInfo.CurrentCulture)))
-            .ToList(),
-        Party = _live.Read(t => t.State.Data.Party.ToList()),
-        New = form ?? new NewKeyForm(),
-    };
+        var now = DateTime.UtcNow;
+        var newest = await _versions.NewestAsync(now);
+        return new KeysModel
+        {
+            Keys = _store.TrackerKeys()
+                .Select(k =>
+                {
+                    var (tracker, isNew) = TrackerVersions.Describe(_versions.Of(k.Player), newest, now);
+                    return new KeyLine(k.Id, k.Player, k.CreatedUtc.ToLocalTime().ToString("d MMM yyyy HH:mm", CultureInfo.CurrentCulture), tracker, isNew);
+                })
+                .ToList(),
+            Party = _live.Read(t => t.State.Data.Party.ToList()),
+            New = form ?? new NewKeyForm(),
+        };
+    }
 
     [HttpGet("")]
-    public IActionResult Index() => View(Page());
+    public async Task<IActionResult> Index() => View(await Page());
 
     [HttpPost("")]
-    public IActionResult Make([Bind(Prefix = "New")] NewKeyForm form)
+    public async Task<IActionResult> Make([Bind(Prefix = "New")] NewKeyForm form)
     {
-        if (!ModelState.IsValid) return View("Index", Page(form));
+        if (!ModelState.IsValid) return View("Index", await Page(form));
         var key = TrackerKeys.NewKey();
         _store.AddTrackerKey(form.Player, key, DateTime.UtcNow);
         _keys.Reload(_store.TrackerKeys());

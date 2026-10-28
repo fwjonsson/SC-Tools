@@ -13,7 +13,8 @@ public sealed class KeysModel
     public NewKeyForm New { get; set; } = new();
 }
 
-public sealed record KeyLine(int Id, string Player, string Created);
+/// <summary>A key: for whom, when it was made, and his tracker (TrackerVersions.Describe; Newest: its colour).</summary>
+public sealed record KeyLine(int Id, string Player, string Created, string Tracker, bool? Newest);
 
 /// <summary>A new key for a player.</summary>
 public sealed class NewKeyForm
@@ -32,3 +33,6 @@ public sealed class KeyMadeModel
     public string Key { get; set; } = "";
     public string ServerUrl { get; set; } = "";
 }
+
+/// <summary>The Tracker page: for a logged in player, a line about his tracker (TrackerVersions.Describe) and whether it is the newest.</summary>
+public sealed record TrackerPage(string? Player, string? Line, bool? Newest);

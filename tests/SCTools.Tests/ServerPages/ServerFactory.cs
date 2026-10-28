@@ -30,6 +30,9 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
     /// <summary>The logs decide who is active (AutoParty), as on the real server. Off by default, so the other tests keep the Active ticks they set.</summary>
     public bool FollowParty { get; init; }
 
+    /// <summary>The commit of the newest tracker build, as GitHub would say (the tests never ask GitHub).</summary>
+    public string? NewestTracker { get; init; } = "abcdef1" + new string('0', 33);
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         Directory.CreateDirectory(Dir);
@@ -50,6 +53,7 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
         // every login is checked again on every request (the server does it every minute), so a test sees what a login keeps after that check
         builder.ConfigureTestServices(s =>
         {
+            s.AddSingleton(new TrackerVersions(_ => Task.FromResult(NewestTracker)));
             s.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero);
         });
     }

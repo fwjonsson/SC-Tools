@@ -3,19 +3,24 @@ using System.Net.Http.Json;
 
 namespace SCTools.GameLog;
 
-/// <summary>The server over the internet: every request carries the tracker's key (X-Tracker-Key), which says whose log it is.</summary>
+/// <summary>
+/// The server over the internet: every request carries the tracker's key (X-Tracker-Key), which says whose log it is, and its version (X-Tracker-Version:
+/// the commit it was built from, or "own build"), so the site can say whether it updated.
+/// </summary>
 public sealed class HttpLogServer : ILogServer, IHistoryServer, IDisposable
 {
     readonly HttpClient _http;
 
     /// <param name="baseUrl">the address of the site, like https://sc-tools.fwjonsson.dev</param>
-    public HttpLogServer(string baseUrl, string key, HttpMessageHandler? handler = null)
+    /// <param name="version">the tracker's version (null: the commit this program was built from)</param>
+    public HttpLogServer(string baseUrl, string key, HttpMessageHandler? handler = null, string? version = null)
     {
         _http = handler == null ? new HttpClient() : new HttpClient(handler);
         _http.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
         _http.Timeout = TimeSpan.FromSeconds(30);
         _http.DefaultRequestHeaders.Add("X-Tracker-Key", key);
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("SCTools-tracker");
+        _http.DefaultRequestHeaders.Add("X-Tracker-Version", version ?? SCTools.Updates.Updater.OwnCommit?[..7] ?? "own build");
     }
 
     sealed record At(long at);
