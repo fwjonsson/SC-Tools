@@ -120,6 +120,30 @@ public class MissionLibraryTests
     }
 
     [Fact]
+    public void Bounties_are_one_kind_by_their_kind_and_risk_and_the_old_kinds_by_target_are_put_together()
+    {
+        using var f = new ServerFactory();
+        f.Services.GetRequiredService<MissionLibrary>().Entries();   // the server's own library is ready before the old rows go in
+        using (var db = f.Store.Open())
+        {
+            // as before: one kind per target, one of them with its reward typed in
+            db.MissionKinds.Add(new MissionKindRow { Key = "reclusive bounty: craig clayden | extreme risk [300 rep]", Title = "Reclusive Bounty: Craig Clayden | Extreme Risk [300 Rep]",
+                Auec = 120_000, Giver = "Bounty Hunters Guild", EditedBy = "zzoega", EditedUtc = new DateTime(2026, 10, 28, 13, 30, 0, DateTimeKind.Utc) });
+            db.Missions.Add(new MissionRow { Player = "zzoega", MissionId = "b264817b-8471-4ddc-9e31-36496ff9a46f", ContractId = "", Title = "Reclusive Bounty: Craig Clayden | Extreme Risk [300 Rep]",
+                Kind = "reclusive bounty: craig clayden | extreme risk [300 rep]", StartedUtc = new DateTime(2026, 10, 28, 13, 18, 34, DateTimeKind.Utc) });
+            db.SaveChanges();
+        }
+        var library = new MissionLibrary(f.Store, f.Live.Uploads, f.Services.GetRequiredService<ServerPaths>(), f.Live);   // as when the server starts
+        // another target of the same risk, from the log
+        var bounty = "<2026-10-28T14:00:00.000Z> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Accepted:  Reclusive Bounty: Kafu \"Vaco\" Dudley | Extreme Risk <EM4>[300 Rep]</EM4>: \" [85] to queue. New queue size: 1, MissionId: [f4dd25aa-c7d4-409f-8f3e-6c1a2b3c4d5e], ObjectiveId: [] [Missions][Comms]";
+        f.Upload("zzatvo", new[] { bounty });
+        library.Collect();
+        var entries = library.Entries();
+        var kind = Assert.Single(entries, e => e.Row.Title.StartsWith("Reclusive Bounty", StringComparison.Ordinal));
+        Assert.Equal(("Reclusive Bounty | Extreme Risk [300 Rep]", 2, 120_000L, "Bounty Hunters Guild"), (kind.Row.Title, kind.Taken, kind.Row.Auec!.Value, kind.Row.Giver));
+    }
+
+    [Fact]
     public async Task The_missions_of_the_old_logs_are_in_it_too_also_when_they_came_before_the_library()
     {
         using var f = new ServerFactory();

@@ -37,3 +37,28 @@ public class MissionKindsTests
         Assert.Equal("x", MissionKinds.Better(null, "x"));
     }
 }
+
+/// <summary>A bounty is a kind by its kind and risk, not by its target (that is what it pays by); a target with a nickname in quotes is read whole.</summary>
+public class BountyKindsTests
+{
+    [Theory]
+    [InlineData("Reclusive Bounty: Kafu \"Vaco\" Dudley | Extreme Risk [300 Rep]", "Reclusive Bounty | Extreme Risk [300 Rep]")]   // zzatvo's log, 26 Oct
+    [InlineData("Reclusive Bounty: Craig Clayden | Extreme Risk [300 Rep]", "Reclusive Bounty | Extreme Risk [300 Rep]")]
+    [InlineData("Reclusive Bounty: ~mission(TargetName) | Very-High Risk [250 Rep]", "Reclusive Bounty | Very-High Risk [250 Rep]")]   // not filled in yet
+    [InlineData("Reclusive Bounty: Somebody", "Reclusive Bounty")]
+    [InlineData("Stop Rival Attack at Asteroid Mining Base [200 Rep] [BP]*", "Stop Rival Attack at Asteroid Mining Base [200 Rep] [BP]*")]
+    public void A_bounty_is_its_kind_and_risk(string title, string kind)
+    {
+        Assert.Equal(kind, MissionKinds.KindTitle(title));
+        Assert.Equal(MissionKinds.TitleKey(kind), MissionKinds.TitleKey(title));
+    }
+
+    [Fact]
+    public void A_name_with_quotes_in_it_is_read_whole()
+    {
+        var reader = new MissionReader();
+        reader.ProcessLine("<2026-10-26T18:16:53.811Z> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Accepted:  Reclusive Bounty: Kafu \"Vaco\" Dudley | Extreme Risk <EM4>[300 Rep]</EM4>: \" [85] to queue. New queue size: 1, MissionId: [f4dd25aa-c7d4-409f-8f3e-6c1a2b3c4d5e], ObjectiveId: [] [Team_CoreGameplayFeatures][Missions][Comms]");
+        var m = Assert.Single(reader.Missions);
+        Assert.Equal("Reclusive Bounty: Kafu \"Vaco\" Dudley | Extreme Risk [300 Rep]", m.Title);
+    }
+}

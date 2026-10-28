@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace SCTools.Missions;
 
 /// <summary>
@@ -14,9 +16,25 @@ public static class MissionKinds
 
     public static string HaulingKey(string contract) => HaulingPrefix + contract.Trim().ToLowerInvariant();
 
-    /// <summary>A name as a key: the same letters in any case, any run of spaces as one.</summary>
+    static readonly Regex Bounty = new(@"^(?<kind>[^:|]*\bBounty):\s*(?<target>.*?)(?:\s*\|\s*(?<risk>.+))?$", RegexOptions.Compiled);
+
+    /// <summary>
+    /// The name of the kind a mission's name is: the name itself, but a bounty by its kind and risk, not by its target, because that is what it pays by
+    /// ("Reclusive Bounty: Kafu "Vaco" Dudley | Extreme Risk [300 Rep]" is "Reclusive Bounty | Extreme Risk [300 Rep]", and so is the one whose target the
+    /// game had not filled in yet). Null while it has no name.
+    /// </summary>
+    public static string? KindTitle(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return null;
+        var m = Bounty.Match(title.Trim());
+        if (!m.Success) return title.Trim();
+        return m.Groups["risk"].Success ? m.Groups["kind"].Value.Trim() + " | " + m.Groups["risk"].Value.Trim() : m.Groups["kind"].Value.Trim();
+    }
+
+    /// <summary>A name as a key: the name of its kind (KindTitle), the same letters in any case, any run of spaces as one.</summary>
     public static string? TitleKey(string? title)
     {
+        title = KindTitle(title);
         if (string.IsNullOrWhiteSpace(title)) return null;
         return string.Join(' ', title.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).ToLowerInvariant();
     }

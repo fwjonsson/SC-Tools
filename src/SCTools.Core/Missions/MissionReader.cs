@@ -24,7 +24,7 @@ public sealed class MissionReader
     static readonly Regex Contract = new(@"ContractId: \[(?<c>[0-9a-fA-F-]{36})\]\.? MissionId: \[?(?<m>[0-9a-fA-F-]{36})", RegexOptions.Compiled);
 
     static readonly Regex Note = new(
-        "^<(?<ts>[^>]+)> \\[Notice\\] <SHUDEvent_OnNotification> Added notification \"Contract (?<k>Accepted|Shared|Complete|Failed):\\s*(?<t>[^\"]*?)\\s*\" \\[\\d+\\].*?MissionId: \\[(?<m>[0-9a-fA-F-]{36})\\]",
+        "^<(?<ts>[^>]+)> \\[Notice\\] <SHUDEvent_OnNotification> Added notification \"Contract (?<k>Accepted|Shared|Complete|Failed):\\s*(?<t>.*?)\\s*\" \\[\\d+\\].*?MissionId: \\[(?<m>[0-9a-fA-F-]{36})\\]",
         RegexOptions.Compiled);
 
     static readonly Regex End = new(
