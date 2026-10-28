@@ -8,7 +8,7 @@
     var back = "/admin/places" + (Model.System.Length > 0 ? "?system=" + Model.System : "");
 
     // every place to pick, by system and by name
-    void PlaceOptions(string? selected)
+    async Task PlaceOptions(string? selected)
     {
         foreach (var s in StarMap.Systems)
         {
@@ -50,7 +50,7 @@ else
             <select name="key" aria-label="What it is">
               <option value="" selected>Pick what it is…</option>
               <option value="@MapPlaces.NotAPlace">Not a place to show</option>
-              @{ PlaceOptions(null); }
+              @{ await PlaceOptions(null); }
             </select>
             <button>Save</button>
             <a href="/admin/places?add=@Uri.EscapeDataString(u.Text)#add" class="small">add it</a>
@@ -167,7 +167,7 @@ else
   <label for="addAt">Where: at a place <span class="muted">(in the same system: a station at a planet goes in its orbit)</span></label>
   <select id="addAt" name="at">
     <option value="">— or type X and Y below —</option>
-    @{ PlaceOptions(null); }
+    @{ await PlaceOptions(null); }
   </select>
   <label>Or X and Y in its system <span class="muted">(Gm, the star at 0, 0; the Wiki's positions are in metres: divide by 1,000,000,000)</span></label>
   <div class="buttons">
