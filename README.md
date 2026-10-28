@@ -275,10 +275,12 @@ admin (done), then going live.
   old addresses are removed from the Cloudflare tunnel (and from `OldHosts` in the server's settings). The plan of the tools is `claude/sc-tools-roadmap.md` in the
   project. The landing page has the title over faint orbit rings (like the Pyro map) and a card per tool, centred, each in the tool's colour with its
   icon and what it shows now (the hauling session, your gauntlet runs this week, the missions left to fill in). Every page has the same bar at the top
-  (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards), the tools the viewer sees (the one he is in
-  marked), and on the right **Tracker** (its page: download and setup), who is logged in, My page, Admin and Log out (or Log in); on a phone all of it
-  is behind a menu button. The pages of the site end with a footer: the tracker's download, how to set it up, and the disclaimer. The admin's pages have
-  a second row under it with his pages (Session, Party, Contracts, Debts, Tracker keys, Tools, Account).
+  (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards), the tools the viewer sees, and on the right
+  **Tracker** (its page: download and setup), who is logged in, My page, Admin and Log out (or Log in); on a phone all of it is behind a menu button.
+  The part of the site you are in is marked in its own colour: a tool (by its address, `/gauntlet/stats` too) in the colour of its card, My page in
+  green, Admin in red on the admin's pages and his account. The pages of the site end with a footer: the tracker's download, how to set it up, and the
+  disclaimer. The admin's pages have a second row under it with his pages (Session, Party, Contracts, Debts, Gauntlet, Scrip, Map places, Tracker
+  keys, Tools, Account), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
 - **The admin's pages** change what the program changes, with the same logic (`Editing/Edits.cs`, each change saved and worked out again at once):
   **Session** (`/admin`: the session, which starts and stops by itself (below), Next Stops locked or not, the mission rewards (shown: they are set in the Mission Library), the start time, the names and notes of the stops, the lost
   cargo of the runs, the SCU of from-Ruin drop-offs the game did not tell), **Party** (add, remove, active, ship, drive, colour, location of every

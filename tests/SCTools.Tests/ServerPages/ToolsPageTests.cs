@@ -67,23 +67,29 @@ public class ToolsPageTests
         var live = await visitor.GetStringAsync("/hauling");
         Assert.Contains("<body class=\"tool\">\n<header class=\"topbar\">", live);   // the hauling tracker's own page has the bar at the top
         Assert.Contains("<a class=\"brand\" href=\"/\">SC Tools</a>", live);   // back to the cards
-        Assert.Contains("<a href=\"/hauling\" class=\"on\">Hauling Planner</a>", live);   // the tool you are in
+        Assert.Contains("<a href=\"/hauling\" class=\"on\" aria-current=\"page\" style=\"--tool:#4682ff\">Hauling Planner</a>", live);   // the tool you are in, in its colour
         Assert.Contains("href=\"/topbar.css?v=", live);   // with its version, so a new look is never an old one from a cache
         Assert.Contains("<a href=\"/login\">Log in</a>", live);
         Assert.DoesNotContain("position:absolute", live);   // the old links in the corner are gone
         Assert.Equal(HttpStatusCode.OK, (await visitor.GetAsync("/topbar.css")).StatusCode);
 
         var home = await visitor.GetStringAsync("/");
-        Assert.Contains("<a href=\"/hauling\">Hauling Planner</a>", home);   // the same bar on the landing page, no tool marked
+        Assert.Contains("<a href=\"/hauling\" style=\"--tool:#4682ff\">Hauling Planner</a>", home);   // the same bar on the landing page, no tool marked
 
         var admin = await f.Admin();
         live = await admin.GetStringAsync("/hauling");
-        Assert.Contains("<a href=\"/admin\">Admin</a>", live);
+        Assert.Contains("<a href=\"/admin\" class=\"area\" style=\"--tool:#e5534b\">Admin</a>", live);
         var party = await admin.GetStringAsync("/admin/party");
-        Assert.Contains("<nav class=\"subnav\">", party);   // the admin's pages under the bar, the one he is on marked
-        Assert.Contains("<a href=\"/admin/party\" class=\"on\">Party</a>", party);
+        Assert.Contains("<a href=\"/admin\" class=\"area on\" aria-current=\"page\" style=\"--tool:#e5534b\">Admin</a>", party);   // in the admin's part
+        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#e5534b\">", party);   // the admin's pages under the bar, in Admin's colour
+        Assert.Contains("<a href=\"/admin/party\" class=\"on\">Party</a>", party);   // the one he is on marked
         Assert.Contains("<a href=\"/admin\">Session</a>", party);
-        Assert.DoesNotContain("<nav class=\"subnav\">", await admin.GetStringAsync("/"));
+        Assert.Contains("aria-current=\"page\" style=\"--tool:#e5534b\">Admin</a>", await admin.GetStringAsync("/account"));
+        Assert.DoesNotContain("<nav class=\"subnav", await admin.GetStringAsync("/"));
+        // a tool's page has its tool marked (from its address), the admin's Gauntlet page does not mark the Gauntlet Tracker
+        Assert.Contains("<a href=\"/map\" class=\"on\" aria-current=\"page\"", await admin.GetStringAsync("/map"));
+        Assert.Contains("<a href=\"/gauntlet\" class=\"on\" aria-current=\"page\"", await admin.GetStringAsync("/gauntlet/stats"));
+        Assert.DoesNotContain("<a href=\"/gauntlet\" class=\"on\"", await admin.GetStringAsync("/admin/gauntlet"));
 
         // Log out from the hauling tracker's page: its form has the token
         var r = await admin.PostAsync("/logout", new FormUrlEncodedContent(new[] { KeyValuePair.Create("__RequestVerificationToken", ServerFactory.Token(live)) }));

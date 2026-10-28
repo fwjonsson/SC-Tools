@@ -8,6 +8,10 @@ a { color:inherit; }
 .subnav a { text-decoration:none; padding:4px 10px; border-radius:4px; }
 .subnav a:hover { background:var(--cell); }
 .subnav a.on { background:var(--header); color:#fff; }
+/* the admin's row of pages: in the colour of Admin in the bar above (--tool), so it is plain where it comes from */
+.subnav.area { background:color-mix(in srgb, var(--tool) 8%, var(--bg)); border-top:2px solid var(--tool); }
+.subnav.area a:hover { background:color-mix(in srgb, var(--tool) 16%, transparent); }
+.subnav.area a.on { background:color-mix(in srgb, var(--tool) 32%, transparent); box-shadow:inset 0 -2px 0 var(--tool); }
 main { padding:8px 18px 40px; max-width:900px; }
 h1 { font-size:22px; margin:18px 0 8px; }
 h2 { font-size:16px; margin:24px 0 8px; }

@@ -13,11 +13,11 @@
 <body>
 @* the bar of the site (TopBar.cs, the same on the tools' own pages); under it on the admin's pages, his pages *@
 @Html.Raw(TopBar.Html(Context, Tools))
-@if (User.IsInRole(Roles.Admin) && (Context.Request.Path.StartsWithSegments("/admin") || Context.Request.Path.StartsWithSegments("/account")))
+@if (TopBar.InAdmin(Context))
 {
   var path = (Context.Request.Path.Value ?? "").TrimEnd('/');
   bool On(string href) => href == "/admin" ? string.Equals(path, href, StringComparison.OrdinalIgnoreCase) : path.StartsWith(href, StringComparison.OrdinalIgnoreCase);
-  <nav class="subnav">
+  <nav class="subnav area" style="--tool:@TopBar.AdminColor">
     @foreach (var (href, text) in new[] { ("/admin", "Session"), ("/admin/party", "Party"), ("/admin/contracts", "Contracts"), ("/admin/debts", "Debts"),
                                          ("/admin/gauntlet", "Gauntlet"), ("/admin/scrip", "Scrip"), ("/admin/places", "Map places"), ("/admin/keys", "Tracker keys"), ("/admin/tools", "Tools"),
                                          ("/account", "Account") })

@@ -5,7 +5,12 @@
 .topbar .toolnav { display:flex; gap:6px; flex:1; font-weight:600; flex-wrap:wrap; }
 .topbar .toolnav a { text-decoration:none; padding:5px 12px; border-radius:4px; }
 .topbar .toolnav a:hover { background:#151b23; }
-.topbar .toolnav a.on { background:#1f4b7a; color:#fff; }   /* the tool you are in */
+/* the part of the site you are in (a tool, My page, Admin): in its own colour (--tool, set on the link: a tool's is the colour of its card) */
+.topbar .toolnav a.on, .topbar .who a.on { background:#1f4b7a; background:color-mix(in srgb, var(--tool, #4682ff) 30%, transparent); color:#fff;
+  box-shadow:inset 0 -2px 0 var(--tool, #4682ff); }
+.topbar .who a.area { text-decoration:none; padding:5px 12px; border-radius:4px; font-weight:600; }
+.topbar .who a.area:hover { background:#151b23; }
+.topbar .who a.area.on:hover { background:color-mix(in srgb, var(--tool, #4682ff) 38%, transparent); }
 .topbar .who { display:flex; gap:14px; align-items:center; color:#c9d1d9; }
 .topbar .who .dl { display:inline-flex; gap:6px; align-items:center; text-decoration:none; font-weight:600; color:#e6edf3; }
 .topbar .who .dl svg { width:15px; height:15px; }
@@ -22,6 +27,7 @@
   .topbar .toolnav { flex-direction:column; gap:2px; }
   .topbar .toolnav a { padding:10px 12px; font-size:16px; }
   .topbar .who { flex-direction:column; align-items:flex-start; gap:12px; margin-top:6px; padding:12px 12px 6px; border-top:1px solid #2f3a48; font-size:15px; }
+  .topbar .who a.area { padding:8px 12px; margin-left:-12px; }
 }
 .topbar form.inline { display:inline; margin:0; }
 .topbar button.link { font:inherit; font-weight:400; background:none; border:none; padding:0; margin:0; color:inherit; text-decoration:underline; cursor:pointer; }
