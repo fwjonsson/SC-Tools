@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-// The web app: the trackers upload their logs (api/log), the server works out the sessions every two seconds, and the page shows them (/, data.json).
+// The web app: the trackers upload their logs (api/log), the server works out the sessions every two seconds, and the pages show them (/hauling, data.json).
 // The data (the party, the sessions, the payouts, the debts...) is in the database; the first time the program's data file goes into it. The admin logs in
 // with a password, a player with his tracker; the pages to change things are MVC (Controllers, Models, Views).
 var builder = WebApplication.CreateBuilder(args);
@@ -101,6 +101,7 @@ using (var scope = app.Services.CreateScope())
 
 // behind the Cloudflare tunnel the page is https: the tunnel says so, and the login cookie is then only sent over https
 app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto });
+app.UseOldAddresses(settings);   // haulingtracker.fwjonsson.dev: the same page at sct.fwjonsson.dev (the trackers' uploads are still taken)
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();

@@ -23,14 +23,10 @@ public sealed class PageController : Controller
     /// <summary>A hidden tool's page: the login for somebody not logged in, "not for you" for a player.</summary>
     IActionResult Hidden() => User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
 
-    /// <summary>
-    /// The landing page: a card for every tool. The old address of the hauling tracker (haulingtracker.fwjonsson.dev, which the trackers use) goes straight
-    /// to the hauling tracker, as it always did.
-    /// </summary>
+    /// <summary>The landing page: a card for every tool.</summary>
     [HttpGet("/")]
     public IActionResult Home()
     {
-        if (Request.Host.Host.StartsWith("haulingtracker.", StringComparison.OrdinalIgnoreCase)) return LocalRedirect("/hauling");
         var cards = SiteTools.All.Where(t => _tools.Sees(User, t)).Select(t => new HomeCard(t, !_tools.IsPublic(t))).ToList();
         return View("~/Views/Home/Index.cshtml", _live.Read(t => new HomeModel(t.State.Current == null ? "" : BoardTexts.DescribeSession(t.State.Current), cards)));
     }

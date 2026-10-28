@@ -21,6 +21,15 @@ public sealed class ServerSettings
     /// <summary>How numbers and dates are written (sv-SE: 3 614 083, like the program on Frank's computer).</summary>
     public string Culture { get; set; } = "sv-SE";
 
+    /// <summary>The address of the site: the pages asked for at an old address (OldHosts) are sent here (OldAddress).</summary>
+    public string Address { get; set; } = HaulingTracker.GameLog.SiteAddress.Current;
+
+    /// <summary>
+    /// The site's old host names (still in the Cloudflare tunnel): their pages go to the same page at Address for good, and the trackers' uploads are still
+    /// taken there until every tracker has updated itself to the new address. Empty: none.
+    /// </summary>
+    public string[] OldHosts { get; set; } = { HaulingTracker.GameLog.SiteAddress.OldHost };
+
     /// <summary>The logs decide who of the party is active (the in-game party and the trackers, see AutoParty); the admin can still set In or Out.</summary>
     public bool FollowParty { get; set; } = true;
 
