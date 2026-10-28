@@ -53,7 +53,9 @@ public class SessionPageTests
         Assert.Contains("<td>Quit</td>", page);
         Assert.Contains("<td>Crashed</td>", page);
         Assert.Contains("<td>Playing</td>", page);
-        Assert.Contains("3:00:00", page);   // all time: 2 h + 1 h of old games, and the 50 minutes now (shown in hours there)
+        Assert.Contains("<td class=\"right\">2:00:00</td>", page);   // the old games' lengths
+        Assert.Contains("<td class=\"right\">1:00:00</td>", page);
+        Assert.Contains("3.8 h", page);   // all time: 2 h + 1 h, and the 50 minutes of the game now
 
         // the reward typed in afterwards counts for the past
         var library = f.Services.GetRequiredService<MissionLibrary>();
