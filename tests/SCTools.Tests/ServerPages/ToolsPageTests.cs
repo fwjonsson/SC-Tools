@@ -68,7 +68,7 @@ public class ToolsPageTests
         Assert.Contains("<body class=\"tool\">\n<header class=\"topbar\">", live);   // the hauling tracker's own page has the bar at the top
         Assert.Contains("<a class=\"brand\" href=\"/\">SC Tools</a>", live);   // back to the cards
         Assert.Contains("<a href=\"/hauling\" class=\"on\">Hauling Planner</a>", live);   // the tool you are in
-        Assert.Contains("href=\"/topbar.css\"", live);
+        Assert.Contains("href=\"/topbar.css?v=", live);   // with its version, so a new look is never an old one from a cache
         Assert.Contains("<a href=\"/login\">Log in</a>", live);
         Assert.DoesNotContain("position:absolute", live);   // the old links in the corner are gone
         Assert.Equal(HttpStatusCode.OK, (await visitor.GetAsync("/topbar.css")).StatusCode);
