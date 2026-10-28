@@ -201,7 +201,8 @@ admin (done), then going live.
   server (`https://sc-tools.fwjonsson.dev`; a tracker with an old address, haulingtracker or sct, saved moves to it by itself, `SiteAddress`; the settings are in `%AppData%\SCTools\tracker.json`), your **key** (Frank gives every player his own; **Test** asks the server whose key it is), the Star Citizen folder and the log channel. Every
   3 seconds it uploads what is new in the Game.log, and the backup logs of the last day, from where the server is, so nothing is sent twice (also after a
   restart of the tracker or the game). It only sends the lines the tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money
-  transfers, the freight elevator and the loading platform); the rest of the game's log stays on the PC. It can start with Windows, and it updates itself.
+  transfers, the freight elevator and the loading platform); the rest of the game's log stays on the PC. It can start with Windows, and it updates itself
+  (it looks when it starts and every half hour, so a new kind of line the site reads comes from every tracker soon after it is merged).
   Every request says its version (`X-Tracker-Version`: the commit it was built from), so the site knows whether it updated: the `/tracker` page shows a
   logged in player his own tracker's version (the newest or not, and when it was last in touch), the admin's Keys page everybody's (`TrackerVersions`;
   the newest build is the "latest" release on GitHub, asked at most every 10 minutes).

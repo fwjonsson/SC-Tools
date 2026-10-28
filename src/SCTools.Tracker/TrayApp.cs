@@ -233,7 +233,10 @@ sealed class TrayApp : ApplicationContext
         }
     }
 
-    /// <summary>Looks for a newer tracker at start and every six hours, and puts it in place (a build made on your own computer never updates).</summary>
+    /// <summary>How often a running tracker looks for a newer one: a new kind of line the site reads only comes from trackers that updated.</summary>
+    static readonly TimeSpan UpdateEvery = TimeSpan.FromMinutes(30);
+
+    /// <summary>Looks for a newer tracker at start and every half hour, and puts it in place (a build made on your own computer never updates).</summary>
     async Task UpdateLoopAsync()
     {
         try { await Task.Delay(TimeSpan.FromSeconds(20), _stop.Token); }
@@ -241,7 +244,7 @@ sealed class TrayApp : ApplicationContext
         while (!_stop.IsCancellationRequested)
         {
             await TryUpdateAsync();
-            try { await Task.Delay(TimeSpan.FromHours(6), _stop.Token); }
+            try { await Task.Delay(UpdateEvery, _stop.Token); }
             catch (TaskCanceledException) { return; }
         }
     }
