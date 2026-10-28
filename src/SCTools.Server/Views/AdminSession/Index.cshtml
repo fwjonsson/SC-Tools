@@ -27,19 +27,18 @@
 }
 
 <h2>Mission rewards</h2>
-<p class="hint">@(Model.HasSession ? "For this session, and every new session starts with them." : "No session now: the next session starts with these.") Empty = the built-in reward.</p>
-<form method="post" action="/admin/rewards" asp-antiforgery="true">
-  <table class="narrow">
-    <thead><tr><th>Contract</th><th>Mission Reward</th></tr></thead>
-    <tbody>
-    @foreach (var r in Model.Rewards)
-    {
-      <tr><td>@r.Contract</td><td><input name="rewards[@r.Index]" value="@r.Value" inputmode="numeric" class="num"></td></tr>
-    }
-    </tbody>
-  </table>
-  <button type="submit">Save the rewards</button>
-</form>
+<p class="hint">@(Model.HasSession ? "What this session pays." : "No session now: the next session pays these.") They are in the
+  <a href="/missions">Mission Library</a> (the Hauling kinds): change them there (click a contract). A change counts for the session shown and every new
+  session; an empty one is the built-in reward.</p>
+<table class="narrow">
+  <thead><tr><th>Contract</th><th class="right">Mission Reward</th></tr></thead>
+  <tbody>
+  @foreach (var r in Model.Rewards)
+  {
+    <tr><td><a href="/missions#@r.Anchor">@r.Contract</a></td><td class="right">@r.Amount</td></tr>
+  }
+  </tbody>
+</table>
 
 @if (Model.HasSession)
 {

@@ -10,7 +10,7 @@ public sealed record PlayedGame(string File, DateTime StartUtc, DateTime EndUtc,
 }
 
 /// <summary>A mission a player completed, with what the Mission Library says it pays (null: nobody typed it in yet).</summary>
-public sealed record EarnedMission(DateTime EndedUtc, string ContractId, bool Shared, long? Auec, long? Mg, long? Council)
+public sealed record EarnedMission(DateTime EndedUtc, string Kind, bool Shared, long? Auec, long? Mg, long? Council)
 {
     public bool HasReward => Auec != null || Mg != null || Council != null;
 }

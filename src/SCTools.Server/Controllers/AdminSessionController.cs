@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace SCTools.Server.Controllers;
 
 /// <summary>
-/// The admin's Session page: Start / Stop Session and Next Stops (the buttons of the program), the mission rewards, the start time, the names and notes of
+/// The admin's Session page: Start / Stop Session and Next Stops (the buttons of the program), the mission rewards (set in the Mission Library), the start time, the names and notes of
 /// the stops, the lost cargo of the runs, and the SCU of the from-Ruin drop-offs the game did not tell.
 /// </summary>
 [Route("/admin")]
@@ -25,14 +25,6 @@ public sealed class AdminSessionController : AdminControllerBase
 
     [HttpPost("locks")]
     public IActionResult ToggleLocks() => Change(Edits.ToggleLocks, Back);
-
-    [HttpPost("rewards")]
-    public IActionResult Rewards(List<string?> rewards)
-    {
-        var values = rewards.Select(Amounts.Parse).ToList();
-        if (values.Any(v => v < 0)) return Say("A reward cannot be below 0.", Back);
-        return Change(t => Edits.SetRewards(t, values), Back);
-    }
 
     [HttpPost("start-time")]
     public IActionResult StartTime(string? startTime) => Change(t => Edits.SetStartTime(t, startTime), Back);
