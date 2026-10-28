@@ -48,6 +48,29 @@ public class MapPageTests
     }
 
     [Fact]
+    public async Task A_bounty_is_in_the_list_and_a_jump_at_its_marker_puts_him_at_the_mission()
+    {
+        using var f = new ServerFactory();
+        var now = DateTime.UtcNow;
+        var m = GameLogWriter.MissionId(5);
+        const string beacon = "MISSION_QT_Quantum_Beacon_LongRange_865476577647";
+        // zzoega took a bounty in Nyx at Levski (the game gives its marker no position) and jumped at its marker, with no destination picked
+        var his = new GameLogWriter().At(now.AddMinutes(-6)).Login("zzoega").Inventory("zzoega", "Nyx_Levski")
+            .MissionMarker(m, GameLogWriter.BountyContract, "obj-1", "21517").ObjectivePopup(m, "obj-1", "Go to Asteroid Cluster").BeaconPaired("21517", beacon)
+            .Minutes(4).QuantumArrived("RSI_Perseus", "898683539008");
+        Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-6)), 0, 1000, his.Lines.ToList(), now).Ok);
+        var map = JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/map/map.json")).RootElement;
+
+        var z = Player(map, "zzoega");
+        Assert.Equal(("nyx", "mission", "the mission: Go to Asteroid Cluster"),
+            (z.GetProperty("system").GetString(), z.GetProperty("state").GetString(), z.GetProperty("atName").GetString()));
+        var objective = Assert.Single(map.GetProperty("objectives").EnumerateArray());
+        Assert.Equal(("nyx", "Go to Asteroid Cluster", false), (objective.GetProperty("system").GetString(), objective.GetProperty("where").GetString(),
+            objective.TryGetProperty("place", out _)));
+        Assert.Equal(1, map.GetProperty("unplaced").GetInt32());   // only in the list
+    }
+
+    [Fact]
     public async Task A_player_in_quantum_is_on_his_way_and_one_who_arrived_is_there()
     {
         using var f = new ServerFactory();

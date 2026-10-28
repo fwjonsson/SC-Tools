@@ -45,7 +45,7 @@ public sealed class Atlas
 
     /// <summary>
     /// The admin's word on a text of the log: (true, the place) or (true, null) when it is not a place to show; (false, null) when he said nothing (or the
-    /// place he named is gone). A party member's marker is never a place.
+    /// place he named is gone). A party member's marker is never a place, nor a mission's beacon or marker (MapService follows those by the missions).
     /// </summary>
     public (bool Said, Place? Place) AliasOf(string text)
     {
@@ -57,6 +57,7 @@ public sealed class Atlas
             return Find(a.Key) is { } p ? (true, p) : (false, null);
         }
         if (t.StartsWith("partymembermarker", StringComparison.Ordinal)) return (true, null);   // flying to a party member
+        if (t.StartsWith("mission_", StringComparison.Ordinal) || t.StartsWith("missionobjectivemarker", StringComparison.Ordinal)) return (true, null);   // to a mission
         return (false, null);
     }
 

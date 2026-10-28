@@ -11,6 +11,7 @@ sealed class GameLogWriter
 
     public const string HaulingContract = "RedWind_Pyro_BulkGrade_Solar_HH_StationToRuin_Carbon_CargoHauling_Multi{0}ToSingle";
     public const string WasteContract = "RedWind_Pyro_BulkGrade_RegionD_HH_RuinToStation_Waste_CargoHauling_SingleToMulti{0}";
+    public const string BountyContract = "BountyHuntersGuild_ShipWaveAttack_DrawOutBoss_Nyx_Super";   // "Reclusive Bounty: ... | Extreme Risk", in Nyx
     public const string DirectContract = "RedWind_Pyro_BulkGrade_RegionD_HH_RuinToStation_RegionC_Waste_CargoHauling_AtoB";   // "Experienced | DIRECT Stellar Large Haul | Ruin Station > Gaslight"
 
     // positions of stations as the game writes them in the objective markers (StationIds knows them)
@@ -52,6 +53,18 @@ sealed class GameLogWriter
     public GameLogWriter Marker(string mission, string contract, string objective, string zone, (double X, double Y, double Z) at) =>
         Add($"{Ts} [Notice] <CLocalMissionPhaseMarker::CreateMarker> Creating objective marker: missionId [{mission}], generator name [RedWind_Hauling], contract [{contract}], contractDefinitionId[d8c129e3-b995-4a44-82ea-c21694da0260], objectiveId [{objective}], markerEntityId [1474], zoneHostId [{zone}], position [x: {F(at.X)}, y: {F(at.Y)}, z: {F(at.Z)}] [Team_MissionFeatures][Missions]");
 
+    /// <summary>The marker of an objective the game gives no position (a bounty's: 0, 0, 0), with the marker's entity id.</summary>
+    public GameLogWriter MissionMarker(string mission, string contract, string objective, string marker) =>
+        Add($"{Ts} [Notice] <CLocalMissionPhaseMarker::CreateMarker> Creating objective marker: missionId [{mission}], generator name [BountyHuntersGuild_ShipWaveAttack], contract [{contract}], contractDefinitionId[d071209e-85e2-4946-99e4-8c1d9714dd06], objectiveId [{objective}], markerEntityId [{marker}], zoneHostId [862311775534], position [x: 0.000000, y: 0.000000, z: 0.000000] [Team_MissionFeatures][Missions]");
+
+    /// <summary>The popup of a new objective: what it says.</summary>
+    public GameLogWriter ObjectivePopup(string mission, string objective, string text) =>
+        Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"New Objective: {text}: \" [12] to queue. New queue size: 2, MissionId: [{mission}], ObjectiveId: [{objective}] [Team_CoreGameplayFeatures][Missions][Comms]");
+
+    /// <summary>The game pairs an objective's marker with its quantum beacon (the destination a player jumps to).</summary>
+    public GameLogWriter BeaconPaired(string marker, string navPoint) =>
+        Add($"{Ts} [Notice] <CObjectiveMarkerComponent::PairWithMissionNavpoint> MissionObjectiveMarker_{marker}[{marker}] - Paired with NavPoint: {navPoint}[865476577647] [Team_MissionFeatures][Missions]");
+
     public GameLogWriter Objective(string mission, string objective, string state) =>
         Add($"{Ts} [Notice] <ObjectiveUpserted> Received ObjectiveUpserted push message for: mission_id {mission} - objective_id {objective} - state MISSION_OBJECTIVE_STATE_{state} - created 0 - flags=ShowInLog| [Team_GameServices][Missions]");
 
@@ -72,14 +85,15 @@ sealed class GameLogWriter
     public GameLogWriter LoadingPlatform() =>
         Add($"{Ts} [Notice] <CSCLoadingPlatformManager::OnLoadingPlatformStateChanged> [Loading Platform] Loading Platform Manager [LoadingPlatform_FreightElevator_Util_Exterior_Manager_Pyro] Platform state changed to ClosedIdle [Team_CoreGameplayFeatures][Cargo]");
 
-    public GameLogWriter QuantumSelected(string destination) =>
-        Add($"{Ts} [Notice] <Player Selected Quantum Target - Local> [ItemNavigation][CL][33716] | NOT AUTH | CRUS_Starlifter_C2_891702459996[891702459996]|CSCItemNavigation::OnPlayerSelectedQuantumTarget|Player has selected point {destination} as their destination, routing locally [Team_CGP4][QuantumTravel]");
+    public GameLogWriter QuantumSelected(string destination, string ship = "CRUS_Starlifter_C2", string shipId = "891702459996") =>
+        Add($"{Ts} [Notice] <Player Selected Quantum Target - Local> [ItemNavigation][CL][33716] | NOT AUTH | {ship}_{shipId}[{shipId}]|CSCItemNavigation::OnPlayerSelectedQuantumTarget|Player has selected point {destination} as their destination, routing locally [Team_CGP4][QuantumTravel]");
 
     public GameLogWriter RouteStart(string from, string destination) =>
         Add($"{Ts} [Notice] <Calculate Route> [ItemNavigation][CL][33716] | NOT AUTH | CRUS_Starlifter_C2_891702459996[891702459996]|CSCItemNavigation::CalculateRoute|Projected Start Location is {from} for route to destination {destination} [Team_CGP4][QuantumTravel]");
 
-    public GameLogWriter QuantumArrived() =>
-        Add($"{Ts} [Notice] <Quantum Drive Arrived - Arrived at Final Destination> [ItemNavigation][CL][33716] | NOT AUTH | CRUS_Starlifter_C2_891702459996[891702459996]|CSCItemNavigation::OnQuantumDriveArrived|Quantum Drive has arrived at final destination [Team_CGP4][QuantumTravel]");
+    /// <summary>The ship's quantum drive arrived: in the log of everybody aboard (the pilot's has the destination he picked before it).</summary>
+    public GameLogWriter QuantumArrived(string ship = "CRUS_Starlifter_C2", string shipId = "891702459996") =>
+        Add($"{Ts} [Notice] <Quantum Drive Arrived - Arrived at Final Destination> [ItemNavigation][CL][33716] | NOT AUTH | {ship}_{shipId}[{shipId}]|CSCItemNavigation::OnQuantumDriveArrived|Quantum Drive has arrived at final destination [Team_CGP4][QuantumTravel]");
 
     public GameLogWriter Sent(string to, decimal amount) =>
         Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"You sent {to}: ").Add($"{Ts} {amount.ToString("N0", CultureInfo.InvariantCulture)} aUEC");
