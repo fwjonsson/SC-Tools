@@ -42,6 +42,7 @@ builder.Services.AddSingleton(sp =>
     return new TrackerKeys(store.TrackerKeys());
 });
 builder.Services.AddSingleton<LoginLinks>();
+builder.Services.AddSingleton<ToolAccess>();
 builder.Services.AddHostedService<RefreshService>();
 
 // the logins: ASP.NET Core Identity, its users and roles in the same database

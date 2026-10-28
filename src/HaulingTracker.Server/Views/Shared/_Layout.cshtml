@@ -1,3 +1,4 @@
+@inject ToolAccess Tools
 <!doctype html>
 <html lang="en">
 <head>
@@ -12,7 +13,10 @@
 <header class="topbar">
   <a class="brand" href="/">SC Tools</a>
   <nav>
-    <a href="/hauling">Hauling Tracker</a>
+    @if (Tools.Sees(User, SiteTools.Hauling))
+    {
+      <a href="/hauling">Hauling Tracker</a>
+    }
     @if (User.IsInRole(Roles.Player))
     {
       <a href="/me">My page</a>
@@ -24,6 +28,7 @@
       <a href="/admin/contracts">Contracts</a>
       <a href="/admin/debts">Debts</a>
       <a href="/admin/keys">Tracker keys</a>
+      <a href="/admin/tools">Tools</a>
       <a href="/account">Account</a>
     }
   </nav>

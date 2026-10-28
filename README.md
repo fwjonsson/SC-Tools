@@ -221,6 +221,10 @@ admin (done), then going live.
   cargo of the runs, the SCU of from-Ruin drop-offs the game did not tell), **Party** (add, remove, active, ship, drive, colour, location of every
   member; a field is saved as soon as it is changed, on its own), **Contracts** (who has every mission, Gone / Bring back) and **Debts** (a member's balances typed over, the Payment tick of his transfers, what a
   mission really paid, the party of the session). What only the program on a PC has (the log sources, the channel, the data file, the look) is not there.
+- **Which tools everybody sees** is the admin's **Tools** page (`/admin/tools`, `SiteTools.cs`, the table `Tools`): a tick per tool, saved as soon as it
+  changes. A tool that is not ticked is only for the admin: its card on the landing page (where he sees "Only you see this") and its page (a visitor gets
+  the login, a player "not for you"; the hauling tracker's `data.json` too). A tool never set is as `SiteTools` says: the hauling tracker shown, the tools
+  still being made (Session, Mission Library, Gauntlet Tracker) only for the admin. The trackers' uploads do not depend on it.
 - **Who is active comes from the logs** on the server (`Tracking/AutoParty.cs`), not from a tick. The game writes the in-game party in its notifications
   ("zzatvo has joined the party.", "Bileh123 has left the party." also when he quits or crashes, "zzoega is now party leader.", "The party has been
   disbanded."), and the trackers already send those lines. A tracker also sends the time of the last line of every piece, so the server knows how long each

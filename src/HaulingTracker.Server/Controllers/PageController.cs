@@ -7,25 +7,34 @@ namespace HaulingTracker.Server.Controllers;
 
 /// <summary>
 /// The pages for everybody: the landing page of the tools (/), the live page of the hauling tracker (/hauling), its data (data.json, new every two seconds)
-/// and the icon. Watching needs no login.
+/// and the icon. Watching needs no login, unless the admin hid the hauling tracker on the Tools page: then it is only for him.
 /// </summary>
 public sealed class PageController : Controller
 {
     readonly LiveTracker _live;
+    readonly ToolAccess _tools;
 
-    public PageController(LiveTracker live) => _live = live;
+    public PageController(LiveTracker live, ToolAccess tools)
+    {
+        _live = live;
+        _tools = tools;
+    }
+
+    /// <summary>A hidden tool's page: the login for somebody not logged in, "not for you" for a player.</summary>
+    IActionResult Hidden() => User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
 
     /// <summary>The landing page: a card for every tool.</summary>
     [HttpGet("/")]
     public IActionResult Home()
     {
-        return View("~/Views/Home/Index.cshtml", _live.Read(t => new HomeModel(t.State.Current == null ? "" : BoardTexts.DescribeSession(t.State.Current))));
+        var cards = SiteTools.All.Where(t => _tools.Sees(User, t)).Select(t => new HomeCard(t, !_tools.IsPublic(t))).ToList();
+        return View("~/Views/Home/Index.cshtml", _live.Read(t => new HomeModel(t.State.Current == null ? "" : BoardTexts.DescribeSession(t.State.Current), cards)));
     }
 
     /// <summary>The live page of the hauling tracker, with the links of the login in its top right corner (Log in; My page for a player; the admin pages for the admin).</summary>
     [HttpGet("/hauling")]
     [HttpGet("/index.html")]
-    public IActionResult Page() => Content(WithLinks(WebAssets.Page), "text/html; charset=utf-8");
+    public IActionResult Page() => _tools.Sees(User, SiteTools.Hauling) ? Content(WithLinks(WebAssets.Page), "text/html; charset=utf-8") : Hidden();
 
     string WithLinks(string page)
     {
@@ -50,6 +59,7 @@ public sealed class PageController : Controller
     [HttpGet("/data.json")]
     public IActionResult Data()
     {
+        if (!_tools.Sees(User, SiteTools.Hauling)) return StatusCode(StatusCodes.Status403Forbidden);
         Response.Headers.CacheControl = "no-store";
         return Content(_live.Json, "application/json; charset=utf-8");
     }

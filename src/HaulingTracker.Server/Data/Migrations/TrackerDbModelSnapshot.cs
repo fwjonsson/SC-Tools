@@ -373,6 +373,19 @@ namespace HaulingTracker.Server.Data.Migrations
                     b.ToTable("Settings", (string)null);
                 });
 
+            modelBuilder.Entity("HaulingTracker.Server.Data.ToolRow", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Public")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Tools", (string)null);
+                });
+
             modelBuilder.Entity("HaulingTracker.Server.Data.TrackerKeyRow", b =>
                 {
                     b.Property<int>("Id")
