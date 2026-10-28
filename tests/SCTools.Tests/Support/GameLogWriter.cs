@@ -121,6 +121,10 @@ sealed class GameLogWriter
     public GameLogWriter Inventory(string player, string location) =>
         Add($"{Ts} [Notice] <RequestLocationInventory> Player[{player}] requested inventory for Location[{location}] [Team_CoreGameplayFeatures][Inventory]");
 
+    /// <summary>The game is quit the normal way (a log without this line crashed).</summary>
+    public GameLogWriter Quit() =>
+        Add($"{Ts} [Notice] <SystemQuit> CSystem::Quit invoked with - cause=30016, reason=Quit via console command, exitCode=0, thread id=25072, main thread id=25072 [Team_Unknown][System]");
+
     public GameLogWriter Noise() =>
         Add($"{Ts} [Notice] <StatObjLoad 0x800 Format> 'data/objectcontainers/pu/loc/mod/pyro/station/ext_hangar.cgf' - File exists in P4K [Team_Graphics][CoreTech]");
 

@@ -72,7 +72,7 @@ public class AutoPartyTests
     }
 
     [Fact]
-    public void A_crash_or_a_relog_of_less_than_ten_minutes_does_not_count()
+    public void A_crash_or_a_relog_of_less_than_fifteen_minutes_does_not_count()
     {
         var u = new LogUploads();
         Upload(u, "zzoega", new GameLogWriter().Login("zzoega").Minutes(1).PartyCreated().Minutes(4).MemberJoined("zzatvo")
@@ -83,7 +83,56 @@ public class AutoPartyTests
 
         Upload(u, "zzoega", new GameLogWriter().At(At(58)).MemberLeft("zzatvo"), last: At(61));
         Assert.Equal(Changes((5, true)), AutoParty.Work(u.Logs, Members, At(62)).Changes["zzatvo"]);   // gone for 4 minutes so far: maybe he comes back
-        Assert.Equal(Changes((5, true), (58, false)), AutoParty.Work(u.Logs, Members, At(70)).Changes["zzatvo"]);   // 12 minutes: gone since he left
+        Assert.Equal(Changes((5, true)), AutoParty.Work(u.Logs, Members, At(70)).Changes["zzatvo"]);   // 12 minutes: the game still keeps a crashed player
+        Assert.Equal(Changes((5, true), (58, false)), AutoParty.Work(u.Logs, Members, At(75)).Changes["zzatvo"]);   // 17 minutes: gone since he left
+    }
+
+    [Fact]
+    public void A_crash_keeps_the_party_when_the_game_says_nothing_about_it()
+    {
+        // 28 Oct: zzatvo made the party, zzoega joined it and was made its leader; zzatvo's game crashed and he came back a minute later: nothing about the
+        // party in either log after that (zzoega's log never named zzatvo), and in the game they were still in it
+        var u = new LogUploads();
+        Upload(u, "zzoega", new GameLogWriter().Login("zzoega").Minutes(4).PartyJoined().Minutes(2).NewLeader("zzoega").PartyLaunch("zzoega"), last: At(40));
+        Upload(u, "zzatvo", new GameLogWriter().At(At(2)).Login("zzatvo").Minutes(2).PartyCreated().Minutes(2).NewLeader("zzoega").Minutes(1).Noise(),
+            last: At(7));                                                                              // crashed at 7
+        Upload(u, "zzatvo", new GameLogWriter().At(At(8.5)).Login("zzatvo").Minutes(20).Noise(), last: At(40));   // back at 8.5
+
+        var r = AutoParty.Work(u.Logs, Members, At(40));
+        var party = Assert.Single(r.Groups);
+        Assert.Equal("zzoega", party.Leader);
+        Assert.Equal(new[] { "zzatvo", "zzoega" }, party.Names);
+        Assert.Equal(Changes((2, true)), r.Changes["zzatvo"]);
+
+        // the next day (more than an hour later) a game starts alone, until the game says he is in a party
+        Upload(u, "zzatvo", new GameLogWriter().At(At(200)).Login("zzatvo").Minutes(5).Noise(), last: At(210));
+        Upload(u, "zzoega", new GameLogWriter().At(At(200)).Login("zzoega").Minutes(5).Noise(), last: At(210));
+        Assert.Equal(2, AutoParty.Work(u.Logs, Members, At(210)).Groups.Count);
+    }
+
+    [Fact]
+    public void A_game_that_was_quit_ended_at_once()
+    {
+        // 28 Oct: zzoii quit his game (the quit line), and the site still had him playing (it waited for his log to be quiet for a while)
+        var u = new LogUploads();
+        Upload(u, "zzoii", new GameLogWriter().Login("zzoii").Minutes(29).Quit(), last: At(29));
+        Upload(u, "zzoega", new GameLogWriter().Login("zzoega").Minutes(30).Noise(), last: At(31));
+        var r = AutoParty.Work(u.Logs, new[] { "zzoega", "zzoii" }, At(31));   // two minutes after he quit
+        Assert.Equal(new[] { "zzoega" }, r.Groups.Select(g => g.Title));   // not playing any more
+        Assert.True(Assert.Single(u.Games()["zzoii"]).Run.Quit);
+        Assert.Equal(Changes((0, true)), r.Changes["zzoii"]);   // for the payouts gone for less than fifteen minutes is not gone (he may relog)
+        Upload(u, "zzoega", new GameLogWriter().At(At(31)).Minutes(14).Noise(), last: At(45));
+        Assert.Equal(Changes((0, true), (29, false)), AutoParty.Work(u.Logs, new[] { "zzoega", "zzoii" }, At(45)).Changes["zzoii"]);
+    }
+
+    [Fact]
+    public void A_member_who_left_is_out_of_the_party_in_his_own_log_too()
+    {
+        var u = new LogUploads();
+        Upload(u, "zzoega", new GameLogWriter().Login("zzoega").Minutes(4).PartyJoined().NewLeader("zzoega").Minutes(16).MemberLeft("zzatvo"), last: At(40));
+        Upload(u, "zzatvo", new GameLogWriter().Login("zzatvo").Minutes(4).PartyCreated().NewLeader("zzoega").Minutes(30).Noise(), last: At(40));   // his game says nothing
+        var groups = AutoParty.Work(u.Logs, Members, At(40)).Groups;
+        Assert.Equal(new[] { "zzatvo", "zzoega" }, groups.Select(g => g.Title));   // each alone
     }
 
     [Fact]
