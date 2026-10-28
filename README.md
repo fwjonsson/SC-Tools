@@ -242,6 +242,13 @@ admin (done), then going live.
   every run in the database. Everybody sees only his own runs (Session, Stats, Earnings ranking) and the **Leaderboard** of everybody: total earned, aUEC,
   MG scrip, total aUEC per hour over the timed runs, completed and completion rate, fastest run, favourite and best scenario, last played. The rewards
   and what a MG scrip is worth are the same for everybody and set by the admin on **Gauntlet** (`/admin/gauntlet`).
+- **The Mission Library** (`/missions`, `Missions/MissionReader` in the core, `MissionLibrary`) has every kind of mission the players took, by itself: the
+  missions of the live logs and of the old logs are kept for good (`Missions`), grouped by the game's ContractId (`Library`; a name from a string mod
+  never makes two of one, and every hauling route is a kind of its own). A logged in player types in what the log does not say: the name, the aUEC, MG
+  scrip and Council scrip it pays, the giver, notes (each field saved as soon as it changes). **Without rewards** lists the ones nobody filled in yet.
+  It shows how often each was taken, completed, failed and abandoned, and when it was played last. The server asks the Star Citizen Wiki
+  (`api/missions/{ContractId}`) about every new kind, 20 a minute (`MissionWikiService`; `SCTools:MissionWiki` = false turns it off), for its giver
+  and reward range. The first time it runs it reads the missions of the old logs already on the server.
 - **Which tools everybody sees** is the admin's **Tools** page (`/admin/tools`, `SiteTools.cs`, the table `Tools`): a tick per tool, saved as soon as it
   changes. A tool that is not ticked is only for the admin: its card on the landing page (where he sees "Only you see this") and its page (a visitor gets
   the login, a player "not for you"; the hauling tracker's `data.json` too). A tool never set is as `SiteTools` says: the hauling tracker shown, the tools

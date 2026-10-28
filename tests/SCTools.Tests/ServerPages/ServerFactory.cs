@@ -24,6 +24,9 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
     /// <summary>The program's data file the server imports when it starts (none: the database starts empty).</summary>
     public AppData? Data { get; init; }
 
+    /// <summary>The Star Citizen Wiki the Mission Library asks (null: the real one, which the tests never ask: MissionWiki is off).</summary>
+    public SCTools.Server.IMissionWiki? Wiki { get; init; }
+
     /// <summary>The logs decide who is active (AutoParty), as on the real server. Off by default, so the other tests keep the Active ticks they set.</summary>
     public bool FollowParty { get; init; }
 
@@ -40,11 +43,16 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
             ["SCTools:LogDir"] = Path.Combine(Dir, "logs"),
             ["SCTools:Culture"] = "",   // the culture of the machine, as the other tests have it
             ["SCTools:FollowParty"] = FollowParty ? "true" : "false",
+            ["SCTools:MissionWiki"] = "false",   // the tests never ask the real Wiki
             ["SCTools:Admin:UserName"] = AdminName,
             ["SCTools:Admin:Password"] = AdminPassword,
         }));
         // every login is checked again on every request (the server does it every minute), so a test sees what a login keeps after that check
-        builder.ConfigureTestServices(s => s.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero));
+        builder.ConfigureTestServices(s =>
+        {
+            s.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero);
+            if (Wiki != null) s.AddSingleton(Wiki);
+        });
     }
 
     protected override void Dispose(bool disposing)

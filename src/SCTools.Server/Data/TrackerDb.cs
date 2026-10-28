@@ -33,6 +33,8 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
     public DbSet<TrackerKeyRow> TrackerKeys => Set<TrackerKeyRow>();
     public DbSet<ToolRow> Tools => Set<ToolRow>();
     public DbSet<LogFileRow> LogFiles => Set<LogFileRow>();
+    public DbSet<MissionRow> Missions => Set<MissionRow>();
+    public DbSet<LibraryRow> Library => Set<LibraryRow>();
     public DbSet<GauntletRunRow> GauntletRuns => Set<GauntletRunRow>();
     public DbSet<GauntletSettingsRow> GauntletSettings => Set<GauntletSettingsRow>();
     public DbSet<GauntletSessionRow> GauntletSessions => Set<GauntletSessionRow>();
@@ -174,6 +176,19 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
         {
             e.ToTable("LogFiles");
             e.HasKey(x => new { x.Player, x.File });
+        });
+
+        b.Entity<MissionRow>(e =>
+        {
+            e.ToTable("Missions");
+            e.HasKey(x => new { x.Player, x.MissionId });
+            e.HasIndex(x => x.ContractId);
+        });
+
+        b.Entity<LibraryRow>(e =>
+        {
+            e.ToTable("Library");
+            e.HasKey(x => x.ContractId);
         });
 
         b.Entity<GauntletRunRow>(e =>

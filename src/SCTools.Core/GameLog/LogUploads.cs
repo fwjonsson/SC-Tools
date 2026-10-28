@@ -1,5 +1,6 @@
 using System.Globalization;
 using SCTools.Gauntlet;
+using SCTools.Missions;
 
 namespace SCTools.GameLog;
 
@@ -18,6 +19,7 @@ public sealed class LogUploads
     {
         public HaulingLog Log = new();
         public GauntletReader Gauntlet = new();   // the gauntlet missions of the same lines
+        public MissionReader Missions = new();    // every mission of the same lines (the Mission Library)
         public Dictionary<string, long> At = new(StringComparer.Ordinal);   // log file -> how far it is uploaded (bytes of the file)
     }
 
@@ -68,12 +70,19 @@ public sealed class LogUploads
                 var text = line.TrimEnd('\r');
                 feed.Log.ProcessLine(text);
                 feed.Gauntlet.ProcessLine(text);
+                feed.Missions.ProcessLine(text);
             }
             feed.At[file] = to;
             var seen = Seen(feed.Log, file, last ?? LastTime(lines));
             Keep(player, file, to, lines, seen);
             return new UploadResult(true, to);
         }
+    }
+
+    /// <summary>Every mission in what each player uploaded (and is still kept), by player.</summary>
+    public Dictionary<string, IReadOnlyList<MissionSeen>> MissionsSeen()
+    {
+        lock (Sync) return _feeds.ToDictionary(f => f.Key, f => f.Value.Missions.Missions, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>The gauntlet missions that ended in what each player uploaded (and is still kept), by player.</summary>
@@ -136,7 +145,11 @@ public sealed class LogUploads
                     var kept = File.ReadAllLines(pos);
                     if (kept.Length < 2 || !long.TryParse(kept[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var at)) continue;
                     feed.Log.ProcessFile(path);
-                    foreach (var kept2 in File.ReadLines(path)) feed.Gauntlet.ProcessLine(kept2);
+                    foreach (var kept2 in File.ReadLines(path))
+                    {
+                        feed.Gauntlet.ProcessLine(kept2);
+                        feed.Missions.ProcessLine(kept2);
+                    }
                     feed.At[kept[0]] = at;
                     // how long the game ran: kept next to the cursor (a file kept by an older server: the time of its last line)
                     DateTime? last = kept.Length >= 3 && DateTime.TryParse(kept[2], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var l) ? l : LastTime(File.ReadLines(path));

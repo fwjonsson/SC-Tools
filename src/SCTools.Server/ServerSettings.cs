@@ -30,6 +30,9 @@ public sealed class ServerSettings
     /// </summary>
     public string[] OldHosts { get; set; } = SCTools.GameLog.SiteAddress.OldHosts.ToArray();
 
+    /// <summary>The Mission Library asks the Star Citizen Wiki (api.star-citizen.wiki) about every new kind of mission: its giver and its reward.</summary>
+    public bool MissionWiki { get; set; } = true;
+
     /// <summary>The logs decide who of the party is active (the in-game party and the trackers, see AutoParty); the admin can still set In or Out.</summary>
     public bool FollowParty { get; set; } = true;
 
