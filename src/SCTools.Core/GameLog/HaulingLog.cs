@@ -74,9 +74,15 @@ public sealed class HaulingLog
         "Projected Start Location is ",                                 // which gateway he is at
         "FreightElevatorUIProvider::FillUnstowRequest",                 // he takes cargo out of a freight elevator
         "CSCLoadingPlatformManager::OnLoadingPlatformStateChanged",     // he hands cargo in at a loading platform
+        InventoryLine,                                                  // he opened the inventory of a place: where he is
         "Mission",                                                      // the missions: markers, objectives, notifications, members
         QuitLine,                                                       // the game was quit (a log without it ended in a crash)
     };
+
+    /// <summary>What the game writes when the player opens the inventory of the place he is at (LocationSeen).</summary>
+    public const string InventoryLine = "<RequestLocationInventory>";
+
+    static readonly Regex InventoryAt = new(@"<RequestLocationInventory> Player\[(?<p>[^\]]+)\] requested inventory for Location\[(?<l>[^\]]+)\]", RegexOptions.Compiled);
 
     /// <summary>What the game writes when it is quit the normal way: a log that ends without it crashed (or was killed).</summary>
     public const string QuitLine = "SystemQuit";
@@ -158,6 +164,9 @@ public sealed class HaulingLog
 
     /// <summary>The quantum travel of the player of this log: the destinations he selected and when his drive arrived.</summary>
     public List<QtEvent> Qt { get; } = new();
+
+    /// <summary>Where the player of this log was when he opened the inventory of a place, in the order of the log.</summary>
+    public List<LocationSeen> Locations { get; } = new();
 
     /// <summary>When the player of this log died (the first line of the burst of item recovery lines).</summary>
     public List<DateTime> Deaths { get; } = new();
@@ -479,6 +488,17 @@ public sealed class HaulingLog
                     Version++;
                 }
                 _gateEvent = null;
+            }
+            return;
+        }
+        if (line.Contains(InventoryLine))
+        {
+            var im = InventoryAt.Match(line);
+            var it = Ts.Match(line);
+            if (im.Success && it.Success && (Player == null || string.Equals(im.Groups["p"].Value, Player, StringComparison.OrdinalIgnoreCase)))
+            {
+                Locations.Add(new LocationSeen(ParseTime(it.Groups[1].Value), im.Groups["l"].Value));
+                Version++;
             }
             return;
         }

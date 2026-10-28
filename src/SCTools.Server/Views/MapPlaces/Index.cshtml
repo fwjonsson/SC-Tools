@@ -27,7 +27,8 @@
   data does not have. A change is saved at once, and the map uses it at once.</p>
 
 <h2 id="unknown">Not known yet</h2>
-<p class="hint">Quantum destinations and start names ("Projected Start Location is …") in the logs on the server that the map cannot place. Say what each one
+<p class="hint">Quantum destinations, start names ("Projected Start Location is …") and inventory locations ("Location[Nyx_Levski]": where somebody opened
+  his inventory) in the logs on the server that the map cannot place. Say what each one
   is: a place (a player who jumps there shows there), or <em>not a place to show</em> (a mission's marker, an encounter). With * at the end of the text it
   is every one that starts so (<code>AsteroidCluster_Pyro_*</code>). A place that is not in the list: <em>add it</em>.</p>
 @if (Model.Unknown.Count == 0)
@@ -42,7 +43,7 @@ else
     @foreach (var u in Model.Unknown)
     {
       <tr>
-        <td><code>@u.Text</code><br><span class="muted small">@(u.Start ? "Start name" : "Quantum destination")@(u.System != null ? " · in " + SystemName(u.System) : "")</span></td>
+        <td><code>@u.Text</code><br><span class="muted small">@u.KindText@(u.System != null ? " · in " + SystemName(u.System) : "")</span></td>
         <td class="nowrap">@(u.Seen)× · @TrackerVersions.Ago(u.LastUtc, Model.NowUtc)<br><span class="muted small">@string.Join(", ", u.Players)</span></td>
         <td>
           <form method="post" action="/admin/places/alias" asp-antiforgery="true" class="alias">

@@ -119,6 +119,27 @@ public sealed class Atlas
             .Select(x => x.Place).FirstOrDefault();
     }
 
+    static readonly System.Text.RegularExpressions.Regex LocationId = new(@"^(?<s>Stanton|Pyro|Nyx)\d*[a-z]?_(?<r>.+)$",
+        System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// The place a location of the log is (the inventory of a place: "Nyx_Levski", "Stanton1_Lorville"): the system by its start, the place by the rest, as a
+    /// name ("NewBabbage" is New Babbage), else by the name in it. The admin's word first. The system alone when the place is not known.
+    /// </summary>
+    public (string? System, Place? Place) OfLocation(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return (null, null);
+        var (said, place) = AliasOf(id);
+        if (said) return place == null ? (null, null) : (place.System, place);
+        var m = LocationId.Match(id);
+        var system = m.Success ? m.Groups["s"].Value.ToLowerInvariant() : null;
+        var (_, named) = OfName((m.Success ? m.Groups["r"].Value : id).Replace('_', ' '), system);
+        if (named != null && (system == null || named.System == system)) return (named.System, named);
+        var inIt = OfQuantumTarget(id, system);
+        if (inIt != null && (system == null || inIt.System == system)) return (inIt.System, inIt);
+        return (system, null);
+    }
+
     /// <summary>
     /// What a name the game says in plain words is ("Projected Start Location is Aberdeen", "... is Pyro System"): the system and the place (null for the system
     /// alone, or neither). The admin's word first. A name of more than one system ("Nyx Gateway" is in Pyro and Stanton): the one in this system; else, after a
