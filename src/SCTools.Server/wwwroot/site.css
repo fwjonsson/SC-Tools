@@ -188,4 +188,8 @@ input.saving { opacity:.6; }
 input.saved { border-color:var(--good); transition:border-color 2s ease-out; }
 input.unsaved { border-color:var(--bad); }
 .autosave-state { min-height:1.3em; margin:4px 0; }
+/* the Mission Library: a mission being played now (taken, not ended), and the pages */
+table.missions tr.running td { background:color-mix(in srgb, var(--good) 10%, var(--cell)); }
+table.missions tr.running td:last-child { color:var(--good); font-weight:600; }
+.pager { display:flex; gap:18px; align-items:center; margin:10px 0; }
 

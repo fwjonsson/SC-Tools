@@ -1,28 +1,32 @@
 @model MissionLibraryPage
 @using System.Globalization
+@using SCTools.Server.Controllers
 @{
     var inv = CultureInfo.InvariantCulture;
     string N(long? v) => v?.ToString(inv) ?? "";
     string When(DateTime? utc) => utc == null ? "" : utc.Value.ToLocalTime().ToString("d MMM yyyy", inv);
-    var back = "/missions" + (Model.Show == "todo" ? "?show=todo" : "") + (Model.Query.Length > 0 ? (Model.Show == "todo" ? "&" : "?") + "q=" + Uri.EscapeDataString(Model.Query) : "");
+    var back = Model.Link(Model.Page);
 }
 <h1>Mission Library</h1>
 <p class="muted">Every mission you take is here by itself, from your log (also the ones played before your tracker ran, from the old logs), one row per
   name: the same mission at another place is the same row. The hauling contracts the Hauling Planner reads are one row per contract line (Hauling: 2 To
   Ruin...), which is what they pay by. Type in what the log does not say: it is saved as soon as you leave the field. The Session tool counts what your
   missions earned with these rewards, the Gauntlet Tracker with the ones of the Combat Gauntlet scenarios, and the Hauling Planner pays the aUEC of the
-  Hauling rows.</p>
+  Hauling rows. The page keeps itself up to date: a mission you take comes to the top of the first page within a few seconds, marked as being played.</p>
 
-<nav class="tabs">
-  <a class="tab@(Model.Show == "all" ? " on" : "")" href="/missions">All (@Model.Total)</a>
-  <a class="tab@(Model.Show == "todo" ? " on" : "")" href="/missions?show=todo">Without rewards (@Model.ToDo)</a>
-</nav>
 <form method="get" action="/missions" class="line">
   @if (Model.Show == "todo") { <input type="hidden" name="show" value="todo"> }
   <input name="q" value="@Model.Query" placeholder="Find a mission or a giver" aria-label="Find">
   <button type="submit">Find</button>
 </form>
 <p class="hint autosave-state" id="autosaveState" aria-live="polite"></p>
+
+@* what changes as missions come in: made again by missions.js when the library's version is not this one any more (not while you are typing in it) *@
+<div id="library" data-version="@Model.Version">
+<nav class="tabs">
+  <a class="tab@(Model.Show == "all" ? " on" : "")" href="/missions">All (@Model.Total)</a>
+  <a class="tab@(Model.Show == "todo" ? " on" : "")" href="/missions?show=todo">Without rewards (@Model.ToDo)</a>
+</nav>
 
 @if (Model.Entries.Count == 0)
 {
@@ -38,7 +42,7 @@ else
     @foreach (var e in Model.Entries)
     {
       var r = e.Row;
-      <tr id="@e.Anchor" class="@(e.NeedsInfo ? "todo" : null)">
+      <tr id="@e.Anchor" class="@(string.Join(" ", new[] { e.NeedsInfo ? "todo" : null, e.Running ? "running" : null }.Where(c => c != null)) is { Length: > 0 } c ? c : null)">
         @foreach (var (field, value, cls, hint) in new[]
         {
             ("name", r.Name ?? r.Title, "name", r.Title),
@@ -60,12 +64,22 @@ else
           </td>
         }
         <td class="right nowrap" title="taken @e.Taken, completed @e.Completed, failed @e.Failed, abandoned @e.Abandoned">@e.Completed / @e.Taken</td>
-        <td class="nowrap">@When(e.LastPlayed)</td>
+        <td class="nowrap">@(e.Running ? "Playing now" : When(e.LastPlayed))</td>
       </tr>
     }
     </tbody>
   </table>
   </div>
+  @if (Model.Pages > 1)
+  {
+    <nav class="pager" aria-label="Pages">
+      @if (Model.Page > 1) { <a href="@Model.Link(Model.Page - 1)">« Played later</a> } else { <span class="muted">« Played later</span> }
+      <span>Page @Model.Page of @Model.Pages <span class="muted">(@Model.Found)</span></span>
+      @if (Model.Page < Model.Pages) { <a href="@Model.Link(Model.Page + 1)">Played earlier »</a> } else { <span class="muted">Played earlier »</span> }
+    </nav>
+  }
   <p class="hint">Played: completed of taken (hover for failed and abandoned). Rewards are whole numbers; an empty field means not known (an empty Hauling
-    aUEC: the Hauling Planner's built-in reward). A grey name is the one the game shows.</p>
+    aUEC: the Hauling Planner's built-in reward). A grey name is the one the game shows. @MissionsController.PageSize to a page, the ones played last first.</p>
 }
+</div>
+<script src="~/missions.js" asp-append-version="true" defer></script>

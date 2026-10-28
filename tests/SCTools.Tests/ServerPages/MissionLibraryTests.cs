@@ -81,6 +81,42 @@ public class MissionLibraryTests
     }
 
     [Fact]
+    public async Task A_mission_just_taken_is_on_top_while_it_is_played_also_without_its_offer_and_the_list_has_pages()
+    {
+        using var f = new ServerFactory();
+        var admin = await f.Admin();
+        var library = f.Services.GetRequiredService<MissionLibrary>();
+        // 25 kinds played on 21 Oct, then a bounty taken a minute ago: the log never says which offer it is (most missions with comms do not), and one
+        // shared with him by the other account (its offer never showed in this log)
+        var old = Enumerable.Range(1, 25).SelectMany(i => Mission($"{i:00000000}-1111-1111-1111-111111111111", C1, "Old Mission " + i));
+        var now = DateTime.UtcNow.AddMinutes(-1).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture);
+        var bounty = $"<{now}> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Accepted: Kill the Outlaw at Bloom: \" [84] to queue. New queue size: 1, MissionId: [99999999-9999-9999-9999-999999999999], ObjectiveId: [] [Missions][Comms]";
+        var shared = $"<{now}> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Shared: Somebody Else's Job: \" [85] to queue. New queue size: 1, MissionId: [88888888-8888-8888-8888-888888888888], ObjectiveId: [] [Missions][Comms]";
+        var before = library.Version;
+        f.Upload("zzoega", old.Append(bounty).Append(shared).ToArray());
+        library.Collect();
+        Assert.True(library.Version > before);
+        Assert.Equal(library.Version, JsonDocument.Parse(await admin.GetStringAsync("/missions/version")).RootElement.GetProperty("version").GetInt32());
+
+        static int Rows(string html) => System.Text.RegularExpressions.Regex.Matches(html, "<tr id=").Count;
+        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));
+        Assert.Equal(MissionsController.PageSize, Rows(page));   // 20 to a page
+        var top = page[page.IndexOf("<tr id=", StringComparison.Ordinal)..];
+        top = top[..top.IndexOf("</tr>", StringComparison.Ordinal)];
+        Assert.Contains("value=\"Kill the Outlaw at Bloom\"", top);   // on top, being played
+        Assert.Contains("running", top);
+        Assert.Contains("Playing now", top);
+        Assert.DoesNotContain("Somebody Else", page);
+        Assert.Contains("Page 1 of ", page);
+        Assert.Contains("href=\"/missions?page=2\"", page);
+        Assert.Contains("missions.js", page);
+        var second = WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?page=2"));
+        Assert.Contains("Page 2 of ", second);
+        Assert.InRange(Rows(second), 1, MissionsController.PageSize);
+        Assert.Contains("Page 1 of ", WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?page=0")));   // out of range: the nearest one
+    }
+
+    [Fact]
     public async Task The_missions_of_the_old_logs_are_in_it_too_also_when_they_came_before_the_library()
     {
         using var f = new ServerFactory();

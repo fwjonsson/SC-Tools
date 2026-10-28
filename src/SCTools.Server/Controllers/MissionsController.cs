@@ -32,10 +32,14 @@ public sealed class MissionsController : Controller
 
     const string NotSaved = "Not saved: a reward is a whole number (no letters).";
 
+    /// <summary>How many kinds of mission a page of the library shows.</summary>
+    public const int PageSize = 20;
+
     /// <param name="show">all, or todo: the ones without rewards yet</param>
     /// <param name="q">a part of the name or the giver</param>
+    /// <param name="page">the page (1: the ones played last)</param>
     [HttpGet("")]
-    public IActionResult Index(string? show, string? q)
+    public IActionResult Index(string? show, string? q, int page = 1)
     {
         if (!_tools.Sees(User, SiteTools.Missions)) return Hidden();
         _library.Collect();   // what came in since the last refresh (nothing new: the list is not made again)
@@ -49,7 +53,20 @@ public sealed class MissionsController : Controller
                 || (e.Row.Giver ?? "").Contains(t, StringComparison.OrdinalIgnoreCase));
         }
         ViewData["Title"] = "Mission Library";
-        return View(new MissionLibraryPage(list.ToList(), all.Count, all.Count(e => e.NeedsInfo), show == "todo" ? "todo" : "all", q?.Trim() ?? ""));
+        var found = list.ToList();
+        var pages = Math.Max(1, (found.Count + PageSize - 1) / PageSize);
+        page = Math.Clamp(page, 1, pages);
+        return View(new MissionLibraryPage(found.Skip((page - 1) * PageSize).Take(PageSize).ToList(), all.Count, all.Count(e => e.NeedsInfo),
+            show == "todo" ? "todo" : "all", q?.Trim() ?? "", page, pages, found.Count, _library.Version));
+    }
+
+    /// <summary>What the open page asks every few seconds: when the version is not the one it shows, it gets the list again (missions.js).</summary>
+    [HttpGet("version")]
+    public IActionResult Version()
+    {
+        if (!_tools.Sees(User, SiteTools.Missions)) return Hidden();
+        Response.Headers.CacheControl = "no-store";
+        return Json(new { version = _library.Version });
     }
 
     [HttpPost("set")]
@@ -58,7 +75,7 @@ public sealed class MissionsController : Controller
         if (!_tools.Sees(User, SiteTools.Missions)) return Hidden();
         var said = _library.Set(id ?? "", field ?? "", value, User.Identity?.Name ?? "", DateTime.UtcNow);
         if (Request.Headers.ContainsKey(AutosaveHeader))   // saved in the background (autosave.js): what to say, the page stays as it is
-            return Json(new { ok = said != null, said = said ?? NotSaved });
+            return Json(new { ok = said != null, said = said ?? NotSaved, version = _library.Version });
         if (said == null) TempData["Message"] = NotSaved;
         var anchor = "#" + MissionLibrary.Anchor(id ?? "");
         return LocalRedirect(back is { Length: > 0 } && back.StartsWith("/missions", StringComparison.Ordinal) ? back + anchor : "/missions" + anchor);
