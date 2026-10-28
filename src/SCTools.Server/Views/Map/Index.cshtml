@@ -2,11 +2,16 @@
     ViewData["Title"] = "Map";
 }
 <h1>Map</h1>
-<p class="muted">Pyro, from above: everybody playing where his quantum jumps put him, and the objectives of the missions going on. In quantum a player moves
-  along his route at the speed of his drive (crafted as it is, from his fleet). The log says when he picks a destination and when he arrives, not when
-  the jump starts, so on the way it is an estimate; the arrival puts him right.</p>
+<p class="muted">Pyro, Stanton and Nyx from above: everybody playing where his quantum jumps put him, and the objectives of the missions going on. In quantum a
+  player moves along his route at the speed of his drive (crafted as it is, from his fleet). The log says when he picks a destination and when he arrives,
+  not when the jump starts, so on the way it is an estimate; the arrival puts him right. The map opens on the system where most players are.</p>
 <div class="maptool">
-  <div class="mapbox"><div id="map"></div></div>
+  <div class="mapbox">
+    <div class="systabs" id="systems" role="tablist" aria-label="Star system"></div>
+    <div id="map"></div>
+    <p class="hint">Positions: the <a href="https://api.star-citizen.wiki" rel="noopener">Star Citizen Wiki API</a>. A moon, a city or a station close
+      to a planet is drawn at the planet (point at it for what is there).</p>
+  </div>
   <div class="mapside">
     <h2>Players</h2>
     <div id="players"><p class="muted">Loading…</p></div>

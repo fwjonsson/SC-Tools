@@ -233,14 +233,22 @@ admin (done), then going live.
   ship each one flies; everybody else the site knows (the tracker keys, the Hauling Planner's party, the fleets, the logs) with when he was last seen.
   A player's page (`/party/{name}`): playing or last seen, his party, the ship he flies and its drive (picked, or his last quantum jump), where the
   Hauling Planner has him, his tracker, and his fleet. Only for the admin until it is shown on the Tools page.
-- **The Map tool** (`/map`, `MapService`, `wwwroot/map.js`): Pyro from above as the Trip Planner draws it, with everybody playing where his quantum
-  jumps put him and the objectives of the missions going on (`map.json`, every 3 seconds). The log says when a player picks a destination
-  ("Projected Start Location is Ruin Station for route to destination rs_ext_pyro5_l2") and when he arrives, not when the jump starts: it is taken to
-  start 10 seconds after the destination was picked (`MapService.JumpDelay`), and the page moves him along his route by his drive (`Crew.QtOf`: his
-  fleet's active ship, crafted as it is; the same motion as `QtDrive.Seconds`), with a speed meter (Mm/s, in c, against his drive's top speed). The
-  arrival puts him at the station. Objectives: at a station when their zone is one (`StationIds`), where they are when the marker is in the system's own
-  frame (`PyroDistances.MapOfSystem`, fitted to the stations' real positions within 3 pixels), else counted as on a planet or moon the map cannot
-  place yet. Only for the admin until it is shown on the Tools page.
+- **The Map tool** (`/map`, `MapService`, `wwwroot/map.js`): Pyro, Stanton and Nyx from above (a tab per system over the map; it opens on the system
+  where most players are, `#stanton` in the address opens that one), with everybody playing where his quantum jumps put him and the objectives of
+  the missions going on (`map.json`, every 3 seconds). The places are `StarMap` (Core): the stars, planets, moons, cities, gateways and stations of
+  the three systems with their positions from the Star Citizen Wiki API (`/api/locations/positions`, downloaded with ScApiTool on 20 Oct 2026;
+  Pyro's are the same as `PyroDistances`'), drawn with the system's Y to the right and its X down, like the Trip Planner's Pyro. A moon, city or
+  station within 10 pixels of its planet is drawn at the planet (its tooltip lists them; the planet's label names the cities and stations at it).
+  The log says when a player picks a destination ("Projected Start Location is Ruin Station for route to destination rs_ext_pyro5_l2") and when
+  he arrives, not when the jump starts: it is taken to start 10 seconds after the destination was picked (`MapService.JumpDelay`), and the page
+  moves him along his route by his drive (`Crew.QtOf`: his fleet's active ship, crafted as it is; the same motion as `QtDrive.Seconds`), with a
+  speed meter (Mm/s, in c, against his drive's top speed). `MapService.Follow` walks his jumps: the start name sets his system and place
+  (`StarMap.OfName`: "Pyro System" is the system alone; a name two systems have, like "Nyx Gateway", is the one he is in, and after a gateway the
+  system it leads to), the destination is a place (`StarMap.OfQuantumTarget`: the Pyro stations, "pyro3" the third planet, "LOC_RR_S1_L2" HUR-L2,
+  "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. A jump
+  whose start is not known shows as a ring at the destination. Objectives: at a station when their zone is one of the Pyro stations
+  (`StationIds`), where they are when the marker is in the system's own frame (in the system the player is in), else counted as on a planet or
+  moon the map cannot place yet. Only for the admin until it is shown on the Tools page.
 - **The fleet.** On My page a player keeps every ship he owns, the quantum drive in each, and the quality of a crafted drive (0 to 1000: 1000 makes the
   drive speed 20 % higher, 500 is as bought, 0 is 20 % lower, in a straight line; only the drive speed changes). His **active ship** is the one he picks,
   or Automatic: the ship of his latest quantum jump (every quantum travel line names it by the game's class, `CRUS_Starlifter_C2`, `VehicleLines`),

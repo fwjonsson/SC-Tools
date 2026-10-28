@@ -138,6 +138,12 @@ main:has(.maptool) { max-width:1400px; }
 .mapside h2 { margin-top:4px; }
 .mapplayer { border:1px solid var(--line); border-left:4px solid var(--c, #888); background:var(--cell); padding:8px 10px; margin-bottom:8px; }
 .mapplayer .who { font-weight:700; }
+.mapplayer .who .sys { font-weight:400; color:var(--muted); font-size:12px; margin-left:8px; }
+.mapplayer.away { cursor:pointer; opacity:.75; }
+.mapplayer.away:hover, .mapplayer.away:focus-visible { opacity:1; }
+.systabs { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+.systabs button { background:var(--cell); color:inherit; border:1px solid var(--line); padding:5px 14px; border-radius:4px; cursor:pointer; font:inherit; }
+.systabs button.on { border-color:var(--accent); box-shadow:inset 0 -2px 0 var(--accent); font-weight:700; }
 .mapplayer .what { color:var(--muted); font-size:13px; }
 .speed { margin-top:6px; }
 .speed .bar { height:8px; background:#0b1018; border:1px solid var(--line); border-radius:4px; overflow:hidden; }

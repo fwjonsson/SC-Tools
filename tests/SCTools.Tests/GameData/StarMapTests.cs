@@ -1,0 +1,84 @@
+using SCTools.Server;
+
+namespace SCTools.Tests.GameData;
+
+/// <summary>The star systems of the Map tool: the places of Pyro, Stanton and Nyx, which place a quantum destination of the log is and a name the game says,
+/// and where a player's quantum jumps put him (through a gateway into another system as well).</summary>
+public class StarMapTests
+{
+    static QtEvent Picked(DateTime t, string destination, string from = "") => new() { Time = t, Kind = QtKind.Selected, Destination = destination, From = from };
+    static QtEvent Arrived(DateTime t) => new() { Time = t, Kind = QtKind.Arrived };
+
+    [Fact]
+    public void Every_system_has_its_star_planets_and_gateways_and_the_keys_are_unique()
+    {
+        Assert.Equal(new[] { "pyro", "stanton", "nyx" }, StarMap.Systems.Select(s => s.Id));
+        Assert.Equal(StarMap.Places.Length, StarMap.Places.Select(p => p.Key).Distinct().Count());
+        foreach (var s in StarMap.Systems)
+        {
+            Assert.Single(StarMap.Of(s.Id), p => p.Kind == PlaceKind.Star);
+            Assert.Contains(StarMap.Of(s.Id), p => p.Kind == PlaceKind.Planet);
+            Assert.Contains(StarMap.Of(s.Id), p => p.Kind == PlaceKind.Gateway);
+        }
+        // the Hauling Planner's stations are places of the map, as far apart as PyroDistances has them (the system is nearly flat)
+        foreach (var s in PyroDistances.Points) Assert.True(StarMap.OfPyroStation(s.Id) != null, s.Name);
+        var (patch, gaslight) = (StarMap.OfPyroStation("70120")!, StarMap.OfPyroStation("69936")!);
+        Assert.InRange(StarMap.Distance(patch, gaslight) - PyroDistances.Between("70120", "69936"), -1, 1);
+        Assert.Equal(PyroDistances.Between(PyroDistances.Ruin, "69936"), StarMap.JumpGm(StarMap.Find("pyro/ruin-station")!, StarMap.Find("pyro/gaslight")!), 6);
+    }
+
+    [Theory]
+    [InlineData("rs_ext_pyro5_l2", "pyro/gaslight")]
+    [InlineData("pyro3", "pyro/bloom")]
+    [InlineData("stanton4", "stanton/microtech")]
+    [InlineData("LOC_RR_S1_L2", "stanton/hur-l2-faithful-dream-station")]
+    [InlineData("rs_ext_pyro-nyx_jp", "pyro/nyx-gateway")]
+    [InlineData("rs_ext_nyx-pyro_jp1", "nyx/pyro-gateway")]
+    [InlineData("levski_all-001", "nyx/levski")]
+    [InlineData("PartyMemberMarker_123456", null)]
+    [InlineData("AsteroidCluster_Pyro_004", null)]
+    public void A_quantum_destination_of_the_log_is_a_place_of_the_map(string target, string? key) =>
+        Assert.Equal(key, StarMap.OfQuantumTarget(target)?.Key);
+
+    [Fact]
+    public void A_name_the_game_says_is_a_place_or_a_system_and_a_name_of_two_systems_is_the_one_he_is_in()
+    {
+        Assert.Equal(("pyro", null), StarMap.OfName("Pyro System"));
+        Assert.Equal("stanton/aberdeen", StarMap.OfName("Aberdeen").Place?.Key);
+        Assert.Equal("pyro/ruin-station", StarMap.OfName("Ruin Station").Place?.Key);
+        Assert.Equal("stanton/nyx-gateway", StarMap.OfName("Nyx Gateway", "stanton").Place?.Key);
+        Assert.Equal("pyro/nyx-gateway", StarMap.OfName("Nyx Gateway", "pyro").Place?.Key);
+        Assert.Equal((null, null), StarMap.OfName("Nyx Gateway"));   // in Pyro and in Stanton: not known
+        // through Pyro's Nyx Gateway he is at Nyx's Pyro Gateway
+        Assert.Equal("nyx/pyro-gateway", StarMap.OfName("Pyro Gateway", "pyro", StarMap.Find("pyro/nyx-gateway")).Place?.Key);
+        Assert.Equal((null, null), StarMap.OfName("Somewhere"));
+    }
+
+    [Fact]
+    public void A_player_goes_from_Ruin_through_the_Nyx_Gateway_to_Levski()
+    {
+        var t = new DateTime(2026, 10, 28, 12, 0, 0, DateTimeKind.Utc);
+        var qt = new List<QtEvent> { Picked(t, "rs_ext_pyro-nyx_jp", "Ruin Station") };
+        var w = MapService.Follow(qt);
+        Assert.Equal(("pyro", "pyro/ruin-station", "pyro/nyx-gateway"), (w.System, w.From?.Key, w.To?.Key));
+
+        qt.Add(Arrived(t.AddMinutes(3)));
+        w = MapService.Follow(qt);
+        Assert.Equal(("pyro", "pyro/nyx-gateway", t.AddMinutes(3)), (w.System, w.At?.Key, w.Since));
+        Assert.Null(w.Picked);
+
+        qt.Add(Picked(t.AddMinutes(8), "levski_all-001", "Pyro Gateway"));   // through the gateway: in Nyx
+        w = MapService.Follow(qt);
+        Assert.Equal(("nyx", "nyx/pyro-gateway", "nyx/levski"), (w.System, w.From?.Key, w.To?.Key));
+
+        qt.Add(Arrived(t.AddMinutes(10)));
+        w = MapService.Follow(qt);
+        Assert.Equal(("nyx", "nyx/levski"), (w.System, w.At?.Key));
+
+        // in open space ("Pyro System") he is not at a place; a jump to a party member puts him nowhere the map knows
+        var lost = MapService.Follow(new List<QtEvent> { Picked(t, "pyro3", "Pyro System") });
+        Assert.Equal(("pyro", null, "pyro/bloom"), (lost.System, lost.From?.Key, lost.To?.Key));
+        lost = MapService.Follow(new List<QtEvent> { Picked(t, "PartyMemberMarker_1", "Ruin Station"), Arrived(t.AddMinutes(1)) });
+        Assert.Equal(("pyro", null), (lost.System, lost.At?.Key));
+    }
+}
