@@ -77,7 +77,7 @@ public sealed class LogUploads
                 SeeShip(feed, text);
             }
             feed.At[file] = to;
-            var seen = Seen(feed.Log, file, last ?? LastTime(lines));
+            var seen = Seen(feed.Log, file, last ?? LastTime(lines), feed.Quit.Contains(file));
             Keep(player, file, to, lines, seen);
             return new UploadResult(true, to);
         }
@@ -142,18 +142,22 @@ public sealed class LogUploads
         return last;
     }
 
-    /// <summary>The game of this log file ran at least until this time: its GameRun is made or lengthened. The latest time seen in the file.</summary>
-    static DateTime? Seen(HaulingLog log, string file, DateTime? time)
+    /// <summary>
+    /// The game of this log file ran at least until this time (and was quit, when the file has the quit line): its GameRun is made or lengthened. The latest
+    /// time seen in the file.
+    /// </summary>
+    static DateTime? Seen(HaulingLog log, string file, DateTime? time, bool quit)
     {
         log.GameRuns.TryGetValue(file, out var run);
         var known = log.GameRuns.ContainsKey(file);
+        if (known && quit && !run.Quit) log.GameRuns[file] = run = run with { Quit = true };
         if (time == null) return known ? run.Last : null;
         var t = time.Value.ToUniversalTime();
         // the file is named by the time of its first line, which is when the game started
         var start = known ? run.Start
             : DateTime.TryParse(file, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var s) && s <= t ? s : t;
         var lastSeen = known && run.Last > t ? run.Last : t;
-        log.GameRuns[file] = new GameRun(start, lastSeen);
+        log.GameRuns[file] = new GameRun(start, lastSeen, quit || run.Quit);
         return lastSeen;
     }
 
@@ -188,7 +192,7 @@ public sealed class LogUploads
                     feed.At[kept[0]] = at;
                     // how long the game ran: kept next to the cursor (a file kept by an older server: the time of its last line)
                     DateTime? last = kept.Length >= 3 && DateTime.TryParse(kept[2], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var l) ? l : LastTime(File.ReadLines(path));
-                    Seen(feed.Log, kept[0], last);
+                    Seen(feed.Log, kept[0], last, feed.Quit.Contains(kept[0]));
                 }
             }
         }
