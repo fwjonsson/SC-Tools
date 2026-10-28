@@ -22,13 +22,12 @@ public sealed class GauntletPage
     public int RunCount { get; init; }
 }
 
-/// <summary>The admin's Gauntlet page: what a MG scrip is worth, and the rewards.</summary>
-public sealed record GauntletAdminPage(double ScripValue, IReadOnlyDictionary<int, GauntletReward> Rewards);
+/// <summary>The admin's Gauntlet page: the rewards.</summary>
+public sealed record GauntletAdminPage(IReadOnlyDictionary<int, GauntletReward> Rewards);
 
-/// <summary>The admin's Gauntlet form: a MG scrip's worth, and the rewards (aUEC and scrip, field names a1..a8 and s1..s8).</summary>
+/// <summary>The admin's Gauntlet form: the rewards (aUEC and scrip, field names a1..a8 and s1..s8).</summary>
 public sealed class GauntletOptionsForm
 {
-    public long ScripValue { get; set; }
     public long A1 { get; set; } public long A2 { get; set; } public long A3 { get; set; } public long A4 { get; set; }
     public long A5 { get; set; } public long A6 { get; set; } public long A7 { get; set; } public long A8 { get; set; }
     public long S1 { get; set; } public long S2 { get; set; } public long S3 { get; set; } public long S4 { get; set; }

@@ -244,7 +244,9 @@ admin (done), then going live.
 - **The Gauntlet Tracker** (`/gauntlet`, `Gauntlet/` in the core, `GauntletService`) reads Gilly's Combat Gauntlet from the uploaded logs and keeps
   every run in the database. Everybody sees only his own runs (Session, Stats, Earnings ranking) and the **Leaderboard** of everybody: total earned, aUEC,
   MG scrip, total aUEC per hour over the timed runs, completed and completion rate, fastest run, favourite and best scenario, last played. The rewards
-  and what a MG scrip is worth are the same for everybody and set by the admin on **Gauntlet** (`/admin/gauntlet`).
+  are the same for everybody and set by the admin on **Gauntlet** (`/admin/gauntlet`).
+- **What scrip is worth** is the admin's **Scrip** page (`/admin/scrip`, `ScripValues`, the table `SiteValues`): aUEC for one MG scrip and for one Council
+  scrip, the price he thinks they sell for now. Every tool counts scrip with these, the past included (a new price changes old totals too).
 - **The Mission Library** (`/missions`, `Missions/MissionReader` in the core, `MissionLibrary`) has every kind of mission the players took, by itself: the
   missions of the live logs and of the old logs are kept for good (`Missions`), grouped by the game's ContractId (`Library`; a name from a string mod
   never makes two of one, and every hauling route is a kind of its own). A logged in player types in what the log does not say: the name, the aUEC, MG

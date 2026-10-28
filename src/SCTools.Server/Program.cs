@@ -46,6 +46,7 @@ builder.Services.AddSingleton(sp =>
 builder.Services.AddSingleton<LoginLinks>();
 builder.Services.AddSingleton<ToolAccess>();
 builder.Services.AddSingleton<GauntletService>();
+builder.Services.AddSingleton<ScripValues>();
 builder.Services.AddSingleton<HistoryStore>();
 builder.Services.AddSingleton<IMissionWiki, HttpMissionWiki>();
 builder.Services.AddSingleton<MissionLibrary>();

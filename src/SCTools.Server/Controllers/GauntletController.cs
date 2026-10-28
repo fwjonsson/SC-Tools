@@ -21,12 +21,14 @@ public sealed class GauntletController : Controller
     readonly GauntletService _gauntlet;
     readonly ToolAccess _tools;
     readonly LogUploads _uploads;
+    readonly ScripValues _scrip;
 
-    public GauntletController(GauntletService gauntlet, ToolAccess tools, LogUploads uploads)
+    public GauntletController(GauntletService gauntlet, ToolAccess tools, LogUploads uploads, ScripValues scrip)
     {
         _gauntlet = gauntlet;
         _uploads = uploads;
         _tools = tools;
+        _scrip = scrip;
     }
 
     /// <summary>Whose page it is: the one logged in.</summary>
@@ -44,7 +46,7 @@ public sealed class GauntletController : Controller
         var now = DateTime.UtcNow;
         var settings = _gauntlet.Settings();
         var rewards = GauntletService.Rewards(settings);
-        var value = (double)settings.ScripValue;
+        var value = (double)_scrip.Mg;   // the admin's Scrip page
         var runs = _gauntlet.Runs(who);
 
         var gameStart = _uploads.GameStart(who);
@@ -95,7 +97,7 @@ public sealed class GauntletController : Controller
     }
 }
 
-/// <summary>The admin's Gauntlet page: the rewards of the eight scenarios and what a MG scrip is worth in aUEC, the same for everybody.</summary>
+/// <summary>The admin's Gauntlet page: the rewards of the eight scenarios, the same for everybody (what a MG scrip is worth is on his Scrip page).</summary>
 [Authorize(Roles = Roles.Admin)]
 [AutoValidateAntiforgeryToken]
 [Route("/admin/gauntlet")]
@@ -110,18 +112,18 @@ public sealed class GauntletAdminController : Controller
     {
         var settings = _gauntlet.Settings();
         ViewData["Title"] = "Gauntlet";
-        return View("~/Views/Gauntlet/Admin.cshtml", new GauntletAdminPage((double)settings.ScripValue, GauntletService.Rewards(settings)));
+        return View("~/Views/Gauntlet/Admin.cshtml", new GauntletAdminPage(GauntletService.Rewards(settings)));
     }
 
     [HttpPost("")]
     public IActionResult Save(GauntletOptionsForm form)
     {
-        if (form.ScripValue < 0 || form.Auec.Any(a => a < 0) || form.Scrip.Any(s => s < 0))
+        if (form.Auec.Any(a => a < 0) || form.Scrip.Any(s => s < 0))
         {
             TempData["Message"] = "Nothing was saved: a value cannot be below 0.";
             return LocalRedirect("/admin/gauntlet");
         }
-        var row = new GauntletSettingsRow { ScripValue = form.ScripValue };
+        var row = new GauntletSettingsRow { ScripValue = _gauntlet.Settings().ScripValue };   // the scrip value is on the Scrip page now
         for (var n = 1; n <= GauntletRewards.Scenarios; n++)
         {
             var d = GauntletRewards.Defaults[n];
