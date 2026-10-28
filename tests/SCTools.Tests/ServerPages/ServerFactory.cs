@@ -68,9 +68,9 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
     public DataStore Store => Services.GetRequiredService<DataStore>();
 
     /// <summary>Uploads these lines as the log of this player, and works them out at once (the server does that every two seconds by itself).</summary>
-    public void Upload(string player, IReadOnlyList<string> lines)
+    public void Upload(string player, IReadOnlyList<string> lines, string file = "test.log")
     {
-        Live.Uploads.Add(player, "test.log", 0, lines.Count, lines.ToList());
+        Live.Uploads.Add(player, file, 0, lines.Count, lines.ToList());
         Live.Refresh(DateTime.UtcNow);
     }
 

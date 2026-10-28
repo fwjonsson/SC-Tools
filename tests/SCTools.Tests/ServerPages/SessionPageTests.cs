@@ -35,7 +35,7 @@ public class SessionPageTests
         f.Upload("zzoega", new GameLogWriter().At(start).Login("zzoega").Lines
             .Concat(Mission("11111111-1111-1111-1111-111111111111", start.AddMinutes(5), start.AddMinutes(20)))
             .Concat(new[] { $"<{T(now.AddMinutes(-2))}> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Shared: x: \" [84] to queue. New queue size: 1, MissionId: [22222222-2222-2222-2222-222222222222]" })
-            .ToArray());
+            .ToArray(), T(start));   // a log file is named by the time of its first line: when the game started
 
         // an old game from the old logs: it was quit; another one crashed
         var tracker = f.Tracker(f.AddKey("zzoega"));
