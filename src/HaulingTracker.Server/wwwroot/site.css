@@ -64,3 +64,18 @@ button.has { background:#264832; }
 button.hasnot { background:#642e2e; }
 button.took { background:#685818; }
 button.tooknot { background:#6e4a1e; }
+
+/* the landing page: a card for every tool */
+main:has(.tools) { max-width:1100px; }
+.tools-intro h1 { font-size:28px; margin:22px 0 6px; }
+.tools-intro p { max-width:640px; margin:0 0 22px; }
+.tools { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:16px; }
+.tool { display:flex; flex-direction:column; gap:10px; padding:18px 18px 16px; background:var(--cell); border:1px solid var(--line); border-radius:8px; text-decoration:none; color:inherit; min-height:190px; }
+a.tool { border-top:3px solid var(--accent); }
+a.tool:hover { border-color:var(--accent); background:#1b2533; }
+.tool-name { font-size:18px; font-weight:700; }
+.tool-text { color:var(--muted); line-height:1.45; flex:1; }
+.tool-state { font-size:13px; font-weight:600; color:var(--muted); }
+.tool-state.live { color:var(--good); }
+.tool.soon { opacity:.6; }
+.footnote { margin-top:28px; }
