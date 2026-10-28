@@ -259,9 +259,12 @@ admin (done), then going live.
   planet or a moon) or X and Y in Gm; optionally for a text of the log, which is then that place (the *add it* link of a Not known row fills
   it in).
 - **The fleet.** On My page a player keeps every ship he owns, the quantum drive in each, and the quality of a crafted drive (0 to 1000: 1000 makes the
-  drive speed 20 % higher, 500 is as bought, 0 is 20 % lower, in a straight line; only the drive speed changes). His **active ship** is the one he picks,
-  or Automatic: the ship of his latest quantum jump (every quantum travel line names it by the game's class, `CRUS_Starlifter_C2`, `VehicleLines`),
-  matched to his fleet by its name. The Hauling Planner flies the active ship: its name (when it is a hauler the planner knows: a name like "Crusader C2
+  drive speed 20 % higher, 500 is as bought, 0 is 20 % lower, in a straight line; only the drive speed changes). The ships to pick from are every
+  spaceship of the game data (`ShipModels`: 231, from the Star Citizen Wiki's vehicles in the ScApiTool download of 20 Oct 2026, with their classes,
+  cargo grid and stock quantum drive; ground vehicles, display and concept models left out); a ship without a drive picked flies its stock drive
+  ("Beacon S1 (stock)"). His **active ship** is the one he picks, or Automatic: the ship of his latest quantum jump (every quantum travel line names it
+  by the game's class, `CRUS_Starlifter_C2`, `VehicleLines`), the ship of his fleet that is that class's ship (`ShipModels.OfClass`), else the one whose
+  name fits the class best; a class that is not in his fleet shows by the game's name ("Crusader C2 Hercules Starlifter"). The Hauling Planner flies the active ship: its name (when it is a hauler the planner knows: a name like "Crusader C2
   Hercules Starlifter" is the C2), its drive and how much faster the drive is (`AppData.DriveSpeedBonus`, `Crew.QtOf`) go to the planner every few
   seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Party table of the live page shows every member's ship
   and drive ("TS-2 S3 +20 %") instead of Active, which comes from the logs now (a member who is not active is faded).

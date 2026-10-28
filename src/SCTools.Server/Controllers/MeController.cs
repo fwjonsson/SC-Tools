@@ -32,7 +32,7 @@ public sealed class MeController : Controller
         var m = _live.Read(t => MeModel.Of(t, Player));
         m.Fleet = _fleet.Fleet(Player);
         m.Active = _fleet.Active(Player);
-        m.ShipNames = global::SCTools.GameData.Ships.All.Select(s => s.Name).ToList();
+        m.ShipNames = ShipModels.All.Select(s => s.Name).ToList();   // every spaceship of the game data
         return View(m);
     }
 

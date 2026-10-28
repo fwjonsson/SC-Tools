@@ -32,8 +32,8 @@
         : (active.Picked ? VehicleLines.Pretty(active.Vehicle) : active.Text) + " (your last quantum jump" + (active.Picked || active.Ship != null ? "" : ", not in your fleet") + ")";
 }
 <h2 id="fleet">My fleet</h2>
-<p class="hint">Every ship you own and the quantum drive in it. A crafted drive: type its quality (0 to 1000). Quality 1000 makes the drive speed 20 % higher,
-  500 is as bought, 0 is 20 % lower (only the drive speed changes). The Hauling Planner flies your active ship: its cargo grid, its drive and the drive's
+<p class="hint">Every ship you own and the quantum drive in it (none picked: the ship's stock drive). A crafted drive: type its quality (0 to 1000). Quality
+  1000 makes the drive speed 20 % higher, 500 is as bought, 0 is 20 % lower (only the drive speed changes). The Hauling Planner flies your active ship: its cargo grid, its drive and the drive's
   speed for the flying times.</p>
 <form method="post" action="/me/fleet/active" asp-antiforgery="true" class="line" data-autosave>
   <label for="activeShip">Active ship</label>
@@ -59,7 +59,11 @@
             <input type="hidden" name="id" value="@s.Row.Id"><input type="hidden" name="field" value="ship">
             <input name="value" value="@s.Row.Ship" list="shipNames" maxlength="@FleetService.MaxName" aria-label="Ship" class="name" autocomplete="off">
           </form>
-          @if (s.Hauler == null)
+          @if (s.Model == null)
+          {
+            <span class="muted small">not a ship the site knows</span>
+          }
+          else if (s.Hauler == null && s.Model.Cargo >= 32)
           {
             <span class="muted small">not a hauler the planner knows</span>
           }
@@ -68,10 +72,10 @@
           <form method="post" action="/me/fleet/set" asp-antiforgery="true" data-autosave>
             <input type="hidden" name="id" value="@s.Row.Id"><input type="hidden" name="field" value="drive">
             <select name="value" aria-label="Quantum drive">
-              <option value=""></option>
+              <option value="">@(s.StockDrive is { } stock ? "Stock: " + stock.Label : "")</option>
               @foreach (var d in Model.Drives)
               {
-                <option value="@d.Value" selected="@(s.Drive?.Label == d.Value)">@d.Text</option>
+                <option value="@d.Value" selected="@(s.Row.Drive != null && s.Drive?.Label == d.Value)">@d.Text</option>
               }
             </select>
           </form>
@@ -98,7 +102,7 @@
 <form method="post" action="/me/fleet/add" asp-antiforgery="true" class="line">
   <input name="ship" list="shipNames" maxlength="@FleetService.MaxName" placeholder="Ship" aria-label="Ship to add" required autocomplete="off">
   <select name="drive" aria-label="Its quantum drive">
-    <option value="">Quantum drive</option>
+    <option value="">Stock quantum drive</option>
     @foreach (var d in Model.Drives)
     {
       <option value="@d.Value">@d.Text</option>

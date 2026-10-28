@@ -26,7 +26,7 @@ public class PartyToolTests
         var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/party"));   // only the admin until it is shown
         Assert.Contains("zzoega's party", page);
         Assert.Contains("href=\"/party/zzatvo\"", page);
-        Assert.Contains("CRUS Starlifter C2", page);   // the ship of his last quantum jump (not in a fleet: as the logs call it)
+        Assert.Contains("Crusader C2 Hercules Starlifter", page);   // the ship of his last quantum jump (not in a fleet: the game's name for its class)
         Assert.Contains("href=\"/party/bileh123\"", page);
         Assert.Contains("Not playing", page);
         Assert.Contains("href=\"/party/pilot_x\"", page);
