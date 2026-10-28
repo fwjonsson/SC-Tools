@@ -54,7 +54,7 @@ public sealed partial class MainForm
 
             asked = true;
             var answer = MessageBox.Show(this,
-                "A newer version of the Hauling Planner is available.\n\nUpdate now? The program restarts. Your data is not touched, and the old program is kept as HaulingPlanner.old.exe.",
+                "A newer version of the Hauling Planner is available.\n\nUpdate now? The program restarts. Your data is not touched.",
                 "Update", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
             if (answer != DialogResult.Yes) return;
 

@@ -78,7 +78,7 @@ public static class Updater
 
     /// <summary>
     /// Windows does not let a program overwrite itself while it runs, but it does let the running exe be renamed. So the running exe becomes
-    /// HaulingPlanner.old.exe (kept as a backup until the next update), the new exe takes its place and is started (the same for the tracker's exe).
+    /// HaulingPlanner.old.exe (removed when the new one starts, AppName.RemoveLeftoversAsync), the new exe takes its place and is started (the same for the tracker's exe).
     /// </summary>
     public static void ReplaceAndStart(string newExe, string? arguments = null)
     {
