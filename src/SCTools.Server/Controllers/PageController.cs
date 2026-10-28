@@ -1,6 +1,7 @@
 using System.Net;
 using SCTools.Server.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 
 namespace SCTools.Server.Controllers;
 
@@ -15,9 +16,11 @@ public sealed class PageController : Controller
     readonly GauntletService _gauntlet;
     readonly MissionLibrary _missions;
     readonly Playtime _playtime;
+    readonly IFileVersionProvider _files;
 
-    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions, Playtime playtime)
+    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions, Playtime playtime, IFileVersionProvider files)
     {
+        _files = files;
         _live = live;
         _tools = tools;
         _gauntlet = gauntlet;
@@ -76,8 +79,11 @@ public sealed class PageController : Controller
 
     string WithLinks(string page)
     {
-        // the bar of the site at the top, as on every page (SC Tools back to the cards, the tools, who is logged in), with its look
-        page = page.Replace("</head>", "<link rel=\"stylesheet\" href=\"/topbar.css\">\n</head>")
+        // the bar of the site at the top, as on every page (SC Tools back to the cards, the tools, who is logged in), with its look. The look's address has
+        // its version in it (as asp-append-version on the other pages): Cloudflare and the browsers keep a .css for hours, and an old one with the new bar
+        // is a mess (the menu button and a big download arrow on a computer)
+        var css = WebUtility.HtmlEncode(_files.AddFileVersionToPath(Request.PathBase, "/topbar.css"));
+        page = page.Replace("</head>", "<link rel=\"stylesheet\" href=\"" + css + "\">\n</head>")
             .Replace("<body>", "<body class=\"tool\">\n" + TopBar.Html(HttpContext, _tools, SiteTools.Hauling));
         // who is looking, so the page can show his party first and his own runs on the Trip Planner (a player logged in by his tracker, or the admin)
         if (User.Identity?.IsAuthenticated == true && !string.IsNullOrEmpty(User.Identity.Name))
