@@ -8,7 +8,7 @@ namespace SCTools.Server.Controllers;
 public sealed class TrackerController : Controller
 {
     /// <summary>The tracker in the "latest" release the build makes from main.</summary>
-    public const string Download = "https://github.com/fwjonsson/SC-Tools/releases/download/latest/" + AppName.Tracker.Zip;
+    public static readonly string Download = "https://github.com/fwjonsson/SC-Tools/releases/download/latest/" + AppName.Tracker.Zip;
 
     [HttpGet("")]
     public IActionResult Index() => View();
