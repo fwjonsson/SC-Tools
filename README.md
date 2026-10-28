@@ -211,6 +211,10 @@ admin (done), then going live.
   the admin, and his tracker logs him in as the player only, so a tracker key never opens the admin pages. A colour too close to another member's (two
   greens, a red and a dark red) is not taken, on My page and on the Party page. **My page** (`/me`) is his own Current location, colour, ship and quantum drive (the
   same lists as the Party table and the Trip Planner of the program); nobody else's. Five wrong passwords lock the login for ten minutes.
+- **SC Tools.** The site is a landing page with a card for every tool (`/`, `Views/Home`); the hauling tracker's live page is at `/hauling`. The old
+  address `haulingtracker.fwjonsson.dev` (the trackers use it) goes straight to `/hauling`. A new address for the site (like `sct.fwjonsson.dev`) is one
+  more published application route of the same Cloudflare tunnel, to `http://127.0.0.1:8780`. The plan of the tools is `claude/sc-tools-roadmap.md` in the
+  project.
 - **The admin's pages** change what the program changes, with the same logic (`Editing/Edits.cs`, each change saved and worked out again at once):
   **Session** (`/admin`: Start / Stop Session, Next Stops locked or not, the mission rewards, the start time, the names and notes of the stops, the lost
   cargo of the runs, the SCU of from-Ruin drop-offs the game did not tell), **Party** (add, remove, active, ship, drive, colour, location of every

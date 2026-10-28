@@ -4,21 +4,35 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HaulingTracker.Server.Controllers;
 
-/// <summary>The live page for everybody: the page itself, its data (data.json, new every two seconds) and its icon. Watching needs no login.</summary>
+/// <summary>
+/// The pages for everybody: the landing page of the tools (/), the live page of the hauling tracker (/hauling), its data (data.json, new every two seconds)
+/// and the icon. Watching needs no login.
+/// </summary>
 public sealed class PageController : Controller
 {
     readonly LiveTracker _live;
 
     public PageController(LiveTracker live) => _live = live;
 
-    /// <summary>The page, with the links of the login in its top right corner (Log in; My page for a player; the admin pages for the admin).</summary>
+    /// <summary>
+    /// The landing page: a card for every tool. The old address of the hauling tracker (haulingtracker.fwjonsson.dev, which the trackers use) goes straight
+    /// to the hauling tracker, as it always did.
+    /// </summary>
     [HttpGet("/")]
+    public IActionResult Home()
+    {
+        if (Request.Host.Host.StartsWith("haulingtracker.", StringComparison.OrdinalIgnoreCase)) return LocalRedirect("/hauling");
+        return View("~/Views/Home/Index.cshtml", _live.Read(t => new HomeModel(t.State.Current == null ? "" : BoardTexts.DescribeSession(t.State.Current))));
+    }
+
+    /// <summary>The live page of the hauling tracker, with the links of the login in its top right corner (Log in; My page for a player; the admin pages for the admin).</summary>
+    [HttpGet("/hauling")]
     [HttpGet("/index.html")]
     public IActionResult Page() => Content(WithLinks(WebAssets.Page), "text/html; charset=utf-8");
 
     string WithLinks(string page)
     {
-        var links = new List<string>();
+        var links = new List<string> { "<a href=\"/\">SC Tools</a>" };   // back to the other tools
         if (User.Identity?.IsAuthenticated != true) links.Add("<a href=\"/login\">Log in</a>");
         else
         {

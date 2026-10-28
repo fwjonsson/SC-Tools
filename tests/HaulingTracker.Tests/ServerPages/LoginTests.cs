@@ -22,7 +22,15 @@ public class LoginTests
         var c = f.Browser();
         var page = await c.GetAsync("/");
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
-        Assert.Contains("href=\"/login\"", await page.Content.ReadAsStringAsync());   // the live page has the link to log in
+        var home = await page.Content.ReadAsStringAsync();
+        Assert.Contains("href=\"/hauling\"", home);   // the landing page: a card for every tool
+        Assert.Contains("href=\"/login\"", home);
+        var live = await c.GetStringAsync("/hauling");
+        Assert.Contains("href=\"/login\"", live);   // the live page has the link to log in, and back to the tools
+        Assert.Contains("href=\"/\"", live);
+        var old = await c.GetAsync("http://haulingtracker.fwjonsson.dev/");   // the old address (the trackers use it): straight to the hauling tracker
+        Assert.Equal(HttpStatusCode.Redirect, old.StatusCode);
+        Assert.Equal("/hauling", old.Headers.Location!.OriginalString);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/data.json")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/site.css")).StatusCode);
 
@@ -81,7 +89,7 @@ public class LoginTests
         var page = await player.GetStringAsync("/me");
         Assert.Contains("ZZATVO", page);
         Assert.Contains("Automatic: ", page);
-        Assert.Contains("href=\"/me\"", await player.GetStringAsync("/"));   // the live page links to his page
+        Assert.Contains("href=\"/me\"", await player.GetStringAsync("/hauling"));   // the live page links to his page
 
         var station = StationNotRuin;
         var ship = Ships.All[0];
