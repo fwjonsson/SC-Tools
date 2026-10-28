@@ -80,7 +80,7 @@ public static class Updater
     /// Windows does not let a program overwrite itself while it runs, but it does let the running exe be renamed. So the running exe becomes
     /// HaulingPlanner.old.exe (kept as a backup until the next update), the new exe takes its place and is started (the same for the tracker's exe).
     /// </summary>
-    public static void ReplaceAndStart(string newExe)
+    public static void ReplaceAndStart(string newExe, string? arguments = null)
     {
         var me = Environment.ProcessPath ?? throw new InvalidOperationException("The path of the program is not known.");
         var old = Path.ChangeExtension(me, ".old.exe");
@@ -95,6 +95,6 @@ public static class Updater
             File.Move(old, me);   // put the program back, nothing has changed
             throw;
         }
-        Process.Start(new ProcessStartInfo(me) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(me) ?? "" });
+        Process.Start(new ProcessStartInfo(me) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(me) ?? "", Arguments = arguments ?? "" });
     }
 }

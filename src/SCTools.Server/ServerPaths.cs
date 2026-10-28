@@ -10,10 +10,14 @@ public sealed class ServerPaths
         BackupDir = Full(settings.BackupDir);
         DataFile = Full(settings.DataFile);
         LogDir = Full(settings.LogDir);
+        HistoryDir = Path.Combine(Path.GetDirectoryName(LogDir.TrimEnd('/', '\\')) ?? LogDir, "history");
     }
 
     public string Database { get; }
     public string BackupDir { get; }
     public string DataFile { get; }
     public string LogDir { get; }
+
+    /// <summary>The old logs the trackers sent (HistoryStore), next to LogDir: not in it, where every folder is a player's live logs.</summary>
+    public string HistoryDir { get; }
 }

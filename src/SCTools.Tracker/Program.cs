@@ -5,7 +5,7 @@ namespace SCTools.Tracker;
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
         // one tracker at a time (an update starts the new exe while the old one closes: it waits a moment for it). The name of the lock stays the old
         // one, so a tracker from before the new name and its update wait for each other too.
@@ -24,7 +24,7 @@ internal static class Program
         {
             if (AppName.Tracker.MoveAndRestart(TrayApp.MoveStartWithWindows)) return;   // it was HaulingTrackerSender.exe: started again under its new name
             ApplicationConfiguration.Initialize();
-            Application.Run(new TrayApp());
+            Application.Run(new TrayApp(args.Contains("--updated")));
         }
         finally
         {

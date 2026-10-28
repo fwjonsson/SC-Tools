@@ -4,7 +4,7 @@ using System.Net.Http.Json;
 namespace SCTools.GameLog;
 
 /// <summary>The server over the internet: every request carries the tracker's key (X-Tracker-Key), which says whose log it is.</summary>
-public sealed class HttpLogServer : ILogServer, IDisposable
+public sealed class HttpLogServer : ILogServer, IHistoryServer, IDisposable
 {
     readonly HttpClient _http;
 
@@ -22,6 +22,9 @@ public sealed class HttpLogServer : ILogServer, IDisposable
     sealed record Me(string player);
     sealed record Link(string url);
     sealed record Piece(string file, long from, long to, IReadOnlyList<string> lines, DateTime? last);
+    sealed record Files(IReadOnlyList<string> files);
+    sealed record Missing(List<string>? missing);
+    sealed record OldPiece(string file, long from, IReadOnlyList<string> lines, bool done, DateTime? last, string? build);
 
     /// <summary>The player of this key, or null when the server does not know it.</summary>
     public async Task<string?> PlayerAsync(CancellationToken ct)
@@ -58,6 +61,21 @@ public sealed class HttpLogServer : ILogServer, IDisposable
         if (resp.StatusCode == HttpStatusCode.Conflict) return new UploadResult(false, (await resp.Content.ReadFromJsonAsync<At>(ct))?.at ?? from);
         Check(resp);
         return new UploadResult(true, (await resp.Content.ReadFromJsonAsync<At>(ct))?.at ?? to);
+    }
+
+    public async Task<IReadOnlyList<string>> MissingAsync(IReadOnlyList<string> files, CancellationToken ct)
+    {
+        using var resp = await _http.PostAsJsonAsync("api/history/missing", new Files(files), ct);
+        Check(resp);
+        return (await resp.Content.ReadFromJsonAsync<Missing>(ct))?.missing ?? new List<string>();
+    }
+
+    public async Task<UploadResult> HistoryAsync(string file, long from, IReadOnlyList<string> lines, bool done, DateTime? last, string? build, CancellationToken ct)
+    {
+        using var resp = await _http.PostAsJsonAsync("api/history", new OldPiece(file, from, lines, done, last, build), ct);
+        if (resp.StatusCode == HttpStatusCode.Conflict) return new UploadResult(false, (await resp.Content.ReadFromJsonAsync<At>(ct))?.at ?? from);
+        Check(resp);
+        return new UploadResult(true, (await resp.Content.ReadFromJsonAsync<At>(ct))?.at ?? from + lines.Count);
     }
 
     static void Check(HttpResponseMessage resp)

@@ -22,9 +22,11 @@ public sealed class GauntletService
     }
 
     /// <summary>Writes the missions the logs show that the database does not have yet. Returns how many were new.</summary>
-    public int Collect()
+    public int Collect() => Add(_uploads.GauntletRuns());
+
+    /// <summary>Writes these missions where the database does not have them yet (the live logs, or an old log a tracker sent). Returns how many were new.</summary>
+    public int Add(IReadOnlyDictionary<string, List<GauntletRun>> found)
     {
-        var found = _uploads.GauntletRuns();
         lock (_lock)
         {
             using var db = _store.Open();
