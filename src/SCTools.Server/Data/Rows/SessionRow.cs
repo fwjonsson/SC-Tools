@@ -43,5 +43,8 @@ public sealed class SessionRow
     public List<string>? Party { get; set; }
     public Dictionary<string, WorkerStat> Stats { get; set; } = new();
     public Dictionary<string, decimal> Received { get; set; } = new();
+
+    /// <summary>The parties of the session as the payouts went (SessionInputs.Groups).</summary>
+    public List<List<string>> Groups { get; set; } = new();
     public List<string> Members { get; set; } = new();
 }

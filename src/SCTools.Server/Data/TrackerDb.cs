@@ -108,6 +108,7 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
             e.Property(x => x.Stats).AsJson();
             e.Property(x => x.Received).AsJson();
             e.Property(x => x.Members).AsJson();
+            e.Property(x => x.Groups).AsJson().HasDefaultValueSql("'[]'");   // the sessions from before: no groups (an empty text is no JSON)
         });
 
         b.Entity<TransferRow>(e =>

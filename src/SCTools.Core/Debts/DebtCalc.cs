@@ -62,20 +62,23 @@ public static class DebtCalc
     /// Who owes whom, pair by pair, from what really happened (the balances of the Debts tab). In every session the members who carried more than their share
     /// of its payouts are owed by those who carried less, each in proportion to how much less; a ticked payment counts between the two who made it. So a
     /// payment to one member never moves a debt to somebody else (as the fewest payments of Settle did), and the balances of a member add up to his net.
+    /// Two parties that hauled in one session are worked out apart (its Groups): nobody owes anybody of the other party for it.
     /// </summary>
     public static List<(string Debtor, string Creditor, decimal Amount)> Pairs(IEnumerable<SessionInputs> sessions, IEnumerable<SavedTransfer> transfers)
     {
         var res = new List<(string Debtor, string Creditor, decimal Amount)>();
         foreach (var s in sessions)
         {
-            var nets = SessionNets(s);
-            var owed = nets.Where(n => n.Net > 0).ToList();
-            var owing = nets.Where(n => n.Net < 0).ToList();
-            var basis = Math.Max(owed.Sum(n => n.Net), -owing.Sum(n => n.Net));   // the same when the payouts are the value carried; never more than anybody's share
-            if (basis <= 0) continue;
-            foreach (var c in owed)
+            foreach (var nets in Parts(SessionNets(s), s.Groups))
             {
-                foreach (var d in owing) res.Add((d.Name, c.Name, c.Net * -d.Net / basis));
+                var owed = nets.Where(n => n.Net > 0).ToList();
+                var owing = nets.Where(n => n.Net < 0).ToList();
+                var basis = Math.Max(owed.Sum(n => n.Net), -owing.Sum(n => n.Net));   // the same when the payouts are the value carried; never more than anybody's share
+                if (basis <= 0) continue;
+                foreach (var c in owed)
+                {
+                    foreach (var d in owing) res.Add((d.Name, c.Name, c.Net * -d.Net / basis));
+                }
             }
         }
         foreach (var t in transfers)
@@ -83,6 +86,25 @@ public static class DebtCalc
             if (t.Payment) res.Add((t.To, t.From, t.Amount));   // the sender has paid: the receiver owes him that (or is owed that much less)
         }
         return res;
+    }
+
+    /// <summary>The members of a session party by party (its Groups; somebody in none of them is with the others in none); all of them when it has no groups.</summary>
+    static IEnumerable<List<(string Name, decimal Net)>> Parts(List<(string Name, decimal Net)> nets, List<List<string>>? groups)
+    {
+        if (groups == null || groups.Count == 0)
+        {
+            yield return nets;
+            yield break;
+        }
+        var rest = new List<(string Name, decimal Net)>(nets);
+        foreach (var g in groups)
+        {
+            var part = rest.Where(n => g.Any(x => Same(x, n.Name))).ToList();
+            if (part.Count == 0) continue;
+            rest.RemoveAll(n => g.Any(x => Same(x, n.Name)));
+            yield return part;
+        }
+        if (rest.Count > 0) yield return rest;
     }
 
     /// <summary>Fewest payments that settle everything: the biggest debtor pays the biggest creditor first.</summary>

@@ -32,6 +32,9 @@
   .nav, .sub { display:flex; gap:8px; margin:8px 0 4px; flex-wrap:wrap; }
   .nav button, .sub button { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 16px; font:inherit; font-weight:600; cursor:pointer; border-radius:4px; }
   .nav button.on, .sub button.on { background:var(--header); color:#fff; }
+  .sub label { font-weight:600; align-self:center; }
+  .sub select { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 10px; font:inherit; font-weight:600; border-radius:4px; min-width:200px; }
+  .sub select:disabled { opacity:1; cursor:default; }
   .hidden { display:none; }
   .plantables { flex:1 1 520px; min-width:0; }
   .plantables h2:first-child { margin-top:0; }

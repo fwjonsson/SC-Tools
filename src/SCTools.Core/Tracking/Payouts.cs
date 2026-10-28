@@ -61,7 +61,9 @@ public sealed class Payouts
     /// paid out. Someone who joined after a mission paid out, or left before it, gets no share of it.
     /// Missions that paid out before the party table started to track times (or in a session with a typed Session Party) use the whole session party.
     /// </summary>
-    public (Dictionary<string, decimal> Carried, Dictionary<string, decimal> Received) ComputePayouts(SessionGroup g, SessionInputs inp, List<PayoutRecord>? records = null)
+    /// <param name="groups">gets the parties of the session as the payouts went: who carried a mission and who shared its payout are in one</param>
+    public (Dictionary<string, decimal> Carried, Dictionary<string, decimal> Received) ComputePayouts(SessionGroup g, SessionInputs inp, List<PayoutRecord>? records = null,
+        List<List<string>>? groups = null)
     {
         var carried = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         var received = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
@@ -109,6 +111,7 @@ public sealed class Payouts
             if (!sessionMembers.Any(x => SameName(x, k))) sessionMembers.Add(k);
         }
         var since = _crew.PartyTrackingStart();
+        var together = new PartyGroups();
         foreach (var kv in byMission)
         {
             var m = g.Missions.First(x => x.Id == kv.Key);
@@ -132,6 +135,7 @@ public sealed class Payouts
                 var holders = members.Where(n => _contracts.HasMission(m, n, m.EndedAt)).ToList();
                 if (holders.Count > 0) members = holders;
             }
+            together.Join(kv.Value.Keys.Concat(members));
             var share = pool / members.Count;
             if (records != null && m.EndedAt.HasValue)
             {
@@ -151,8 +155,51 @@ public sealed class Payouts
                 received[name] = old + share;
             }
         }
+        if (groups != null)
+        {
+            groups.Clear();
+            groups.AddRange(together.Groups());
+        }
         return (carried, received);
     }
+
+    /// <summary>Names that belong together (case does not matter): each Join puts its names in one group, and groups that share a name become one.</summary>
+    sealed class PartyGroups
+    {
+        readonly Dictionary<string, string> _root = new(StringComparer.OrdinalIgnoreCase);
+        readonly List<string> _names = new();
+
+        string Find(string x)
+        {
+            if (!_root.TryGetValue(x, out var r))
+            {
+                _root[x] = x;
+                _names.Add(x);
+                return x;
+            }
+            return string.Equals(r, x, StringComparison.OrdinalIgnoreCase) ? r : _root[x] = Find(r);
+        }
+
+        public void Join(IEnumerable<string> names)
+        {
+            string? first = null;
+            foreach (var n in names)
+            {
+                var r = Find(n);
+                if (first == null) first = r;
+                else if (!string.Equals(r, first, StringComparison.OrdinalIgnoreCase)) _root[r] = first;
+            }
+        }
+
+        /// <summary>The groups, each sorted by name, the groups by their first name.</summary>
+        public List<List<string>> Groups() =>
+            _names.GroupBy(Find, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList())
+                .OrderBy(g => g[0], StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    static bool SameGroups(List<List<string>> a, List<List<string>> b) =>
+        a.Count == b.Count && a.Zip(b).All(p => p.First.SequenceEqual(p.Second, StringComparer.OrdinalIgnoreCase));
 
     static bool SameMap(Dictionary<string, decimal> a, Dictionary<string, decimal> b) =>
         a.Count == b.Count && b.All(kv => a.TryGetValue(kv.Key, out var v) && v == kv.Value);
@@ -179,7 +226,8 @@ public sealed class Payouts
             // a session never shown (one that started and stopped by itself while a newer one was shown): the rewards a new session starts with
             var basis = stored ?? NewInputs();
             var payouts = new List<PayoutRecord>();
-            var (carried, received) = ComputePayouts(g, basis, payouts);
+            var groups = new List<List<string>>();
+            var (carried, received) = ComputePayouts(g, basis, payouts, groups);
             foreach (var r in payouts)
             {
                 var old = Data.Payouts.FirstOrDefault(x => x.MissionId == r.MissionId);
@@ -238,7 +286,8 @@ public sealed class Payouts
                 && runValues.All(kv => inp.RunValues.TryGetValue(kv.Key, out var rv) && rv == kv.Value)
                 && carried.All(kv => inp.Carried.TryGetValue(kv.Key, out var v) && v == kv.Value)
                 && inp.Members.Count == members.Count
-                && members.All(m => inp.Members.Any(x => SameName(x, m)));
+                && members.All(m => inp.Members.Any(x => SameName(x, m)))
+                && SameGroups(inp.Groups, groups);
             if (!same || inp.MissionIds.Count != ids.Count)
             {
                 inp.Carried = new Dictionary<string, decimal>(carried);
@@ -247,6 +296,7 @@ public sealed class Payouts
                 inp.FailedValues = new Dictionary<string, decimal>(failedValues);
                 inp.Stats = new Dictionary<string, WorkerStat>(stats);
                 inp.Members = members;
+                inp.Groups = groups;
                 inp.MissionIds = ids;
                 changed = true;
             }

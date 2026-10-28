@@ -124,6 +124,7 @@ public sealed class DataRows
         Stats = s.Stats,
         Received = s.Received,
         Members = s.Members,
+        Groups = s.Groups,
     };
 
     static SessionInputs SessionOf(SessionRow r) => new()
@@ -159,6 +160,7 @@ public sealed class DataRows
         Stats = r.Stats,
         Received = r.Received,
         Members = r.Members,
+        Groups = r.Groups,
     };
 
     /// <summary>The data of these rows (the lists in the order of their Position).</summary>
