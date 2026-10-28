@@ -1,5 +1,6 @@
 using System.Net;
 using HaulingTracker.Server.Accounts;
+using HaulingTracker.Server.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HaulingTracker.Server.Controllers;
