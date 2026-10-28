@@ -1,7 +1,7 @@
 name: Deploy
 
 # Puts the web app on the server (Hetzner, Arm64) when main changes, or by hand (Run workflow). It builds the server for linux-arm64 with .NET inside
-# (nothing to install on the server), copies it there as the user "deploy" and runs haulingtracker-install, which switches to it, restarts the service and
+# (nothing to install on the server), copies it there as the user "deploy" and runs sctools-install, which switches to it, restarts the service and
 # puts the version before back when the new one does not answer. Nothing happens until the three secrets exist (see "Going live" in the README):
 # DEPLOY_HOST (the server's IP), DEPLOY_KEY (the private key setup.sh made) and DEPLOY_KNOWN_HOSTS (the server's key, so nobody can pose as it).
 on:
@@ -9,9 +9,9 @@ on:
     branches:
       - main
     paths:
-      - 'src/HaulingTracker.Server/**'
-      - 'src/HaulingTracker.Core/**'
-      - 'src/HaulingTracker.Web/**'
+      - 'src/SCTools.Server/**'
+      - 'src/SCTools.Core/**'
+      - 'src/SCTools.Web/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
@@ -33,7 +33,7 @@ jobs:
 
       - name: Build the server for the Arm server
         run: |
-          dotnet publish src/HaulingTracker.Server -c Release -r linux-arm64 --self-contained true -p:InformationalVersion=release-${{ github.sha }} -o publish
+          dotnet publish src/SCTools.Server -c Release -r linux-arm64 --self-contained true -p:InformationalVersion=release-${{ github.sha }} -o publish
           rm -f publish/appsettings.Development.json
           tar -czf app.tgz -C publish .
           ls -la app.tgz
@@ -52,6 +52,6 @@ jobs:
           printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy
           chmod 600 ~/.ssh/deploy
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          scp -i ~/.ssh/deploy -o BatchMode=yes app.tgz "deploy@$DEPLOY_HOST:/opt/haulingtracker/incoming/app.tgz"
-          ssh -i ~/.ssh/deploy -o BatchMode=yes "deploy@$DEPLOY_HOST" haulingtracker-install /opt/haulingtracker/incoming/app.tgz
+          scp -i ~/.ssh/deploy -o BatchMode=yes app.tgz "deploy@$DEPLOY_HOST:/opt/sctools/incoming/app.tgz"
+          ssh -i ~/.ssh/deploy -o BatchMode=yes "deploy@$DEPLOY_HOST" sctools-install /opt/sctools/incoming/app.tgz
           echo "::notice title=Deployed::The web app of ${GITHUB_SHA::7} runs on the server."

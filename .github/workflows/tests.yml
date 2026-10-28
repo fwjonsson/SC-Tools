@@ -5,9 +5,9 @@ name: Tests
 on:
   push:
     paths:
-      - 'src/HaulingTracker.Core/**'
-      - 'src/HaulingTracker.Web/**'
-      - 'src/HaulingTracker.Server/**'
+      - 'src/SCTools.Core/**'
+      - 'src/SCTools.Web/**'
+      - 'src/SCTools.Server/**'
       - 'tests/**'
       - 'tools/PlanTest/**'
       - '.github/workflows/tests.yml'
@@ -26,19 +26,19 @@ jobs:
         shell: bash
         run: |
           set +e
-          dotnet test tests/HaulingTracker.Tests -c Release --logger "console;verbosity=normal" > test.txt 2>&1
+          dotnet test tests/SCTools.Tests -c Release --logger "console;verbosity=normal" > test.txt 2>&1
           code=$?
           cat test.txt
           # the counts first, then only what failed (a notice is cut off after a few thousand characters)
           summary=$(grep -E "^\s*(Total tests|Passed|Failed|Skipped):" test.txt | tr -s ' ' | tr '\n' ' ')
-          problems=$(grep -E "^\s*Failed |error|Assert\.|Expected|Actual|at HaulingTracker" test.txt | grep -v "warning" | head -80)
+          problems=$(grep -E "^\s*Failed |error|Assert\.|Expected|Actual|at SCTools" test.txt | grep -v "warning" | head -80)
           body=$(printf "%s\n%s" "$summary" "$problems" | tail -c 6000 | sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g')
           echo "::notice title=Test results::$body"
           exit $code
       - name: Build the server
-        run: dotnet build src/HaulingTracker.Server -c Release
+        run: dotnet build src/SCTools.Server -c Release
       - name: Build the server for the Arm server (as Deploy does)
-        run: dotnet publish src/HaulingTracker.Server -c Release -r linux-arm64 --self-contained true -o publish-arm64 && ls publish-arm64 | head -50 && ls publish-arm64/wwwroot
+        run: dotnet publish src/SCTools.Server -c Release -r linux-arm64 --self-contained true -o publish-arm64 && ls publish-arm64 | head -50 && ls publish-arm64/wwwroot
       - name: Plan the scenarios
         shell: bash
         run: |

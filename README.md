@@ -1,21 +1,25 @@
-# Hauling Tracker
+# SC Tools
 
-Reads Star Citizen `Game.log` files and fills in your hauling session sheet.
-Only **Station to Ruin** hauling contracts are used. Ruin to Station missions are ignored.
+Star Citizen tools that read the game's own `Game.log`: the site **sc-tools.fwjonsson.dev** (the Hauling Planner, and the Session, Mission Library and
+Gauntlet Tracker to come), the **SC Tools Tracker** on every gaming PC that sends the site what the tools need, and the **Hauling Planner** Windows
+program, where it all started: it reads the logs and fills in your hauling session sheet (only **Station to Ruin** hauling contracts are used).
+
+Renamed from Hauling Tracker on 28 Oct 2026 (the repository was SCHaulingTracker, the site haulingtracker.fwjonsson.dev and then sct.fwjonsson.dev, the
+programs HaulingTracker.exe and HaulingTrackerSender.exe): the old addresses send you to the new ones, and the programs rename themselves when they update.
 
 ## Build and run
 
 You need the .NET 10 SDK (Windows).
 
-    dotnet run --project src/HaulingTracker
+    dotnet run --project src/SCTools.HaulingPlanner
 
-or open `HaulingTracker.slnx` in Visual Studio and press F5.
-To make a single exe: `dotnet publish src/HaulingTracker -c Release -r win-x64 --self-contained false`.
+or open `SCTools.slnx` in Visual Studio and press F5.
+To make a single exe: `dotnet publish src/SCTools.HaulingPlanner -c Release -r win-x64 --self-contained false`.
 
 ## How the code is organised
 
     src/
-      HaulingTracker.Core/     the logic, without any user interface (runs anywhere .NET runs, so it can be tested on any machine)
+      SCTools.Core/            the logic, without any user interface (runs anywhere .NET runs, so it can be tested on any machine)
         GameLog/               reading Game.log: missions, objectives, quantum travel, money transfers (HaulingLog), and the files
                                that are read, opened by hand or followed live with their backup logs (LogSources); for the web app:
                                the lines a tracker uploads (LineFilter), its sending side (LogSender, HttpLogServer) and the server's
@@ -34,25 +38,25 @@ To make a single exe: `dotnet publish src/HaulingTracker -c Release -r win-x64 -
                                works it all out on the server
         View/                  the live web view as data (WebSnapshot: data.json, every tab with its tables and colours)
         Updates/               the self-update from the GitHub release (the program and the tracker)
-      HaulingTracker/          the Windows program (WinForms): it shows what the services give it
+      SCTools.HaulingPlanner/  the Hauling Planner, the Windows program (WinForms, HaulingPlanner.exe): it shows what the services give it
         UI/                    the main window, one file per part of it: MainForm.Planner.cs, MainForm.Debts.cs, ...
         UI/Tables/             the names of the table columns (cells are found by name, never by number) and AddRow
         UI/Controls/           the map (PyroMapView) and the themed controls
         UI/Theming/            the light and dark colours
         UI/MainForm.Web.cs     the program's own live web view (on this computer)
-      HaulingTracker.Web/      the live web view: the small read-only server, and the page itself in wwwroot (index.html, app.css, app.js)
-      HaulingTracker.Server/   the web app (ASP.NET Core MVC): the trackers upload their logs to it, everybody watches the page
-      HaulingTracker.Sender/   the SC Tools Tracker every player runs on his gaming PC (SCToolsTracker.exe, a tray icon)
+      SCTools.Web/             the live web view: the small read-only server, and the page itself in wwwroot (index.html, app.css, app.js)
+      SCTools.Server/          the site (ASP.NET Core MVC): the trackers upload their logs to it, everybody watches the tools
+      SCTools.Tracker/         the SC Tools Tracker every player runs on his gaming PC (SCToolsTracker.exe, a tray icon)
       ScApiTool/               the separate Star Citizen Wiki API tool
-    tests/HaulingTracker.Tests/  the tests (xUnit): dotnet test tests/HaulingTracker.Tests
+    tests/SCTools.Tests/       the tests (xUnit): dotnet test tests/SCTools.Tests
     tools/PlanTest/            prints the plans the trip planner makes for situations from real sessions
 
-Every area has its own namespace (`HaulingTracker.Planning`, `HaulingTracker.UI`, ...), one class per file.
+Every area has its own namespace (`SCTools.Planning`, `SCTools.UI`, ...), one class per file.
 GitHub builds the program on every change (Build, Windows) and runs the tests and the planner scenarios (Tests, Linux).
 
 ## Updates
 
-The exe from the [Releases page](https://github.com/fwjonsson/SCHaulingTracker/releases/tag/latest) (the "latest" release the build makes from `main`) updates itself. At startup it asks GitHub for the newest build; if there is a newer one it asks **Update now?** (default No). On Yes it downloads the new exe, renames the running one to `HaulingTracker.old.exe` (kept as a backup until the next update), puts the new one in its place and restarts. Your data is not touched. **Options → Check for Updates…** does the same by hand and always answers. The version (the first letters of the commit) is at the bottom of the Options menu.
+The exe from the [Releases page](https://github.com/fwjonsson/SC-Tools/releases/tag/latest) (the "latest" release the build makes from `main`) updates itself. At startup it asks GitHub for the newest build; if there is a newer one it asks **Update now?** (default No). On Yes it downloads the new exe, renames the running one to `HaulingTracker.old.exe` (kept as a backup until the next update), puts the new one in its place and restarts. Your data is not touched. **Options → Check for Updates…** does the same by hand and always answers. The version (the first letters of the commit) is at the bottom of the Options menu.
 A program you built yourself (Visual Studio, `dotnet run`) has no build version, so it never updates itself. A build from a branch that is not merged yet is never replaced by an older one. If the exe sits in a folder that needs administrator rights (like Program Files) the update fails with a message and nothing changes.
 
 ## Use
@@ -65,7 +69,7 @@ A program you built yourself (Visual Studio, `dotnet run`) has no build version,
 5. Pick the worker for each location, write notes. Payouts can be changed in the reward table.
 6. **Copy table for Google Sheets** copies the pickup table, ready to paste into the sheet.
 
-Your data is saved in `%AppData%\HaulingTracker\data.json`. The first time the program starts each day it also keeps a dated copy (`data-2026-10-20.json`) in a `Backups` folder next to it, the newest 30 days (**Options → Open Backup Folder**). To go back, close the program and copy a backup over `data.json`. On the Debts tab, **Data File…** moves it to another folder, for example in OneDrive, so it follows you between PCs. Run the tracker on only one PC at a time then, because it rewrites the whole file on every change.
+Your data is saved in `%AppData%\SCTools\data.json` (it was `%AppData%\HaulingTracker`: the first time, that folder is copied there, `AppFolder`). The first time the program starts each day it also keeps a dated copy (`data-2026-10-20.json`) in a `Backups` folder next to it, the newest 30 days (**Options → Open Backup Folder**). To go back, close the program and copy a backup over `data.json`. On the Debts tab, **Data File…** moves it to another folder, for example in OneDrive, so it follows you between PCs. Run the tracker on only one PC at a time then, because it rewrites the whole file on every change.
 
 ## What the log can and cannot tell
 
@@ -193,32 +197,32 @@ admin (done), then going live.
 - **The SC Tools Tracker** (`SCToolsTracker.exe`, in `SCToolsTracker.zip` of the latest release; its page on the site, `/tracker`, has the download and
   the steps, and the landing page links to it) is the tracker of every tool: a tray icon on every gaming PC. It was `HaulingTrackerSender.exe`: the
   release still has `HaulingTrackerSender.zip` (the same tracker under the old name) for trackers that update from before, and such a tracker renames
-  itself `SCToolsTracker.exe` when it starts (and moves Start with Windows along; `TrackerName`, Sender `Program`). Its settings are the
-  server (`https://sct.fwjonsson.dev`; a tracker with the old `haulingtracker.fwjonsson.dev` saved moves to it by itself, `SiteAddress`), your **key** (Frank gives every player his own; **Test** asks the server whose key it is), the Star Citizen folder and the log channel. Every
+  itself `SCToolsTracker.exe` when it starts (and moves Start with Windows along; `AppName`, the same for HaulingTracker.exe, now HaulingPlanner.exe). Its settings are the
+  server (`https://sc-tools.fwjonsson.dev`; a tracker with an old address, haulingtracker or sct, saved moves to it by itself, `SiteAddress`; the settings are in `%AppData%\SCTools\tracker.json`), your **key** (Frank gives every player his own; **Test** asks the server whose key it is), the Star Citizen folder and the log channel. Every
   3 seconds it uploads what is new in the Game.log, and the backup logs of the last day, from where the server is, so nothing is sent twice (also after a
   restart of the tracker or the game). It only sends the lines the tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money
   transfers, the freight elevator and the loading platform); the rest of the game's log stays on the PC. It can start with Windows, and it updates itself.
-- **HaulingTracker.Server** keeps the uploads (one log per player, also on disk, so a restart reads them again), works the session out every two seconds
+- **SCTools.Server** keeps the uploads (one log per player, also on disk, so a restart reads them again), works the session out every two seconds
   with the same logic as the program, and serves the live page to everybody. An upload without a known key is refused. The admin makes the keys on the
   **Tracker keys** page (`/admin/keys`): a new key is shown once (the database keeps only a hash of it), and a key can be taken back (that tracker stops,
-  and its player's browser is logged out within a minute). Keys in the settings (`HaulingTracker:Trackers`: key to player) are still added when the server
+  and its player's browser is logged out within a minute). Keys in the settings (`SCTools:Trackers`: key to player) are still added when the server
   starts.
 - **Logins** (ASP.NET Core Identity, its tables in the same database). Watching needs no login. The **admin** logs in at `/login` with his name and
-  password; his login is made when the server starts and has no admin yet, from `HaulingTracker:Admin:UserName` (default `admin`, not a player's name)
-  and `HaulingTracker:Admin:Password` (at least 12 characters). Those are never in `appsettings.json` (it is in the repository): on your own computer
-  right-click HaulingTracker.Server, **Manage User Secrets**, and put in
-  `{ "HaulingTracker": { "Admin": { "UserName": "admin", "Password": "..." } } }`; on the server they are in its environment. The settings are only read to make
+  password; his login is made when the server starts and has no admin yet, from `SCTools:Admin:UserName` (default `admin`, not a player's name)
+  and `SCTools:Admin:Password` (at least 12 characters). Those are never in `appsettings.json` (it is in the repository): on your own computer
+  right-click SCTools.Server, **Manage User Secrets**, and put in
+  `{ "SCTools": { "Admin": { "UserName": "admin", "Password": "..." } } }`; on the server they are in its environment. The settings are only read to make
   the admin the first time: after that the name and the password are changed on the **Account** page (`/account`). A forgotten one: add `"ResetPassword": true` next to
   the password in the settings, start the server (it sets that password again and lifts a lockout), then remove it. A **player** is logged in by his tracker: **Open my page** in its menu asks the server for a link that
   works once, within two minutes, so the key is never in an address. The admin can have his own player's name (Frank is zzoega): with the password he is
   the admin, and his tracker logs him in as the player only, so a tracker key never opens the admin pages. A colour too close to another member's (two
   greens, a red and a dark red) is not taken, on My page and on the Party page. **My page** (`/me`) is his own Current location, colour, ship and quantum drive (the
   same lists as the Party table and the Trip Planner of the program); nobody else's. Five wrong passwords lock the login for ten minutes.
-- **SC Tools.** The site, `sct.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the hauling tracker's live page is at
+- **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the Hauling Planner's live page is at
   `/hauling`, every tab at an address of its own (`/hauling/session`, `/hauling/planner`, `/hauling/debts`, `/hauling/history`; the program's own page
-  keeps them after a #, and the old `#plan` links still work). The old address `haulingtracker.fwjonsson.dev` sends every page to the same page at the site for good (301, `OldAddress`), so there is one
+  keeps them after a #, and the old `#plan` links still work). The old addresses `haulingtracker.fwjonsson.dev` and `sct.fwjonsson.dev` send every page to the same page at the site for good (301, `OldAddress`), so there is one
   site and one login. Only the uploads of trackers that have not updated yet (`api/...`) are still taken there; once every tracker has updated itself, the
-  old address is removed from the Cloudflare tunnel (and from `OldHosts` in the server's settings). The plan of the tools is `claude/sc-tools-roadmap.md` in the
+  old addresses are removed from the Cloudflare tunnel (and from `OldHosts` in the server's settings). The plan of the tools is `claude/sc-tools-roadmap.md` in the
   project. Every page has the same bar at the top (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards),
   the tools the viewer sees (the one he is in marked), and on the right who is logged in, My page, Admin and Log out (or Log in). The admin's pages have
   a second row under it with his pages (Session, Party, Contracts, Debts, Tracker keys, Tools, Account).
@@ -239,52 +243,57 @@ admin (done), then going live.
   (a crash, a relog) does not count. It is written to the party changes with its time, so payouts and runs go by it as they went by the tick. The Party page
   shows who is in the game and with whom ("zzoega's party: zzatvo, zzoega"; the leader is the one the game named, else the one who made the party) and has
   **Auto / In / Out** for every member: In or Out holds until the logs show something new about him (In until he leaves, Out until he plays). It starts the
-  first time the server runs it (the ticks before stay in the history); `HaulingTracker:FollowParty` = false turns it off.
+  first time the server runs it (the ticks before stay in the history); `SCTools:FollowParty` = false turns it off.
 - **Party tabs.** With more than one party in the game, the Session tab of the live page has a tab for each ("zzoega's party", named by its leader) next to
   All: the stops, contracts, session, leaderboard and runs of that party only (the missions its players have by their own logs, and their runs;
   `Tracker.Focus`). The viewer's own party is shown first (the page knows who is logged in), and the tab picked last is remembered in the browser. The Trip
   Planner can show Everyone, one party, or Only me (the plan is the same; only whose routes are drawn and listed changes).
-- **The database** (`App_Data/tracker.db`, SQLite, EF Core in `HaulingTracker.Server/Data`) has everything the program keeps in its data file: the party and
+- **The database** (`App_Data/tracker.db`, SQLite, EF Core in `SCTools.Server/Data`) has everything the program keeps in its data file: the party and
   every member's ship, colour and location, the sessions, the transfers and payouts, what was typed on the Contracts and Debts tabs, and the tracker keys.
   The first time the server starts with an empty database, the program's data file (`App_Data/data.json`) goes into it; after that the database is the data.
   What the tracker changes is written at most every two seconds, and a copy of the database is made every day in `App_Data/backups` (the newest 30 are kept).
-- **Running the server on your own computer**: put a copy of the program's data file in `src/HaulingTracker.Server/App_Data/` as `data.json` (the folder
-  is ignored by Git, so it never ends up in the repository). In Visual Studio set HaulingTracker.Server as the startup project and start it (the page
-  opens at `http://localhost:8780`), or run `dotnet run --project src/HaulingTracker.Server`. To import the data file again, stop the server and delete
+- **Running the server on your own computer**: put a copy of the program's data file in `src/SCTools.Server/App_Data/` as `data.json` (the folder
+  is ignored by Git, so it never ends up in the repository). In Visual Studio set SCTools.Server as the startup project and start it (the page
+  opens at `http://localhost:8780`), or run `dotnet run --project src/SCTools.Server`. To import the data file again, stop the server and delete
   `App_Data/tracker.db`.
 - **Changing the tables** (a new field in the data, a new table): change the classes in `Data/Rows` and `TrackerDb`, then commit with
   `[migration: AName]` in the commit message (for example `[migration: AddMemberNotes]`). GitHub makes the migration (`dotnet ef migrations add AName`)
   and commits it to the same branch; pull it before you go on. The server brings its database up to date when it starts. With the .NET SDK on your own
-  computer: `dotnet tool install -g dotnet-ef`, then `dotnet ef migrations add AName --project src/HaulingTracker.Server --output-dir Data/Migrations`. A
+  computer: `dotnet tool install -g dotnet-ef`, then `dotnet ef migrations add AName --project src/SCTools.Server --output-dir Data/Migrations`. A
   test fails when the tables changed without a migration.
 
 ### Going live (the server)
 
-The web app runs on a Hetzner server (Ubuntu, Arm64) as the service `haulingtracker`; Cloudflare's tunnel brings sct.fwjonsson.dev to it (no
+The site runs on a Hetzner server (Ubuntu, Arm64, host name SC-Tools) as the service `sctools`; Cloudflare's tunnel brings sc-tools.fwjonsson.dev to it (no
 open ports but SSH). GitHub puts every new version of main on it (the **Deploy** workflow). Once:
 
 1. **Set up the server.** Log in (`ssh root@SERVER-IP`) and run
-   `curl -fsSL https://raw.githubusercontent.com/fwjonsson/SCHaulingTracker/main/deploy/setup.sh -o setup.sh && bash setup.sh`. It makes the users, the
+   `curl -fsSL https://raw.githubusercontent.com/fwjonsson/SC-Tools/main/deploy/setup.sh -o setup.sh && bash setup.sh`. It makes the users, the
    folders, the settings file, the service and the key GitHub logs in with, and prints three secrets.
 2. **The secrets.** In GitHub: the repository, **Settings**, **Secrets and variables**, **Actions**, **New repository secret**: `DEPLOY_HOST`,
    `DEPLOY_KNOWN_HOSTS` and `DEPLOY_KEY`, each pasted exactly as printed. Then delete the key's copy on the server: `rm /root/github-deploy`.
-3. **The admin's password.** `nano /etc/haulingtracker/haulingtracker.env`, type it after `HaulingTracker__Admin__Password=` (at least 12 characters),
+3. **The admin's password.** `nano /etc/sctools/sctools.env`, type it after `SCTools__Admin__Password=` (at least 12 characters),
    Ctrl+O, Enter, Ctrl+X. The name is already `zzoega`.
 4. **The data.** Close the program on the PC (so its data file is final), then in PowerShell on the PC:
-   `scp "PATH\TO\HaulingTracker-data.json" root@SERVER-IP:/var/lib/haulingtracker/data.json`.
-5. **The first version.** GitHub, **Actions**, **Deploy**, **Run workflow**. When it is green the app runs; `systemctl status haulingtracker` and
-   `journalctl -u haulingtracker -n 50` on the server say how it goes (the import of the data file is in the log).
+   `scp "PATH\TO\HaulingPlanner-data.json" root@SERVER-IP:/var/lib/sctools/data.json`.
+5. **The first version.** GitHub, **Actions**, **Deploy**, **Run workflow**. When it is green the app runs; `systemctl status sctools` and
+   `journalctl -u sctools -n 50` on the server say how it goes (the import of the data file is in the log).
 6. **Look at it before everybody does.** `ssh -L 8780:127.0.0.1:8780 root@SERVER-IP` in PowerShell, and open `http://localhost:8780` on the PC (while that
    window stays open). Log in as zzoega and check the Debts and History tabs.
 7. **The tunnel.** In Cloudflare: Zero Trust, **Networks**, **Tunnels**, the tunnel, **Configure**. Add a connector for **Debian**, **arm64** and run the
-   commands it shows on the server. Add the published application sct.fwjonsson.dev with the service `http://127.0.0.1:8780`. Remove the
+   commands it shows on the server. Add the published application sc-tools.fwjonsson.dev with the service `http://127.0.0.1:8780`. Remove the
    connector on the PC (an administrator PowerShell: `cloudflared service uninstall`), so every visit goes to the server.
 8. **The trackers.** On the **Tracker keys** page make a key for zzoega, zzatvo and bileh123, and put each in the SC Tools Tracker on his PC
-   (Server `https://sct.fwjonsson.dev`, the default).
+   (Server `https://sc-tools.fwjonsson.dev`, the default).
 
 After that every merge to main that changes the server is deployed by itself; a version that does not start is replaced by the one before it. The
-settings are in `/etc/haulingtracker/haulingtracker.env` (`sudo systemctl restart haulingtracker` after a change), the data in `/var/lib/haulingtracker`
-(the database, the uploaded logs, the daily copies, the keys of the login cookies), the versions in `/opt/haulingtracker/releases`.
+settings are in `/etc/sctools/sctools.env` (`sudo systemctl restart sctools` after a change), the data in `/var/lib/sctools`
+(the database, the uploaded logs, the daily copies, the keys of the login cookies), the versions in `/opt/sctools/releases`.
+
+**The rename (once).** A server set up before the rename (haulingtracker) is moved to the new names by `deploy/rename-server.sh` (as root): it stops the
+app, keeps a copy of the database in `/root`, renames the user and moves the folders, the settings and the service, and starts the app again; the settings
+are then there under both names (`HaulingTracker__...` for the version from before, `SCTools__...` for the new one; the server reads both). Then the
+pull request of the rename is merged, and GitHub deploys to the new places. Afterwards the old lines can go: `sed -i '/^HaulingTracker__/d' /etc/sctools/sctools.env`.
 
 ## ScApiTool (Star Citizen Wiki API)
 

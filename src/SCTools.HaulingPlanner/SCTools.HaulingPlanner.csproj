@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Windows program: the window, its tabs and controls, and the self-update. The logic is in SCTools.Core, the live web view in SCTools.Web. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>HaulingPlanner</AssemblyName>
+    <RootNamespace>SCTools</RootNamespace>
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../SCTools.Core/SCTools.Core.csproj" />
+    <ProjectReference Include="../SCTools.Web/SCTools.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="icon.ico" LogicalName="icon.ico" />   <!-- also served as the icon of the web view page -->
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The SC Tools Tracker every player runs on his gaming PC: a tray icon that uploads the lines of his Game.log the tools read to the site (the web app). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>SCToolsTracker</AssemblyName>
+    <RootNamespace>SCTools.Tracker</RootNamespace>
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <ApplicationIcon>../SCTools.HaulingPlanner/icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../SCTools.Core/SCTools.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="../SCTools.HaulingPlanner/icon.ico" LogicalName="icon.ico" />   <!-- the tray icon -->
+  </ItemGroup>
+
+</Project>

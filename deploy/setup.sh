@@ -1,12 +1,12 @@
 #!/bin/bash
-# One-time setup of the server for the Hauling Tracker web app (Ubuntu, run as root):
-#   curl -fsSL https://raw.githubusercontent.com/fwjonsson/SCHaulingTracker/main/deploy/setup.sh -o setup.sh && bash setup.sh
+# One-time setup of the server for the SC Tools web app (Ubuntu, run as root):
+#   curl -fsSL https://raw.githubusercontent.com/fwjonsson/SC-Tools/main/deploy/setup.sh -o setup.sh && bash setup.sh
 #
 # It makes
-#   - the user "haulingtracker" that runs the app (it cannot log in), and the user "deploy" that GitHub logs in as to put a new version in place;
-#   - /opt/haulingtracker (the versions of the app; "current" is the one that runs) and /var/lib/haulingtracker (the database, the logs, the backups);
-#   - /etc/haulingtracker/haulingtracker.env, the settings (the admin's name and first password are typed in there);
-#   - the service "haulingtracker" (systemd), and the right for "deploy" to restart it;
+#   - the user "sctools" that runs the app (it cannot log in), and the user "deploy" that GitHub logs in as to put a new version in place;
+#   - /opt/sctools (the versions of the app; "current" is the one that runs) and /var/lib/sctools (the database, the logs, the backups);
+#   - /etc/sctools/sctools.env, the settings (the admin's name and first password are typed in there);
+#   - the service "sctools" (systemd), and the right for "deploy" to restart it;
 #   - the key GitHub logs in with: it prints what goes in the GitHub secrets.
 # Running it again changes nothing that is there already (the settings file and the key are kept).
 set -euo pipefail
@@ -14,58 +14,58 @@ set -euo pipefail
 if [ "$(id -u)" -ne 0 ]; then echo "Run it as root."; exit 1; fi
 
 echo "== users"
-id haulingtracker &>/dev/null || useradd --system --home-dir /var/lib/haulingtracker --shell /usr/sbin/nologin haulingtracker
+id sctools &>/dev/null || useradd --system --home-dir /var/lib/sctools --shell /usr/sbin/nologin sctools
 id deploy &>/dev/null || useradd --create-home --shell /bin/bash deploy
 usermod -aG systemd-journal deploy   # so a failed update can show the log of the service
 
 echo "== folders"
-install -d -o deploy -g deploy -m 755 /opt/haulingtracker /opt/haulingtracker/releases /opt/haulingtracker/incoming
-install -d -o haulingtracker -g haulingtracker -m 750 /var/lib/haulingtracker
-install -d -o root -g haulingtracker -m 750 /etc/haulingtracker
+install -d -o deploy -g deploy -m 755 /opt/sctools /opt/sctools/releases /opt/sctools/incoming
+install -d -o sctools -g sctools -m 750 /var/lib/sctools
+install -d -o root -g sctools -m 750 /etc/sctools
 
 echo "== settings"
-if [ ! -f /etc/haulingtracker/haulingtracker.env ]; then
-  cat > /etc/haulingtracker/haulingtracker.env <<'EOF'
-# The settings of the Hauling Tracker web app (read when the service starts: sudo systemctl restart haulingtracker after a change).
+if [ ! -f /etc/sctools/sctools.env ]; then
+  cat > /etc/sctools/sctools.env <<'EOF'
+# The settings of the SC Tools web app (read when the service starts: sudo systemctl restart sctools after a change).
 ASPNETCORE_URLS=http://127.0.0.1:8780
 ASPNETCORE_ENVIRONMENT=Production
 TZ=Europe/Stockholm
 DOTNET_CLI_TELEMETRY_OPTOUT=1
 
 # where the app keeps its data
-HaulingTracker__Database=/var/lib/haulingtracker/tracker.db
-HaulingTracker__BackupDir=/var/lib/haulingtracker/backups
-HaulingTracker__LogDir=/var/lib/haulingtracker/logs
+SCTools__Database=/var/lib/sctools/tracker.db
+SCTools__BackupDir=/var/lib/sctools/backups
+SCTools__LogDir=/var/lib/sctools/logs
 # the program's data file: it goes into the database the first time the app starts (copy it here before that)
-HaulingTracker__DataFile=/var/lib/haulingtracker/data.json
+SCTools__DataFile=/var/lib/sctools/data.json
 
 # the admin: made the first time the app starts (at least 12 characters). Afterwards the name and the password are changed on the Account page,
-# and the password can be removed from here. A forgotten password: set it here again, add HaulingTracker__Admin__ResetPassword=true, restart, remove it.
-HaulingTracker__Admin__UserName=zzoega
-HaulingTracker__Admin__Password=
+# and the password can be removed from here. A forgotten password: set it here again, add SCTools__Admin__ResetPassword=true, restart, remove it.
+SCTools__Admin__UserName=zzoega
+SCTools__Admin__Password=
 EOF
-  chown root:haulingtracker /etc/haulingtracker/haulingtracker.env
-  chmod 640 /etc/haulingtracker/haulingtracker.env
+  chown root:sctools /etc/sctools/sctools.env
+  chmod 640 /etc/sctools/sctools.env
 fi
 
 echo "== the update script"
-cat > /usr/local/bin/haulingtracker-install <<'EOF'
+cat > /usr/local/bin/sctools-install <<'EOF'
 #!/bin/bash
-# haulingtracker-install <app.tgz>: unpacks a new version of the app next to the old ones, makes it the current one and restarts the service. When the
+# sctools-install <app.tgz>: unpacks a new version of the app next to the old ones, makes it the current one and restarts the service. When the
 # new version does not answer within a minute, the version before it is put back. The newest 5 versions are kept. (GitHub runs it as "deploy".)
 set -euo pipefail
 tgz="$1"
-root=/opt/haulingtracker
+root=/opt/sctools
 new="$root/releases/$(date +%Y%m%d-%H%M%S)"
 old="$(readlink -f "$root/current" 2>/dev/null || true)"
 mkdir -p "$new"
 tar -xzf "$tgz" -C "$new"
 rm -f "$tgz"
-chmod +x "$new/HaulingTracker.Server"
+chmod +x "$new/SCTools.Server"
 ln -sfn "$new" "$root/current"
-sudo /usr/bin/systemctl restart haulingtracker
+sudo /usr/bin/systemctl restart sctools
 for i in $(seq 1 30); do
-  if curl -fs -o /dev/null http://127.0.0.1:8780/data.json; then
+  if curl -fs -o /dev/null http://127.0.0.1:8780/; then   # the landing page answers whatever tools are shown
     echo "The new version runs: $new"
     ls -1dt "$root"/releases/*/ | tail -n +6 | xargs -r rm -rf
     exit 0
@@ -73,29 +73,29 @@ for i in $(seq 1 30); do
   sleep 2
 done
 echo "The new version does not answer. Its log:"
-journalctl -u haulingtracker -n 60 --no-pager || true
+journalctl -u sctools -n 60 --no-pager || true
 if [ -n "$old" ] && [ -d "$old" ]; then
   echo "The version before it is put back: $old"
   ln -sfn "$old" "$root/current"
-  sudo /usr/bin/systemctl restart haulingtracker
+  sudo /usr/bin/systemctl restart sctools
 fi
 exit 1
 EOF
-chmod 755 /usr/local/bin/haulingtracker-install
+chmod 755 /usr/local/bin/sctools-install
 
 echo "== the service"
-cat > /etc/systemd/system/haulingtracker.service <<'EOF'
+cat > /etc/systemd/system/sctools.service <<'EOF'
 [Unit]
-Description=Hauling Tracker web app
+Description=SC Tools web app
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-User=haulingtracker
-Group=haulingtracker
-WorkingDirectory=/opt/haulingtracker/current
-ExecStart=/opt/haulingtracker/current/HaulingTracker.Server
-EnvironmentFile=/etc/haulingtracker/haulingtracker.env
+User=sctools
+Group=sctools
+WorkingDirectory=/opt/sctools/current
+ExecStart=/opt/sctools/current/SCTools.Server
+EnvironmentFile=/etc/sctools/sctools.env
 Restart=always
 RestartSec=5
 TimeoutStopSec=30
@@ -104,18 +104,21 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/lib/haulingtracker
+ReadWritePaths=/var/lib/sctools
 
 [Install]
 WantedBy=multi-user.target
 EOF
-cat > /etc/sudoers.d/haulingtracker <<'EOF'
-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart haulingtracker, /usr/bin/systemctl start haulingtracker, /usr/bin/systemctl stop haulingtracker
+cat > /etc/sudoers.d/sctools <<'EOF'
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart sctools, /usr/bin/systemctl start sctools, /usr/bin/systemctl stop sctools
 EOF
-chmod 440 /etc/sudoers.d/haulingtracker
-visudo -cf /etc/sudoers.d/haulingtracker >/dev/null
+chmod 440 /etc/sudoers.d/sctools
+visudo -cf /etc/sudoers.d/sctools >/dev/null
 systemctl daemon-reload
-systemctl enable haulingtracker >/dev/null 2>&1   # it starts with the first version GitHub puts in place
+systemctl enable sctools >/dev/null 2>&1   # it starts with the first version GitHub puts in place
+
+# run by rename-server.sh: the key and the secrets are in GitHub already
+if [ -n "${SETUP_QUIET:-}" ]; then exit 0; fi
 
 echo "== the key GitHub logs in with"
 install -d -o deploy -g deploy -m 700 /home/deploy/.ssh
@@ -143,5 +146,5 @@ else
   echo "DEPLOY_KEY: in GitHub already (its copy here was deleted). For a new one: rm /root/github-deploy.pub, run this again, and replace the secret."
 fi
 echo
-echo "Then: type the admin's first password in /etc/haulingtracker/haulingtracker.env (nano /etc/haulingtracker/haulingtracker.env),"
-echo "copy the program's data file to /var/lib/haulingtracker/data.json, and run the Deploy workflow on GitHub."
+echo "Then: type the admin's first password in /etc/sctools/sctools.env (nano /etc/sctools/sctools.env),"
+echo "copy the program's data file to /var/lib/sctools/data.json, and run the Deploy workflow on GitHub."

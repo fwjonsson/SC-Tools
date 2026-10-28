@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SCTools.HaulingPlanner/SCTools.HaulingPlanner.csproj" />
+    <Project Path="src/SCTools.Core/SCTools.Core.csproj" />
+    <Project Path="src/SCTools.Tracker/SCTools.Tracker.csproj" />
+    <Project Path="src/SCTools.Server/SCTools.Server.csproj" />
+    <Project Path="src/SCTools.Web/SCTools.Web.csproj" />
+    <Project Path="src/ScApiTool/ScApiTool.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SCTools.Tests/SCTools.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/PlanTest/PlanTest.csproj" />
+  </Folder>
+</Solution>

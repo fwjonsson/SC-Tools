@@ -366,5 +366,5 @@ uex-token.txt
 
 # The web app's own data when it runs on a computer (the program's data file, the database, the uploaded logs, the daily copies), and the file of the
 # EF Core tools. Not "data": on Windows that is the same folder as the code in Data
-src/HaulingTracker.Server/App_Data/
+src/SCTools.Server/App_Data/
 design.db
