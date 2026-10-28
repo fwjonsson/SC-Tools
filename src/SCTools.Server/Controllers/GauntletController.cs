@@ -44,8 +44,7 @@ public sealed class GauntletController : Controller
         _gauntlet.Collect();
         var who = Me;
         var now = DateTime.UtcNow;
-        var settings = _gauntlet.Settings();
-        var rewards = GauntletService.Rewards(settings);
+        var rewards = _gauntlet.Rewards();   // the Mission Library's
         var value = (double)_scrip.Mg;   // the admin's Scrip page
         var runs = _gauntlet.Runs(who);
 
@@ -97,9 +96,11 @@ public sealed class GauntletController : Controller
     }
 }
 
-/// <summary>The admin's Gauntlet page: the rewards of the eight scenarios, the same for everybody (what a MG scrip is worth is on his Scrip page).</summary>
+/// <summary>
+/// The admin's Gauntlet page: the rewards of the eight scenarios the Gauntlet Tracker counts with, the same for everybody. They are in the Mission Library
+/// (a link to each), where they are changed; what a MG scrip is worth is on his Scrip page.
+/// </summary>
 [Authorize(Roles = Roles.Admin)]
-[AutoValidateAntiforgeryToken]
 [Route("/admin/gauntlet")]
 public sealed class GauntletAdminController : Controller
 {
@@ -110,28 +111,7 @@ public sealed class GauntletAdminController : Controller
     [HttpGet("")]
     public IActionResult Index()
     {
-        var settings = _gauntlet.Settings();
         ViewData["Title"] = "Gauntlet";
-        return View("~/Views/Gauntlet/Admin.cshtml", new GauntletAdminPage(GauntletService.Rewards(settings)));
-    }
-
-    [HttpPost("")]
-    public IActionResult Save(GauntletOptionsForm form)
-    {
-        if (form.Auec.Any(a => a < 0) || form.Scrip.Any(s => s < 0))
-        {
-            TempData["Message"] = "Nothing was saved: a value cannot be below 0.";
-            return LocalRedirect("/admin/gauntlet");
-        }
-        var row = new GauntletSettingsRow { ScripValue = _gauntlet.Settings().ScripValue };   // the scrip value is on the Scrip page now
-        for (var n = 1; n <= GauntletRewards.Scenarios; n++)
-        {
-            var d = GauntletRewards.Defaults[n];
-            if (form.Auec[n - 1] != d.Auec) row.RewardAuec[n] = form.Auec[n - 1];
-            if (form.Scrip[n - 1] != d.Scrip) row.RewardScrip[n] = form.Scrip[n - 1];
-        }
-        _gauntlet.SaveSettings(row);
-        TempData["Message"] = "Saved: the Gauntlet Tracker counts with these for everybody.";
-        return LocalRedirect("/admin/gauntlet");
+        return View("~/Views/Gauntlet/Admin.cshtml", new GauntletAdminPage(_gauntlet.Rewards()));
     }
 }

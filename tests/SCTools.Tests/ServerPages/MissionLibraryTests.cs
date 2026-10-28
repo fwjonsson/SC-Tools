@@ -1,19 +1,26 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
+using SCTools.Gauntlet;
+using SCTools.Missions;
 using SCTools.Server;
+using SCTools.Server.Data;
 using SCTools.Tests.Support;
 
 namespace SCTools.Tests.ServerPages;
 
 /// <summary>
-/// The Mission Library: every kind of mission the players took is there by itself (live logs and old ones); a logged in player types in the rewards, the
-/// giver and notes, saved one field at a time; the Wiki fills in what it knows.
+/// The Mission Library: every mission the players took is there by itself (live logs and old ones), one row per name (the same mission at another place
+/// has another ContractId); a logged in player types in the rewards, the giver and notes, saved one field at a time. The Gauntlet Tracker counts with its
+/// scenarios' rewards.
 /// </summary>
 public class MissionLibraryTests
 {
     const string C1 = "26b8773e-0b96-40b4-a33a-27a4e9877e75";
     const string C2 = "8d8fc20d-61ad-4433-a3f1-948d8e05104a";
+    const string Rival = "Stop Rival Attack at Asteroid Mining Base <EM4>[200 Rep] [BP]*</EM4>";
+    const string RivalShown = "Stop Rival Attack at Asteroid Mining Base [200 Rep] [BP]*";
+    static readonly string RivalKey = MissionKinds.TitleKey(RivalShown)!;
 
     static string[] Mission(string mission, string contract, string title, string day = "2026-10-21") => new[]
     {
@@ -22,42 +29,33 @@ public class MissionLibraryTests
         $"<{day}T08:30:00.000Z> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Complete: {title}: \" [84] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [] [Missions][Comms]",
     };
 
-    sealed class Wiki : IMissionWiki
-    {
-        public Task<WikiMission?> FindAsync(string contractId, CancellationToken ct) =>
-            Task.FromResult(contractId == C1 ? new WikiMission("Stellar Large Haul", "Red Wind Linehaul", 20_000, 30_000, "UEC") : null);
-    }
-
     [Fact]
-    public async Task Every_mission_taken_is_in_the_library_and_a_player_fills_in_the_rest()
+    public async Task The_missions_with_the_same_name_are_one_row_and_a_player_fills_in_the_rest()
     {
-        using var f = new ServerFactory { Wiki = new Wiki() };
+        using var f = new ServerFactory();
         var admin = await f.Admin();
-        f.Upload("zzoega", Mission("11111111-1111-1111-1111-111111111111", C1, "Senior | Stellar Large Haul [BP]")
-            .Concat(Mission("22222222-2222-2222-2222-222222222222", C1, "Senior | Stellar Large Haul [BP]")).ToArray());
+        // the same mission from two places: another ContractId, the same name
+        f.Upload("zzoega", Mission("11111111-1111-1111-1111-111111111111", C1, Rival)
+            .Concat(Mission("22222222-2222-2222-2222-222222222222", C2, Rival)).ToArray());
 
-        var page = await admin.GetStringAsync("/missions");   // only the admin until the tool is shown
-        Assert.Contains("value=\"Senior | Stellar Large Haul [BP]\"", page);   // the title from the log, his string mod's name
-        Assert.Contains(">2 / 2<", page);                                        // completed of taken
-        Assert.Contains("not asked yet", page);
+        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));   // only the admin until the tool is shown
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(page, System.Text.RegularExpressions.Regex.Escape("value=\"" + RivalShown + "\"")));
+        Assert.Contains(">2 / 2<", page);   // completed of taken
+        Assert.Contains("Hauling: 2 To Ruin", page);   // the Hauling Planner's contract lines are there from the start
 
         var player = await f.Player(f.AddKey("bileh123"));
         Assert.Equal(HttpStatusCode.Redirect, (await player.GetAsync("/missions")).StatusCode);
         await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "missions"), ("value", "true"));
 
-        var saved = await ServerFactory.Send(player, "/missions", "/missions/set", ("id", C1), ("field", "auec"), ("value", "25,000"), ("back", "/missions?show=todo"));
-        Assert.Equal("/missions?show=todo#m-" + C1, saved.Headers.Location?.OriginalString);
-        await ServerFactory.Send(player, "/missions", "/missions/set", ("id", C1), ("field", "council"), ("value", "12"));
-        await ServerFactory.Send(player, "/missions", "/missions/set", ("id", C1), ("field", "giver"), ("value", "Red Wind"));
-        await ServerFactory.Send(player, "/missions", "/missions/set", ("id", C1), ("field", "mg"), ("value", "lots"));   // not a number: not saved
-        var entry = f.Services.GetRequiredService<MissionLibrary>().Entries().Single();
+        var saved = await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "auec"), ("value", "25,000"), ("back", "/missions?show=todo"));
+        Assert.Equal("/missions?show=todo#" + MissionLibrary.Anchor(RivalKey), saved.Headers.Location?.OriginalString);
+        await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "council"), ("value", "12"));
+        await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "giver"), ("value", "Red Wind"));
+        await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "mg"), ("value", "lots"));   // not a number: not saved
+        var entry = f.Services.GetRequiredService<MissionLibrary>().Entries().Single(e => e.Row.Key == RivalKey);
         Assert.Equal((25_000L, 12L, (long?)null, "Red Wind", "bileh123"), (entry.Row.Auec!.Value, entry.Row.CouncilScrip!.Value, entry.Row.MgScrip, entry.Row.Giver, entry.Row.EditedBy));
         Assert.Contains("Not saved", await player.GetStringAsync("/missions"));
-        Assert.DoesNotContain(C1, await player.GetStringAsync("/missions?show=todo"));   // it has rewards now
-
-        Assert.Equal(1, await f.Services.GetRequiredService<MissionLibrary>().FillFromWikiAsync(10, CancellationToken.None));
-        Assert.Contains("Red Wind Linehaul", await player.GetStringAsync("/missions"));
-        Assert.Equal(0, await f.Services.GetRequiredService<MissionLibrary>().FillFromWikiAsync(10, CancellationToken.None));   // asked once
+        Assert.DoesNotContain(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?show=todo")));   // it has rewards now
     }
 
     [Fact]
@@ -79,7 +77,56 @@ public class MissionLibraryTests
             db.SaveChanges();
         }
         Assert.Equal(1, library.ReadKeptHistory());
-        Assert.Equal(1, library.Entries().Single(e => e.Row.ContractId == C2).Taken);
+        Assert.Equal(1, library.Entries().Single(e => e.Row.Key == "stop rival attack").Taken);
         Assert.Equal(0, library.ReadKeptHistory());   // once
+    }
+
+    [Fact]
+    public void What_was_typed_by_ContractId_goes_to_the_name_of_its_missions()
+    {
+        using var f = new ServerFactory();
+        f.Services.GetRequiredService<MissionLibrary>().Entries();   // the server's own library is ready before the old rows go in (one at a time on the database)
+        using (var db = f.Store.Open())
+        {
+            // the library as it was: by ContractId, and the missions without a kind
+            foreach (var (id, contract) in new[] { ("11111111-1111-1111-1111-111111111111", C1), ("22222222-2222-2222-2222-222222222222", C2) })
+                db.Missions.Add(new MissionRow { Player = "zzoega", MissionId = id, ContractId = contract, Title = "Combat Gauntlet - Scenario #6", Outcome = "Complete",
+                    EndedUtc = new DateTime(2026, 10, 20, 20, 0, 0, DateTimeKind.Utc) });
+            db.Library.Add(new LibraryRow { ContractId = C1, Auec = 171_250, MgScrip = 14, EditedBy = "zzoega" });
+            db.Library.Add(new LibraryRow { ContractId = C2, Giver = "Gilly" });
+            db.Library.Add(new LibraryRow { ContractId = "00000000-0000-0000-0000-00000000dead", Notes = "no mission of it" });
+            db.SaveChanges();
+        }
+        var library = new MissionLibrary(f.Store, f.Live.Uploads, f.Services.GetRequiredService<ServerPaths>(), f.Live);   // as when the server starts
+
+        var six = library.Entries().Single(e => e.Row.Key == "combat gauntlet - scenario #6");
+        Assert.Equal((2, 171_250L, 14L, "Gilly"), (six.Taken, six.Row.Auec!.Value, six.Row.MgScrip!.Value, six.Row.Giver));
+        using (var db = f.Store.Open())
+            Assert.Equal(new[] { "00000000-0000-0000-0000-00000000dead" }, db.Library.Select(l => l.ContractId).ToArray());   // carried over, except what has no mission
+        Assert.Equal(171_250, f.Services.GetRequiredService<GauntletService>().Rewards()[6].Auec);   // the Gauntlet Tracker counts with the library
+    }
+
+    [Fact]
+    public async Task The_Gauntlet_rewards_are_in_the_library_starting_with_the_ones_the_admin_had()
+    {
+        using var f = new ServerFactory();
+        var admin = await f.Admin();
+        var gauntlet = f.Services.GetRequiredService<GauntletService>();
+        var settings = gauntlet.Settings();
+        settings.RewardAuec[7] = 300_000;   // what the admin's Gauntlet page had
+        gauntlet.SaveSettings(settings);
+
+        Assert.Equal((300_000L, 16L), (gauntlet.Rewards()[7].Auec, gauntlet.Rewards()[7].Scrip));
+        Assert.Equal(GauntletRewards.Defaults[1].Auec, gauntlet.Rewards()[1].Auec);
+        var key = GauntletService.LibraryKey(7);
+        await ServerFactory.Send(admin, "/missions", "/missions/set", ("id", key), ("field", "auec"), ("value", "310000"));
+        Assert.Equal(310_000, gauntlet.Rewards()[7].Auec);
+        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/gauntlet"));
+        Assert.Contains("310,000", page);
+        Assert.Contains("/missions#" + MissionLibrary.Anchor(key), page);
+        Assert.Contains("the Gauntlet Tracker counts with it", await admin.GetStringAsync("/missions"));
+
+        await ServerFactory.Send(admin, "/missions", "/missions/set", ("id", key), ("field", "auec"), ("value", ""));
+        Assert.Equal(0, gauntlet.Rewards()[7].Auec);   // emptied by somebody: not known, and the old value does not come back
     }
 }

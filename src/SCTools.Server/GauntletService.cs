@@ -5,20 +5,41 @@ namespace SCTools.Server;
 
 /// <summary>
 /// The Gauntlet Tracker's data. The gauntlet missions that ended in the uploaded logs (LogUploads.GauntletRuns) are written to the database, so they stay
-/// after the logs are no longer kept; a mission is kept once per player. Also the grind sessions of every player, and the settings (the rewards and what a
-/// MG scrip is worth), which are the same for everybody and set by the admin, so the leaderboard compares like with like.
+/// after the logs are no longer kept; a mission is kept once per player. Also the grind sessions of every player. The rewards of the scenarios are in the
+/// Mission Library (the same for everybody, so the leaderboard compares like with like); what a MG scrip is worth is on the admin's Scrip page.
 /// </summary>
 public sealed class GauntletService
 {
     readonly DataStore _store;
     readonly LogUploads _uploads;
+    readonly MissionLibrary _library;
     readonly object _lock = new();
     HashSet<(string, string)>? _known;
 
-    public GauntletService(DataStore store, LogUploads uploads)
+    public GauntletService(DataStore store, LogUploads uploads, MissionLibrary library)
     {
         _store = store;
         _uploads = uploads;
+        _library = library;
+    }
+
+    /// <summary>The key of a scenario's kind in the Mission Library.</summary>
+    public static string LibraryKey(int scenario) => SCTools.Missions.MissionKinds.TitleKey(GauntletRewards.Title(scenario))!;
+
+    /// <summary>
+    /// The rewards of the scenarios: the Mission Library's (a reward nobody knows counts 0). The first time, the library gets the ones the admin's Gauntlet
+    /// page had (the built-in ones with his changes), for the scenarios nobody typed in there yet.
+    /// </summary>
+    public Dictionary<int, GauntletReward> Rewards()
+    {
+        var before = Rewards(Settings());
+        var kinds = _library.Kinds(Enumerable.Range(1, GauntletRewards.Scenarios)
+            .Select(n => new MissionKindRow { Key = LibraryKey(n), Title = GauntletRewards.Title(n), Auec = before[n].Auec, MgScrip = before[n].Scrip }).ToList());
+        return Enumerable.Range(1, GauntletRewards.Scenarios).ToDictionary(n => n, n =>
+        {
+            var k = kinds[LibraryKey(n)];
+            return new GauntletReward(k.Auec ?? 0, k.MgScrip ?? 0);
+        });
     }
 
     /// <summary>Writes the missions the logs show that the database does not have yet. Returns how many were new.</summary>
@@ -109,7 +130,7 @@ public sealed class GauntletService
     static GauntletRun Run(GauntletRunRow r) =>
         new(r.MissionId, r.Scenario, r.AcceptedUtc, r.EndedUtc, Enum.TryParse<GauntletOutcome>(r.Outcome, out var o) ? o : GauntletOutcome.Abandon);
 
-    /// <summary>The rewards: the defaults with the admin's changes.</summary>
+    /// <summary>The rewards the admin's Gauntlet page had before they were in the Mission Library: the defaults with his changes.</summary>
     public static Dictionary<int, GauntletReward> Rewards(GauntletSettingsRow s)
     {
         var map = new Dictionary<int, GauntletReward>();

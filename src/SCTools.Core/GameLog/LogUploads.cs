@@ -81,10 +81,10 @@ public sealed class LogUploads
         }
     }
 
-    /// <summary>Every mission in what each player uploaded (and is still kept), by player.</summary>
+    /// <summary>Every mission in what each player uploaded (and is still kept), by player (the ones the Hauling Planner reads with their contract line).</summary>
     public Dictionary<string, IReadOnlyList<MissionSeen>> MissionsSeen()
     {
-        lock (Sync) return _feeds.ToDictionary(f => f.Key, f => f.Value.Missions.Missions, StringComparer.OrdinalIgnoreCase);
+        lock (Sync) return _feeds.ToDictionary(f => f.Key, f => MissionKinds.WithHauling(f.Value.Missions.Missions, f.Value.Log), StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>The gauntlet missions that ended in what each player uploaded (and is still kept), by player.</summary>

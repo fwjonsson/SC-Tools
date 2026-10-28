@@ -59,8 +59,8 @@ public class SessionPageTests
 
         // the reward typed in afterwards counts for the past
         var library = f.Services.GetRequiredService<MissionLibrary>();
-        library.Set(Contract, "auec", "120000", "zzoega", now);
-        library.Set(Contract, "council", "10", "zzoega", now);
+        library.Set("stop rival attack", "auec", "120000", "zzoega", now);   // its kind: its name
+        library.Set("stop rival attack", "council", "10", "zzoega", now);
         f.Services.GetRequiredService<ScripValues>().Set(ScripValues.CouncilKey, 2_000, now);
         page = await player.GetStringAsync("/session");
         Assert.DoesNotContain("no reward in the library", page);

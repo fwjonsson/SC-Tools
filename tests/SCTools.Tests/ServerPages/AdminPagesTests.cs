@@ -40,9 +40,12 @@ public class AdminPagesTests
         Assert.Contains("Next Stops: Unlocked", page);
         Assert.Contains("Stop Session", page);   // the played session was started by hand and runs
 
-        Assert.Contains("The mission rewards are saved", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/rewards", ("rewards[0]", "1 300 000")), "/admin"));
+        // the rewards are in the Mission Library (its Hauling kinds): what is typed there counts for the session shown and the next ones
+        await ServerFactory.Send(admin, "/missions", "/missions/set", ("id", "hauling:2 to ruin"), ("field", "auec"), ("value", "1 300 000"));
         Assert.Equal(1_300_000m, Read(f, t => t.State.Inputs!.Reward2));
         Assert.Equal(1_300_000m, Read(f, t => t.State.Data.DefaultRewards["2 To Ruin"]));   // and the next sessions start with it
+        Assert.Contains(1_300_000m.ToString("N0"), WebUtility.HtmlDecode(await admin.GetStringAsync("/admin")));
+        Assert.Contains("href=\"/missions#" + SCTools.Server.MissionLibrary.Anchor("hauling:2 to ruin") + "\"", await admin.GetStringAsync("/admin"));
 
         Assert.Contains("The session time runs from 07:05.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/start-time", ("startTime", "7:05")), "/admin"));
         Assert.Contains("Type the start time as 19:30.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/start-time", ("startTime", "soon")), "/admin"));
@@ -70,17 +73,20 @@ public class AdminPagesTests
     }
 
     [Fact]
-    public async Task The_rewards_can_be_set_without_a_session_and_a_new_session_starts_with_them()
+    public async Task The_rewards_are_set_in_the_library_also_without_a_session_and_a_new_session_starts_with_them()
     {
         using var f = new ServerFactory();   // no data, no logs: no session
         var admin = await f.Admin();
         var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin"));
         Assert.Contains("No session now", page);
-        Assert.Contains("value=\"" + Earnings.DefaultReward2.ToString("0") + "\"", page);   // the built-in reward
+        Assert.Contains(Earnings.DefaultReward2.ToString("N0"), page);   // the built-in reward
+        var library = WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));
+        Assert.Contains("value=\"Hauling: 2 To Ruin\"", library);   // the library starts with what the planner pays
+        Assert.Contains("value=\"" + Earnings.DefaultReward2.ToString("0") + "\"", library);
 
-        var r = await ServerFactory.Send(admin, "/admin", "/admin/rewards", ("rewards[0]", "1400000"), ("rewards[1]", ""));
-        Assert.Contains("the next session starts with them", await Said(admin, r, "/admin"));
-        Assert.Contains("value=\"1400000\"", await admin.GetStringAsync("/admin"));
+        await ServerFactory.Send(admin, "/missions", "/missions/set", ("id", "hauling:2 to ruin"), ("field", "auec"), ("value", "1400000"));
+        await ServerFactory.Send(admin, "/missions", "/missions/set", ("id", "hauling:3 to ruin"), ("field", "auec"), ("value", ""));
+        Assert.Contains(1_400_000m.ToString("N0"), WebUtility.HtmlDecode(await admin.GetStringAsync("/admin")));
 
         await ServerFactory.Send(admin, "/admin", "/admin/session");   // Start Session
         Assert.Equal(1_400_000m, Read(f, t => t.State.Inputs!.Reward2));

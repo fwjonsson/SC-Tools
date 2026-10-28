@@ -8,6 +8,9 @@ public static class GauntletRewards
 {
     public const int Scenarios = 8;
 
+    /// <summary>The name of a scenario's mission, as the game shows it (its kind in the Mission Library, which has its rewards).</summary>
+    public static string Title(int scenario) => "Combat Gauntlet - Scenario #" + scenario;
+
     public static readonly IReadOnlyDictionary<int, GauntletReward> Defaults = new Dictionary<int, GauntletReward>
     {
         [1] = new(23_000, 1),

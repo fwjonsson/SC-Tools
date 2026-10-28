@@ -14,7 +14,7 @@ public sealed class AdminSessionModel
 
     public bool Locked { get; set; }
     public string StartTime { get; set; } = "";
-    public List<RewardInput> Rewards { get; set; } = new();
+    public List<RewardShown> Rewards { get; set; } = new();
     public List<StopInput> Stops { get; set; } = new();
     public List<RunInput> Runs { get; set; } = new();
     public List<ScuInput> Scu { get; set; } = new();
@@ -33,7 +33,8 @@ public sealed class AdminSessionModel
             StartTime = inp?.Start ?? "",
         };
         m.Rewards = Earnings.RewardLines
-            .Select((l, i) => new RewardInput(i, l.Contract, Amounts.Edit(inp != null && l.Get(inp) > 0 ? l.Get(inp) : Earnings.StartReward(l, s.Data)))).ToList();
+            .Select(l => new RewardShown(l.Contract, (inp != null && l.Get(inp) > 0 ? l.Get(inp) : Earnings.StartReward(l, s.Data)).ToString("N0", CultureInfo.CurrentCulture),
+                MissionLibrary.Anchor(SCTools.Missions.MissionKinds.HaulingKey(l.Contract)))).ToList();
         if (inp == null) return m;
 
         m.Stops = s.OpenRows.Select(r => new StopInput(
@@ -54,7 +55,8 @@ public sealed class AdminSessionModel
     }
 }
 
-public sealed record RewardInput(int Index, string Contract, string Value);
+/// <summary>What a contract line pays in the session shown (set in the Mission Library: Anchor is its row there).</summary>
+public sealed record RewardShown(string Contract, string Amount, string Anchor);
 public sealed record StopInput(string Zone, string Name, string Notes, string Batches);
 public sealed record RunInput(string Key, int Number, string Worker, string Started, string Completed, string Places, string Lost);
 public sealed record ScuInput(string Key, string Label, int Scu);

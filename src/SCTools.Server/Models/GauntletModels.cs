@@ -22,17 +22,5 @@ public sealed class GauntletPage
     public int RunCount { get; init; }
 }
 
-/// <summary>The admin's Gauntlet page: the rewards.</summary>
+/// <summary>The admin's Gauntlet page: the rewards (from the Mission Library).</summary>
 public sealed record GauntletAdminPage(IReadOnlyDictionary<int, GauntletReward> Rewards);
-
-/// <summary>The admin's Gauntlet form: the rewards (aUEC and scrip, field names a1..a8 and s1..s8).</summary>
-public sealed class GauntletOptionsForm
-{
-    public long A1 { get; set; } public long A2 { get; set; } public long A3 { get; set; } public long A4 { get; set; }
-    public long A5 { get; set; } public long A6 { get; set; } public long A7 { get; set; } public long A8 { get; set; }
-    public long S1 { get; set; } public long S2 { get; set; } public long S3 { get; set; } public long S4 { get; set; }
-    public long S5 { get; set; } public long S6 { get; set; } public long S7 { get; set; } public long S8 { get; set; }
-
-    public long[] Auec => new[] { A1, A2, A3, A4, A5, A6, A7, A8 };
-    public long[] Scrip => new[] { S1, S2, S3, S4, S5, S6, S7, S8 };
-}

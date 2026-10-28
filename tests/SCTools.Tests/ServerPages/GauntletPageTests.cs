@@ -1,5 +1,6 @@
 using System.Net;
 using SCTools.Gauntlet;
+using SCTools.Server;
 
 namespace SCTools.Tests.ServerPages;
 
@@ -57,13 +58,10 @@ public class GauntletPageTests
         Assert.Contains("<tr class=\"me\">", board);   // his own row stands out
         Assert.Contains("227,750", board);
 
-        var fields = new List<(string, string)>();
-        for (var n = 1; n <= 8; n++) fields.Add(("A" + n, n == 7 ? "300000" : GauntletRewards.Defaults[n].Auec.ToString()));
-        for (var n = 1; n <= 8; n++) fields.Add(("S" + n, GauntletRewards.Defaults[n].Scrip.ToString()));
-        var saved = await ServerFactory.Send(admin, "/admin/gauntlet", "/admin/gauntlet", fields.ToArray());
-        Assert.Equal("/admin/gauntlet", saved.Headers.Location?.OriginalString);
-        Assert.Contains("300,000", await bileh.GetStringAsync("/gauntlet/leaderboard"));   // everybody counts with the admin's rewards
-        Assert.Contains("value=\"300000\"", await admin.GetStringAsync("/admin/gauntlet"));
+        // the rewards are in the Mission Library (the admin's Gauntlet page shows them), the same for everybody
+        await ServerFactory.Send(admin, "/missions", "/missions/set", ("id", GauntletService.LibraryKey(7)), ("field", "auec"), ("value", "300000"));
+        Assert.Contains("300,000", await bileh.GetStringAsync("/gauntlet/leaderboard"));   // everybody counts with them
+        Assert.Contains("300,000", await admin.GetStringAsync("/admin/gauntlet"));
 
         // what a MG scrip is worth is on the admin's Scrip page, for every tool: #7 pays 16 scrip
         await ServerFactory.Send(admin, "/admin/scrip", "/admin/scrip/set", ("field", "mg"), ("value", "1,000"));

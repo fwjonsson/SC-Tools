@@ -29,6 +29,6 @@ public sealed record OldLog(string? Player, IReadOnlyList<GauntletRun> GauntletR
                 last = t;
             }
         }
-        return new OldLog(log.Player, gauntlet.Runs.ToList(), missions.Missions, first, last, quit);
+        return new OldLog(log.Player, gauntlet.Runs.ToList(), MissionKinds.WithHauling(missions.Missions, log), first, last, quit);
     }
 }

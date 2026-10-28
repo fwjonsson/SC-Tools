@@ -7,13 +7,15 @@ namespace SCTools.Missions;
 public enum MissionOutcome { Complete, Fail, Abandon }
 
 /// <summary>
-/// One mission of one player, as far as his log shows it: the game's ContractId (what kind of mission it is: the key of the Mission Library), its title as
-/// the game showed it (with Frank's string mod, his names), whether it was shared to him, when it started and how it ended.
+/// One mission of one player, as far as his log shows it: the game's ContractId (the offer it came from), its title as the game showed it (with Frank's
+/// string mod, his names), whether it was shared to him, when it started and how it ended. Hauling: the Hauling Planner's contract line of a mission it reads
+/// ("2 To Ruin", MissionKinds.WithHauling). The Mission Library groups them by their kind (MissionKinds).
 /// </summary>
-public sealed record MissionSeen(string MissionId, string? ContractId, string? Title, bool Shared, DateTime? StartedUtc, DateTime? EndedUtc, MissionOutcome? Outcome);
+public sealed record MissionSeen(string MissionId, string? ContractId, string? Title, bool Shared, DateTime? StartedUtc, DateTime? EndedUtc, MissionOutcome? Outcome,
+    string? Hauling = null);
 
 /// <summary>
-/// Reads every mission of a player's Game.log (any kind, not only hauling): "ContractId: [c]. MissionId: m" says what kind it is, the notifications
+/// Reads every mission of a player's Game.log (any kind, not only hauling): "ContractId: [c]. MissionId: m" says which offer it is, the notifications
 /// (Contract Accepted / Shared / Complete / Failed) its title and how it went, EndMission how it ended otherwise (CompletionType Abandon or Fail). The first
 /// accept or share counts; a mission counts once.
 /// </summary>
@@ -70,7 +72,8 @@ public sealed class MissionReader
             if (!n.Success || Time(n) is not { } at) return;
             var s = Of(n.Groups["m"].Value);
             var title = CleanTitle(n.Groups["t"].Value);
-            if (title.Length > 0 && !title.StartsWith("~mission(", StringComparison.Ordinal)) s.Title ??= title;   // a share the game did not name yet
+            // the first name counts (a share the game did not name yet has none), unless the game had not filled it in ("at ~mission(Location)") and this one is
+            if (title.Length > 0 && !title.StartsWith("~mission(", StringComparison.Ordinal)) s.Title = MissionKinds.Better(s.Title, title);
             switch (n.Groups["k"].Value)
             {
                 case "Accepted":

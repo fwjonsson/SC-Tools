@@ -237,23 +237,25 @@ admin (done), then going live.
   is behind a menu button. The pages of the site end with a footer: the tracker's download, how to set it up, and the disclaimer. The admin's pages have
   a second row under it with his pages (Session, Party, Contracts, Debts, Tracker keys, Tools, Account).
 - **The admin's pages** change what the program changes, with the same logic (`Editing/Edits.cs`, each change saved and worked out again at once):
-  **Session** (`/admin`: Start / Stop Session, Next Stops locked or not, the mission rewards, the start time, the names and notes of the stops, the lost
+  **Session** (`/admin`: Start / Stop Session, Next Stops locked or not, the mission rewards (shown: they are set in the Mission Library), the start time, the names and notes of the stops, the lost
   cargo of the runs, the SCU of from-Ruin drop-offs the game did not tell), **Party** (add, remove, active, ship, drive, colour, location of every
   member; a field is saved as soon as it is changed, on its own), **Contracts** (who has every mission, Gone / Bring back) and **Debts** (a member's balances typed over, the Payment tick of his transfers, what a
   mission really paid, the party of the session). What only the program on a PC has (the log sources, the channel, the data file, the look) is not there.
 - **The Gauntlet Tracker** (`/gauntlet`, `Gauntlet/` in the core, `GauntletService`) reads Gilly's Combat Gauntlet from the uploaded logs and keeps
   every run in the database. Everybody sees only his own runs (Session, Stats, Earnings ranking) and the **Leaderboard** of everybody: total earned, aUEC,
   MG scrip, total aUEC per hour over the timed runs, completed and completion rate, fastest run, favourite and best scenario, last played. The rewards
-  are the same for everybody and set by the admin on **Gauntlet** (`/admin/gauntlet`).
+  are the same for everybody: the Mission Library's "Combat Gauntlet - Scenario #n" (the admin's **Gauntlet** page, `/admin/gauntlet`, shows them).
 - **What scrip is worth** is the admin's **Scrip** page (`/admin/scrip`, `ScripValues`, the table `SiteValues`): aUEC for one MG scrip and for one Council
   scrip, the price he thinks they sell for now. Every tool counts scrip with these, the past included (a new price changes old totals too).
-- **The Mission Library** (`/missions`, `Missions/MissionReader` in the core, `MissionLibrary`) has every kind of mission the players took, by itself: the
-  missions of the live logs and of the old logs are kept for good (`Missions`), grouped by the game's ContractId (`Library`; a name from a string mod
-  never makes two of one, and every hauling route is a kind of its own). A logged in player types in what the log does not say: the name, the aUEC, MG
-  scrip and Council scrip it pays, the giver, notes (each field saved as soon as it changes). **Without rewards** lists the ones nobody filled in yet.
-  It shows how often each was taken, completed, failed and abandoned, and when it was played last. The server asks the Star Citizen Wiki
-  (`api/missions/{ContractId}`) about every new kind, 20 a minute (`MissionWikiService`; `SCTools:MissionWiki` = false turns it off), for its giver
-  and reward range. The first time it runs it reads the missions of the old logs already on the server.
+- **The Mission Library** (`/missions`, `Missions/MissionReader` and `Missions/MissionKinds` in the core, `MissionLibrary`) has every kind of mission
+  the players took, by itself: the missions of the live logs and of the old logs are kept for good (`Missions`), grouped by their name as the game shows
+  it (`MissionKinds`; the game's ContractId is one per offer, so the same mission at another place has another one). The contracts the Hauling Planner
+  reads are grouped by its contract line instead (Hauling: 2 To Ruin ... Direct From Ruin), which is what they pay by. A logged in player types in what
+  the log does not say: the aUEC, MG scrip and Council scrip it pays, another name, the giver, notes (each field saved as soon as it changes).
+  **Without rewards** lists the ones nobody filled in yet. It shows how often each was taken, completed, failed and abandoned, and when it was played
+  last. The other tools count with it: the Session tool (all of it), the Gauntlet Tracker (the scenarios) and the Hauling Planner (the aUEC of a Hauling
+  row is what it pays for that line: the session shown and every new one; the admin's Session page shows them). The first time it runs it reads the
+  missions of the old logs already on the server; what was typed in the library when it went by ContractId is carried over to the names once.
 - **The Session tool** (`/session`, `Play/PlayStats` in the core, `Playtime`, `SessionController`): your own play. Time played today, this week (from
   Monday), this month and in all, the games and the crashes (a log without the game's quit line, `SystemQuit`, crashed), the missions you completed
   and what they earned (aUEC, MG and Council scrip as the Mission Library says they pay, shared ones too; the scrip at the Scrip page's value), and per
