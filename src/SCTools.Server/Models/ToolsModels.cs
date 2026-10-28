@@ -22,3 +22,10 @@ public sealed record PartyToolPage(IReadOnlyList<PartyGroup> Parties, IReadOnlyL
 
 /// <summary>A player's page in the Party tool.</summary>
 public sealed record PartyMemberPage(PartyMember Member, DateTime NowUtc);
+
+/// <summary>
+/// The admin's Map places page: what the logs say that the map does not know, what he said things are, the places (of one system, or all), the places to
+/// pick from, and a text of the log to add a place for (from the link in the Not known table).
+/// </summary>
+public sealed record MapPlacesPage(IReadOnlyList<UnknownPlace> Unknown, IReadOnlyList<SCTools.Server.Data.MapAliasRow> Aliases, IReadOnlyList<PlaceEntry> Places,
+    Atlas Atlas, string System, string AddFor, DateTime NowUtc);

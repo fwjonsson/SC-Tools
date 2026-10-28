@@ -24,23 +24,29 @@ public sealed class MapService
     readonly LogUploads _uploads;
     readonly LiveTracker _live;
     readonly FleetService _fleet;
+    readonly MapPlaces _places;
 
-    public MapService(LogUploads uploads, LiveTracker live, FleetService fleet)
+    public MapService(LogUploads uploads, LiveTracker live, FleetService fleet, MapPlaces places)
     {
         _uploads = uploads;
         _live = live;
         _fleet = fleet;
+        _places = places;
     }
 
     /// <summary>Where a player's quantum jumps put him: his system, the place he is at (or null), since when; and the jump he is on, if any.</summary>
     public sealed record Whereabouts(string? System, Place? At, DateTime? Since, QtEvent? Picked, Place? From, Place? To);
 
+    /// <summary>Follows a player's quantum jumps with the places of the game data alone.</summary>
+    public static Whereabouts Follow(IReadOnlyList<QtEvent> qt) => Follow(qt, Atlas.Default);
+
     /// <summary>
     /// Follows a player's quantum jumps in order: a route names where he starts from in plain words ("Projected Start Location is Aberdeen", or "Pyro System"),
-    /// the destination picked is a place of the map (StarMap.OfQuantumTarget) or not, and an arrival puts him at the destination. The system is the one of the
-    /// last place he was at or set out from.
+    /// the destination picked is a place of the map (Atlas.OfQuantumTarget) or not, and an arrival puts him at the destination. The system is the one of the
+    /// last place he was at or set out from. Unknown: told every start name and destination the map does not know (and nobody said is not a place), with
+    /// whether it is a start name and the system he is in.
     /// </summary>
-    public static Whereabouts Follow(IReadOnlyList<QtEvent> qt)
+    public static Whereabouts Follow(IReadOnlyList<QtEvent> qt, Atlas atlas, Action<QtEvent, string, bool, string?>? unknown = null)
     {
         string? system = null;
         Place? at = null;
@@ -53,14 +59,16 @@ public sealed class MapService
             {
                 if (e.From.Length > 0)
                 {
-                    var (sys, place) = StarMap.OfName(e.From, system, at);
+                    var (sys, place) = atlas.OfName(e.From, system, at);
+                    if (sys == null && unknown != null && !atlas.AliasOf(e.From).Said) unknown(e, e.From, true, system);
                     if (sys != null) system = sys;
                     if (place != null && !Equals(place, at)) (at, since) = (place, e.Time);
                     else if (place == null && sys != null) at = null;   // "Pyro System": in space somewhere
                 }
                 picked = e;
                 from = at;
-                to = StarMap.OfQuantumTarget(e.Destination, system);
+                to = atlas.OfQuantumTarget(e.Destination, system);
+                if (to == null && unknown != null && e.Destination.Length > 0 && !atlas.AliasOf(e.Destination).Said) unknown(e, e.Destination, false, system);
                 if (to != null && system == null) system = to.System;
             }
             else if (e.Kind == QtKind.Arrived && picked != null)
@@ -79,6 +87,7 @@ public sealed class MapService
     {
         var games = _uploads.Games();
         var titles = _uploads.MissionsSeen();
+        var atlas = _places.Atlas;
         var players = new List<object>();
         var objectives = new List<object>();
         var placed = new HashSet<(string, string)>();
@@ -93,7 +102,7 @@ public sealed class MapService
             if (!playing) continue;
             List<QtEvent> qt;
             lock (_uploads.Sync) qt = log.Qt.ToList();
-            var where = Follow(qt);
+            var where = Follow(qt, atlas);
             players.Add(Player(name, where, nowUtc));
 
             var seen = (titles.GetValueOrDefault(log.Uploader ?? name) ?? Array.Empty<MissionSeen>()).ToDictionary(s => s.MissionId, StringComparer.OrdinalIgnoreCase);
@@ -109,7 +118,7 @@ public sealed class MapService
                 {
                     if (m.Events.TryGetValue(objective, out var events) && events.Count > 0 && events[^1].State is "COMPLETED" or "FAILED") continue;
                     if (!placed.Add((m.Id.ToLowerInvariant(), objective))) continue;   // shared: once
-                    if (StarMap.OfPyroStation(StationIds.Of(zone)) is { } station)   // at one of the Pyro stations the Hauling Planner knows
+                    if (atlas.OfPyroStation(StationIds.Of(zone)) is { } station)   // at one of the Pyro stations the Hauling Planner knows
                     {
                         objectives.Add(new { player = name, title, system = station.System, place = station.Key, where = station.Name });
                         continue;
@@ -131,7 +140,7 @@ public sealed class MapService
             {
                 id = s.Id,
                 name = s.Name,
-                places = StarMap.Of(s.Id).Select(p => new { key = p.Key, name = p.Name, @short = p.Short, kind = p.Kind.ToString().ToLowerInvariant(), parent = p.Parent, x = p.X, y = p.Y }).ToList(),
+                places = atlas.Of(s.Id).Select(p => new { key = p.Key, name = p.Name, @short = p.Short, kind = p.Kind.ToString().ToLowerInvariant(), parent = p.Parent, x = p.X, y = p.Y }).ToList(),
             }).ToList(),
             players,
             objectives,

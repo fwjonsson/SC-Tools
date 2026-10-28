@@ -1,0 +1,180 @@
+@model MapPlacesPage
+@using System.Globalization
+@using SCTools.GameData
+@{
+    var inv = CultureInfo.InvariantCulture;
+    string SystemName(string? id) => StarMap.Systems.FirstOrDefault(s => s.Id == id)?.Name ?? "";
+    string Gm(double v) => v.ToString("0.###", inv);
+    var back = "/admin/places" + (Model.System.Length > 0 ? "?system=" + Model.System : "");
+
+    // every place to pick, by system and by name
+    async Task PlaceOptions(string? selected)
+    {
+        foreach (var s in StarMap.Systems)
+        {
+            <optgroup label="@s.Name">
+              @foreach (var p in Model.Atlas.Of(s.Id).Where(p => p.Kind != PlaceKind.Star).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase))
+              {
+                <option value="@p.Key" selected="@(p.Key == selected)">@p.Name@(p.Short != p.Name ? " (" + p.Short + ")" : "")</option>
+              }
+            </optgroup>
+        }
+    }
+}
+<h1>Map places</h1>
+<p class="muted">The places of the <a href="/map">Map</a>: the planets, moons, cities, gateways and stations of Pyro, Stanton and Nyx from the Star Citizen
+  Wiki, with your changes. When the logs name a place the map does not know, say here what it is; give a place a name of your own; add a place the game
+  data does not have. A change is saved at once, and the map uses it at once.</p>
+
+<h2 id="unknown">Not known yet</h2>
+<p class="hint">Quantum destinations and start names ("Projected Start Location is …") in the logs on the server that the map cannot place. Say what each one
+  is: a place (a player who jumps there shows there), or <em>not a place to show</em> (a mission's marker, an encounter). With * at the end of the text it
+  is every one that starts so (<code>AsteroidCluster_Pyro_*</code>). A place that is not in the list: <em>add it</em>.</p>
+@if (Model.Unknown.Count == 0)
+{
+  <p class="muted">Nothing: the map knows every destination and start name in the logs on the server.</p>
+}
+else
+{
+  <table class="wide">
+    <thead><tr><th>From the log</th><th>Seen</th><th>It is</th></tr></thead>
+    <tbody>
+    @foreach (var u in Model.Unknown)
+    {
+      <tr>
+        <td><code>@u.Text</code><br><span class="muted small">@(u.Start ? "Start name" : "Quantum destination")@(u.System != null ? " · in " + SystemName(u.System) : "")</span></td>
+        <td class="nowrap">@(u.Seen)× · @TrackerVersions.Ago(u.LastUtc, Model.NowUtc)<br><span class="muted small">@string.Join(", ", u.Players)</span></td>
+        <td>
+          <form method="post" action="/admin/places/alias" asp-antiforgery="true" class="alias">
+            <input name="text" value="@u.Text" aria-label="The text from the log (* at the end: every one that starts so)" autocomplete="off">
+            <select name="key" aria-label="What it is">
+              <option value="" selected>Pick what it is…</option>
+              <option value="@MapPlaces.NotAPlace">Not a place to show</option>
+              @{ await PlaceOptions(null); }
+            </select>
+            <button>Save</button>
+            <a href="/admin/places?add=@Uri.EscapeDataString(u.Text)#add" class="small">add it</a>
+          </form>
+        </td>
+      </tr>
+    }
+    </tbody>
+  </table>
+}
+
+@if (Model.Aliases.Count > 0)
+{
+  <h2 id="aliases">What you said</h2>
+  <table class="narrow">
+    <thead><tr><th>From the log</th><th>Is</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var a in Model.Aliases)
+    {
+      var place = a.PlaceKey == null ? null : Model.Atlas.Find(a.PlaceKey);
+      <tr>
+        <td><code>@a.Text</code></td>
+        <td>@(a.PlaceKey == null ? "Not a place to show" : place != null ? place.Name + " (" + SystemName(place.System) + ")" : a.PlaceKey + " (not on the map any more)")</td>
+        <td class="center">
+          <form method="post" action="/admin/places/unalias" asp-antiforgery="true">
+            <input type="hidden" name="id" value="@a.Id">
+            <button class="danger">Forget</button>
+          </form>
+        </td>
+      </tr>
+    }
+    </tbody>
+  </table>
+}
+
+<h2 id="places">Places</h2>
+<p class="sysnav">
+  @foreach (var (id, name) in new[] { ("", "All") }.Concat(StarMap.Systems.Select(s => (s.Id, s.Name))))
+  {
+    if (id == Model.System)
+    {
+      <strong>@name</strong>
+    }
+    else
+    {
+      <a href="/admin/places@(id.Length > 0 ? "?system=" + id : "")#places">@name</a>
+    }
+  }
+</p>
+<p class="hint">The name is what the map and its lists say; the short name is the label on the map. Empty: the game's name again. The map still knows a
+  place you renamed by the game's name.</p>
+@* every name is a little form of its own (data-autosave: autosave.js sends it when it changes) *@
+<table class="wide places">
+  <thead><tr><th>System</th><th>What</th><th>Name</th><th>Short name</th><th>Where (Gm)</th><th></th></tr></thead>
+  <tbody>
+  @foreach (var e in Model.Places.Where(e => e.Place.Kind != PlaceKind.Star))
+  {
+    var p = e.Place;
+    <tr class="@(e.Added ? "added" : e.Renamed ? "renamed" : null)">
+      <td>@SystemName(p.System)</td>
+      <td>@p.Kind</td>
+      @foreach (var (field, value, game) in new[] { ("name", p.Name, e.Game?.Name), ("short", p.Short, e.Game?.Short) })
+      {
+        <td>
+          <form method="post" action="/admin/places/rename" asp-antiforgery="true" data-autosave>
+            <input type="hidden" name="key" value="@p.Key"><input type="hidden" name="field" value="@field"><input type="hidden" name="back" value="@(back + "#places")">
+            <input name="value" value="@value" placeholder="@game" aria-label="@(field == "name" ? "Name" : "Short name") of @p.Name" autocomplete="off">
+          </form>
+          @if (game != null && game != value)
+          {
+            <span class="muted small">game: @game</span>
+          }
+        </td>
+      }
+      <td class="nowrap small">@Gm(p.X), @Gm(p.Y)@(p.Parent != null ? " · at " + (Model.Atlas.Find(p.System + "/" + p.Parent)?.Name ?? p.Parent) : "")</td>
+      <td class="center">
+        @if (e.Added)
+        {
+          <form method="post" action="/admin/places/remove" asp-antiforgery="true">
+            <input type="hidden" name="key" value="@p.Key">
+            <button class="danger">Remove</button>
+          </form>
+        }
+        else if (e.Renamed)
+        {
+          <span class="muted small">renamed</span>
+        }
+      </td>
+    </tr>
+  }
+  </tbody>
+</table>
+
+<h2 id="add">Add a place</h2>
+<form method="post" action="/admin/places/add" asp-antiforgery="true" class="card">
+  <label for="addSystem">System</label>
+  <select id="addSystem" name="system">
+    @foreach (var s in StarMap.Systems)
+    {
+      <option value="@s.Id">@s.Name</option>
+    }
+  </select>
+  <label for="addName">Name</label>
+  <input id="addName" name="name" maxlength="@MapPlaces.MaxName" autocomplete="off" required>
+  <label for="addShort">Short name <span class="muted">(the label on the map; empty: the name)</span></label>
+  <input id="addShort" name="shortName" maxlength="@MapPlaces.MaxName" autocomplete="off">
+  <label for="addKind">What it is</label>
+  <select id="addKind" name="kind">
+    @foreach (var k in MapPlaces.AddKinds)
+    {
+      <option value="@k">@k</option>
+    }
+  </select>
+  <label for="addAt">Where: at a place <span class="muted">(in the same system: a station at a planet goes in its orbit)</span></label>
+  <select id="addAt" name="at">
+    <option value="">— or type X and Y below —</option>
+    @{ await PlaceOptions(null); }
+  </select>
+  <label>Or X and Y in its system <span class="muted">(Gm, the star at 0, 0; the Wiki's positions are in metres: divide by 1,000,000,000)</span></label>
+  <div class="buttons">
+    <input name="x" placeholder="X" class="num" autocomplete="off" aria-label="X (Gm)">
+    <input name="y" placeholder="Y" class="num" autocomplete="off" aria-label="Y (Gm)">
+  </div>
+  <label for="addAlias">For this text of the log <span class="muted">(optional: it is this place then)</span></label>
+  <input id="addAlias" name="alias" value="@Model.AddFor" maxlength="@MapPlaces.MaxText" autocomplete="off">
+  <button>Add</button>
+</form>

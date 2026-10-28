@@ -38,6 +38,8 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
     public DbSet<MissionKindRow> MissionKinds => Set<MissionKindRow>();
     public DbSet<FleetShipRow> FleetShips => Set<FleetShipRow>();
     public DbSet<ActiveShipRow> ActiveShips => Set<ActiveShipRow>();
+    public DbSet<MapPlaceRow> MapPlaces => Set<MapPlaceRow>();
+    public DbSet<MapAliasRow> MapAliases => Set<MapAliasRow>();
     public DbSet<SiteValueRow> SiteValues => Set<SiteValueRow>();
     public DbSet<GauntletRunRow> GauntletRuns => Set<GauntletRunRow>();
     public DbSet<GauntletSettingsRow> GauntletSettings => Set<GauntletSettingsRow>();
@@ -208,6 +210,19 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
         {
             e.ToTable("ActiveShips");
             e.HasKey(x => x.Player);
+        });
+
+        b.Entity<MapPlaceRow>(e =>
+        {
+            e.ToTable("MapPlaces");
+            e.HasKey(x => x.Key);
+        });
+
+        b.Entity<MapAliasRow>(e =>
+        {
+            e.ToTable("MapAliases");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Text).IsUnique();
         });
 
         b.Entity<LibraryRow>(e =>
