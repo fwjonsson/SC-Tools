@@ -264,7 +264,7 @@ admin (done), then going live.
 
 ### Going live (the server)
 
-The site runs on a Hetzner server (Ubuntu, Arm64, host name SCTools) as the service `sctools`; Cloudflare's tunnel brings sc-tools.fwjonsson.dev to it (no
+The site runs on a Hetzner server (Ubuntu, Arm64, host name sc-tools) as the service `sctools`; Cloudflare's tunnel brings sc-tools.fwjonsson.dev to it (no
 open ports but SSH). GitHub puts every new version of main on it (the **Deploy** workflow). Once:
 
 1. **Set up the server.** Log in (`ssh root@SERVER-IP`) and run
