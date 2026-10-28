@@ -44,6 +44,7 @@ builder.Services.AddSingleton(sp =>
     return new TrackerKeys(store.TrackerKeys());
 });
 builder.Services.AddSingleton<LoginLinks>();
+builder.Services.AddSingleton(_ => new TrackerVersions());
 builder.Services.AddSingleton<ToolAccess>();
 builder.Services.AddSingleton<GauntletService>();
 builder.Services.AddSingleton<ScripValues>();

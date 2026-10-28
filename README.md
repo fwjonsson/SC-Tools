@@ -202,6 +202,9 @@ admin (done), then going live.
   3 seconds it uploads what is new in the Game.log, and the backup logs of the last day, from where the server is, so nothing is sent twice (also after a
   restart of the tracker or the game). It only sends the lines the tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money
   transfers, the freight elevator and the loading platform); the rest of the game's log stays on the PC. It can start with Windows, and it updates itself.
+  Every request says its version (`X-Tracker-Version`: the commit it was built from), so the site knows whether it updated: the `/tracker` page shows a
+  logged in player his own tracker's version (the newest or not, and when it was last in touch), the admin's Keys page everybody's (`TrackerVersions`;
+  the newest build is the "latest" release on GitHub, asked at most every 10 minutes).
 - **The old logs.** The tracker also sends the backup logs the server does not have yet (`HistorySender`): the first time all of them, after that only the
   new ones (it asks the server which it has: `api/history/missing`; it looks when it starts and every six hours). Only the lines it reads, in pieces of
   whole lines (`api/history`). The server keeps them apart from the live logs, so the Hauling Planner never sees them: their lines in `/var/lib/sctools/history`
