@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using HaulingTracker.Server;
 using HaulingTracker.Server.Accounts;
@@ -28,9 +29,6 @@ public class LoginTests
         var live = await c.GetStringAsync("/hauling");
         Assert.Contains("href=\"/login\"", live);   // the live page has the link to log in, and back to the tools
         Assert.Contains("href=\"/\"", live);
-        var old = await c.GetAsync("http://haulingtracker.fwjonsson.dev/");   // the old address (the trackers use it): straight to the hauling tracker
-        Assert.Equal(HttpStatusCode.Redirect, old.StatusCode);
-        Assert.Equal("/hauling", old.Headers.Location!.OriginalString);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/data.json")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/site.css")).StatusCode);
 
@@ -40,6 +38,33 @@ public class LoginTests
             Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);
             Assert.StartsWith("/login", r.Headers.Location!.PathOf());
         }
+    }
+
+    [Fact]
+    public async Task The_old_address_sends_every_page_to_the_site_and_still_takes_the_uploads_of_a_tracker_that_has_not_updated()
+    {
+        using var f = new ServerFactory();
+        var c = f.Browser();
+        foreach (var page in new[] { "/", "/hauling?tab=planner", "/admin/party", "/site.css" })
+        {
+            var old = await c.GetAsync("http://haulingtracker.fwjonsson.dev" + page);
+            Assert.Equal(HttpStatusCode.MovedPermanently, old.StatusCode);   // for good: the browser goes there by itself next time
+            Assert.Equal("https://sct.fwjonsson.dev" + page, old.Headers.Location!.OriginalString);
+        }
+        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("http://sct.fwjonsson.dev/")).StatusCode);   // the site itself
+
+        var tracker = f.Tracker(f.AddKey("zzoega"));   // a tracker with the old address saved
+        var me = await tracker.GetAsync("http://haulingtracker.fwjonsson.dev/api/me");
+        Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+        Assert.Contains("zzoega", await me.Content.ReadAsStringAsync());
+        var link = await tracker.PostAsync("http://haulingtracker.fwjonsson.dev/api/login-link", null);
+        var url = JsonDocument.Parse(await link.Content.ReadAsStringAsync()).RootElement.GetProperty("url").GetString()!;
+        var open = await c.GetAsync("http://haulingtracker.fwjonsson.dev" + url);   // its Open my page: the login link at the site's address
+        Assert.Equal("https://sct.fwjonsson.dev" + url, open.Headers.Location!.OriginalString);
+        var login = await c.GetAsync(url);   // and the link still works there (the move did not use it up)
+        Assert.Equal("/me", login.Headers.Location?.OriginalString);
+
+        Assert.Equal("https://sct.fwjonsson.dev", SiteAddress.Moved("https://haulingtracker.fwjonsson.dev"));   // the tracker moves to the site by itself
     }
 
     [Fact]
