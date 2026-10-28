@@ -183,6 +183,23 @@ public sealed class DataStore
         return made;
     }
 
+    /// <summary>Which tools everybody sees, by tool (a tool not in it was never set: SiteTools says).</summary>
+    public Dictionary<string, bool> ToolSettings()
+    {
+        using var db = Open();
+        return db.Tools.AsNoTracking().ToDictionary(t => t.Id, t => t.Public, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Shows this tool to everybody, or only to the admin.</summary>
+    public void SetToolPublic(string id, bool value)
+    {
+        using var db = Open();
+        var row = db.Tools.Find(id);
+        if (row == null) db.Tools.Add(new ToolRow { Id = id, Public = value });
+        else row.Public = value;
+        db.SaveChanges();
+    }
+
     /// <summary>The keys of the trackers.</summary>
     public List<TrackerKeyRow> TrackerKeys()
     {

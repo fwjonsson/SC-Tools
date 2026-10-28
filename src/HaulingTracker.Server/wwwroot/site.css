@@ -78,4 +78,5 @@ a.tool:hover { border-color:var(--accent); background:#1b2533; }
 .tool-state { font-size:13px; font-weight:600; color:var(--muted); }
 .tool-state.live { color:var(--good); }
 .tool.soon { opacity:.6; }
+.tool-hidden { font-size:12px; font-weight:600; color:var(--muted); border:1px dashed var(--line); border-radius:4px; padding:2px 6px; align-self:flex-start; }
 .footnote { margin-top:28px; }

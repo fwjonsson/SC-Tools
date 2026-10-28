@@ -8,7 +8,7 @@ namespace HaulingTracker.Server.Data;
 
 /// <summary>
 /// The database of the web app (SQLite, one file): the party and its members, the sessions, the transfers and payouts, what was typed on the Contracts and
-/// Debts tabs, the keys of the trackers, and the logins (the AspNet... tables of ASP.NET Core Identity: the users and their roles). A change to these tables
+/// Debts tabs, the keys of the trackers, which tools everybody sees, and the logins (the AspNet... tables of ASP.NET Core Identity: the users and their roles). A change to these tables
 /// needs a migration (see Data/Migrations and README).
 /// </summary>
 public sealed class TrackerDb : IdentityDbContext<IdentityUser>
@@ -31,6 +31,7 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
     public DbSet<PairAdjustRow> PairAdjust => Set<PairAdjustRow>();
     public DbSet<LocationNameRow> LocationNames => Set<LocationNameRow>();
     public DbSet<TrackerKeyRow> TrackerKeys => Set<TrackerKeyRow>();
+    public DbSet<ToolRow> Tools => Set<ToolRow>();
 
     /// <summary>
     /// A time is kept as text with its kind (2026-10-27T18:49:00.0000000Z for UTC), so it comes back the same: SQLite has no time type, and a UTC time read
@@ -157,6 +158,12 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
             e.ToTable("TrackerKeys");
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.KeyHash).IsUnique();
+        });
+
+        b.Entity<ToolRow>(e =>
+        {
+            e.ToTable("Tools");
+            e.HasKey(x => x.Id);
         });
 
         // every time with its kind, every amount as it is written (see Time and Amount)

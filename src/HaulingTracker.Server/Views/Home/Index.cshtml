@@ -7,28 +7,35 @@
   <p class="muted">Star Citizen tools that read the game's own log: a tracker on every gaming PC sends what the tools need, and this site shows it to the whole party.</p>
 </section>
 
-@* a card for every tool; the ones that are not here yet say so *@
+@* a card for every tool this viewer sees (the Tools page says which everybody sees); the ones that are not here yet say so *@
+@if (Model.Cards.Count == 0)
+{
+  <p class="card">Nothing here yet.</p>
+}
 <div class="tools">
-  <a class="tool" href="/hauling">
-    <span class="tool-name">Hauling Tracker</span>
-    <span class="tool-text">Hauling sessions live: the stops, the cargo runs, the Trip Planner with everybody's routes, the leaderboards and who owes whom.</span>
-    <span class="tool-state live">@(string.IsNullOrEmpty(Model.HaulingSession) ? "No session yet" : Model.HaulingSession)</span>
-  </a>
-  <div class="tool soon">
-    <span class="tool-name">Session</span>
-    <span class="tool-text">Any kind of play: the contracts you took, finished and failed, time played, deaths, crashes, and what it earned per hour.</span>
-    <span class="tool-state">Coming</span>
-  </div>
-  <div class="tool soon">
-    <span class="tool-name">Mission Library</span>
-    <span class="tool-text">Every mission you take, with what the log does not say (reward, mission giver), filled in from the Star Citizen Wiki and by you.</span>
-    <span class="tool-state">Coming</span>
-  </div>
-  <div class="tool soon">
-    <span class="tool-name">Gauntlet Tracker</span>
-    <span class="tool-text">Gilly's Combat Gauntlet, tracked from the log: the Gauntlet Tracker program, coming onto the site.</span>
-    <span class="tool-state">Coming</span>
-  </div>
+  @foreach (var card in Model.Cards)
+  {
+    var tool = card.Tool;
+    var state = tool.Path == null ? "Coming" : tool == SiteTools.Hauling ? (string.IsNullOrEmpty(Model.HaulingSession) ? "No session yet" : Model.HaulingSession) : "";
+    if (tool.Path != null)
+    {
+      <a class="tool" href="@tool.Path">
+        <span class="tool-name">@tool.Name</span>
+        <span class="tool-text">@tool.Text</span>
+        @if (card.OnlyAdmin) { <span class="tool-hidden">Only you see this</span> }
+        <span class="tool-state live">@state</span>
+      </a>
+    }
+    else
+    {
+      <div class="tool soon">
+        <span class="tool-name">@tool.Name</span>
+        <span class="tool-text">@tool.Text</span>
+        @if (card.OnlyAdmin) { <span class="tool-hidden">Only you see this</span> }
+        <span class="tool-state">@state</span>
+      </div>
+    }
+  }
 </div>
 
 <p class="hint footnote">An unofficial Star Citizen fan site, not affiliated with the Cloud Imperium group of companies. Game data from the Star Citizen Wiki (api.star-citizen.wiki).</p>
