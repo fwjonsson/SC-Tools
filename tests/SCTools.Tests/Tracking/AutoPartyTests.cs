@@ -72,7 +72,7 @@ public class AutoPartyTests
     }
 
     [Fact]
-    public void A_crash_or_a_relog_of_less_than_ten_minutes_does_not_count()
+    public void A_crash_or_a_relog_of_less_than_fifteen_minutes_does_not_count()
     {
         var u = new LogUploads();
         Upload(u, "zzoega", new GameLogWriter().Login("zzoega").Minutes(1).PartyCreated().Minutes(4).MemberJoined("zzatvo")
@@ -83,7 +83,8 @@ public class AutoPartyTests
 
         Upload(u, "zzoega", new GameLogWriter().At(At(58)).MemberLeft("zzatvo"), last: At(61));
         Assert.Equal(Changes((5, true)), AutoParty.Work(u.Logs, Members, At(62)).Changes["zzatvo"]);   // gone for 4 minutes so far: maybe he comes back
-        Assert.Equal(Changes((5, true), (58, false)), AutoParty.Work(u.Logs, Members, At(70)).Changes["zzatvo"]);   // 12 minutes: gone since he left
+        Assert.Equal(Changes((5, true)), AutoParty.Work(u.Logs, Members, At(70)).Changes["zzatvo"]);   // 12 minutes: the game still keeps a crashed player
+        Assert.Equal(Changes((5, true), (58, false)), AutoParty.Work(u.Logs, Members, At(75)).Changes["zzatvo"]);   // 17 minutes: gone since he left
     }
 
     [Fact]
