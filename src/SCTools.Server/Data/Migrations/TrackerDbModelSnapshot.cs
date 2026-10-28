@@ -465,6 +465,73 @@ namespace SCTools.Server.Data.Migrations
                     b.ToTable("ManualSessions", (string)null);
                 });
 
+            modelBuilder.Entity("SCTools.Server.Data.MapAliasRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AddedUtc")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlaceKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Text")
+                        .IsUnique();
+
+                    b.ToTable("MapAliases", (string)null);
+                });
+
+            modelBuilder.Entity("SCTools.Server.Data.MapPlaceRow", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Added")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ChangedUtc")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Parent")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Short")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("System")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("X")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("Y")
+                        .HasColumnType("REAL");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("MapPlaces", (string)null);
+                });
+
             modelBuilder.Entity("SCTools.Server.Data.MemberRow", b =>
                 {
                     b.Property<string>("Name")
