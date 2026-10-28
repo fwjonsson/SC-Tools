@@ -57,7 +57,9 @@ public sealed class MissionsController : Controller
         var pages = Math.Max(1, (found.Count + PageSize - 1) / PageSize);
         page = Math.Clamp(page, 1, pages);
         return View(new MissionLibraryPage(found.Skip((page - 1) * PageSize).Take(PageSize).ToList(), all.Count, all.Count(e => e.NeedsInfo),
-            show == "todo" ? "todo" : "all", q?.Trim() ?? "", page, pages, found.Count, _library.Version));
+            show == "todo" ? "todo" : "all", q?.Trim() ?? "", page, pages, found.Count, _library.Version,
+            all.Select(e => e.Row.Giver?.Trim()).Where(g => !string.IsNullOrEmpty(g)).Select(g => g!).Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(g => g, StringComparer.OrdinalIgnoreCase).ToList()));
     }
 
     /// <summary>What the open page asks every few seconds: when the version is not the one it shows, it gets the list again (missions.js).</summary>

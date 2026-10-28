@@ -5,10 +5,11 @@ public sealed record ToolLine(SiteTool Tool, bool Public);
 
 /// <summary>
 /// The Mission Library page: the kinds of mission shown (one page of all, or of the ones without rewards yet, or of a search), how many there are, the page of
-/// how many, and the version of the library it shows (the page asks for the version and gets the list again when it changed).
+/// how many, the version of the library it shows (the page asks for the version and gets the list again when it changed), and every giver typed in so far
+/// (to pick from in the Giver fields).
 /// </summary>
 public sealed record MissionLibraryPage(IReadOnlyList<LibraryEntry> Entries, int Total, int ToDo, string Show, string Query, int Page = 1, int Pages = 1,
-    int Found = 0, int Version = 0)
+    int Found = 0, int Version = 0, IReadOnlyList<string>? Givers = null)
 {
     /// <summary>The address of this list (the tab and the search) on another page.</summary>
     public string Link(int page)
