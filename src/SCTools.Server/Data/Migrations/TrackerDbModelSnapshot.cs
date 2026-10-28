@@ -293,6 +293,61 @@ namespace SCTools.Server.Data.Migrations
                     b.ToTable("GauntletSettings", (string)null);
                 });
 
+            modelBuilder.Entity("SCTools.Server.Data.LibraryRow", b =>
+                {
+                    b.Property<string>("ContractId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("Auec")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("CouncilScrip")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EditedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EditedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Giver")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("MgScrip")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WikiCheckedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WikiCurrency")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("WikiFound")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("WikiGiver")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("WikiRewardMax")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("WikiRewardMin")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("WikiTitle")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ContractId");
+
+                    b.ToTable("Library", (string)null);
+                });
+
             modelBuilder.Entity("SCTools.Server.Data.LocationNameRow", b =>
                 {
                     b.Property<string>("LocationId")
@@ -408,6 +463,40 @@ namespace SCTools.Server.Data.Migrations
                     b.HasKey("MissionId", "Member");
 
                     b.ToTable("MissionHolders", (string)null);
+                });
+
+            modelBuilder.Entity("SCTools.Server.Data.MissionRow", b =>
+                {
+                    b.Property<string>("Player")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MissionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContractId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EndedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Outcome")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Shared")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StartedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Player", "MissionId");
+
+                    b.HasIndex("ContractId");
+
+                    b.ToTable("Missions", (string)null);
                 });
 
             modelBuilder.Entity("SCTools.Server.Data.PairAdjustRow", b =>
