@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SCTools.Gauntlet;
 using SCTools.Missions;
 using SCTools.Server;
+using SCTools.Server.Controllers;
 using SCTools.Server.Data;
 using SCTools.Tests.Support;
 
@@ -56,6 +58,26 @@ public class MissionLibraryTests
         Assert.Equal((25_000L, 12L, (long?)null, "Red Wind", "bileh123"), (entry.Row.Auec!.Value, entry.Row.CouncilScrip!.Value, entry.Row.MgScrip, entry.Row.Giver, entry.Row.EditedBy));
         Assert.Contains("Not saved", await player.GetStringAsync("/missions"));
         Assert.DoesNotContain(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?show=todo")));   // it has rewards now
+
+        // a field saved in the background (autosave.js): the answer says what happened, the page is not sent again
+        var page2 = await player.GetStringAsync("/missions");
+        Assert.Contains("data-autosave=\"quiet\"", page2);
+        async Task<JsonElement> Quiet(string field, string value)
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, "/missions/set")
+            {
+                Content = new FormUrlEncodedContent(new[] { KeyValuePair.Create("id", RivalKey), KeyValuePair.Create("field", field), KeyValuePair.Create("value", value),
+                    KeyValuePair.Create("__RequestVerificationToken", ServerFactory.Token(page2)) }),
+            };
+            req.Headers.Add(MissionsController.AutosaveHeader, "1");
+            var res = await player.SendAsync(req);
+            Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+            return JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement;
+        }
+        var ok = await Quiet("mg", "7");
+        Assert.Equal((true, "Saved."), (ok.GetProperty("ok").GetBoolean(), ok.GetProperty("said").GetString()));
+        Assert.Equal(7L, f.Services.GetRequiredService<MissionLibrary>().Entries().Single(e => e.Row.Key == RivalKey).Row.MgScrip);   // the list is made again
+        Assert.False((await Quiet("mg", "lots")).GetProperty("ok").GetBoolean());
     }
 
     [Fact]

@@ -22,6 +22,7 @@
   <input name="q" value="@Model.Query" placeholder="Find a mission or a giver" aria-label="Find">
   <button type="submit">Find</button>
 </form>
+<p class="hint autosave-state" id="autosaveState" aria-live="polite"></p>
 
 @if (Model.Entries.Count == 0)
 {
@@ -49,7 +50,7 @@ else
         })
         {
           <td>
-            <form method="post" action="/missions/set" asp-antiforgery="true" data-autosave>
+            <form method="post" action="/missions/set" asp-antiforgery="true" data-autosave="quiet">
               <input type="hidden" name="id" value="@r.Key"><input type="hidden" name="field" value="@field"><input type="hidden" name="back" value="@back">
               <input name="value" value="@value" placeholder="@hint" class="@cls" aria-label="@field" autocomplete="off">
             </form>

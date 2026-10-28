@@ -180,4 +180,9 @@ span.small, a.small { font-size:12px; }
 .sysnav { display:flex; gap:14px; margin:4px 0; }
 table.places tr.added td:first-child { box-shadow:inset 3px 0 0 var(--good); }
 table.places tr.renamed td:first-child { box-shadow:inset 3px 0 0 var(--accent); }
+/* a field saved in the background (autosave.js, data-autosave="quiet"): green when it was saved, red when not (why: on the field and in #autosaveState) */
+input.saving { opacity:.6; }
+input.saved { border-color:var(--good); transition:border-color 2s ease-out; }
+input.unsaved { border-color:var(--bad); }
+.autosave-state { min-height:1.3em; margin:4px 0; }
 

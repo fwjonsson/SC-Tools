@@ -41,6 +41,7 @@ public sealed class MissionLibrary
     readonly LiveTracker _live;
     readonly object _lock = new();
     Dictionary<(string, string), MissionSeen>? _known;   // what is in the database, so an unchanged mission is not written again
+    List<LibraryEntry>? _entries;   // the page's list, until a mission or a kind changes (made from every mission in the database)
     bool _ready;
     bool _readHistoryAgain;
 
@@ -158,7 +159,11 @@ public sealed class MissionLibrary
                     written++;
                 }
             }
-            if (written > 0) db.SaveChanges();
+            if (written > 0)
+            {
+                db.SaveChanges();
+                _entries = null;
+            }
             return written;
         }
     }
@@ -177,6 +182,7 @@ public sealed class MissionLibrary
             _readHistoryAgain = false;
             if ((db.Missions.Any() && !again) || !Directory.Exists(_paths.HistoryDir)) return 0;
             _known = null;   // read from the database again
+            _entries = null;
         }
         var read = 0;
         foreach (var playerDir in Directory.GetDirectories(_paths.HistoryDir))
@@ -207,12 +213,13 @@ public sealed class MissionLibrary
     {
         lock (_lock)
         {
+            if (_entries != null) return _entries;
             using var db = _store.Open();
             Prepare(db);
             var kinds = db.MissionKinds.AsNoTracking().ToList();
             var played = db.Missions.AsNoTracking().Where(m => m.Kind != null).ToList().GroupBy(m => m.Kind!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
-            return kinds.Select(k =>
+            return _entries = kinds.Select(k =>
                 {
                     var mine = played.GetValueOrDefault(k.Key) ?? new List<MissionRow>();
                     return new LibraryEntry(k, mine.Count, mine.Count(m => m.Outcome == nameof(MissionOutcome.Complete)),
@@ -251,7 +258,11 @@ public sealed class MissionLibrary
                     changed = true;
                 }
             }
-            if (changed) db.SaveChanges();
+            if (changed)
+            {
+                db.SaveChanges();
+                _entries = null;
+            }
             return wanted.ToDictionary(w => w.Key, w => kinds[w.Key], StringComparer.OrdinalIgnoreCase);
         }
     }
@@ -309,6 +320,7 @@ public sealed class MissionLibrary
             row.EditedBy = who;
             row.EditedUtc = nowUtc;
             db.SaveChanges();
+            _entries = null;
         }
         if (field == "auec" && Earnings.RewardLines.FirstOrDefault(l => MissionKinds.HaulingKey(l.Contract) == key) is { } line)
         {
