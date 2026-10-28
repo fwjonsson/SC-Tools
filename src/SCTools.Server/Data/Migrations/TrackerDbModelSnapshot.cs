@@ -386,6 +386,9 @@ namespace SCTools.Server.Data.Migrations
                     b.Property<string>("Note")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool?>("Quit")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("StartUtc")
                         .IsRequired()
                         .HasColumnType("TEXT");
