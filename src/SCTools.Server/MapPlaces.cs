@@ -4,8 +4,20 @@ using SCTools.Server.Data;
 
 namespace SCTools.Server;
 
-/// <summary>A destination or a start name of the logs that the map does not know: how often and when last, by whom, and in which system (when known).</summary>
-public sealed record UnknownPlace(string Text, bool Start, int Seen, DateTime LastUtc, IReadOnlyList<string> Players, string? System);
+/// <summary>
+/// A destination, a start name or an inventory location of the logs that the map does not know: what it is, how often and when last, by whom, and in which
+/// system (when known).
+/// </summary>
+public sealed record UnknownPlace(string Text, MapService.UnknownKind Kind, int Seen, DateTime LastUtc, IReadOnlyList<string> Players, string? System)
+{
+    /// <summary>"Quantum destination", "Start name", "Inventory location".</summary>
+    public string KindText => Kind switch
+    {
+        MapService.UnknownKind.Start => "Start name",
+        MapService.UnknownKind.Location => "Inventory location",
+        _ => "Quantum destination",
+    };
+}
 
 /// <summary>A place on the admin's page: as the site has it, the game data's (null for one he added), and whether he renamed it.</summary>
 public sealed record PlaceEntry(Place Place, Place? Game, bool Added)
@@ -253,23 +265,23 @@ public sealed class MapPlaces
         }
     }
 
-    /// <summary>The destinations and start names in the logs (on the server now) that the map does not know, the latest first.</summary>
+    /// <summary>The destinations, start names and inventory locations in the logs (on the server now) that the map does not know, the latest first.</summary>
     public List<UnknownPlace> Unknown()
     {
         var atlas = Atlas;
-        var found = new Dictionary<(string, bool), Tally>();
-        List<(string Player, List<QtEvent> Qt)> logs;
-        lock (_uploads.Sync) logs = _uploads.Logs.Select(l => (l.Player ?? l.Uploader ?? "", l.Qt.ToList())).ToList();
-        foreach (var (player, qt) in logs)
+        var found = new Dictionary<(string, MapService.UnknownKind), Tally>();
+        List<(string Player, List<QtEvent> Qt, List<LocationSeen> Seen)> logs;
+        lock (_uploads.Sync) logs = _uploads.Logs.Select(l => (l.Player ?? l.Uploader ?? "", l.Qt.ToList(), l.Locations.ToList())).ToList();
+        foreach (var (player, qt, seen) in logs)
         {
-            MapService.Follow(qt, atlas, (e, text, start, system) =>
+            MapService.Follow(qt, atlas, (time, text, kind, system) =>
             {
-                var k = (text.ToLowerInvariant(), start);
+                var k = (text.ToLowerInvariant(), kind);
                 if (!found.TryGetValue(k, out var tally)) found[k] = tally = new Tally(text);
                 tally.Seen++;
                 if (player.Length > 0) tally.Players.Add(player);
-                if (e.Time >= tally.Last) (tally.Last, tally.System) = (e.Time, system ?? tally.System);
-            });
+                if (time >= tally.Last) (tally.Last, tally.System) = (time, system ?? tally.System);
+            }, seen);
         }
         return found.Select(kv => new UnknownPlace(kv.Value.Text, kv.Key.Item2, kv.Value.Seen, kv.Value.Last, kv.Value.Players.OrderBy(p => p).ToList(), kv.Value.System))
             .OrderByDescending(u => u.LastUtc).ToList();

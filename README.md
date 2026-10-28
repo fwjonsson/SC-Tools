@@ -245,7 +245,10 @@ admin (done), then going live.
   speed meter (Mm/s, in c, against his drive's top speed). `MapService.Follow` walks his jumps: the start name sets his system and place
   (`StarMap.OfName`: "Pyro System" is the system alone; a name two systems have, like "Nyx Gateway", is the one he is in, and after a gateway the
   system it leads to), the destination is a place (`StarMap.OfQuantumTarget`: the Pyro stations, "pyro3" the third planet, "LOC_RR_S1_L2" HUR-L2,
-  "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. A jump
+  "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. Opening the
+  inventory of a place puts him there too (`<RequestLocationInventory> Player[zzoii] requested inventory for Location[Nyx_Levski]`: the system by the
+  start of the id, the place by the rest, `Atlas.OfLocation`; the trackers send these lines from their next update), also after a jump to somewhere the
+  map does not know; a location the map does not know is on Map places. A jump
   whose start is not known shows as a ring at the destination with his name and an arrow. A player is an arrow in his colour (pointing along his
   route in quantum, up when he is at a place) with a ring pulsing out from it and his name beside it in his colour; players at the same place
   are one under the other. Objectives: at a station when their zone is one of the Pyro stations

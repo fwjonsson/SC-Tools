@@ -37,30 +37,50 @@ public sealed class MapService
     /// <summary>Where a player's quantum jumps put him: his system, the place he is at (or null), since when; and the jump he is on, if any.</summary>
     public sealed record Whereabouts(string? System, Place? At, DateTime? Since, QtEvent? Picked, Place? From, Place? To);
 
+    /// <summary>What a text of the log the map does not know is.</summary>
+    public enum UnknownKind { Destination, Start, Location }
+
     /// <summary>Follows a player's quantum jumps with the places of the game data alone.</summary>
-    public static Whereabouts Follow(IReadOnlyList<QtEvent> qt) => Follow(qt, Atlas.Default);
+    public static Whereabouts Follow(IReadOnlyList<QtEvent> qt, IReadOnlyList<LocationSeen>? seen = null) => Follow(qt, Atlas.Default, null, seen);
 
     /// <summary>
     /// Follows a player's quantum jumps in order: a route names where he starts from in plain words ("Projected Start Location is Aberdeen", or "Pyro System"),
-    /// the destination picked is a place of the map (Atlas.OfQuantumTarget) or not, and an arrival puts him at the destination. The system is the one of the
-    /// last place he was at or set out from. Unknown: told every start name and destination the map does not know (and nobody said is not a place), with
-    /// whether it is a start name and the system he is in.
+    /// the destination picked is a place of the map (Atlas.OfQuantumTarget) or not, and an arrival puts him at the destination. Where he opened the inventory
+    /// of a place (seen: "Location[Nyx_Levski]", Atlas.OfLocation) he is there. The system is the one of the last place he was at or set out from. Unknown:
+    /// told every start name, destination and location the map does not know (and nobody said is not a place), with when, what it is and the system he is in.
     /// </summary>
-    public static Whereabouts Follow(IReadOnlyList<QtEvent> qt, Atlas atlas, Action<QtEvent, string, bool, string?>? unknown = null)
+    public static Whereabouts Follow(IReadOnlyList<QtEvent> qt, Atlas atlas, Action<DateTime, string, UnknownKind, string?>? unknown = null,
+        IReadOnlyList<LocationSeen>? seen = null)
     {
         string? system = null;
         Place? at = null;
         DateTime? since = null;
         QtEvent? picked = null;
         Place? from = null, to = null;
-        foreach (var e in qt.OrderBy(e => e.Time))
+        var steps = qt.Select(e => (e.Time, Qt: (QtEvent?)e, Seen: (LocationSeen?)null))
+            .Concat((seen ?? Array.Empty<LocationSeen>()).Select(s => (s.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)s)))
+            .OrderBy(s => s.Time);
+        foreach (var step in steps)
         {
+            if (step.Seen is { } s)
+            {
+                // he opened the inventory of a place: he is there (and not in quantum, unless it is where the jump he picked starts)
+                var (sys, place) = atlas.OfLocation(s.Location);
+                if (place == null && unknown != null && !atlas.AliasOf(s.Location).Said) unknown(s.Time, s.Location, UnknownKind.Location, sys ?? system);
+                if (sys != null) system = sys;
+                if (picked != null && place != null && Equals(place, from)) continue;
+                if (!Equals(place, at) || since == null) (at, since) = (place, s.Time);   // null: a place the map does not know
+                picked = null;
+                from = to = null;
+                continue;
+            }
+            var e = step.Qt!;
             if (e.Kind == QtKind.Selected)
             {
                 if (e.From.Length > 0)
                 {
                     var (sys, place) = atlas.OfName(e.From, system, at);
-                    if (sys == null && unknown != null && !atlas.AliasOf(e.From).Said) unknown(e, e.From, true, system);
+                    if (sys == null && unknown != null && !atlas.AliasOf(e.From).Said) unknown(e.Time, e.From, UnknownKind.Start, system);
                     if (sys != null) system = sys;
                     if (place != null && !Equals(place, at)) (at, since) = (place, e.Time);
                     else if (place == null && sys != null) at = null;   // "Pyro System": in space somewhere
@@ -68,7 +88,7 @@ public sealed class MapService
                 picked = e;
                 from = at;
                 to = atlas.OfQuantumTarget(e.Destination, system);
-                if (to == null && unknown != null && e.Destination.Length > 0 && !atlas.AliasOf(e.Destination).Said) unknown(e, e.Destination, false, system);
+                if (to == null && unknown != null && e.Destination.Length > 0 && !atlas.AliasOf(e.Destination).Said) unknown(e.Time, e.Destination, UnknownKind.Destination, system);
                 if (to != null && system == null) system = to.System;
             }
             else if (e.Kind == QtKind.Arrived && picked != null)
@@ -101,8 +121,9 @@ public sealed class MapService
             var playing = games.TryGetValue(log.Uploader ?? name, out var runs) && runs.Any(r => !r.Quit && nowUtc - r.Run.Last < AutoParty.Quiet);
             if (!playing) continue;
             List<QtEvent> qt;
-            lock (_uploads.Sync) qt = log.Qt.ToList();
-            var where = Follow(qt, atlas);
+            List<LocationSeen> seen;
+            lock (_uploads.Sync) (qt, seen) = (log.Qt.ToList(), log.Locations.ToList());
+            var where = Follow(qt, atlas, null, seen);
             players.Add(Player(name, where, nowUtc));
 
             var seen = (titles.GetValueOrDefault(log.Uploader ?? name) ?? Array.Empty<MissionSeen>()).ToDictionary(s => s.MissionId, StringComparer.OrdinalIgnoreCase);

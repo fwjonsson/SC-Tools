@@ -25,6 +25,19 @@ public class AtlasTests
         Assert.Equal((false, (Place?)null), Atlas.Default.AliasOf("AsteroidCluster_Pyro_004"));
     }
 
+    [Theory]
+    [InlineData("Nyx_Levski", "nyx", "nyx/levski")]                       // zzoii's log, 24 Oct
+    [InlineData("Stanton1_Lorville", "stanton", "stanton/lorville")]
+    [InlineData("Stanton4_NewBabbage", "stanton", "stanton/new-babbage")]  // a name without spaces
+    [InlineData("Pyro_RuinStation", "pyro", "pyro/ruin-station")]
+    [InlineData("Stanton2_Unknown_Outpost", "stanton", null)]               // the system alone
+    [InlineData("Somewhere", null, null)]
+    public void An_inventory_location_is_a_place(string id, string? system, string? key)
+    {
+        var (sys, place) = Atlas.Default.OfLocation(id);
+        Assert.Equal((system, key), (sys, place?.Key));
+    }
+
     [Fact]
     public void A_renamed_place_is_still_found_by_the_games_name_and_an_added_one_by_its_own()
     {

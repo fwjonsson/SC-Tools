@@ -29,6 +29,25 @@ public class MapPageTests
     }
 
     [Fact]
+    public async Task A_player_who_opened_his_inventory_is_at_that_place()
+    {
+        using var f = new ServerFactory();
+        var now = DateTime.UtcNow;
+        var log = new GameLogWriter().At(now.AddMinutes(-3)).Login("zzoii").Minutes(1).Inventory("zzoii", "Nyx_Levski").Inventory("zzoii", "Stanton9_Nowhere");
+        Assert.True(log.Lines.Where(l => l.Contains(HaulingLog.InventoryLine)).All(l => new LineFilter().Keep(l)));   // the trackers send these lines
+        Assert.True(f.Live.Uploads.Add("zzoii", Id(now.AddMinutes(-3)), 0, 1000, log.Lines.Take(log.Lines.Count - 1).ToList(), now).Ok);
+        var admin = await f.Admin();
+        var z = Player(JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement, "zzoii");
+        Assert.Equal(("nyx", "at", "nyx/levski"), (z.GetProperty("system").GetString(), z.GetProperty("state").GetString(), z.GetProperty("at").GetString()));
+
+        // a location the map does not know: on the admin's Map places
+        Assert.True(f.Live.Uploads.Add("zzoii", Id(now.AddMinutes(-3)), 1000, 2000, log.Lines.Skip(log.Lines.Count - 1).ToList(), now).Ok);
+        var page = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/places"));
+        Assert.Contains("Stanton9_Nowhere", page);
+        Assert.Contains("Inventory location", page);
+    }
+
+    [Fact]
     public async Task A_player_in_quantum_is_on_his_way_and_one_who_arrived_is_there()
     {
         using var f = new ServerFactory();
