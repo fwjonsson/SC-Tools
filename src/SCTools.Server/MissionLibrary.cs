@@ -82,8 +82,9 @@ public sealed class MissionLibrary
         foreach (var m in db.Missions.Where(m => m.Kind == null && m.Title != null).ToList())
         {
             m.Kind = MissionKinds.TitleKey(m.Title);
-            if (m.Kind != null) KindOf(db, kinds, m.Kind, m.Title!);
+            if (m.Kind != null) KindOf(db, kinds, m.Kind, MissionKinds.KindTitle(m.Title)!);
         }
+        Regroup(db, kinds);
         foreach (var line in Earnings.RewardLines)
         {
             var key = MissionKinds.HaulingKey(line.Contract);
@@ -117,6 +118,39 @@ public sealed class MissionLibrary
             db.Library.Remove(old);
         }
         db.SaveChanges();
+    }
+
+    /// <summary>
+    /// The missions whose kind is another one now (the bounties go by their kind and risk since 28 Oct, not by their target) go to the kind they are now; what
+    /// was typed in for the old kind goes with them where the new one has nothing yet (not another name: that was the target's), and an old kind with no
+    /// mission left goes.
+    /// </summary>
+    static void Regroup(TrackerDb db, Dictionary<string, MissionKindRow> kinds)
+    {
+        var missions = db.Missions.Where(m => m.Kind != null && m.Title != null).ToList();
+        var left = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in missions)
+        {
+            if (MissionKinds.IsHauling(m.Kind!) || MissionKinds.TitleKey(m.Title) is not { } now || string.Equals(now, m.Kind, StringComparison.OrdinalIgnoreCase)) continue;
+            var to = KindOf(db, kinds, now, MissionKinds.KindTitle(m.Title)!);
+            if (kinds.TryGetValue(m.Kind!, out var was))
+            {
+                to.Auec ??= was.Auec;
+                to.MgScrip ??= was.MgScrip;
+                to.CouncilScrip ??= was.CouncilScrip;
+                to.Giver ??= was.Giver;
+                to.Notes ??= was.Notes;
+                if (was.EditedUtc != null && (to.EditedUtc == null || was.EditedUtc > to.EditedUtc)) (to.EditedBy, to.EditedUtc) = (was.EditedBy, was.EditedUtc);
+            }
+            left.Add(m.Kind!);
+            m.Kind = now;
+        }
+        foreach (var old in left)
+        {
+            if (missions.Any(m => string.Equals(m.Kind, old, StringComparison.OrdinalIgnoreCase)) || !kinds.TryGetValue(old, out var k)) continue;
+            db.MissionKinds.Remove(k);
+            kinds.Remove(old);
+        }
     }
 
     /// <summary>The kind with this key, made when it is not there yet.</summary>
@@ -168,7 +202,7 @@ public sealed class MissionLibrary
                     row.EndedUtc = merged.EndedUtc;
                     row.Outcome = merged.Outcome?.ToString();
                     row.Kind = MissionKinds.KeyOf(merged.Title, merged.Hauling);
-                    if (row.Kind != null) KindOf(db, kinds, row.Kind, merged.Hauling != null ? MissionKinds.HaulingTitle(merged.Hauling) : merged.Title!);
+                    if (row.Kind != null) KindOf(db, kinds, row.Kind, merged.Hauling != null ? MissionKinds.HaulingTitle(merged.Hauling) : MissionKinds.KindTitle(merged.Title)!);
                     _known[key] = merged;
                     written++;
                 }
