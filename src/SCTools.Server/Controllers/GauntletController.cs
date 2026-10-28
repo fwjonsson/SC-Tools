@@ -8,7 +8,8 @@ namespace SCTools.Server.Controllers;
 
 /// <summary>
 /// The Gauntlet Tracker: Gilly's Combat Gauntlet from the log the player's tracker uploads. Everybody sees his own runs (the admin too) and the leaderboard
-/// of everybody; the rewards and what a MG scrip is worth are the admin's (his Gauntlet page, GauntletAdminController). Only buttons and forms, no hotkeys.
+/// of everybody; the rewards are the Mission Library's and what a MG scrip is worth the admin's. The grind sessions start and stop by themselves
+/// (GauntletService.GrindSessions). No hotkeys.
 /// Cancelled missions never count as earnings; a run counts for the timings when it took at most 15 minutes (60 for scenario 8).
 /// </summary>
 [Authorize(Roles = $"{Roles.Admin},{Roles.Player}")]
@@ -49,11 +50,10 @@ public sealed class GauntletController : Controller
         var runs = _gauntlet.Runs(who);
 
         var gameStart = _uploads.GameStart(who);
-        var sessions = _gauntlet.Sessions(who);
-        GrindLine Line(GauntletSessionRow s) =>
-            new(GauntletStats.Session(runs, s.StartedUtc, s.EndedUtc ?? now, rewards, value), s.EndedUtc == null);
+        var sessions = _gauntlet.GrindSessions(who, now);   // newest first; they start and stop by themselves
+        GrindLine Line(SCTools.Sessions.AutoSessions.Window s) => new(GauntletStats.Session(runs, s.Start, s.Stop ?? now, rewards, value), s.Stop == null);
         var scenarios = GauntletStats.Scenarios(runs, rewards, value);
-        var running = sessions.FirstOrDefault(s => s.EndedUtc == null);
+        var running = sessions.FirstOrDefault(s => s.Stop == null);
 
         var model = new GauntletPage
         {
@@ -65,7 +65,7 @@ public sealed class GauntletController : Controller
             Lifetime = GauntletStats.Totals(runs, rewards, value),
             Game = gameStart == null ? null : GauntletStats.Session(runs, gameStart.Value, now, rewards, value),
             Grind = running == null ? null : Line(running),
-            PastGrinds = sessions.Where(s => s.EndedUtc != null).Take(10).Select(Line).ToList(),
+            PastGrinds = sessions.Where(s => s.Stop != null).Take(10).Select(Line).ToList(),
             Scenarios = scenarios,
             Ranking = GauntletStats.Ranking(scenarios),
             Leaderboard = tab == "leaderboard" ? GauntletLeaderboard.Make(_gauntlet.AllRuns(), rewards, value) : Array.Empty<GauntletLeader>(),
@@ -74,25 +74,6 @@ public sealed class GauntletController : Controller
         };
         ViewData["Title"] = "Gauntlet Tracker";
         return View(model);
-    }
-
-    [HttpPost("start")]
-    public IActionResult Start()
-    {
-        if (!_tools.Sees(User, SiteTools.Gauntlet)) return Hidden();
-        _gauntlet.Start(Me, DateTime.UtcNow);
-        TempData["Message"] = "The grind session started.";
-        return LocalRedirect("/gauntlet/session");
-    }
-
-    [HttpPost("stop")]
-    public IActionResult Stop()
-    {
-        if (!_tools.Sees(User, SiteTools.Gauntlet)) return Hidden();
-        _gauntlet.Collect();
-        _gauntlet.Stop(Me, DateTime.UtcNow);
-        TempData["Message"] = "The grind session ended.";
-        return LocalRedirect("/gauntlet/session");
     }
 }
 

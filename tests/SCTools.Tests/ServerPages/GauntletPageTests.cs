@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
 using SCTools.Gauntlet;
 using SCTools.Server;
 
@@ -35,9 +36,40 @@ public class GauntletPageTests
         Assert.Contains("227,750", page);
         var ranking = await player.GetStringAsync("/gauntlet/ranking");
         Assert.Contains("Earnings ranking", ranking);
-        Assert.Contains("Start grind session", page);
+        Assert.Contains("Earlier grind sessions", page);   // his run of 30 Sep was a grind session by itself
+        Assert.DoesNotContain("Start grind session", page);   // no buttons: they start and stop by themselves
         Assert.DoesNotContain("name=\"player\"", page);   // his own page only: nobody else's to pick
         Assert.Equal(HttpStatusCode.Redirect, (await player.GetAsync("/admin/gauntlet")).StatusCode);   // the rewards are the admin's
+    }
+
+    [Fact]
+    public async Task A_grind_session_starts_when_a_scenario_is_accepted_and_ends_an_hour_after_the_last_one()
+    {
+        using var f = new ServerFactory();
+        var admin = await f.Admin();
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "gauntlet"), ("value", "true"));
+        var now = DateTime.UtcNow;
+        string T(DateTime t) => t.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture);
+        string Accept(string id, DateTime t) => $"<{T(t)}> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Accepted:  Combat Gauntlet - Scenario #7: \" [12] to queue. New queue size: 1, MissionId: [{id}], ObjectiveId: [x]";
+        string Done(string id, DateTime t) => $"<{T(t)}> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Complete:  Combat Gauntlet - Scenario #7: \" [12] to queue. New queue size: 1, MissionId: [{id}], ObjectiveId: [x]";
+        f.Upload("zzoega", new[]
+        {
+            Accept("21111111-1111-1111-1111-111111111111", now.AddHours(-4)), Done("21111111-1111-1111-1111-111111111111", now.AddHours(-4).AddMinutes(6)),   // a grind of its own
+            Accept("31111111-1111-1111-1111-111111111111", now.AddMinutes(-30)), Done("31111111-1111-1111-1111-111111111111", now.AddMinutes(-24)),
+            Accept("41111111-1111-1111-1111-111111111111", now.AddMinutes(-3)),   // the one he is in now
+        });
+
+        var gauntlet = f.Services.GetRequiredService<GauntletService>();
+        gauntlet.Collect();   // the runs into the database, as the server does every few seconds
+        var sessions = gauntlet.GrindSessions("zzoega", now);
+        Assert.Equal(2, sessions.Count);
+        Assert.Null(sessions[0].Stop);   // newest first: it runs
+        Assert.Equal(now.AddMinutes(-30), sessions[0].Start, TimeSpan.FromSeconds(1));
+        Assert.Equal(now.AddHours(-4).AddMinutes(11), sessions[1].Stop!.Value, TimeSpan.FromSeconds(1));   // 5 minutes after the last thing that happened
+
+        var page = await (await f.Player(f.AddKey("zzoega"))).GetStringAsync("/gauntlet");
+        Assert.Contains("Running since", page);
+        Assert.Contains("Earlier grind sessions", page);
     }
 
     [Fact]

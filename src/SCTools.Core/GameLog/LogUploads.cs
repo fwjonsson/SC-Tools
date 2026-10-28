@@ -93,6 +93,12 @@ public sealed class LogUploads
         lock (Sync) return _feeds.ToDictionary(f => f.Key, f => f.Value.Gauntlet.Runs.ToList(), StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>When each player accepted the gauntlet missions that did not end (yet), in what he uploaded (and is still kept).</summary>
+    public Dictionary<string, IReadOnlyList<DateTime>> GauntletAccepted()
+    {
+        lock (Sync) return _feeds.ToDictionary(f => f.Key, f => f.Value.Gauntlet.Accepted, StringComparer.OrdinalIgnoreCase);
+    }
+
     /// <summary>Every game in what each player uploaded (and is still kept), by player: its log file, when it started, the last time it was seen, quit or not.</summary>
     public Dictionary<string, List<(string File, GameRun Run, bool Quit)>> Games()
     {

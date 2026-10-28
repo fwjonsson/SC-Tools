@@ -53,16 +53,13 @@
   {
     <p class="hint">Running since @When(Model.Grind.Stats.Start).</p>
     @await Html.PartialAsync("_Totals", Model.Grind.Stats)
-    <form method="post" action="/gauntlet/stop" asp-antiforgery="true" class="buttons">
-      <button type="submit">Stop grind session</button>
-    </form>
   }
   else
   {
-    <form method="post" action="/gauntlet/start" asp-antiforgery="true" class="buttons">
-      <button type="submit">Start grind session</button>
-    </form>
+    <p class="muted">No grind session now.</p>
   }
+  <p class="hint">A grind session starts by itself when you accept a scenario and goes on while you play them. After an hour without accepting, completing
+    or abandoning one (also when the game crashed or the tracker was off), it ended 5 minutes after the last one.</p>
 
   @if (Model.PastGrinds.Count > 0)
   {

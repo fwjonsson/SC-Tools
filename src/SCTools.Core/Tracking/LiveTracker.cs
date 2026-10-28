@@ -12,13 +12,15 @@ public sealed class LiveTracker
     volatile string _json = "{}";
 
     /// <param name="followParty">the logs decide who of the party is active (AutoParty), instead of the Active ticks</param>
-    public LiveTracker(AppData data, Action<AppData>? save, LogUploads uploads, WebSnapshotOptions? view = null, bool followParty = false)
+    /// <param name="followSessions">the logs start and stop the sessions (AutoSessions), instead of the Start / Stop Session button</param>
+    public LiveTracker(AppData data, Action<AppData>? save, LogUploads uploads, WebSnapshotOptions? view = null, bool followParty = false, bool followSessions = false)
     {
         Uploads = uploads;
         Tracker = new Tracker(data, save);
         Tracker.State.Live = true;   // the logs are followed while the games write them: the clocks run
         _view = view ?? new WebSnapshotOptions();
         FollowParty = followParty;
+        FollowSessions = followSessions;
     }
 
     public Tracker Tracker { get; }
@@ -26,6 +28,9 @@ public sealed class LiveTracker
 
     /// <summary>The logs decide who of the party is active: the in-game party and the trackers (see AutoParty).</summary>
     public bool FollowParty { get; }
+
+    /// <summary>The logs start and stop the sessions (see AutoSessions): one session for the party, the hauling of everybody in it.</summary>
+    public bool FollowSessions { get; }
 
     /// <summary>data.json as it was made last (see Refresh).</summary>
     public string Json => _json;
@@ -42,6 +47,7 @@ public sealed class LiveTracker
                 Show();
             }
             if (FollowParty && Party(nowUtc)) Show();   // somebody came or went: the payouts and the runs are worked out again
+            if (FollowSessions && Sessions(nowUtc)) Show();   // a session started or stopped: the newest is shown
             Tracker.Status.Advance(nowUtc);
             _json = WebSnapshot.Json(Tracker, _view);
         }
@@ -79,6 +85,20 @@ public sealed class LiveTracker
         var parties = AutoParty.Work(Uploads.Logs, data.Party, nowUtc);
         Tracker.State.Parties = parties;
         if (!AutoParty.Apply(data, parties, nowUtc)) return false;
+        Tracker.State.Save();
+        Tracker.Plan.Invalidate();
+        return true;
+    }
+
+    /// <summary>
+    /// The sessions from the logs (every time: a session stops an hour after the last thing that happened, with nothing new uploaded). True when that changed
+    /// anything, which is then saved.
+    /// </summary>
+    bool Sessions(DateTime nowUtc)
+    {
+        if (Tracker.State.Log is not { } log) return false;
+        var (starts, activity) = AutoSessions.HaulingActivity(log);
+        if (!AutoSessions.Apply(Tracker.State.Data.ManualSessions, starts, activity, nowUtc)) return false;
         Tracker.State.Save();
         Tracker.Plan.Invalidate();
         return true;
