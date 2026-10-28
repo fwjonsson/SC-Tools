@@ -88,4 +88,25 @@ public class GauntletTests
         var runs = Assert.Single(uploads.GauntletRuns()["zzoega"]);
         Assert.Equal(A, runs.MissionId);
     }
+
+    [Fact]
+    public void The_leaderboard_has_every_player_with_his_earnings_and_his_rate_over_the_timed_runs()
+    {
+        var zzoega = Read(Accept("18:00:00.000", 7, A), Done("18:05:00.000", 7, A),      // 5 minutes
+            Done("18:20:00.000", 8, B),                                                    // shared to him: earns, but has no time
+            Accept("18:30:00.000", 6, "33333333-3333-3333-3333-333333333333"), End("18:31:00.000", "33333333-3333-3333-3333-333333333333", "Abandon")).Runs;
+        var bileh = Read(Accept("18:00:00.000", 1, A), Done("18:10:00.000", 1, A)).Runs;
+        var board = GauntletLeaderboard.Make(new Dictionary<string, List<GauntletRun>> { ["bileh123"] = bileh.ToList(), ["zzoega"] = zzoega.ToList() }, null, 0);
+
+        Assert.Equal(new[] { "zzoega", "bileh123" }, board.Select(l => l.Player));   // the most earned first
+        var z = board[0];
+        Assert.Equal((2, 1), (z.Completed, z.Cancelled));
+        Assert.Equal(227_750 + 349_750, z.Auec);
+        Assert.Equal(227_750.0 / (5.0 / 60), z.TotalPerHour!.Value, 6);   // only the timed run: the shared one does not make him faster
+        Assert.Equal(7, z.Fastest!.Scenario);
+        Assert.Equal(2.0 / 3, z.CompletionRate!.Value, 6);
+        Assert.Equal(7, z.BestScenario);
+        Assert.Equal(23_000.0 * 6, board[1].TotalPerHour!.Value, 6);
+        Assert.Empty(GauntletLeaderboard.Make(new Dictionary<string, List<GauntletRun>> { ["nobody"] = new() }, null, 0));
+    }
 }

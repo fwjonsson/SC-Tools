@@ -1,8 +1,12 @@
 using System.Net;
+using SCTools.Gauntlet;
 
 namespace SCTools.Tests.ServerPages;
 
-/// <summary>The Gauntlet Tracker pages: only for a logged in player or the admin, his own runs, the grind session buttons and the options.</summary>
+/// <summary>
+/// The Gauntlet Tracker pages: only for a logged in player or the admin, everybody his own runs and the grind session buttons, the leaderboard of everybody,
+/// and the rewards on the admin's page.
+/// </summary>
 public class GauntletPageTests
 {
     const string Id = "11111111-1111-1111-1111-111111111111";
@@ -31,7 +35,32 @@ public class GauntletPageTests
         var ranking = await player.GetStringAsync("/gauntlet/ranking");
         Assert.Contains("Earnings ranking", ranking);
         Assert.Contains("Start grind session", page);
-        Assert.Contains("MG scrip", await player.GetStringAsync("/gauntlet/options"));
+        Assert.DoesNotContain("name=\"player\"", page);   // his own page only: nobody else's to pick
+        Assert.Equal(HttpStatusCode.Redirect, (await player.GetAsync("/admin/gauntlet")).StatusCode);   // the rewards are the admin's
+    }
+
+    [Fact]
+    public async Task The_leaderboard_has_everybody_and_the_admin_sets_the_rewards_for_everybody()
+    {
+        using var f = new ServerFactory();
+        var admin = await f.Admin();
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "gauntlet"), ("value", "true"));
+        f.Upload("zzoega", Lines());
+        f.Upload("bileh123", Lines().Select(l => l.Replace(Id, "22222222-2222-2222-2222-222222222222").Replace("#7", "#1")).ToArray());
+
+        var bileh = await f.Player(f.AddKey("bileh123"));
+        var board = await bileh.GetStringAsync("/gauntlet/leaderboard");
+        Assert.True(board.IndexOf("<td>zzoega</td>", StringComparison.Ordinal) < board.IndexOf("<td>bileh123</td>", StringComparison.Ordinal));   // the most earned first
+        Assert.Contains("<tr class=\"me\">", board);   // his own row stands out
+        Assert.Contains("227,750", board);
+
+        var fields = new List<(string, string)> { ("ScripValue", "1000") };
+        for (var n = 1; n <= 8; n++) fields.Add(("A" + n, n == 7 ? "300000" : GauntletRewards.Defaults[n].Auec.ToString()));
+        for (var n = 1; n <= 8; n++) fields.Add(("S" + n, GauntletRewards.Defaults[n].Scrip.ToString()));
+        var saved = await ServerFactory.Send(admin, "/admin/gauntlet", "/admin/gauntlet", fields.ToArray());
+        Assert.Equal("/admin/gauntlet", saved.Headers.Location?.OriginalString);
+        Assert.Contains("300,000", await bileh.GetStringAsync("/gauntlet/leaderboard"));   // everybody counts with the admin's rewards
+        Assert.Contains("value=\"300000\"", await admin.GetStringAsync("/admin/gauntlet"));
     }
 
     [Fact]

@@ -93,3 +93,4 @@ a.button { display:inline-block; font-weight:600; color:#fff; background:var(--h
 a.button:hover { filter:brightness(1.2); }
 .tracker-link { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:0 0 22px; }
 ol.steps li { margin:6px 0; line-height:1.45; }
+tr.me td { font-weight:700; }   /* your own row on a leaderboard */

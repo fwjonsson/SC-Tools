@@ -8,8 +8,7 @@ public sealed class GauntletPage
 {
     public string Tab { get; init; } = "session";
     public string Player { get; init; } = "";
-    public IReadOnlyList<string> Players { get; init; } = Array.Empty<string>();
-    public bool CanPickPlayer { get; init; }
+    public bool IsAdmin { get; init; }
     public double ScripValue { get; init; }
     public IReadOnlyDictionary<int, GauntletReward> Rewards { get; init; } = new Dictionary<int, GauntletReward>();
     public GauntletTotals Lifetime { get; init; } = new(0, 0, 0, 0, 0);
@@ -18,14 +17,17 @@ public sealed class GauntletPage
     public IReadOnlyList<GrindLine> PastGrinds { get; init; } = Array.Empty<GrindLine>();
     public IReadOnlyList<GauntletScenarioStats> Scenarios { get; init; } = Array.Empty<GauntletScenarioStats>();
     public IReadOnlyList<GauntletScenarioStats> Ranking { get; init; } = Array.Empty<GauntletScenarioStats>();
+    public IReadOnlyList<GauntletLeader> Leaderboard { get; init; } = Array.Empty<GauntletLeader>();
     public int Selected { get; init; } = 1;
     public int RunCount { get; init; }
 }
 
-/// <summary>The Options form: a MG scrip's worth, and the rewards (aUEC and scrip, field names a1..a8 and s1..s8).</summary>
+/// <summary>The admin's Gauntlet page: what a MG scrip is worth, and the rewards.</summary>
+public sealed record GauntletAdminPage(double ScripValue, IReadOnlyDictionary<int, GauntletReward> Rewards);
+
+/// <summary>The admin's Gauntlet form: a MG scrip's worth, and the rewards (aUEC and scrip, field names a1..a8 and s1..s8).</summary>
 public sealed class GauntletOptionsForm
 {
-    public string? Player { get; set; }
     public long ScripValue { get; set; }
     public long A1 { get; set; } public long A2 { get; set; } public long A3 { get; set; } public long A4 { get; set; }
     public long A5 { get; set; } public long A6 { get; set; } public long A7 { get; set; } public long A8 { get; set; }

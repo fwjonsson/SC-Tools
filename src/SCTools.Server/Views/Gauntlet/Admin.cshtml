@@ -1,0 +1,27 @@
+@model GauntletAdminPage
+@using System.Globalization
+@{
+    var inv = CultureInfo.InvariantCulture;
+}
+<h1>Gauntlet</h1>
+<p class="muted">What the Gauntlet Tracker counts with, the same for everybody (their pages and the leaderboard).</p>
+<form method="post" action="/admin/gauntlet" asp-antiforgery="true" class="card">
+  <label for="ScripValue">aUEC value of one MG scrip</label>
+  <input id="ScripValue" name="ScripValue" type="number" min="0" step="1" class="num" value="@Math.Round(Model.ScripValue).ToString(inv)">
+  <p class="hint">Used for the totals, the per hour and the rankings. 0 counts scrip as worth nothing.</p>
+  <table class="narrow">
+    <thead><tr><th>Scenario</th><th>aUEC</th><th>MG scrip</th></tr></thead>
+    <tbody>
+    @for (var n = 1; n <= GauntletRewards.Scenarios; n++)
+    {
+      <tr>
+        <td>#@n</td>
+        <td><input name="A@(n)" type="number" min="0" step="1" class="num" value="@Model.Rewards[n].Auec.ToString(inv)" aria-label="aUEC of #@n"></td>
+        <td><input name="S@(n)" type="number" min="0" step="1" class="num" value="@Model.Rewards[n].Scrip.ToString(inv)" aria-label="MG scrip of #@n"></td>
+      </tr>
+    }
+    </tbody>
+  </table>
+  <p class="hint">What a completed run pays. Change a value if the game changes the rewards.</p>
+  <button type="submit">Save</button>
+</form>
