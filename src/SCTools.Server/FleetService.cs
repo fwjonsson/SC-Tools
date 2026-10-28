@@ -4,11 +4,20 @@ using SCTools.Server.Data;
 
 namespace SCTools.Server;
 
-/// <summary>A ship of a fleet as the pages show it: the row, its drive, how much faster the drive is when crafted (percent), and the hauler it is (or null).</summary>
-public sealed record FleetShip(FleetShipRow Row, QtDrive? Drive, double Bonus, Ship? Hauler)
+/// <summary>
+/// A ship of a fleet as the pages show it: the row, its drive (the one he picked, else the ship's stock drive), how much faster the drive is when crafted
+/// (percent), the hauler it is (or null), and the ship of the game data it is (or null).
+/// </summary>
+public sealed record FleetShip(FleetShipRow Row, QtDrive? Drive, double Bonus, Ship? Hauler, ShipModel? Model)
 {
-    /// <summary>"TS-2 S3 +20 %".</summary>
-    public string DriveText => Drive == null ? "" : Drive.Label + (Bonus == 0 ? "" : " " + QuantumDrives.PercentText(Bonus));
+    /// <summary>The ship's stock drive (the game data's), or null.</summary>
+    public QtDrive? StockDrive => QuantumDrives.Find(Model?.Drive);
+
+    /// <summary>No drive picked: the stock drive is the one.</summary>
+    public bool Stock => Row.Drive == null && Drive != null;
+
+    /// <summary>"TS-2 S3 +20 %", "Kama S3 (stock)".</summary>
+    public string DriveText => Drive == null ? "" : Drive.Label + (Bonus == 0 ? "" : " " + QuantumDrives.PercentText(Bonus)) + (Stock ? " (stock)" : "");
 
     /// <summary>Its drive speed, crafted as it is (m/s), or null without a drive.</summary>
     public double? Speed => Drive?.Crafted(Bonus).Speed;
@@ -20,8 +29,8 @@ public sealed record FleetShip(FleetShipRow Row, QtDrive? Drive, double Bonus, S
 /// </summary>
 public sealed record ActiveShip(FleetShip? Ship, bool Picked, string? Vehicle, DateTime? SeenUtc)
 {
-    /// <summary>The ship's name, or what the logs call it when it is not in the fleet, or "".</summary>
-    public string Text => Ship?.Row.Ship ?? (Vehicle == null ? "" : VehicleLines.Pretty(Vehicle));
+    /// <summary>The ship's name, or what the logs call it when it is not in the fleet (the game data's name for its class), or "".</summary>
+    public string Text => Ship?.Row.Ship ?? (Vehicle == null ? "" : ShipModels.OfClass(Vehicle)?.Name ?? VehicleLines.Pretty(Vehicle));
 }
 
 /// <summary>
@@ -64,11 +73,12 @@ public sealed class FleetService
 
     static FleetShip Describe(FleetShipRow r)
     {
-        var drive = QuantumDrives.Find(r.Drive);
+        var model = ShipModels.Find(r.Ship);
+        var drive = QuantumDrives.Find(r.Drive) ?? QuantumDrives.Find(model?.Drive);   // none picked: the stock drive
         var bonus = drive != null && r.Quality is int q ? QuantumDrives.CraftedSpeedPercent(q) : 0;
         // a hauler by its name, or by the name in it ("Crusader C2 Hercules Starlifter" is the C2 Hercules Starlifter)
         var hauler = Ships.Find(r.Ship) ?? Ships.All.Where(s => r.Ship.Contains(s.Name, StringComparison.OrdinalIgnoreCase)).OrderByDescending(s => s.Name.Length).FirstOrDefault();
-        return new FleetShip(r, drive, bonus, hauler);
+        return new FleetShip(r, drive, bonus, hauler, model);
     }
 
     /// <summary>A player's ships, in the order he added them.</summary>
@@ -216,7 +226,10 @@ public sealed class FleetService
         (string Vehicle, DateTime At)? seen = _uploads.Ships().TryGetValue(player, out var s) ? s : null;
         if (picked is int id && fleet.FirstOrDefault(f => f.Row.Id == id) is { } chosen) return new ActiveShip(chosen, true, seen?.Vehicle, seen?.At);
         if (seen == null) return new ActiveShip(null, false, null, null);
-        var best = VehicleLines.Best(seen.Value.Vehicle, fleet.Select(f => f.Row.Ship).ToList());
+        // the ship of his fleet that is the class's ship of the game data, else the one whose name fits the class best
+        var model = ShipModels.OfClass(seen.Value.Vehicle);
+        var best = model == null ? -1 : fleet.FindIndex(f => f.Model == model);
+        if (best < 0) best = VehicleLines.Best(seen.Value.Vehicle, fleet.Select(f => f.Row.Ship).ToList());
         return new ActiveShip(best >= 0 ? fleet[best] : null, false, seen.Value.Vehicle, seen.Value.At);
     }
 
