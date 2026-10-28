@@ -17,6 +17,10 @@
     {
       <a href="/hauling">Hauling Tracker</a>
     }
+    @if (User.Identity?.IsAuthenticated == true && Tools.Sees(User, SiteTools.Gauntlet))
+    {
+      <a href="/gauntlet">Gauntlet Tracker</a>
+    }
     @if (User.IsInRole(Roles.Player))
     {
       <a href="/me">My page</a>

@@ -16,7 +16,7 @@
   @foreach (var card in Model.Cards)
   {
     var tool = card.Tool;
-    var state = tool.Path == null ? "Coming" : tool == SiteTools.Hauling ? (string.IsNullOrEmpty(Model.HaulingSession) ? "No session yet" : Model.HaulingSession) : "";
+    var state = tool.Path == null ? "Coming" : tool == SiteTools.Hauling ? (string.IsNullOrEmpty(Model.HaulingSession) ? "No session yet" : Model.HaulingSession) : tool == SiteTools.Gauntlet ? "Log in to see your runs" : "";
     if (tool.Path != null)
     {
       <a class="tool" href="@tool.Path">

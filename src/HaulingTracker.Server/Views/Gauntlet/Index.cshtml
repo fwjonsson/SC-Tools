@@ -1,0 +1,209 @@
+@model GauntletPage
+@using System.Globalization
+@{
+    var inv = CultureInfo.InvariantCulture;
+    string Money(double v) => Math.Round(v).ToString("N0", inv);
+    string Dur(double? sec)
+    {
+        if (sec == null) return "-";
+        var t = TimeSpan.FromSeconds(Math.Round(sec.Value));
+        return t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{t.Minutes}:{t.Seconds:00}";
+    }
+    string When(DateTime utc) => utc.ToString("d MMM HH:mm", inv) + " UTC";
+    string Hours(double h) => Dur(h * 3600);
+    string Tab(string key, string text) =>
+        $"<a class=\"tab{(Model.Tab == key ? " on" : "")}\" href=\"/gauntlet/{key}?player={Uri.EscapeDataString(Model.Player)}\">{text}</a>";
+}
+<h1>Gauntlet Tracker</h1>
+
+@if (Model.CanPickPlayer && Model.Players.Count > 0)
+{
+  <form method="get" action="/gauntlet/@Model.Tab" class="line">
+    <label for="player">Player</label>
+    <select id="player" name="player">
+      @foreach (var p in Model.Players)
+      {
+        <option value="@p" selected="@(p.Equals(Model.Player, StringComparison.OrdinalIgnoreCase))">@p</option>
+      }
+    </select>
+    <button type="submit">Show</button>
+  </form>
+}
+
+<nav class="tabs">
+  @Html.Raw(Tab("session", "Session"))
+  @Html.Raw(Tab("stats", "Stats"))
+  @Html.Raw(Tab("ranking", "Earnings ranking"))
+  @Html.Raw(Tab("options", "Options"))
+</nav>
+
+@if (Model.RunCount == 0 && Model.Tab != "options")
+{
+  <p class="card">No gauntlet missions seen yet for @Model.Player. They are counted from the log his tracker uploads, from the moment the tracker runs (keep it running while you play).</p>
+}
+
+@if (Model.Tab == "session")
+{
+  <h2>Lifetime</h2>
+  <table class="narrow">
+    <tbody>
+      <tr><th>Total earned (aUEC + scrip at your value)</th><td class="right">@Money(Model.Lifetime.TotalAuec) aUEC</td></tr>
+      <tr><th>aUEC</th><td class="right">@Money(Model.Lifetime.Auec)</td></tr>
+      <tr><th>MG scrip</th><td class="right">@Money(Model.Lifetime.Scrip)</td></tr>
+      <tr><th>Completed</th><td class="right">@Model.Lifetime.Completed</td></tr>
+      <tr><th>Cancelled (not counted)</th><td class="right">@Model.Lifetime.Cancelled</td></tr>
+    </tbody>
+  </table>
+
+  @if (Model.Game != null)
+  {
+    <h2>This game session</h2>
+    <p class="hint">Counted passively from the start of the game (@When(Model.Game.Start)) to now.</p>
+    @await Html.PartialAsync("_Totals", Model.Game)
+  }
+
+  <h2>Grind session</h2>
+  @if (Model.Grind != null)
+  {
+    <p class="hint">Running since @When(Model.Grind.Stats.Start).</p>
+    @await Html.PartialAsync("_Totals", Model.Grind.Stats)
+    <form method="post" action="/gauntlet/stop" asp-antiforgery="true" class="buttons">
+      <input type="hidden" name="player" value="@Model.Player">
+      <button type="submit">Stop grind session</button>
+    </form>
+  }
+  else
+  {
+    <form method="post" action="/gauntlet/start" asp-antiforgery="true" class="buttons">
+      <input type="hidden" name="player" value="@Model.Player">
+      <button type="submit">Start grind session</button>
+    </form>
+  }
+
+  @if (Model.PastGrinds.Count > 0)
+  {
+    <h2>Earlier grind sessions</h2>
+    <table class="wide">
+      <thead><tr><th>Started</th><th>Length</th><th>Runs</th><th>aUEC/h</th><th>Scrip/h</th><th>Total aUEC/h</th><th>Total earned</th></tr></thead>
+      <tbody>
+      @foreach (var g in Model.PastGrinds)
+      {
+        <tr>
+          <td>@When(g.Stats.Start)</td>
+          <td class="right">@Hours(g.Stats.Hours)</td>
+          <td class="right">@g.Stats.Totals.Completed</td>
+          <td class="right">@Money(g.Stats.AuecPerHour)</td>
+          <td class="right">@g.Stats.ScripPerHour.ToString("N1", inv)</td>
+          <td class="right">@Money(g.Stats.TotalPerHour)</td>
+          <td class="right">@Money(g.Stats.Totals.TotalAuec)</td>
+        </tr>
+      }
+      </tbody>
+    </table>
+  }
+}
+else if (Model.Tab == "stats")
+{
+  <h2>Times by scenario</h2>
+  <p class="hint">From accepting to completing. A run over 15 minutes (60 for scenario 8) is not timed; its reward still counts.</p>
+  <table class="wide">
+    <thead><tr><th>Scenario</th><th>Completed</th><th>Cancelled</th><th>Average</th><th>Fastest</th><th>Slowest</th></tr></thead>
+    <tbody>
+    @foreach (var s in Model.Scenarios)
+    {
+      <tr>
+        <td>#@s.Scenario</td>
+        <td class="right">@s.Completed</td>
+        <td class="right">@s.Cancelled</td>
+        <td class="right">@Dur(s.Average)</td>
+        <td class="right">@Dur(s.Fastest)</td>
+        <td class="right">@Dur(s.Slowest)</td>
+      </tr>
+    }
+    </tbody>
+  </table>
+
+  <h2>Top 10 fastest</h2>
+  <form method="get" action="/gauntlet/stats" class="line">
+    <input type="hidden" name="player" value="@Model.Player">
+    <label for="scenario">Scenario</label>
+    <select id="scenario" name="scenario">
+      @for (var n = 1; n <= GauntletRewards.Scenarios; n++)
+      {
+        <option value="@n" selected="@(n == Model.Selected)">#@n</option>
+      }
+    </select>
+    <button type="submit">Show</button>
+  </form>
+  @{ var top = Model.Scenarios.First(s => s.Scenario == Model.Selected).Top; }
+  @if (top.Count == 0)
+  {
+    <p class="muted">No timed runs of scenario #@Model.Selected yet.</p>
+  }
+  else
+  {
+    <table class="narrow">
+      <thead><tr><th>#</th><th>Time</th><th>When</th></tr></thead>
+      <tbody>
+      @for (var i = 0; i < top.Count; i++)
+      {
+        <tr><td>@(i + 1)</td><td class="right">@Dur(top[i].TimingSec)</td><td>@When(top[i].EndedUtc)</td></tr>
+      }
+      </tbody>
+    </table>
+  }
+}
+else if (Model.Tab == "ranking")
+{
+  <h2>Earnings ranking</h2>
+  <p class="hint">Every scenario with a timed run, ranked by total aUEC per hour at its average time (aUEC plus MG scrip at @Money(Model.ScripValue) aUEC each).</p>
+  @if (Model.Ranking.Count == 0)
+  {
+    <p class="muted">Nothing to rank yet: no timed runs.</p>
+  }
+  else
+  {
+    <table class="wide">
+      <thead><tr><th>Rank</th><th>Scenario</th><th>Average</th><th>Total aUEC/h (average)</th><th>Total aUEC/h (at fastest)</th><th>Lifetime earned</th></tr></thead>
+      <tbody>
+      @for (var i = 0; i < Model.Ranking.Count; i++)
+      {
+        var s = Model.Ranking[i];
+        <tr>
+          <td>@(i + 1)</td>
+          <td>#@s.Scenario</td>
+          <td class="right">@Dur(s.Average)</td>
+          <td class="right">@Money(s.TotalPerHourAtAverage ?? 0)</td>
+          <td class="right">@Money(s.TotalPerHourAtFastest ?? 0)</td>
+          <td class="right">@Money(s.LifetimeTotal)</td>
+        </tr>
+      }
+      </tbody>
+    </table>
+  }
+}
+else
+{
+  <h2>Options</h2>
+  <form method="post" action="/gauntlet/options" asp-antiforgery="true" class="card">
+    <input type="hidden" name="player" value="@Model.Player">
+    <label for="ScripValue">aUEC value of one MG scrip</label>
+    <input id="ScripValue" name="ScripValue" type="number" min="0" step="1" class="num" value="@Math.Round(Model.ScripValue).ToString(inv)">
+    <p class="hint">Used for the total aUEC per hour and the ranking. 0 counts scrip as worth nothing.</p>
+    <table class="narrow">
+      <thead><tr><th>Scenario</th><th>aUEC</th><th>MG scrip</th></tr></thead>
+      <tbody>
+      @for (var n = 1; n <= GauntletRewards.Scenarios; n++)
+      {
+        <tr>
+          <td>#@n</td>
+          <td><input name="A@(n)" type="number" min="0" step="1" class="num" value="@Model.Rewards[n].Auec.ToString(inv)"></td>
+          <td><input name="S@(n)" type="number" min="0" step="1" class="num" value="@Model.Rewards[n].Scrip.ToString(inv)"></td>
+        </tr>
+      }
+      </tbody>
+    </table>
+    <p class="hint">What a completed run pays. Change a value if the game changes the rewards.</p>
+    <button type="submit">Save</button>
+  </form>
+}

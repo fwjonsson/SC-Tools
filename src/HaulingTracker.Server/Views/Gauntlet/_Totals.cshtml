@@ -1,0 +1,16 @@
+@model GauntletSessionStats
+@using System.Globalization
+@{
+    var inv = CultureInfo.InvariantCulture;
+}
+<table class="narrow">
+  <tbody>
+    <tr><th>Completed</th><td class="right">@Model.Totals.Completed</td></tr>
+    <tr><th>Cancelled (not counted)</th><td class="right">@Model.Totals.Cancelled</td></tr>
+    <tr><th>aUEC earned</th><td class="right">@Math.Round((double)Model.Totals.Auec).ToString("N0", inv)</td></tr>
+    <tr><th>MG scrip earned</th><td class="right">@Model.Totals.Scrip.ToString("N0", inv)</td></tr>
+    <tr><th>aUEC / hour</th><td class="right">@Math.Round(Model.AuecPerHour).ToString("N0", inv)</td></tr>
+    <tr><th>MG scrip / hour</th><td class="right">@Model.ScripPerHour.ToString("N1", inv)</td></tr>
+    <tr><th>Total aUEC / hour (with scrip)</th><td class="right">@Math.Round(Model.TotalPerHour).ToString("N0", inv)</td></tr>
+  </tbody>
+</table>

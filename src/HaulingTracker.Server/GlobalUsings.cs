@@ -2,6 +2,7 @@
 global using HaulingTracker.Debts;
 global using HaulingTracker.GameData;
 global using HaulingTracker.GameLog;
+global using HaulingTracker.Gauntlet;
 global using HaulingTracker.Persistence;
 global using HaulingTracker.Tracking;
 global using HaulingTracker.View;
