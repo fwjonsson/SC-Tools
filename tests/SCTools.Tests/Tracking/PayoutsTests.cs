@@ -34,6 +34,7 @@ public class PayoutsTests
         t.Payouts.UpdateSnapshots();
 
         var kept = t.State.Data.Sessions[key];
+        Assert.Equal(PlayedSession.Player, Assert.Single(Assert.Single(kept.Groups)), StringComparer.OrdinalIgnoreCase);   // one party: the one who carried and shared it
         Assert.Equal(Earnings.DefaultReward2, kept.Carried[PlayedSession.Player]);     // the finished run, its mission completed
         Assert.Equal(Earnings.DefaultReward2, kept.Received[PlayedSession.Player]);    // the payout of that mission, he was the party
         Assert.Equal(Earnings.DefaultReward2, kept.RunValues[PlayedSession.Player]);

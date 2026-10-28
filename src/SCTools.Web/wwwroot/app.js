@@ -280,7 +280,7 @@ function mapSvg(el, stations, routes, bg) {
 let planShown = null;   // 'all', 'me', or the leader of a party
 function planChoices(p) {
   const choices = [{ key: 'all', text: 'Everyone' }];
-  const parties = last.parties || [];
+  const parties = (last.parties || []).filter(function (x) { return x.playing !== false; });   // the plan is for the ones playing
   if (parties.length > 1) parties.forEach(function (x) { choices.push({ key: x.leader, text: x.title }); });
   if (ME && p.workers.some(function (w) { return (w.name || '').toLowerCase() === ME; })) choices.push({ key: 'me', text: 'Only me' });
   return choices;
@@ -392,21 +392,45 @@ function show(which) {
 ['S', 'P', 'D', 'H'].forEach(function (k) { document.getElementById('tab' + k).onclick = function () { show(k); }; });
 show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || 'S');
 
-// The party tabs under Session: with more than one party in the game, All and every party (named by its leader: "zzoega's party"), each with its own
-// stops, contracts, session, leaderboard and runs; the viewer's own party first. With one party, its name alone (the whole session is theirs).
+// The party picker under Session: with more than one party (the ones in the game, then the ones that hauled in this session and are not playing now),
+// All parties and every party (named by its leader: "zzoega's party"), each with its own stops, contracts, session, leaderboard and runs; the viewer's own
+// party first. With one party, its name alone (the whole session is theirs). The list is made again only when the parties change, so a list that is open
+// stays open while the page updates.
 let partyShown = null;   // the leader of the party shown, '' for All
 function partyView() {
   const el = document.getElementById('partyTabs');
   const parties = last.parties || [];
   el.classList.toggle('hidden', parties.length === 0);
   if (parties.length === 0) { el.textContent = ''; return last; }
-  if (parties.length === 1) { tabButtons(el, [{ key: '', text: parties[0].title }], '', function () { }); return last; }
-  if (partyShown === null) { const kept = remembered('party'); partyShown = kept !== null ? kept : ((myParty() || {}).leader || ''); }
-  const shown = parties.find(function (p) { return p.leader === partyShown; });
-  if (!shown) partyShown = '';
-  tabButtons(el, [{ key: '', text: 'All' }].concat(parties.map(function (p) { return { key: p.leader, text: p.title }; })), partyShown, function (key) {
-    partyShown = key; remember('party', key); render();
-  });
+  if (parties.length > 1) {
+    if (partyShown === null) { const kept = remembered('party'); partyShown = kept !== null ? kept : ((myParty() || {}).leader || ''); }
+    if (!parties.some(function (p) { return p.leader === partyShown; })) partyShown = '';
+  }
+  const choices = (parties.length > 1 ? [{ key: '', text: 'All parties' }] : []).concat(parties.map(function (p) {
+    return { key: p.leader, text: p.title + (p.playing === false ? ' (not playing now)' : '') };
+  }));
+  let pick = document.getElementById('partyPick');
+  if (!pick) {
+    el.textContent = '';
+    const label = document.createElement('label');
+    label.htmlFor = 'partyPick';
+    label.textContent = 'Party';
+    pick = document.createElement('select');
+    pick.id = 'partyPick';
+    pick.onchange = function () { partyShown = pick.value; remember('party', pick.value); render(); };
+    el.appendChild(label);
+    el.appendChild(pick);
+  }
+  const key = JSON.stringify(choices);
+  if (pick.dataset.choices !== key) {
+    pick.textContent = '';
+    choices.forEach(function (c) { const o = document.createElement('option'); o.value = c.key; o.textContent = c.text; pick.appendChild(o); });
+    pick.dataset.choices = key;
+  }
+  const on = parties.length > 1 ? partyShown : parties[0].leader;
+  if (pick.value !== on) pick.value = on;
+  pick.disabled = parties.length === 1;
+  const shown = parties.length > 1 ? parties.find(function (p) { return p.leader === partyShown; }) : null;
   return shown && shown.view ? shown.view : last;
 }
 

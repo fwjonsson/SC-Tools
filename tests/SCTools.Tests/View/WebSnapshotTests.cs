@@ -122,6 +122,13 @@ public class WebSnapshotTests
         Assert.Equal(trips, t.State.Trips.Count);
         Assert.Null(t.State.Focus);
 
+        // a party that hauled in this session and is not playing now (its payouts went apart): it can still be picked
+        t.State.Data.Sessions[t.State.Current!.Key].Groups = new() { new() { PlayedSession.Player }, new() { "Pilot_C", "Pilot_D" } };
+        list = JsonDocument.Parse(WebSnapshot.Json(t, new WebSnapshotOptions())).RootElement.GetProperty("parties").EnumerateArray().ToArray();
+        Assert.Equal(new[] { PlayedSession.Player, "Pilot_B", "Pilot_C's party" }, list.Select(p => p.GetProperty("title").GetString()));
+        Assert.Equal(new[] { true, true, false }, list.Select(p => p.GetProperty("playing").GetBoolean()));
+        t.State.Data.Sessions[t.State.Current!.Key].Groups = new();
+
         parties.Groups.RemoveAt(1);   // one party: its name only, the whole session is theirs
         d = JsonDocument.Parse(WebSnapshot.Json(t, new WebSnapshotOptions())).RootElement;
         var one = Assert.Single(d.GetProperty("parties").EnumerateArray());

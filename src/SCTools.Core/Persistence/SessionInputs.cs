@@ -36,4 +36,10 @@ public sealed class SessionInputs
     public Dictionary<string, WorkerStat> Stats { get; set; } = new();   // worker -> runs and missions of the session (for the History leaderboard)
     public Dictionary<string, decimal> Received { get; set; } = new();   // worker -> his share of the mission payouts (split between the party present when each mission paid out)
     public List<string> Members { get; set; } = new();   // the party of the session as used for the split (saved with Carried)   // missions of the session, to avoid counting a session twice
+
+    /// <summary>
+    /// The parties of the session as the payouts went (saved with Received): who carried a mission and who shared its payout are in one party, so two parties
+    /// that hauled at the same time are two groups here, and their debts are worked out apart (DebtCalc.Pairs). Empty: one party (a session from before).
+    /// </summary>
+    public List<List<string>> Groups { get; set; } = new();
 }

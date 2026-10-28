@@ -66,6 +66,24 @@ public class DebtCalcTests
     }
 
     [Fact]
+    public void Two_parties_in_one_session_owe_each_other_nothing()
+    {
+        // A and B hauled together (A carried more), C and D at the same time in a party of their own (D carried more): one session, two parties
+        var s = Session(
+            new() { ["A"] = 3_000m, ["B"] = 1_000m, ["C"] = 500m, ["D"] = 1_500m },
+            new() { ["A"] = 2_000m, ["B"] = 2_000m, ["C"] = 1_000m, ["D"] = 1_000m });
+        s.Groups = new() { new() { "A", "B" }, new() { "c", "d" } };
+        var pairs = DebtCalc.Pairs(new[] { s }, Array.Empty<SavedTransfer>());
+        Assert.Equal(1_000m, DebtCalc.Between(pairs, "A", "B"));
+        Assert.Equal(500m, DebtCalc.Between(pairs, "D", "C"));
+        Assert.Equal(0m, DebtCalc.Between(pairs, "A", "C"));   // across the parties: nothing
+        Assert.Equal(0m, DebtCalc.Between(pairs, "D", "B"));
+
+        s.Groups = new();   // a session from before the parties were told apart: everybody with everybody, as it was
+        Assert.NotEqual(0m, DebtCalc.Between(DebtCalc.Pairs(new[] { s }, Array.Empty<SavedTransfer>()), "A", "C"));
+    }
+
+    [Fact]
     public void A_payment_counts_between_the_two_who_made_it_and_moves_no_debt_to_anybody_else()
     {
         // two accounts of one player and a friend: zzatvo carried more than his share (zzoega owes him), Bileh carried a little; zzoega paid Bileh a lot

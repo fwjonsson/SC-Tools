@@ -69,17 +69,27 @@ public sealed partial class WebSnapshot
     }
 
     /// <summary>
-    /// The parties in the game now (see AutoParty) with somebody of the party table in them: their name ("zzoega's party"), leader and players. With more than
-    /// one, each has the Session tab of its own (view: its stops, contracts, session, leaderboard and runs: the missions one of them has, and their runs); the
-    /// page shows them as tabs under Session, and on the Trip Planner. Empty where the logs do not say.
+    /// The parties in the game now (see AutoParty) with somebody of the party table in them: their name ("zzoega's party"), leader and players; then the
+    /// parties that hauled in the session shown and are not playing now (its Groups: their payouts went apart), so their part can still be looked at. With
+    /// more than one, each has the Session tab of its own (view: its stops, contracts, session, leaderboard and runs: the missions one of them has, and their
+    /// runs); the page lets you pick one under Session, and on the Trip Planner. Empty where the logs do not say.
     /// </summary>
     object[] Parties()
     {
-        var groups = _s.Parties?.Groups.Where(g => g.Names.Any(n => _s.Data.Party.Any(m => SameName(m, n)))).ToList();
-        if (groups == null || groups.Count == 0) return Array.Empty<object>();
-        return groups.Select(g =>
+        var playing = _s.Parties?.Groups.Where(g => g.Names.Any(n => _s.Data.Party.Any(m => SameName(m, n)))).ToList();
+        if (playing == null) return Array.Empty<object>();   // the program: the logs do not say
+        var groups = playing.Select(g => (Group: g, Playing: true)).ToList();
+        var hauled = _s.Current != null && _s.Data.Sessions.TryGetValue(_s.Current.Key, out var stored) ? stored.Groups : new List<List<string>>();
+        foreach (var names in hauled)
         {
-            if (groups.Count == 1) return (object)new { title = g.Title, leader = g.Leader, names = g.Names };   // the whole session is theirs
+            if (names.Count == 0 || groups.Any(x => x.Group.Names.Any(n => names.Any(m => SameName(n, m))))) continue;
+            groups.Add((new PartyGroup(names[0], names), false));
+        }
+        if (groups.Count == 0) return Array.Empty<object>();
+        return groups.Select(x =>
+        {
+            var g = x.Group;
+            if (groups.Count == 1) return (object)new { title = g.Title, leader = g.Leader, names = g.Names, playing = x.Playing };   // the whole session is theirs
             using var focus = _t.Focus(g.Names);
             var runs = RunsTables();
             return new
@@ -87,6 +97,7 @@ public sealed partial class WebSnapshot
                 title = g.Title,
                 leader = g.Leader,
                 names = g.Names,
+                playing = x.Playing,
                 view = new
                 {
                     session = _s.Current == null ? "" : BoardTexts.DescribeSession(_s.Current),

@@ -284,10 +284,14 @@ admin (done), then going live.
   shows who is in the game and with whom ("zzoega's party: zzatvo, zzoega"; the leader is the one the game named, else the one who made the party) and has
   **Auto / In / Out** for every member: In or Out holds until the logs show something new about him (In until he leaves, Out until he plays). It starts the
   first time the server runs it (the ticks before stay in the history); `SCTools:FollowParty` = false turns it off.
-- **Party tabs.** With more than one party in the game, the Session tab of the live page has a tab for each ("zzoega's party", named by its leader) next to
-  All: the stops, contracts, session, leaderboard and runs of that party only (the missions its players have by their own logs, and their runs;
-  `Tracker.Focus`). The viewer's own party is shown first (the page knows who is logged in), and the tab picked last is remembered in the browser. The Trip
-  Planner can show Everyone, one party, or Only me (the plan is the same; only whose routes are drawn and listed changes).
+- **The party picker.** With more than one party, the Session tab of the live page has a **Party** list: All parties, every party in the game
+  ("zzoega's party", named by its leader), and the parties that hauled in this session and are not playing now ("(not playing now)"): the stops,
+  contracts, session, leaderboard and runs of that party only (the missions its players have by their own logs, and their runs; `Tracker.Focus`). The
+  viewer's own party comes first (the page knows who is logged in), and the one picked last is remembered in the browser. The Trip Planner can show
+  Everyone, one party in the game, or Only me (the plan is the same; only whose routes are drawn and listed changes).
+- **Parties never owe each other.** Who carried a mission and who shared its payout are one party (`SessionInputs.Groups`, worked out with the payouts),
+  so two parties that hauled in the same session are two groups, and the Debts tab works out who owes whom inside each of them only (`DebtCalc.Pairs`). A
+  session from before has no groups and stays as it was.
 - **The database** (`App_Data/tracker.db`, SQLite, EF Core in `SCTools.Server/Data`) has everything the program keeps in its data file: the party and
   every member's ship, colour and location, the sessions, the transfers and payouts, what was typed on the Contracts and Debts tabs, and the tracker keys.
   The first time the server starts with an empty database, the program's data file (`App_Data/data.json`) goes into it; after that the database is the data.
