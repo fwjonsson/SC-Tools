@@ -1,5 +1,4 @@
 using System.Net;
-using HaulingTracker.Server.Accounts;
 using HaulingTracker.Server.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -31,25 +30,16 @@ public sealed class PageController : Controller
         return View("~/Views/Home/Index.cshtml", _live.Read(t => new HomeModel(t.State.Current == null ? "" : BoardTexts.DescribeSession(t.State.Current), cards)));
     }
 
-    /// <summary>The live page of the hauling tracker, with the links of the login in its top right corner (Log in; My page for a player; the admin pages for the admin).</summary>
+    /// <summary>The live page of the hauling tracker, with the bar of the site at the top (SC Tools, the tools, who is logged in).</summary>
     [HttpGet("/hauling")]
     [HttpGet("/index.html")]
     public IActionResult Page() => _tools.Sees(User, SiteTools.Hauling) ? Content(WithLinks(WebAssets.Page), "text/html; charset=utf-8") : Hidden();
 
     string WithLinks(string page)
     {
-        var links = new List<string> { "<a href=\"/\">SC Tools</a>" };   // back to the other tools
-        if (User.Identity?.IsAuthenticated != true) links.Add("<a href=\"/login\">Log in</a>");
-        else
-        {
-            links.Add("<span>" + WebUtility.HtmlEncode(User.Identity.Name ?? "") + "</span>");
-            if (User.IsInRole(Roles.Player)) links.Add("<a href=\"/me\">My page</a>");
-            if (User.IsInRole(Roles.Admin)) links.Add("<a href=\"/admin\">Admin</a>");
-        }
-        const string Heading = "<h1>Hauling Tracker</h1>";
-        var nav = "<nav style=\"position:absolute;top:16px;right:20px;display:flex;gap:16px;font-weight:600;opacity:.85\">"
-            + string.Join("", links).Replace("<a ", "<a style=\"color:inherit\" ") + "</nav>";
-        page = page.Replace(Heading, Heading + nav);
+        // the bar of the site at the top, as on every page (SC Tools back to the cards, the tools, who is logged in), with its look
+        page = page.Replace("</head>", "<link rel=\"stylesheet\" href=\"/topbar.css\">\n</head>")
+            .Replace("<body>", "<body class=\"tool\">\n" + TopBar.Html(HttpContext, _tools, SiteTools.Hauling));
         // who is looking, so the page can show his party first and his own runs on the Trip Planner (a player logged in by his tracker, or the admin)
         if (User.Identity?.IsAuthenticated == true && !string.IsNullOrEmpty(User.Identity.Name))
             page = page.Replace("<head>", "<head>\n<meta name=\"me\" content=\"" + WebUtility.HtmlEncode(User.Identity.Name) + "\">");

@@ -7,47 +7,24 @@
 <title>@ViewData["Title"] - SC Tools</title>
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
 <link rel="stylesheet" href="~/site.css" asp-append-version="true">
+<link rel="stylesheet" href="~/topbar.css" asp-append-version="true">
 <script src="~/autosave.js" asp-append-version="true" defer></script>
 </head>
 <body>
-<header class="topbar">
-  <a class="brand" href="/">SC Tools</a>
-  <nav>
-    @if (Tools.Sees(User, SiteTools.Hauling))
+@* the bar of the site (TopBar.cs, the same on the tools' own pages); under it on the admin's pages, his pages *@
+@Html.Raw(TopBar.Html(Context, Tools))
+@if (User.IsInRole(Roles.Admin) && (Context.Request.Path.StartsWithSegments("/admin") || Context.Request.Path.StartsWithSegments("/account")))
+{
+  var path = (Context.Request.Path.Value ?? "").TrimEnd('/');
+  bool On(string href) => href == "/admin" ? string.Equals(path, href, StringComparison.OrdinalIgnoreCase) : path.StartsWith(href, StringComparison.OrdinalIgnoreCase);
+  <nav class="subnav">
+    @foreach (var (href, text) in new[] { ("/admin", "Session"), ("/admin/party", "Party"), ("/admin/contracts", "Contracts"), ("/admin/debts", "Debts"),
+                                         ("/admin/keys", "Tracker keys"), ("/admin/tools", "Tools"), ("/account", "Account") })
     {
-      <a href="/hauling">Hauling Tracker</a>
-    }
-    @if (User.Identity?.IsAuthenticated == true && Tools.Sees(User, SiteTools.Gauntlet))
-    {
-      <a href="/gauntlet">Gauntlet Tracker</a>
-    }
-    @if (User.IsInRole(Roles.Player))
-    {
-      <a href="/me">My page</a>
-    }
-    @if (User.IsInRole(Roles.Admin))
-    {
-      <a href="/admin">Session</a>
-      <a href="/admin/party">Party</a>
-      <a href="/admin/contracts">Contracts</a>
-      <a href="/admin/debts">Debts</a>
-      <a href="/admin/keys">Tracker keys</a>
-      <a href="/admin/tools">Tools</a>
-      <a href="/account">Account</a>
+      <a href="@href" class="@(On(href) ? "on" : null)">@text</a>
     }
   </nav>
-  <div class="who">
-    @if (User.Identity?.IsAuthenticated == true)
-    {
-      <span>@User.Identity.Name</span>
-      <form method="post" action="/logout" asp-antiforgery="true" class="inline"><button type="submit" class="link">Log out</button></form>
-    }
-    else
-    {
-      <a href="/login">Log in</a>
-    }
-  </div>
-</header>
+}
 <main>
   @if (TempData["Message"] is string message)
   {

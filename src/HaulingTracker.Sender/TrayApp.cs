@@ -7,13 +7,14 @@ using HaulingTracker.Updates;
 namespace HaulingTracker.Sender;
 
 /// <summary>
-/// The tracker in the tray: every three seconds it uploads what is new in the Game.log (and the backup logs of the last day) to the server, and it updates
+/// The SC Tools Tracker in the tray: every three seconds it uploads what is new in the Game.log (and the backup logs of the last day) to the server, and it updates
 /// itself from the latest release on GitHub. The menu shows how it goes, opens the tracker website, the settings, and starts it with Windows.
 /// </summary>
 sealed class TrayApp : ApplicationContext
 {
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    const string RunName = "HaulingTrackerSender";
+    const string RunName = "SCToolsTracker";
+    const string OldRunName = "HaulingTrackerSender";
 
     readonly NotifyIcon _icon = new();
     readonly ToolStripMenuItem _status = new() { Enabled = false };
@@ -31,7 +32,7 @@ sealed class TrayApp : ApplicationContext
         var menu = new ContextMenuStrip();
         menu.Items.Add(_status);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Open the tracker page", null, (_, _) => Open(_settings.ServerUrl.Trim().TrimEnd('/') + "/hauling"));
+        menu.Items.Add("Open SC Tools", null, (_, _) => Open(_settings.ServerUrl.Trim().TrimEnd('/') + "/"));
         menu.Items.Add("Open my page (location, colour, ship)", null, async (_, _) => await OpenMyPageAsync());
         menu.Items.Add("Settings...", null, (_, _) => ShowSettings());
         menu.Items.Add(_startWithWindows);
@@ -60,7 +61,7 @@ sealed class TrayApp : ApplicationContext
     void SetStatus(string text)
     {
         _status.Text = text;
-        var tip = "Hauling Tracker: " + text;
+        var tip = TrackerName.Name + ": " + text;
         _icon.Text = tip.Length > 120 ? tip[..120] : tip;
     }
 
@@ -82,12 +83,12 @@ sealed class TrayApp : ApplicationContext
         {
             using var server = new HttpLogServer(_settings.ServerUrl.Trim(), _settings.Key.Trim());
             var link = await server.LoginLinkAsync(_stop.Token);
-            if (link == null) _icon.ShowBalloonTip(5000, "Hauling Tracker", "The server does not know this key: check it in Settings.", ToolTipIcon.Warning);
+            if (link == null) _icon.ShowBalloonTip(5000, TrackerName.Name, "The server does not know this key: check it in Settings.", ToolTipIcon.Warning);
             else Open(link);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException)
         {
-            _icon.ShowBalloonTip(5000, "Hauling Tracker", "The server could not be reached: " + ex.Message, ToolTipIcon.Warning);
+            _icon.ShowBalloonTip(5000, TrackerName.Name, "The server could not be reached: " + ex.Message, ToolTipIcon.Warning);
         }
     }
 
@@ -193,7 +194,7 @@ sealed class TrayApp : ApplicationContext
             cts.CancelAfter(TimeSpan.FromMinutes(2));
             var latest = await Updater.LatestCommitAsync(cts.Token);
             if (latest == null || !await Updater.IsNewerAsync(own, latest, cts.Token)) return;
-            var exe = await Updater.DownloadAsync("HaulingTrackerSender.zip", "HaulingTrackerSender.exe");
+            var exe = await Updater.DownloadAsync(TrackerName.Zip, TrackerName.Exe);
             Updater.ReplaceAndStart(exe);   // the new tracker waits for this one to close
             ExitThread();
         }
@@ -211,6 +212,15 @@ sealed class TrayApp : ApplicationContext
     {
         using var key = Registry.CurrentUser.OpenSubKey(RunKey);
         return key?.GetValue(RunName) is string;
+    }
+
+    /// <summary>The tracker got its new name (Program): Start with Windows, when it was on, starts the new exe.</summary>
+    public static void MoveStartWithWindows(string exe)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(RunKey);
+        if (key.GetValue(OldRunName) is not string) return;
+        key.DeleteValue(OldRunName, false);
+        key.SetValue(RunName, "\"" + exe + "\"");
     }
 
     static void SetStartWithWindows(bool on)

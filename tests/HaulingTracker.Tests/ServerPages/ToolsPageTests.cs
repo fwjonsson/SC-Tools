@@ -60,6 +60,38 @@ public class ToolsPageTests
     }
 
     [Fact]
+    public async Task Every_page_has_the_bar_of_the_site_with_the_tools_and_only_SC_Tools_goes_back_to_the_cards()
+    {
+        using var f = new ServerFactory();
+        var visitor = f.Browser();
+        var live = await visitor.GetStringAsync("/hauling");
+        Assert.Contains("<body class=\"tool\">\n<header class=\"topbar\">", live);   // the hauling tracker's own page has the bar at the top
+        Assert.Contains("<a class=\"brand\" href=\"/\">SC Tools</a>", live);   // back to the cards
+        Assert.Contains("<a href=\"/hauling\" class=\"on\">Hauling Tracker</a>", live);   // the tool you are in
+        Assert.Contains("href=\"/topbar.css\"", live);
+        Assert.Contains("<a href=\"/login\">Log in</a>", live);
+        Assert.DoesNotContain("position:absolute", live);   // the old links in the corner are gone
+        Assert.Equal(HttpStatusCode.OK, (await visitor.GetAsync("/topbar.css")).StatusCode);
+
+        var home = await visitor.GetStringAsync("/");
+        Assert.Contains("<a href=\"/hauling\">Hauling Tracker</a>", home);   // the same bar on the landing page, no tool marked
+
+        var admin = await f.Admin();
+        live = await admin.GetStringAsync("/hauling");
+        Assert.Contains("<a href=\"/admin\">Admin</a>", live);
+        var party = await admin.GetStringAsync("/admin/party");
+        Assert.Contains("<nav class=\"subnav\">", party);   // the admin's pages under the bar, the one he is on marked
+        Assert.Contains("<a href=\"/admin/party\" class=\"on\">Party</a>", party);
+        Assert.Contains("<a href=\"/admin\">Session</a>", party);
+        Assert.DoesNotContain("<nav class=\"subnav\">", await admin.GetStringAsync("/"));
+
+        // Log out from the hauling tracker's page: its form has the token
+        var r = await admin.PostAsync("/logout", new FormUrlEncodedContent(new[] { KeyValuePair.Create("__RequestVerificationToken", ServerFactory.Token(live)) }));
+        Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);
+        Assert.StartsWith("/login", (await admin.GetAsync("/admin")).Headers.Location!.PathOf());
+    }
+
+    [Fact]
     public async Task The_tools_page_is_for_the_admin_only()
     {
         using var f = new ServerFactory();

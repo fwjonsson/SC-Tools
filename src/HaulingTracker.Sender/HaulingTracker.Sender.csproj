@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The tracker every player runs on his gaming PC: a tray icon that uploads the lines of his Game.log the tracker reads to the server (the web app). -->
+  <!-- The SC Tools Tracker every player runs on his gaming PC: a tray icon that uploads the lines of his Game.log the tools read to the site (the web app). -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWindowsForms>true</UseWindowsForms>
-    <AssemblyName>HaulingTrackerSender</AssemblyName>
+    <AssemblyName>SCToolsTracker</AssemblyName>
     <RootNamespace>HaulingTracker.Sender</RootNamespace>
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
     <ApplicationIcon>../HaulingTracker/icon.ico</ApplicationIcon>

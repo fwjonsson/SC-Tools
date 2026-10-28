@@ -20,7 +20,7 @@ jobs:
       - name: Build and publish a single exe
         run: dotnet publish src/HaulingTracker/HaulingTracker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:InformationalVersion=release-${{ github.sha }} -o publish
 
-      - name: Build and publish the tracker (log sender)
+      - name: Build and publish the SC Tools Tracker (the tracker on the gaming PCs)
         run: dotnet publish src/HaulingTracker.Sender/HaulingTracker.Sender.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:InformationalVersion=release-${{ github.sha }} -o publish-sender
 
       - name: Build and publish the API tool
@@ -30,7 +30,11 @@ jobs:
         shell: pwsh
         run: |
           Compress-Archive -Path publish/HaulingTracker.exe -DestinationPath HaulingTracker.zip
-          Compress-Archive -Path publish-sender/HaulingTrackerSender.exe -DestinationPath HaulingTrackerSender.zip
+          Compress-Archive -Path publish-sender/SCToolsTracker.exe -DestinationPath SCToolsTracker.zip
+          # the same tracker under its old name, for the trackers from before the new name: they update from this zip and then rename themselves
+          New-Item -ItemType Directory -Force old-name | Out-Null
+          Copy-Item publish-sender/SCToolsTracker.exe old-name/HaulingTrackerSender.exe
+          Compress-Archive -Path old-name/HaulingTrackerSender.exe -DestinationPath HaulingTrackerSender.zip
           Compress-Archive -Path publish-api/ScApiTool.exe -DestinationPath ScApiTool.zip
 
       - name: Keep the exe of this run
@@ -39,6 +43,7 @@ jobs:
           name: HaulingTracker
           path: |
             HaulingTracker.zip
+            SCToolsTracker.zip
             HaulingTrackerSender.zip
             ScApiTool.zip
 
@@ -57,8 +62,8 @@ jobs:
           gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/latest" 2>$null
           # The release is made without its files first, so it is published at once (with files, gh makes a draft, uploads and publishes it at the end, and
           # GitHub has left that draft unpublished: a draft has no public tag, so the updater said it could not read the newest version). The files come after.
-          gh release create latest --target ${{ github.sha }} --latest --title "Latest build" --notes "Newest build of main. Unzip and run HaulingTracker.exe. HaulingTrackerSender.zip is the tracker every player runs on his gaming PC: it uploads his Game.log to the tracker website (it needs a key from Frank). ScApiTool.zip is the small tool that downloads data from the Star Citizen Wiki API. The program checks this release at startup to update itself. build: ${{ github.sha }}"
-          gh release upload latest HaulingTracker.zip HaulingTrackerSender.zip ScApiTool.zip --clobber
+          gh release create latest --target ${{ github.sha }} --latest --title "Latest build" --notes "Newest build of main. Unzip and run HaulingTracker.exe. SCToolsTracker.zip is the SC Tools Tracker every player runs on his gaming PC: it sends the lines of his Game.log the tools read to sct.fwjonsson.dev (it needs a key from Frank; HaulingTrackerSender.zip is the same tracker under its old name, for trackers that update from before). ScApiTool.zip is the small tool that downloads data from the Star Citizen Wiki API. The program checks this release at startup to update itself. build: ${{ github.sha }}"
+          gh release upload latest HaulingTracker.zip SCToolsTracker.zip HaulingTrackerSender.zip ScApiTool.zip --clobber
           # The program finds the release by its tag: check a few times that it is published, has the tag and the exe; publish it when it is a draft, and fail loudly if that does not help
           $ok = $false
           for ($i = 0; $i -lt 6; $i++) {
