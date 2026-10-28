@@ -1,3 +1,5 @@
+using SCTools.Server.Data;
+
 namespace SCTools.Server;
 
 /// <summary>A player as the Party tool shows him: playing or not and when he was last seen, his in-game party, the ship he flies and his fleet, where the
