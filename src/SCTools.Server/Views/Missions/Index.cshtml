@@ -33,7 +33,7 @@ else
   @* every field is a little form of its own (data-autosave: autosave.js sends it when it changes) *@
   <div class="scroll">
   <table class="wide missions">
-    <thead><tr><th>Mission</th><th>Giver</th><th>aUEC</th><th>MG scrip</th><th>Council scrip</th><th>Notes</th><th>Played</th><th>Last played</th></tr></thead>
+    <thead><tr><th>Mission</th><th>Giver</th><th class="right">aUEC</th><th class="right">MG<br>scrip</th><th class="right">Council<br>scrip</th><th>Played</th><th>Last<br>played</th></tr></thead>
     <tbody>
     @foreach (var e in Model.Entries)
     {
@@ -42,11 +42,10 @@ else
         @foreach (var (field, value, cls, hint) in new[]
         {
             ("name", r.Name ?? r.Title, "name", r.Title),
-            ("giver", r.Giver ?? "", "", ""),
+            ("giver", r.Giver ?? "", "giver", ""),
             ("auec", N(r.Auec), "num", ""),
-            ("mg", N(r.MgScrip), "num", ""),
-            ("council", N(r.CouncilScrip), "num", ""),
-            ("notes", r.Notes ?? "", "", ""),
+            ("mg", N(r.MgScrip), "num scrip", ""),
+            ("council", N(r.CouncilScrip), "num scrip", ""),
         })
         {
           <td>
