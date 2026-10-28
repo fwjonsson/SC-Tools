@@ -121,9 +121,9 @@ public sealed class MapService
             var playing = games.TryGetValue(log.Uploader ?? name, out var runs) && runs.Any(r => !r.Quit && nowUtc - r.Run.Last < AutoParty.Quiet);
             if (!playing) continue;
             List<QtEvent> qt;
-            List<LocationSeen> seen;
-            lock (_uploads.Sync) (qt, seen) = (log.Qt.ToList(), log.Locations.ToList());
-            var where = Follow(qt, atlas, null, seen);
+            List<LocationSeen> visited;
+            lock (_uploads.Sync) (qt, visited) = (log.Qt.ToList(), log.Locations.ToList());
+            var where = Follow(qt, atlas, null, visited);
             players.Add(Player(name, where, nowUtc));
 
             var seen = (titles.GetValueOrDefault(log.Uploader ?? name) ?? Array.Empty<MissionSeen>()).ToDictionary(s => s.MissionId, StringComparer.OrdinalIgnoreCase);
