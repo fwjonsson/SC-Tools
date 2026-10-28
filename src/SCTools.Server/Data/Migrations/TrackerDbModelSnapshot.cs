@@ -468,6 +468,44 @@ namespace SCTools.Server.Data.Migrations
                     b.ToTable("MissionHolders", (string)null);
                 });
 
+            modelBuilder.Entity("SCTools.Server.Data.MissionKindRow", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("Auec")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("CouncilScrip")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EditedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EditedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Giver")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("MgScrip")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("MissionKinds", (string)null);
+                });
+
             modelBuilder.Entity("SCTools.Server.Data.MissionRow", b =>
                 {
                     b.Property<string>("Player")
@@ -481,6 +519,9 @@ namespace SCTools.Server.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("EndedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Outcome")
@@ -498,6 +539,8 @@ namespace SCTools.Server.Data.Migrations
                     b.HasKey("Player", "MissionId");
 
                     b.HasIndex("ContractId");
+
+                    b.HasIndex("Kind");
 
                     b.ToTable("Missions", (string)null);
                 });
