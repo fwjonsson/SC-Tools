@@ -86,7 +86,7 @@ public sealed class PartyService
         {
             if (!t.State.Data.Party.Any(n => Same(n, known))) return null;   // only the Hauling Planner's party has a place there
             var id = t.Whereabouts.LocationOf(known).Id;
-            return PyroDistances.Points.FirstOrDefault(p => p.Id == id)?.Name;
+            return PyroDistances.Points.Where(p => p.Id == id).Select(p => p.Name).FirstOrDefault();
         });
         return new PartyMember(known, playing, seen.TryGetValue(known, out var t2) ? t2.Last : null, party, _fleet.Active(known), _fleet.Fleet(known), location,
             _versions.Of(known));
