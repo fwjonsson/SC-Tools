@@ -246,7 +246,9 @@ admin (done), then going live.
   (`StarMap.OfName`: "Pyro System" is the system alone; a name two systems have, like "Nyx Gateway", is the one he is in, and after a gateway the
   system it leads to), the destination is a place (`StarMap.OfQuantumTarget`: the Pyro stations, "pyro3" the third planet, "LOC_RR_S1_L2" HUR-L2,
   "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. A jump
-  whose start is not known shows as a ring at the destination. Objectives: at a station when their zone is one of the Pyro stations
+  whose start is not known shows as a ring at the destination with his name and an arrow. A player is an arrow in his colour (pointing along his
+  route in quantum, up when he is at a place) with a ring pulsing out from it and his name beside it in his colour; players at the same place
+  are one under the other. Objectives: at a station when their zone is one of the Pyro stations
   (`StationIds`), where they are when the marker is in the system's own frame (in the system the player is in), else counted as on a planet or
   moon the map cannot place yet. Only for the admin until it is shown on the Tools page.
 - **Map places** (Admin → Map places, `/admin/places`, `MapPlaces`, tables `MapPlaces` and `MapAliases`): the admin's changes to the map's places,

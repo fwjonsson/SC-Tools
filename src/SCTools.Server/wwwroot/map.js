@@ -186,6 +186,28 @@
     return g;
   }
 
+  // A player on the map: an arrow in his colour (pointing where he flies; up when he is somewhere), a ring that pulses out from it so he is easy to spot,
+  // and his name beside it in his colour (on the left near the right edge). place() puts it somewhere, turned that many degrees.
+  function marker(pl, title) {
+    const g = el('g', { 'class': 'player' }, base.people);
+    el('circle', { r: 9, fill: pl.color, 'fill-opacity': 0.2, stroke: pl.color, 'stroke-width': 1.5 }, g);
+    const pulse = el('circle', { r: 9, fill: 'none', stroke: pl.color, 'stroke-width': 2 }, g);
+    el('animate', { attributeName: 'r', values: '9;19', dur: '1.8s', repeatCount: 'indefinite' }, pulse);
+    el('animate', { attributeName: 'stroke-opacity', values: '0.8;0', dur: '1.8s', repeatCount: 'indefinite' }, pulse);
+    const arrow = el('path', { d: 'M0,-9 L6.5,7 L0,3.5 L-6.5,7 Z', fill: pl.color, stroke: '#06090e', 'stroke-width': 1.5, 'stroke-linejoin': 'round' }, g);
+    const name = el('text', { y: 4, fill: pl.color, 'font-size': 12, 'font-weight': 700, stroke: '#06090e', 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, g, pl.name);
+    el('title', {}, g, title);
+    return {
+      place: function (x, y, deg) {
+        g.setAttribute('transform', 'translate(' + x.toFixed(1) + ',' + y.toFixed(1) + ')');
+        arrow.setAttribute('transform', 'rotate(' + (deg || 0).toFixed(0) + ')');
+        const left = x > W - 24 - pl.name.length * 7.5;
+        name.setAttribute('x', left ? -14 : 14);
+        name.setAttribute('text-anchor', left ? 'end' : 'start');
+      },
+    };
+  }
+
   function clock(seconds) {
     const s = Math.max(0, Math.round(seconds));
     return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
@@ -262,25 +284,24 @@
       if (list.length > 1) el('text', { x: p[0] + 5, y: p[1] - 11, fill: '#f2c14e', 'font-size': 10, 'font-weight': 700 }, base.objs, String(list.length));
     });
 
-    // the players in this system: at a place around it, on the way to a place the start of which is not known as a ring at it, in quantum on his route
+    // the players in this system: at a place under it (one under the other), on the way to a place the start of which is not known as a ring at it, in
+    // quantum on his route
     const stay = {};
     d.players.forEach(function (pl) {
       if (!here(pl.system)) return;
       if (pl.state === 'at' && base.anchor[pl.at]) { const a = base.anchor[pl.at], k = a.join(','); (stay[k] = stay[k] || { p: a, list: [] }).list.push(pl); }
       if (pl.state === 'heading' && base.anchor[pl.to]) {
         const a = base.anchor[pl.to];
-        const ring = el('circle', { cx: a[0], cy: a[1], r: 10, fill: 'none', stroke: pl.color, 'stroke-width': 2, 'stroke-dasharray': '3 3' }, base.routes);
-        el('title', {}, ring, pl.name + ' on his way to ' + pl.toName);
+        const g = el('g', {}, base.routes);
+        el('circle', { cx: a[0], cy: a[1], r: 10, fill: 'none', stroke: pl.color, 'stroke-width': 2, 'stroke-dasharray': '3 3' }, g);
+        el('text', { x: a[0] - 14, y: a[1] - 10, 'text-anchor': 'end', fill: pl.color, 'font-size': 12, 'font-weight': 700, stroke: '#06090e', 'stroke-width': 3,
+          'paint-order': 'stroke', 'stroke-linejoin': 'round' }, g, pl.name + ' →');
+        el('title', {}, g, pl.name + ' on his way to ' + pl.toName);
       }
     });
     Object.keys(stay).forEach(function (k) {
-      const p = stay[k].p, list = stay[k].list, n = list.length;
-      list.forEach(function (pl, i) {
-        const a = -Math.PI / 2 + (n > 1 ? i * 2 * Math.PI / n : 0), r = n > 1 ? 11 : 0;
-        const x = p[0] + Math.cos(a) * r, y = p[1] + Math.sin(a) * r + (n > 1 ? 0 : 12);
-        const dot = el('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 6, fill: pl.color, stroke: '#06090e', 'stroke-width': 1.5 }, base.people);
-        el('title', {}, dot, pl.name + ' at ' + pl.atName);
-      });
+      const p = stay[k].p;
+      stay[k].list.forEach(function (pl, i) { marker(pl, pl.name + ' at ' + pl.atName).place(p[0], p[1] + 18 + i * 22, 0); });
     });
     d.players.forEach(function (pl) {
       if (pl.state !== 'jump') return;
@@ -289,8 +310,8 @@
       if (a && b) {
         el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: pl.color, 'stroke-width': 2, 'stroke-dasharray': '2 5', 'stroke-linecap': 'round', 'stroke-opacity': 0.9 }, base.routes);
         m.a = a; m.b = b;
-        m.dot = el('circle', { cx: a[0], cy: a[1], r: 7, fill: pl.color, stroke: '#ecece8', 'stroke-width': 1.5 }, base.people);
-        m.label = el('text', { x: a[0] + 10, y: a[1] - 8, fill: pl.color, 'font-size': 11, 'font-weight': 700 }, base.people, pl.name);
+        m.deg = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI + 90;   // the arrow points up at 0 degrees
+        m.mark = marker(pl, pl.name + ': ' + pl.fromName + ' to ' + pl.toName);
       }
       movers.push(m);
     });
@@ -361,11 +382,9 @@
     movers.forEach(function (m) {
       const pl = m.pl, t = (now - pl.start) / 1000;
       const q = motionAt(pl.motion, pl.dist, t);
-      if (m.dot) {
+      if (m.mark) {
         const f = pl.dist > 0 ? q.x / pl.dist : 1;
-        const x = m.a[0] + (m.b[0] - m.a[0]) * f, y = m.a[1] + (m.b[1] - m.a[1]) * f;
-        m.dot.setAttribute('cx', x.toFixed(1)); m.dot.setAttribute('cy', y.toFixed(1));
-        m.label.setAttribute('x', (x + 10).toFixed(1)); m.label.setAttribute('y', (y - 8).toFixed(1));
+        m.mark.place(m.a[0] + (m.b[0] - m.a[0]) * f, m.a[1] + (m.b[1] - m.a[1]) * f, m.deg);
       }
       if (m.what) speedText(m, t, q);
     });
