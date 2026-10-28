@@ -73,7 +73,7 @@ public class GauntletTests
         var scenarios = GauntletStats.Scenarios(r.Runs, null, 0);
         var ranking = GauntletStats.Ranking(scenarios);
         Assert.Equal(new[] { 7, 6 }, ranking.Select(s => s.Scenario));
-        Assert.Equal(227_750.0 / 300 * 3600, ranking[0].TotalPerHourAtAverage);
+        Assert.Equal(227_750.0 / 300 * 3600, ranking[0].TotalPerHourAtAverage!.Value);
         Assert.Equal(227_750, ranking[0].LifetimeAuec);
     }
 

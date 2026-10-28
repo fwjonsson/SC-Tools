@@ -135,7 +135,7 @@ else if (Model.Tab == "stats")
     </select>
     <button type="submit">Show</button>
   </form>
-  @{ var top = Model.Scenarios.First(s => s.Scenario == Model.Selected).Top; }
+  var top = Model.Scenarios.First(s => s.Scenario == Model.Selected).Top;
   @if (top.Count == 0)
   {
     <p class="muted">No timed runs of scenario #@Model.Selected yet.</p>
