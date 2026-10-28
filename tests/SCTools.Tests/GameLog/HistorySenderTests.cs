@@ -96,4 +96,23 @@ public sealed class HistorySenderTests : IDisposable
         Assert.Equal(5, server.Lines[file].Count);
         Assert.Equal(new long[] { 0, 2, 0, 2, 4 }, server.Pieces.Select(p => p.From));   // the second piece was refused: from the start again
     }
+
+    [Fact]
+    public void A_huge_log_is_read_line_by_line_and_only_its_kept_lines_are_held()
+    {
+        // 300,000 lines of noise around one login: about 60 MB, read without holding it (the tracker ran out of memory on a log like this)
+        var path = Path.Combine(_backups, "Game Build(1) 24 Oct 26 (08 00 00).log");
+        using (var w = new StreamWriter(path))
+        {
+            w.Write(Text(new GameLogWriter().At(GameLogWriter.Start.AddDays(3)).Login("zzoega").Lines));
+            var noise = "<2026-10-24T09:00:00.000Z> [Notice] <Spam> " + new string('x', 160);
+            for (var i = 0; i < 300_000; i++) w.Write(noise + "\r\n");
+            w.Write("<2026-10-24T11:30:00.000Z> [Notice] <Spam> the last line\r\n");
+        }
+        var server = new Server();
+        Sender(server).RunAsync(CancellationToken.None).GetAwaiter().GetResult();
+        var file = Assert.Single(server.Done.Keys);
+        Assert.Single(server.Lines[file]);
+        Assert.Equal(new DateTime(2026, 10, 24, 11, 30, 0, DateTimeKind.Utc), server.Done[file].Last);
+    }
 }
