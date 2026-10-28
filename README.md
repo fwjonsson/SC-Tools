@@ -42,7 +42,7 @@ To make a single exe: `dotnet publish src/HaulingTracker -c Release -r win-x64 -
         UI/MainForm.Web.cs     the program's own live web view (on this computer)
       HaulingTracker.Web/      the live web view: the small read-only server, and the page itself in wwwroot (index.html, app.css, app.js)
       HaulingTracker.Server/   the web app (ASP.NET Core MVC): the trackers upload their logs to it, everybody watches the page
-      HaulingTracker.Sender/   the tracker every player runs on his gaming PC (HaulingTrackerSender.exe, a tray icon)
+      HaulingTracker.Sender/   the SC Tools Tracker every player runs on his gaming PC (SCToolsTracker.exe, a tray icon)
       ScApiTool/               the separate Star Citizen Wiki API tool
     tests/HaulingTracker.Tests/  the tests (xUnit): dotnet test tests/HaulingTracker.Tests
     tools/PlanTest/            prints the plans the trip planner makes for situations from real sessions
@@ -190,7 +190,10 @@ The tracker is moving to a server, so the website is always up and everybody wit
 `claude/webapp-plan.md` in the project: the server and the live page (done), the trackers (done), the database (done), the logins and the editing pages of the
 admin (done), then going live.
 
-- **HaulingTrackerSender.exe** (in the Releases download, `HaulingTrackerSender.zip`) is the tracker: a tray icon on every gaming PC. Its settings are the
+- **The SC Tools Tracker** (`SCToolsTracker.exe`, in `SCToolsTracker.zip` of the latest release; its page on the site, `/tracker`, has the download and
+  the steps, and the landing page links to it) is the tracker of every tool: a tray icon on every gaming PC. It was `HaulingTrackerSender.exe`: the
+  release still has `HaulingTrackerSender.zip` (the same tracker under the old name) for trackers that update from before, and such a tracker renames
+  itself `SCToolsTracker.exe` when it starts (and moves Start with Windows along; `TrackerName`, Sender `Program`). Its settings are the
   server (`https://sct.fwjonsson.dev`; a tracker with the old `haulingtracker.fwjonsson.dev` saved moves to it by itself, `SiteAddress`), your **key** (Frank gives every player his own; **Test** asks the server whose key it is), the Star Citizen folder and the log channel. Every
   3 seconds it uploads what is new in the Game.log, and the backup logs of the last day, from where the server is, so nothing is sent twice (also after a
   restart of the tracker or the game). It only sends the lines the tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money
@@ -274,7 +277,7 @@ open ports but SSH). GitHub puts every new version of main on it (the **Deploy**
 7. **The tunnel.** In Cloudflare: Zero Trust, **Networks**, **Tunnels**, the tunnel, **Configure**. Add a connector for **Debian**, **arm64** and run the
    commands it shows on the server. Add the published application sct.fwjonsson.dev with the service `http://127.0.0.1:8780`. Remove the
    connector on the PC (an administrator PowerShell: `cloudflared service uninstall`), so every visit goes to the server.
-8. **The trackers.** On the **Tracker keys** page make a key for zzoega, zzatvo and bileh123, and put each in the tracker (HaulingTrackerSender) on his PC
+8. **The trackers.** On the **Tracker keys** page make a key for zzoega, zzatvo and bileh123, and put each in the SC Tools Tracker on his PC
    (Server `https://sct.fwjonsson.dev`, the default).
 
 After that every merge to main that changes the server is deployed by itself; a version that does not start is replaced by the one before it. The
