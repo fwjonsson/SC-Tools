@@ -338,9 +338,11 @@
       card.appendChild(who);
       const ship = document.createElement('div'); ship.className = 'what'; ship.textContent = [pl.ship, pl.drive].filter(function (x) { return x; }).join(' · '); card.appendChild(ship);
       const what = document.createElement('div'); what.className = 'what'; card.appendChild(what);
-      if (pl.state === 'at') what.textContent = 'At ' + pl.atName + (pl.since ? ' since ' + since(pl.since) : '');
-      else if (pl.state === 'heading') what.textContent = 'In quantum to ' + pl.toName + (pl.since ? ' (since ' + since(pl.since) + ')' : '');
-      else if (pl.state === 'unknown') what.textContent = 'Where: not known yet (no quantum jump to a place the map knows)';
+      const of = pl.mission ? ' (' + pl.mission + ')' : '';   // at or to a mission's objective: which mission
+      if (pl.state === 'at' || pl.state === 'mission') what.textContent = 'At ' + pl.atName + of + (pl.since ? ' since ' + since(pl.since) : '');
+      else if (pl.state === 'heading') what.textContent = 'In quantum to ' + pl.toName + of + (pl.since ? (of ? ', since ' : ' (since ') + since(pl.since) + (of ? '' : ')') : '');
+      else if (pl.state === 'unknown') what.textContent = pl.note ? pl.note + (pl.since ? ' (' + since(pl.since) + ')' : '')
+        : 'Where: not known yet (no quantum jump to a place the map knows)';
       if (pl.state === 'jump') {
         const meter = document.createElement('div'); meter.className = 'speed';
         const num = document.createElement('span'); num.className = 'num';
@@ -360,7 +362,7 @@
     const list = document.createElement('ul'); list.className = 'objs';
     const lines = {};   // the same objective of a mission at the same place once, with how many
     d.objectives.forEach(function (o) {
-      const text = o.title + ' · ' + (o.where || '') + (here(o.system) ? '' : ' · ' + nameOfSystem(o.system)) + ' (' + o.player + ')';
+      const text = o.title + ' · ' + (o.where || '') + (o.system && !here(o.system) ? ' · ' + nameOfSystem(o.system) : '') + ' (' + o.player + ')';
       lines[text] = (lines[text] || 0) + 1;
     });
     Object.keys(lines).forEach(function (text) {
@@ -370,8 +372,9 @@
     });
     if (d.objectives.length) objs.appendChild(list);
     const note = document.createElement('p'); note.className = 'hint';
-    note.textContent = (d.objectives.length === 0 ? 'No objectives the map can place. ' : '') +
-      (d.unplaced > 0 ? d.unplaced + (d.unplaced === 1 ? ' objective is' : ' objectives are') + ' on a planet or a moon, which the map cannot place yet.' : '');
+    note.textContent = (d.objectives.length === 0 ? 'No objectives going on. ' : '') +
+      (d.unplaced > 0 ? (d.unplaced === 1 ? 'One objective is' : d.unplaced + ' objectives are') + ' only in the list: the game does not say where ' +
+        (d.unplaced === 1 ? 'it is.' : 'they are.') : '');
     if (note.textContent) objs.appendChild(note);
     move();
   }

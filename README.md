@@ -249,12 +249,20 @@ admin (done), then going live.
   "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. Opening the
   inventory of a place puts him there too (`<RequestLocationInventory> Player[zzoii] requested inventory for Location[Nyx_Levski]`: the system by the
   start of the id, the place by the rest, `Atlas.OfLocation`; the trackers send these lines from their next update), also after a jump to somewhere the
-  map does not know; a location the map does not know is on Map places. A jump
-  whose start is not known shows as a ring at the destination with his name and an arrow. A player is an arrow in his colour (pointing along his
+  map does not know; a location the map does not know is on Map places. A jump with no destination picked (he jumped at a marker he looked at, or
+  he is crew) is a jump too, not nothing: a crew's arrival gets the destination the pilot picked (another player of the site with the arrival of the
+  same ship, by its entity id, within 10 seconds: `MapService.WithPilots`); else it is to the objective of a mission going on then (below); else he
+  is "somewhere the map does not know". The objectives he can jump to are the ones the game paired with a quantum beacon (`<PairWithMissionNavpoint>
+  MissionObjectiveMarker_21517[21517] - Paired with NavPoint: MISSION_QT_Quantum_Beacon_LongRange_…`, `HaulingLog.Beacons`, with the objective's
+  text from its popup, "New Objective: Go to Asteroid Cluster", and the contract's system from its name, `…_DrawOutBoss_Nyx_Super`): a destination
+  that is a beacon, or an arrival with no destination while one is going on (the latest; until a minute after it was done), puts him "at the
+  mission: Go to Asteroid Cluster" (at the place its text names, when it names one). A mission's beacon or marker is never a place to list on Map
+  places. A jump whose start is not known shows as a ring at the destination with his name and an arrow. A player is an arrow in his colour (pointing along his
   route in quantum, up when he is at a place) with a ring pulsing out from it and his name beside it in his colour; players at the same place
   are one under the other. Objectives: at a station when their zone is one of the Pyro stations
-  (`StationIds`), where they are when the marker is in the system's own frame (in the system the player is in), else counted as on a planet or
-  moon the map cannot place yet. Only for the admin until it is shown on the Tools page.
+  (`StationIds`), where they are when the marker is in the system's own frame (in the system the player is in), at the place their text names
+  ("Go to a debris field above Daymar": `MapService.NamedIn`), else only in the list, by what they say and the contract's system (a bounty's marker
+  is at 0, 0, 0). Only for the admin until it is shown on the Tools page.
 - **Map places** (Admin → Map places, `/admin/places`, `MapPlaces`, tables `MapPlaces` and `MapAliases`): the admin's changes to the map's places,
   used at once (the map reads them as an `Atlas`: `StarMap`'s places with his changes). **Not known yet** lists the quantum destinations and start
   names in the logs on the server that the map cannot place (`MapService.Follow` reports them), with how often, when last, who and the system;

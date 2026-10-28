@@ -13,8 +13,21 @@ public sealed class HaulingLog
     static readonly Regex Ts = new(@"^<(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+)Z> ", RegexOptions.Compiled);
 
     static readonly Regex Marker = new(
-        @"Creating objective marker: missionId \[(?<m>[0-9a-f-]{36})\], generator name \[[^\]]*\], contract \[(?<c>[^\]]*)\], contractDefinitionId\[[^\]]*\], objectiveId \[(?<o>[^\]]*)\], markerEntityId \[\d+\], zoneHostId \[(?<z>\d+)\](?:, position \[x: (?<px>-?[\d.]+), y: (?<py>-?[\d.]+), z: (?<pz>-?[\d.]+)\])?",
+        @"Creating objective marker: missionId \[(?<m>[0-9a-f-]{36})\], generator name \[[^\]]*\], contract \[(?<c>[^\]]*)\], contractDefinitionId\[[^\]]*\], objectiveId \[(?<o>[^\]]*)\], markerEntityId \[(?<e>\d+)\], zoneHostId \[(?<z>\d+)\](?:, position \[x: (?<px>-?[\d.]+), y: (?<py>-?[\d.]+), z: (?<pz>-?[\d.]+)\])?",
         RegexOptions.Compiled);
+
+    // the objective's text, from its popup: "New Objective: Go to Asteroid Cluster: " (MissionId and ObjectiveId go with it)
+    static readonly Regex NewObjective = new(
+        @"Added notification ""New Objective: (?<x>[^""]*?):?\s*"" \[\d+\] to queue.*MissionId: \[(?<m>[0-9a-f-]{36})\], ObjectiveId: \[(?<o>[^\]]+)\]",
+        RegexOptions.Compiled);
+
+    // the quantum beacon of an objective's marker (MissionBeacon)
+    static readonly Regex Beacon = new(
+        @"PairWithMissionNavpoint> MissionObjectiveMarker_(?<e>\d+)\[\d+\] - Paired with NavPoint: (?<n>\S+?)\[\d+\]",
+        RegexOptions.Compiled);
+
+    // the star system a contract is in, when its name says: "BountyHuntersGuild_ShipWaveAttack_DrawOutBoss_Nyx_Super"
+    static readonly Regex ContractSystem = new(@"_(?<s>Stanton|Pyro|Nyx)(?:_|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     static readonly Regex Upsert = new(
         @"<ObjectiveUpserted> Received ObjectiveUpserted push message for: mission_id (?<m>[0-9a-f-]{36}) - objective_id (?<o>\S+) - state MISSION_OBJECTIVE_STATE_(?<s>\w+)",
@@ -56,7 +69,7 @@ public sealed class HaulingLog
     // "Quantum Drive has arrived at final destination". The ship is in the front of the line: "| CRUS_Starlifter_C2_891702459996[891702459996]|CSCItemNavigation::..."
     static readonly Regex QtSelect = new(@"Player has selected point (?<d>\S+) as their destination", RegexOptions.Compiled);
     static readonly Regex QtStart = new(@"Projected Start Location is (?<n>.+?) for route to destination (?<d>\S+)", RegexOptions.Compiled);
-    static readonly Regex QtShip = new(@"\| (?<s>[A-Za-z][A-Za-z0-9_]*?)_\d{6,}\[\d+\]\|CSCItemNavigation::", RegexOptions.Compiled);
+    static readonly Regex QtShip = new(@"\| (?<s>[A-Za-z][A-Za-z0-9_]*?)_\d{6,}\[(?<id>\d+)\]\|CSCItemNavigation::", RegexOptions.Compiled);
 
     // The game no longer writes kill lines (CIG took "<Actor Death>" out after 4.3). What is still written when the player of this log dies is the list of the items of his
     // body for the item recovery (one line for every item): a burst of those lines is a death.
@@ -98,6 +111,8 @@ public sealed class HaulingLog
     }
     DateTime _corpseFirst;
     int _corpseCount;
+
+    readonly Dictionary<string, (string Mission, string Objective)> _markers = new();   // a marker's entity id: whose objective it is (for its beacon)
 
     (DateTime Time, string Zone)? _gateEvent;   // the latest thing that happened at a gateway (a pickup there), to match with the name the game gives next
 
@@ -164,6 +179,9 @@ public sealed class HaulingLog
 
     /// <summary>The quantum travel of the player of this log: the destinations he selected and when his drive arrived.</summary>
     public List<QtEvent> Qt { get; } = new();
+
+    /// <summary>The quantum beacons of the objectives of his missions, in the order of the log (a player jumps to an objective by its beacon).</summary>
+    public List<MissionBeacon> Beacons { get; } = new();
 
     /// <summary>Where the player of this log was when he opened the inventory of a place, in the order of the log.</summary>
     public List<LocationSeen> Locations { get; } = new();
@@ -451,13 +469,15 @@ public sealed class HaulingLog
                 var qsel = QtSelect.Match(line);
                 if (qsel.Success)
                 {
-                    Qt.Add(new QtEvent { Time = qtTime, Kind = QtKind.Selected, Destination = qsel.Groups["d"].Value, Ship = ShipIn(line) });
+                    var (ship, shipId) = ShipIn(line);
+                    Qt.Add(new QtEvent { Time = qtTime, Kind = QtKind.Selected, Destination = qsel.Groups["d"].Value, Ship = ship, ShipId = shipId });
                     Version++;
                     return;
                 }
                 if (line.Contains("Quantum Drive has arrived at final destination"))
                 {
-                    Qt.Add(new QtEvent { Time = qtTime, Kind = QtKind.Arrived, Ship = ShipIn(line) });
+                    var (ship, shipId) = ShipIn(line);
+                    Qt.Add(new QtEvent { Time = qtTime, Kind = QtKind.Arrived, Ship = ship, ShipId = shipId });
                     Version++;
                     return;
                 }
@@ -577,6 +597,9 @@ public sealed class HaulingLog
                 }
             }
             m.ObjZone[x.Groups["o"].Value] = x.Groups["z"].Value;
+            _markers[x.Groups["e"].Value] = (m.Id, x.Groups["o"].Value);
+            var cs = ContractSystem.Match(x.Groups["c"].Value);
+            if (cs.Success) m.System = cs.Groups["s"].Value.ToLowerInvariant();
             if (x.Groups["px"].Success
                 && double.TryParse(x.Groups["px"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var px)
                 && double.TryParse(x.Groups["py"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var py)
@@ -587,6 +610,19 @@ public sealed class HaulingLog
             }
             m.FirstSeen ??= t;
             Touch(t);
+            return;
+        }
+
+        x = Beacon.Match(line);
+        if (x.Success)
+        {
+            if (_markers.TryGetValue(x.Groups["e"].Value, out var mo))
+            {
+                var nav = x.Groups["n"].Value;
+                if (!Beacons.Any(b => b.Objective == mo.Objective && b.NavPoint == nav && b.MissionId == mo.Mission))
+                    Beacons.Add(new MissionBeacon(t, nav, x.Groups["e"].Value, mo.Mission, mo.Objective));
+                Touch(t);
+            }
             return;
         }
 
@@ -660,12 +696,19 @@ public sealed class HaulingLog
             if (x.Groups["o"].Success) m.ObjScu[x.Groups["o"].Value] = int.Parse(x.Groups["n"].Value, CultureInfo.InvariantCulture);
             Touch(t);
         }
+
+        x = NewObjective.Match(line);
+        if (x.Success && x.Groups["x"].Value.Length > 0)
+        {
+            Get(x.Groups["m"].Value).ObjText[x.Groups["o"].Value] = x.Groups["x"].Value.Trim();
+            Touch(t);
+        }
     }
 
-    static string ShipIn(string line)
+    static (string Ship, string Id) ShipIn(string line)
     {
         var sm = QtShip.Match(line);
-        return sm.Success ? sm.Groups["s"].Value : "";
+        return sm.Success ? (sm.Groups["s"].Value, sm.Groups["id"].Value) : ("", "");
     }
 
     void Touch(DateTime t)

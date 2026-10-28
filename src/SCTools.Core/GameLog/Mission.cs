@@ -40,6 +40,12 @@ public sealed class Mission
     /// <summary>Where every objective is (objective id to its position in its zone, ObjZone, as the marker says; metres). For the map.</summary>
     public Dictionary<string, (double X, double Y, double Z)> ObjPos = new();
 
+    /// <summary>What every objective says, from its popup ("New Objective: Go to Asteroid Cluster": objective id to "Go to Asteroid Cluster").</summary>
+    public Dictionary<string, string> ObjText = new();
+
+    /// <summary>The star system of the contract, when its name says ("..._DrawOutBoss_Nyx_Super": "nyx"), as StarMap names systems.</summary>
+    public string? System;
+
     public bool IsHauling => Cargo != null;
     public bool Completed => EndState == "COMPLETED";
     public bool Dead => EndState != null && EndState != "COMPLETED";
