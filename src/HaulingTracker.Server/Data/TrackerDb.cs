@@ -32,6 +32,9 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
     public DbSet<LocationNameRow> LocationNames => Set<LocationNameRow>();
     public DbSet<TrackerKeyRow> TrackerKeys => Set<TrackerKeyRow>();
     public DbSet<ToolRow> Tools => Set<ToolRow>();
+    public DbSet<GauntletRunRow> GauntletRuns => Set<GauntletRunRow>();
+    public DbSet<GauntletSettingsRow> GauntletSettings => Set<GauntletSettingsRow>();
+    public DbSet<GauntletSessionRow> GauntletSessions => Set<GauntletSessionRow>();
 
     /// <summary>
     /// A time is kept as text with its kind (2026-10-27T18:49:00.0000000Z for UTC), so it comes back the same: SQLite has no time type, and a UTC time read
@@ -163,6 +166,26 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
         b.Entity<ToolRow>(e =>
         {
             e.ToTable("Tools");
+            e.HasKey(x => x.Id);
+        });
+
+        b.Entity<GauntletRunRow>(e =>
+        {
+            e.ToTable("GauntletRuns");
+            e.HasKey(x => new { x.Player, x.MissionId });
+        });
+
+        b.Entity<GauntletSettingsRow>(e =>
+        {
+            e.ToTable("GauntletSettings");
+            e.HasKey(x => x.Player);
+            e.Property(x => x.RewardAuec).AsJson();
+            e.Property(x => x.RewardScrip).AsJson();
+        });
+
+        b.Entity<GauntletSessionRow>(e =>
+        {
+            e.ToTable("GauntletSessions");
             e.HasKey(x => x.Id);
         });
 

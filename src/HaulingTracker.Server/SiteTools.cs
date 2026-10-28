@@ -20,7 +20,7 @@ public static class SiteTools
         "Every mission you take, with what the log does not say (reward, mission giver), filled in from the Star Citizen Wiki and by you.", null, false);
 
     public static readonly SiteTool Gauntlet = new("gauntlet", "Gauntlet Tracker",
-        "Gilly's Combat Gauntlet, tracked from the log: the Gauntlet Tracker program, coming onto the site.", null, false);
+        "Gilly's Combat Gauntlet from your log: runs, times, grind sessions and what each scenario earns per hour.", "/gauntlet", false);
 
     public static readonly IReadOnlyList<SiteTool> All = new[] { Hauling, Session, Missions, Gauntlet };
 

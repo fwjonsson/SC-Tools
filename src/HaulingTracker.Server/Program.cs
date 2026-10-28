@@ -43,6 +43,7 @@ builder.Services.AddSingleton(sp =>
 });
 builder.Services.AddSingleton<LoginLinks>();
 builder.Services.AddSingleton<ToolAccess>();
+builder.Services.AddSingleton<GauntletService>();
 builder.Services.AddHostedService<RefreshService>();
 
 // the logins: ASP.NET Core Identity, its users and roles in the same database
