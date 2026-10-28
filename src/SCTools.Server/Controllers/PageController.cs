@@ -12,22 +12,48 @@ public sealed class PageController : Controller
 {
     readonly LiveTracker _live;
     readonly ToolAccess _tools;
+    readonly GauntletService _gauntlet;
+    readonly MissionLibrary _missions;
 
-    public PageController(LiveTracker live, ToolAccess tools)
+    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions)
     {
         _live = live;
         _tools = tools;
+        _gauntlet = gauntlet;
+        _missions = missions;
     }
 
     /// <summary>A hidden tool's page: the login for somebody not logged in, "not for you" for a player.</summary>
     IActionResult Hidden() => User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
 
-    /// <summary>The landing page: a card for every tool.</summary>
+    /// <summary>The landing page: a card for every tool this viewer sees, with what it shows now.</summary>
     [HttpGet("/")]
     public IActionResult Home()
     {
-        var cards = SiteTools.All.Where(t => _tools.Sees(User, t)).Select(t => new HomeCard(t, !_tools.IsPublic(t))).ToList();
-        return View("~/Views/Home/Index.cshtml", _live.Read(t => new HomeModel(t.State.Current == null ? "" : BoardTexts.DescribeSession(t.State.Current), cards)));
+        var cards = SiteTools.All.Where(t => _tools.Sees(User, t)).Select(t => new HomeCard(t, !_tools.IsPublic(t), State(t))).ToList();
+        return View("~/Views/Home/Index.cshtml", new HomeModel(cards));
+    }
+
+    /// <summary>What a tool's card says now.</summary>
+    string State(SiteTool tool)
+    {
+        if (tool.Path == null) return "Coming";
+        if (tool == SiteTools.Hauling)
+            return _live.Read(t => t.State.Current == null ? "No session yet" : BoardTexts.DescribeSession(t.State.Current));
+        if (tool == SiteTools.Gauntlet)
+        {
+            if (User.Identity?.IsAuthenticated != true || string.IsNullOrEmpty(User.Identity.Name)) return "Log in to see your runs";
+            var week = DateTime.UtcNow.AddDays(-7);
+            var runs = _gauntlet.Runs(User.Identity.Name).Count(r => r.Outcome == GauntletOutcome.Complete && r.EndedUtc >= week);
+            return runs == 0 ? "No runs this week" : runs == 1 ? "1 run this week" : runs + " runs this week";
+        }
+        if (tool == SiteTools.Missions)
+        {
+            var all = _missions.Entries();
+            var todo = all.Count(e => e.NeedsInfo);
+            return all.Count == 0 ? "No missions yet" : all.Count + (all.Count == 1 ? " mission" : " missions") + (todo > 0 ? ", " + todo + " without rewards" : ", all filled in");
+        }
+        return "";
     }
 
     /// <summary>The live page of the hauling tracker, with the bar of the site at the top (SC Tools, the tools, who is logged in).</summary>

@@ -2,41 +2,30 @@
 @{
     ViewData["Title"] = "Home";
 }
-<section class="tools-intro">
-  <h1>SC Tools</h1>
-  <p class="muted">Star Citizen tools that read the game's own log: a tracker on every gaming PC sends what the tools need, and this site shows it to the whole party.</p>
-  <p class="tracker-link"><a class="button" href="/tracker">Get the SC Tools Tracker</a> <span class="muted">the program on your gaming PC that the tools need</span></p>
-</section>
-
-@* a card for every tool this viewer sees (the Tools page says which everybody sees); the ones that are not here yet say so *@
-@if (Model.Cards.Count == 0)
-{
-  <p class="card">Nothing here yet.</p>
-}
-<div class="tools">
-  @foreach (var card in Model.Cards)
+@* the landing page: the title over faint orbit rings (like the Pyro map), and a card for every tool this viewer sees (the Tools page says which everybody
+   sees), each in its own colour; the ones that are not here yet say so *@
+<div class="landing">
+  <svg class="orbits" viewBox="0 0 1200 460" aria-hidden="true"><ellipse cx="600" cy="160" rx="170" ry="71"/><ellipse cx="600" cy="160" rx="270" ry="113"/><ellipse cx="600" cy="160" rx="380" ry="160"/><ellipse cx="600" cy="160" rx="500" ry="210"/><ellipse cx="600" cy="160" rx="640" ry="269"/> <circle cx="448" cy="128" r="3"/><circle cx="809" cy="88" r="4"/><circle cx="324" cy="50" r="3"/><circle cx="1084" cy="212" r="5"/><circle cx="-21" cy="224" r="4"/></svg>
+  <section class="hero">
+    <h1>SC Tools</h1>
+    <p>Tools for our Star Citizen crew, fed by the game's own log.</p>
+  </section>
+  @if (Model.Cards.Count == 0)
   {
-    var tool = card.Tool;
-    var state = tool.Path == null ? "Coming" : tool == SiteTools.Hauling ? (string.IsNullOrEmpty(Model.HaulingSession) ? "No session yet" : Model.HaulingSession) : tool == SiteTools.Gauntlet ? "Log in to see your runs" : "";
-    if (tool.Path != null)
+    <p class="card nothing">Nothing here yet.</p>
+  }
+  <div class="tools">
+    @foreach (var card in Model.Cards)
     {
-      <a class="tool" href="@tool.Path">
+      var tool = card.Tool;
+      var live = tool.Path != null;
+      <a class="tool@(live ? "" : " soon")" href="@(tool.Path ?? "#")" style="--c:@tool.Color" aria-disabled="@(live ? null : "true")">
+        <span class="tool-icon">@Html.Raw(tool.Icon)</span>
         <span class="tool-name">@tool.Name</span>
         <span class="tool-text">@tool.Text</span>
         @if (card.OnlyAdmin) { <span class="tool-hidden">Only you see this</span> }
-        <span class="tool-state live">@state</span>
+        <span class="tool-state@(live ? " live" : "")">@card.State</span>
       </a>
     }
-    else
-    {
-      <div class="tool soon">
-        <span class="tool-name">@tool.Name</span>
-        <span class="tool-text">@tool.Text</span>
-        @if (card.OnlyAdmin) { <span class="tool-hidden">Only you see this</span> }
-        <span class="tool-state">@state</span>
-      </div>
-    }
-  }
+  </div>
 </div>
-
-<p class="hint footnote">An unofficial Star Citizen fan site, not affiliated with the Cloud Imperium group of companies. Game data from the Star Citizen Wiki (api.star-citizen.wiki), from our own game logs, and what we fill in ourselves.</p>

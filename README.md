@@ -230,8 +230,11 @@ admin (done), then going live.
   keeps them after a #, and the old `#plan` links still work). The old addresses `haulingtracker.fwjonsson.dev` and `sct.fwjonsson.dev` send every page to the same page at the site for good (301, `OldAddress`), so there is one
   site and one login. Only the uploads of trackers that have not updated yet (`api/...`) are still taken there; once every tracker has updated itself, the
   old addresses are removed from the Cloudflare tunnel (and from `OldHosts` in the server's settings). The plan of the tools is `claude/sc-tools-roadmap.md` in the
-  project. Every page has the same bar at the top (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards),
-  the tools the viewer sees (the one he is in marked), and on the right who is logged in, My page, Admin and Log out (or Log in). The admin's pages have
+  project. The landing page has the title over faint orbit rings (like the Pyro map) and a card per tool, centred, each in the tool's colour with its
+  icon and what it shows now (the hauling session, your gauntlet runs this week, the missions left to fill in). Every page has the same bar at the top
+  (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards), the tools the viewer sees (the one he is in
+  marked), and on the right **Tracker** (its page: download and setup), who is logged in, My page, Admin and Log out (or Log in); on a phone all of it
+  is behind a menu button. The pages of the site end with a footer: the tracker's download, how to set it up, and the disclaimer. The admin's pages have
   a second row under it with his pages (Session, Party, Contracts, Debts, Tracker keys, Tools, Account).
 - **The admin's pages** change what the program changes, with the same logic (`Editing/Edits.cs`, each change saved and worked out again at once):
   **Session** (`/admin`: Start / Stop Session, Next Stops locked or not, the mission rewards, the start time, the names and notes of the stops, the lost
