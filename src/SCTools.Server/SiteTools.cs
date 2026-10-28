@@ -22,14 +22,18 @@ public static class SiteTools
         "#8b949e", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13\" r=\"8\"/><path d=\"M12 9v4l3 2M9 2h6\"/></svg>");
 
     public static readonly SiteTool Missions = new("missions", "Mission Library",
-        "Every mission you take, with what the log does not say (reward, MG and Council scrip, mission giver), filled in from the Star Citizen Wiki and by you.", "/missions", false,
+        "Every mission you take, one row per mission, with what the log does not say (reward, MG and Council scrip, mission giver), filled in by you.", "/missions", false,
         "#3fb8a4", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><rect x=\"5\" y=\"3\" width=\"14\" height=\"18\" rx=\"2\"/><path d=\"M9 8h6M9 12h6M9 16h4\"/></svg>");
 
     public static readonly SiteTool Gauntlet = new("gauntlet", "Gauntlet Tracker",
         "Gilly's Combat Gauntlet from your log: runs, times, grind sessions and what each scenario earns per hour.", "/gauntlet", false,
         "#d9a441", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 1v5M12 18v5M1 12h5M18 12h5\"/></svg>");
 
-    public static readonly IReadOnlyList<SiteTool> All = new[] { Hauling, Missions, Gauntlet, Session };   // the ones that work first
+    public static readonly SiteTool Party = new("party", "Party",
+        "Who is playing now and with whom (the game's own party), the ship each one flies, and everybody's fleet.", "/party", false,
+        "#b77fdb", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"9\" cy=\"8\" r=\"3.2\"/><circle cx=\"17\" cy=\"9.5\" r=\"2.6\"/><path d=\"M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15 14.5c3 0 5.5 2 5.5 5\"/></svg>");
+
+    public static readonly IReadOnlyList<SiteTool> All = new[] { Hauling, Missions, Gauntlet, Session, Party };   // the ones that work first
 
     public static SiteTool? Find(string? id) => All.FirstOrDefault(t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
 }

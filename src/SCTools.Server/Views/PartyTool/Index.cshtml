@@ -1,0 +1,49 @@
+@model PartyToolPage
+@{
+    string Link(string name) => "/party/" + Uri.EscapeDataString(name);
+}
+<h1>Party</h1>
+<p class="muted">Who is playing now, in which party (the game's own party, from everybody's log: a player alone is a party of one), and the ship each
+  one flies. Click a name for more.</p>
+
+<h2>Playing now</h2>
+@if (Model.Parties.Count == 0)
+{
+  <p class="card">Nobody is playing now.</p>
+}
+else
+{
+  <div class="parties">
+  @foreach (var p in Model.Parties)
+  {
+    <div class="card party">
+      <h3>@p.Title</h3>
+      <ul class="members">
+      @foreach (var n in p.Names)
+      {
+        <li><a href="@Link(n)">@n</a>@(string.Equals(n, p.Leader, StringComparison.OrdinalIgnoreCase) && p.Names.Count > 1 ? " (leader)" : "")
+          @if (Model.Ships.TryGetValue(n, out var ship) && ship.Length > 0)
+          {
+            <span class="muted small"> · @ship</span>
+          }
+        </li>
+      }
+      </ul>
+    </div>
+  }
+  </div>
+}
+
+@if (Model.Others.Count > 0)
+{
+  <h2>Not playing</h2>
+  <table class="narrow">
+    <thead><tr><th>Player</th><th>Last seen</th></tr></thead>
+    <tbody>
+    @foreach (var o in Model.Others)
+    {
+      <tr><td><a href="@Link(o.Name)">@o.Name</a></td><td class="muted">@(o.LastSeenUtc is { } t ? TrackerVersions.Ago(t, Model.NowUtc) : "not in the logs the server has")</td></tr>
+    }
+    </tbody>
+  </table>
+}

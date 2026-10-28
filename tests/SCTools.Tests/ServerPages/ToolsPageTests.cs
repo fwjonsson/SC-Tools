@@ -25,7 +25,7 @@ public class ToolsPageTests
         var admin = await f.Admin();
         home = await admin.GetStringAsync("/");
         Assert.All(SiteTools.All, t => Assert.Contains(Card(t.Name), home));
-        Assert.Equal(3, home.Split("Only you see this").Length - 1);   // the three hidden ones say so
+        Assert.Equal(4, home.Split("Only you see this").Length - 1);   // the four hidden ones say so
         var page = await admin.GetStringAsync("/admin/tools");
         Assert.Contains("value=\"gauntlet\"", page);
 
