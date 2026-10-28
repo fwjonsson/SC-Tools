@@ -71,7 +71,8 @@ public static class AutoParty
             foreach (var run in log.GameRuns.Values)
             {
                 points.Add((run.Start, 0, points.Count, who, null));
-                if (nowUtc - run.Last >= Quiet) points.Add((run.Last, 2, points.Count, who, null));   // quiet for ten minutes: it ended with its last line
+                // quit, or quiet for ten minutes (a crash): it ended with its last line
+                if (run.Quit || nowUtc - run.Last >= Quiet) points.Add((run.Last, 2, points.Count, who, null));
             }
             foreach (var e in log.PartyEvents) points.Add((e.Time, 1, points.Count, who, e));
         }

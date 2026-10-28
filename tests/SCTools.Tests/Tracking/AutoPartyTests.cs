@@ -110,6 +110,21 @@ public class AutoPartyTests
     }
 
     [Fact]
+    public void A_game_that_was_quit_ended_at_once()
+    {
+        // 28 Oct: zzoii quit his game (the quit line), and the site still had him playing (it waited for his log to be quiet for ten minutes)
+        var u = new LogUploads();
+        Upload(u, "zzoii", new GameLogWriter().Login("zzoii").Minutes(29).Quit(), last: At(29));
+        Upload(u, "zzoega", new GameLogWriter().Login("zzoega").Minutes(30).Noise(), last: At(31));
+        var r = AutoParty.Work(u.Logs, new[] { "zzoega", "zzoii" }, At(31));   // two minutes after he quit
+        Assert.Equal(new[] { "zzoega" }, r.Groups.Select(g => g.Title));   // not playing any more
+        Assert.True(Assert.Single(u.Games()["zzoii"]).Run.Quit);
+        Assert.Equal(Changes((0, true)), r.Changes["zzoii"]);   // for the payouts gone for less than ten minutes is not gone (he may relog)
+        Upload(u, "zzoega", new GameLogWriter().At(At(31)).Minutes(14).Noise(), last: At(45));
+        Assert.Equal(Changes((0, true), (29, false)), AutoParty.Work(u.Logs, new[] { "zzoega", "zzoii" }, At(45)).Changes["zzoii"]);
+    }
+
+    [Fact]
     public void A_member_who_left_is_out_of_the_party_in_his_own_log_too()
     {
         var u = new LogUploads();

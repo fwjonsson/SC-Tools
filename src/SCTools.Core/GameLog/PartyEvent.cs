@@ -22,5 +22,8 @@ public enum PartyEventKind
 /// <summary>A notification about the party, as the game wrote it in the log of one player. Name is the other player (null for Self and Disbanded).</summary>
 public sealed record PartyEvent(DateTime Time, PartyEventKind Kind, string? Name);
 
-/// <summary>One game of a player, as his tracker uploaded its log: from the time of the log's first line to the latest time in it the tracker saw.</summary>
-public readonly record struct GameRun(DateTime Start, DateTime Last);
+/// <summary>
+/// One game of a player, as his tracker uploaded its log: from the time of the log's first line to the latest time in it the tracker saw; Quit: the game was
+/// quit the normal way (the log has the quit line), so it ended then and not when the log has been quiet for a while.
+/// </summary>
+public readonly record struct GameRun(DateTime Start, DateTime Last, bool Quit = false);
