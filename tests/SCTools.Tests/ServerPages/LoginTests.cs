@@ -10,7 +10,7 @@ namespace SCTools.Tests.ServerPages;
 
 /// <summary>
 /// The logins of the web app: anybody watches; the admin logs in with his password and makes and takes back tracker keys; a player is logged in by his
-/// tracker and changes only his own location, colour, ship and quantum drive.
+/// tracker and changes only his own location and colour (and his fleet).
 /// </summary>
 public class LoginTests
 {
@@ -121,20 +121,15 @@ public class LoginTests
         Assert.Contains("href=\"/me\"", await player.GetStringAsync("/hauling"));   // the live page links to his page
 
         var station = StationNotRuin;
-        var ship = Ships.All[0];
-        var drive = QuantumDrives.All[0];
-        var saved = await ServerFactory.Send(player, "/me", "/me",
-            ("Location", station), ("Color", "#112233"), ("Ship", ship.Label), ("Drive", drive.Label));
+        var saved = await ServerFactory.Send(player, "/me", "/me", ("Location", station), ("Color", "#112233"));   // the ship and the drive: his fleet (FleetPageTests)
         Assert.Equal(HttpStatusCode.Redirect, saved.StatusCode);
-        Assert.Contains("Saved: location, colour, ship, quantum drive.", await player.GetStringAsync("/me"));
+        Assert.Contains("Saved: location, colour.", await player.GetStringAsync("/me"));
 
         var data = f.Live.Read(t => t.State.Data);
         f.Live.Read(t =>
         {
             Assert.Equal(station, t.Whereabouts.LocationOf("zzatvo").Id);
             Assert.Equal(unchecked((int)0xFF112233), t.State.Data.WorkerColors["zzatvo"]);
-            Assert.Equal(ship.Name, t.State.Data.Ship["zzatvo"]);
-            Assert.Equal(drive.Key, t.State.Data.QuantumDrive["zzatvo"]);
             Assert.False(t.State.Data.WorkerColors.ContainsKey("zzoega"));   // nobody else's
             return 0;
         });
@@ -144,7 +139,7 @@ public class LoginTests
         Assert.Equal(unchecked((int)0xFF112233), f.Store.Load().WorkerColors["zzatvo"]);
 
         // the same again: nothing changes; the admin pages are not his
-        await ServerFactory.Send(player, "/me", "/me", ("Location", station), ("Color", "#112233"), ("Ship", ship.Label), ("Drive", drive.Label));
+        await ServerFactory.Send(player, "/me", "/me", ("Location", station), ("Color", "#112233"));
         Assert.Contains("Nothing changed.", await player.GetStringAsync("/me"));
         var keys = await player.GetAsync("/admin/keys");
         Assert.Equal(HttpStatusCode.Redirect, keys.StatusCode);

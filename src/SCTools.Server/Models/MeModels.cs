@@ -35,6 +35,13 @@ public sealed class MeModel
     public List<Choice> Ships { get; set; } = new();
     public List<Choice> Drives { get; set; } = new();
 
+    /// <summary>His fleet (FleetService), the ship he flies now, and when that comes from the logs, what they said.</summary>
+    public List<FleetShip> Fleet { get; set; } = new();
+    public ActiveShip? Active { get; set; }
+
+    /// <summary>The ships to pick a name from (any ship can be typed: the haulers are the ones the Hauling Planner knows the cargo grid of).</summary>
+    public List<string> ShipNames { get; set; } = new();
+
     /// <summary>What he has now, from the tracker (read under its lock).</summary>
     public static MeModel Of(Tracker t, string player)
     {

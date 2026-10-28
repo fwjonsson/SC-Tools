@@ -209,6 +209,19 @@ namespace SCTools.Server.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("SCTools.Server.Data.ActiveShipRow", b =>
+                {
+                    b.Property<string>("Player")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("FleetShipId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Player");
+
+                    b.ToTable("ActiveShips", (string)null);
+                });
+
             modelBuilder.Entity("SCTools.Server.Data.DroppedMissionRow", b =>
                 {
                     b.Property<string>("MissionId")
@@ -221,6 +234,37 @@ namespace SCTools.Server.Data.Migrations
                     b.HasKey("MissionId");
 
                     b.ToTable("DroppedMissions", (string)null);
+                });
+
+            modelBuilder.Entity("SCTools.Server.Data.FleetShipRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AddedUtc")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Drive")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Player")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Quality")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Ship")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Player");
+
+                    b.ToTable("FleetShips", (string)null);
                 });
 
             modelBuilder.Entity("SCTools.Server.Data.GauntletRunRow", b =>
@@ -428,6 +472,9 @@ namespace SCTools.Server.Data.Migrations
 
                     b.Property<int?>("Color")
                         .HasColumnType("INTEGER");
+
+                    b.Property<double?>("DriveSpeedBonus")
+                        .HasColumnType("REAL");
 
                     b.Property<bool>("Inactive")
                         .HasColumnType("INTEGER");

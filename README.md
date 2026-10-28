@@ -226,8 +226,15 @@ admin (done), then going live.
   the password in the settings, start the server (it sets that password again and lifts a lockout), then remove it. A **player** is logged in by his tracker: **Open my page** in its menu asks the server for a link that
   works once, within two minutes, so the key is never in an address. The admin can have his own player's name (Frank is zzoega): with the password he is
   the admin, and his tracker logs him in as the player only, so a tracker key never opens the admin pages. A colour too close to another member's (two
-  greens, a red and a dark red) is not taken, on My page and on the Party page. **My page** (`/me`) is his own Current location, colour, ship and quantum drive (the
-  same lists as the Party table and the Trip Planner of the program); nobody else's. Five wrong passwords lock the login for ten minutes.
+  greens, a red and a dark red) is not taken, on My page and on the Party page. **My page** (`/me`) is his own Current location and colour, and his
+  **fleet** (`FleetService`, the tables `FleetShips` and `ActiveShips`); nobody else's. Five wrong passwords lock the login for ten minutes.
+- **The fleet.** On My page a player keeps every ship he owns, the quantum drive in each, and the quality of a crafted drive (0 to 1000: 1000 makes the
+  drive speed 20 % higher, 500 is as bought, 0 is 20 % lower, in a straight line; only the drive speed changes). His **active ship** is the one he picks,
+  or Automatic: the ship of his latest quantum jump (every quantum travel line names it by the game's class, `CRUS_Starlifter_C2`, `VehicleLines`),
+  matched to his fleet by its name. The Hauling Planner flies the active ship: its name (when it is a hauler the planner knows: a name like "Crusader C2
+  Hercules Starlifter" is the C2), its drive and how much faster the drive is (`AppData.DriveSpeedBonus`, `Crew.QtOf`) go to the planner every few
+  seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Party table of the live page shows every member's ship
+  and drive ("TS-2 S3 +20 %") instead of Active, which comes from the logs now (a member who is not active is faded).
 - **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the Hauling Planner's live page is at
   `/hauling`, every tab at an address of its own (`/hauling/session`, `/hauling/planner`, `/hauling/debts`, `/hauling/history`; the program's own page
   keeps them after a #, and the old `#plan` links still work). The old addresses `haulingtracker.fwjonsson.dev` and `sct.fwjonsson.dev` send every page to the same page at the site for good (301, `OldAddress`), so there is one

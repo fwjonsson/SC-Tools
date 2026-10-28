@@ -21,6 +21,7 @@ public sealed class LogUploads
         public GauntletReader Gauntlet = new();   // the gauntlet missions of the same lines
         public MissionReader Missions = new();    // every mission of the same lines (the Mission Library)
         public HashSet<string> Quit = new(StringComparer.Ordinal);   // the log files whose game was quit the normal way
+        public (string Vehicle, DateTime At)? Ship;   // the ship of his latest quantum travel line (VehicleLines)
         public Dictionary<string, long> At = new(StringComparer.Ordinal);   // log file -> how far it is uploaded (bytes of the file)
     }
 
@@ -73,6 +74,7 @@ public sealed class LogUploads
                 feed.Gauntlet.ProcessLine(text);
                 feed.Missions.ProcessLine(text);
                 if (text.Contains(HaulingLog.QuitLine, StringComparison.Ordinal)) feed.Quit.Add(file);
+                SeeShip(feed, text);
             }
             feed.At[file] = to;
             var seen = Seen(feed.Log, file, last ?? LastTime(lines));
@@ -105,6 +107,21 @@ public sealed class LogUploads
         lock (Sync)
             return _feeds.ToDictionary(f => f.Key, f => f.Value.Log.GameRuns.Select(r => (r.Key, r.Value, f.Value.Quit.Contains(r.Key))).ToList(),
                 StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The ship of a quantum travel line, when it is the latest.</summary>
+    static void SeeShip(Feed feed, string line)
+    {
+        if (VehicleLines.VehicleOf(line) is not { } vehicle || HaulingLog.TimeOf(line) is not { } at) return;
+        if (feed.Ship is { } had && had.At > at) return;
+        feed.Ship = (vehicle, at);
+    }
+
+    /// <summary>The ship each player flew last (the class in his latest quantum travel line, and when), of what he uploaded and is still kept.</summary>
+    public Dictionary<string, (string Vehicle, DateTime At)> Ships()
+    {
+        lock (Sync)
+            return _feeds.Where(f => f.Value.Ship != null).ToDictionary(f => f.Key, f => f.Value.Ship!.Value, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>When the latest game of this player started (the first line of his newest log file), or null.</summary>
@@ -166,6 +183,7 @@ public sealed class LogUploads
                         feed.Gauntlet.ProcessLine(kept2);
                         feed.Missions.ProcessLine(kept2);
                         if (kept2.Contains(HaulingLog.QuitLine, StringComparison.Ordinal)) feed.Quit.Add(kept[0]);
+                        SeeShip(feed, kept2);
                     }
                     feed.At[kept[0]] = at;
                     // how long the game ran: kept next to the cursor (a file kept by an older server: the time of its last line)

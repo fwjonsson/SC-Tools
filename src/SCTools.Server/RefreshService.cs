@@ -14,11 +14,13 @@ public sealed class RefreshService : BackgroundService
     readonly GauntletService _gauntlet;
     readonly MissionLibrary _missions;
     readonly Playtime _playtime;
+    readonly FleetService _fleet;
     readonly ILogger<RefreshService> _log;
 
     public RefreshService(LiveTracker live, DataStore store, ServerPaths paths, GauntletService gauntlet, MissionLibrary missions, Playtime playtime,
-        ILogger<RefreshService> log)
+        FleetService fleet, ILogger<RefreshService> log)
     {
+        _fleet = fleet;
         _gauntlet = gauntlet;
         _missions = missions;
         _playtime = playtime;
@@ -58,6 +60,14 @@ public sealed class RefreshService : BackgroundService
         catch (Exception ex)
         {
             _log.LogError(ex, "Working out the logs failed");
+        }
+        try
+        {
+            _fleet.SyncPlanner(DateTime.UtcNow);   // the ship of a quantum jump that just came in: the planner flies it
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Giving the Hauling Planner the ships of the fleets failed");
         }
         Save();
         try

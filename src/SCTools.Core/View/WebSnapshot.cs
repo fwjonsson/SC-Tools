@@ -174,7 +174,8 @@ public sealed partial class WebSnapshot
     /// <summary>The party: no colour column, the whole row of a member has his colour (a member who is not active, a faded one).</summary>
     ViewTable Party()
     {
-        var table = new ViewTable(_p, new ViewColumn("Member", "left"), new ViewColumn("Active"), new ViewColumn("QT Drive", "left"));
+        // who is active comes from the logs now (a member who is not is faded): the column shows his ship instead
+        var table = new ViewTable(_p, new ViewColumn("Member", "left"), new ViewColumn("Ship", "left"), new ViewColumn("QT Drive", "left"));
         foreach (var n in _s.Data.Party)
         {
             var active = _t.Crew.IsActiveAt(n, DateTime.UtcNow);
@@ -182,8 +183,8 @@ public sealed partial class WebSnapshot
             var back = active ? color : _p.Faded(color);
             table.Add(
                 n.ToUpperInvariant(),
-                active ? "Yes" : "No",
-                _t.Crew.DriveOf(n)?.Label ?? "").RowColor(back, ViewPalette.TextOn(back));
+                _t.Crew.ShipOf(n)?.Name ?? "",
+                _t.Crew.DriveTextOf(n)).RowColor(back, ViewPalette.TextOn(back));
         }
         return table;
     }

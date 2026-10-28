@@ -130,6 +130,10 @@ table.play th:first-child { text-align:left; }
 table.play tbody th { background:var(--cell); color:var(--fg); font-weight:600; }
 table.play tr.sum td, table.play tr.sum th { font-weight:700; }
 tr.crash td { color:#ff9b9b; }
+/* My fleet: the ship he flies stands out */
+table.fleet input.name { width:260px; }
+table.fleet input.num { width:110px; text-align:right; }
+table.fleet tr.on td:first-child { box-shadow:inset 3px 0 0 var(--good); }
 /* a tracker's version: the newest, or not (Keys page, Tracker page) */
 .good { color:var(--good); }
 .stale { color:#e3b341; }

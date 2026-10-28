@@ -18,6 +18,7 @@ public sealed class AppData
     public int WebViewPort { get; set; } = 8765;   // the port of the live web view (on this computer only)
     public Dictionary<string, string> Ship { get; set; } = new();   // worker -> his ship (Ships name, like "C2 Hercules Starlifter"), for the SCU his ship holds
     public Dictionary<string, string> QuantumDrive { get; set; } = new();   // worker -> the quantum drive in his ship (QuantumDrives key, like "Eos S1"), for the travel time estimates
+    public Dictionary<string, double> DriveSpeedBonus { get; set; } = new();   // worker -> how much faster his drive is (percent), when it is crafted (QuantumDrives.CraftedSpeedPercent)
     public Dictionary<string, int> WorkerColors { get; set; } = new();   // worker -> colour (ARGB) on the Trip Planner Overview, picked in the Party table
     public Dictionary<string, int> ShipCapacity { get; set; } = new();   // worker -> batches his ship holds (the Trip Planner), 0 = not flying
     public List<string> WatchPaths { get; set; } = new();   // Game.log files to watch live, also on other computers
