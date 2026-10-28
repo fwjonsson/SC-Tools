@@ -1,0 +1,44 @@
+@model PartyMemberPage
+@{
+    var m = Model.Member;
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    string Speed(double? mps) => mps == null ? "" : mps.Value.ToString("N0", inv) + " m/s";
+    var tracker = TrackerVersions.Describe(m.Tracker, null, Model.NowUtc).Text;
+}
+<p><a href="/party">‹ Party</a></p>
+<h1>@m.Name</h1>
+<table class="narrow info">
+  <tbody>
+    <tr><th>Now</th><td>@(m.Playing ? "Playing" : m.LastSeenUtc is { } t ? "Last seen " + TrackerVersions.Ago(t, Model.NowUtc) : "Not in the logs the server has")</td></tr>
+    <tr><th>Party</th><td>@(m.Party == null ? "" : m.Party.Names.Count > 1 ? m.Party.Title + ": " + string.Join(", ", m.Party.Names) : "Alone")</td></tr>
+    <tr><th>Ship</th><td>@(m.Ship.Text.Length == 0 ? "Not known" : m.Ship.Text)@(m.Ship.Ship?.DriveText is { Length: > 0 } d ? " · " + d : "")
+      <span class="muted small">@(m.Ship.Picked ? "(picked on his page)" : m.Ship.Vehicle != null ? "(his last quantum jump" + (m.Ship.SeenUtc is { } at ? ", " + TrackerVersions.Ago(at, Model.NowUtc) : "") + ")" : "")</span></td></tr>
+    @if (m.Location != null)
+    {
+      <tr><th>Location</th><td>@m.Location <span class="muted small">(the Hauling Planner)</span></td></tr>
+    }
+    <tr><th>Tracker</th><td>@tracker</td></tr>
+  </tbody>
+</table>
+
+<h2>Fleet</h2>
+@if (m.Fleet.Count == 0)
+{
+  <p class="muted">No ships on his page yet.</p>
+}
+else
+{
+  <table class="narrow">
+    <thead><tr><th>Ship</th><th>Quantum drive</th><th class="right">Drive speed</th></tr></thead>
+    <tbody>
+    @foreach (var s in m.Fleet)
+    {
+      <tr class="@(m.Ship.Ship?.Row.Id == s.Row.Id ? "on" : null)">
+        <td>@s.Row.Ship</td>
+        <td>@s.DriveText</td>
+        <td class="right nowrap">@Speed(s.Speed)</td>
+      </tr>
+    }
+    </tbody>
+  </table>
+}

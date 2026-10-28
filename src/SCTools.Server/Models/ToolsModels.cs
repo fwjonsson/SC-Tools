@@ -15,3 +15,10 @@ public sealed record PeriodLine(string Name, SCTools.Play.PlayTotals Totals);
 
 /// <summary>A game in the Session tool's list, with the missions completed while it ran and what they earned.</summary>
 public sealed record GameLine(SCTools.Play.PlayedGame Game, SCTools.Play.PlayTotals Earned);
+
+/// <summary>The Party tool: the in-game parties now, and everybody else (not playing, or playing outside the logs' parties) with when he was last seen.</summary>
+public sealed record PartyToolPage(IReadOnlyList<PartyGroup> Parties, IReadOnlyList<(string Name, bool Playing, DateTime? LastSeenUtc)> Others,
+    IReadOnlyDictionary<string, string> Ships, DateTime NowUtc);
+
+/// <summary>A player's page in the Party tool.</summary>
+public sealed record PartyMemberPage(PartyMember Member, DateTime NowUtc);

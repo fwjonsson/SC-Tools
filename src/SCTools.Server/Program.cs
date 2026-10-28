@@ -51,6 +51,7 @@ builder.Services.AddSingleton<GauntletService>();
 builder.Services.AddSingleton<ScripValues>();
 builder.Services.AddSingleton<Playtime>();
 builder.Services.AddSingleton<FleetService>();
+builder.Services.AddSingleton<PartyService>();
 builder.Services.AddSingleton<HistoryStore>();
 builder.Services.AddSingleton<MissionLibrary>();
 builder.Services.AddHostedService<MissionLibraryService>();

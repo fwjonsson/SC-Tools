@@ -228,6 +228,11 @@ admin (done), then going live.
   the admin, and his tracker logs him in as the player only, so a tracker key never opens the admin pages. A colour too close to another member's (two
   greens, a red and a dark red) is not taken, on My page and on the Party page. **My page** (`/me`) is his own Current location and colour, and his
   **fleet** (`FleetService`, the tables `FleetShips` and `ActiveShips`); nobody else's. Five wrong passwords lock the login for ten minutes.
+- **The Party tool** (`/party`, `PartyService`, `PartyToolController`): the party of the site in one place, for every tool. Who is playing now and in
+  which in-game party (AutoParty over everybody's log: anybody playing, not only the Hauling Planner's party; a player alone is a party of one), with the
+  ship each one flies; everybody else the site knows (the tracker keys, the Hauling Planner's party, the fleets, the logs) with when he was last seen.
+  A player's page (`/party/{name}`): playing or last seen, his party, the ship he flies and its drive (picked, or his last quantum jump), where the
+  Hauling Planner has him, his tracker, and his fleet. Only for the admin until it is shown on the Tools page.
 - **The fleet.** On My page a player keeps every ship he owns, the quantum drive in each, and the quality of a crafted drive (0 to 1000: 1000 makes the
   drive speed 20 % higher, 500 is as bought, 0 is 20 % lower, in a straight line; only the drive speed changes). His **active ship** is the one he picks,
   or Automatic: the ship of his latest quantum jump (every quantum travel line names it by the game's class, `CRUS_Starlifter_C2`, `VehicleLines`),
