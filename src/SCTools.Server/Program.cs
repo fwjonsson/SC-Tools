@@ -16,7 +16,7 @@ using Microsoft.Extensions.Options;
 var builder = WebApplication.CreateBuilder(args);
 
 // the settings ("SCTools" in appsettings.json, the user secrets or the environment: SCTools__Database...), read when the server is built. The names from
-// before the rename (SCTools__Database...) are read first, so a server whose settings still have them works the same.
+// before the rename (HaulingTracker__Database...) are read first, so a server whose settings still have them works the same.
 builder.Services.Configure<ServerSettings>(builder.Configuration.GetSection("HaulingTracker"));
 builder.Services.Configure<ServerSettings>(builder.Configuration.GetSection("SCTools"));
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<ServerSettings>>().Value);
