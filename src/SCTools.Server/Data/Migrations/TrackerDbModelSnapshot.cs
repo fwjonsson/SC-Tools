@@ -406,6 +406,9 @@ namespace SCTools.Server.Data.Migrations
                     b.Property<int>("Position")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("Auto")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("StartUtc")
                         .IsRequired()
                         .HasColumnType("TEXT");
