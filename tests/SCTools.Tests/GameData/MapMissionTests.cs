@@ -61,6 +61,7 @@ public class MapMissionTests
         // done long before: somewhere the map does not know (not at Levski any more)
         w = Follow(qt, AtLevski, new[] { Point(until: T.AddMinutes(1)) });
         Assert.Equal(("nyx", (Place?)null, (MissionPoint?)null, true, T.AddMinutes(4)), (w.System, w.At, w.AtMission, w.Jumped, w.Since));
+        Assert.Equal("nyx/levski", w.LastPing?.Key);   // off the grid: the last place the map had him at
 
         // the objective's text names a place: he is there (at the mission)
         var daymar = StarMap.Find("stanton/daymar")!;
@@ -89,11 +90,13 @@ public class MapMissionTests
         // he was at Ruin; the arrival of a jump at something he looked at: not at Ruin any more
         var qt = new List<QtEvent> { Picked(T, "rs_ext_pyro5_l2", "Ruin Station"), Arrived(T.AddMinutes(3)), Arrived(T.AddMinutes(20)) };
         var w = Follow(qt);
-        Assert.Equal(("pyro", (Place?)null, true, T.AddMinutes(20)), (w.System, w.At, w.Jumped, w.Since));
+        Assert.Equal(("pyro", (Place?)null, true, T.AddMinutes(20), "pyro/gaslight"), (w.System, w.At, w.Jumped, w.Since, w.LastPing?.Key));
+        // another jump the map cannot follow: still the last place it knew
+        Assert.Equal("pyro/gaslight", Follow(qt.Append(Arrived(T.AddMinutes(22))).ToList()).LastPing?.Key);
         // a route from where he is then: there again
         qt.Add(Picked(T.AddMinutes(25), "pyro3", "Gaslight"));
         w = Follow(qt);
-        Assert.Equal(("pyro/gaslight", "pyro/bloom", false), (w.From?.Key, w.To?.Key, w.Jumped));
+        Assert.Equal(("pyro/gaslight", "pyro/bloom", false, (Place?)null), (w.From?.Key, w.To?.Key, w.Jumped, w.LastPing));
     }
 
     [Fact]
