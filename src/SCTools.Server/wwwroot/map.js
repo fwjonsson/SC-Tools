@@ -1,11 +1,15 @@
-// The Map tool: Pyro from above (as the Trip Planner draws it), everybody playing where his quantum jumps put him, and the objectives of the missions going
-// on. map.json comes every few seconds; in between, a player in quantum moves along his route and his speed meter runs, worked out from his drive the same
-// way the server does (QtDrive in the core: stage 1 acceleration up to the switch speed, stage 2 up to the drive speed, the same way down).
+// The Map tool: a star system from above (Pyro, Stanton or Nyx, by the tabs over the map), everybody playing where his quantum jumps put him, and the
+// objectives of the missions going on. map.json comes every few seconds; in between, a player in quantum moves along his route and his speed meter runs,
+// worked out from his drive the same way the server does (QtDrive in the core: stage 1 acceleration up to the switch speed, stage 2 up to the drive speed,
+// the same way down). The positions are the system's own (Gm, the star at 0, 0); the map has the system's Y to the right and its X down, as the Trip
+// Planner's map of Pyro has it.
 (function () {
   'use strict';
   const NS = 'http://www.w3.org/2000/svg';
-  const W = 760, PAD = 10, C = 299792458;
-  let data = null, offset = 0, base = null, jumpers = [];
+  const W = 760, ROOM = 46, FOLD = 10, C = 299792458;
+  const STAR = { pyro: '#ff3a18', stanton: '#ffc94a', nyx: '#ffa86b' };
+  let data = null, offset = 0, base = null, movers = [];
+  let shown = null, chosen = false;   // the system on the map; chosen: picked by a tab (or the address), not by where the players are
 
   // ------------------------------------------------------------------ the motion of a quantum drive (d: v, a1, a2, sw)
   function ramp(d, to) {   // speeding up from standstill to a speed: time and distance
@@ -42,7 +46,7 @@
     return r;
   }
 
-  // ------------------------------------------------------------------ the map
+  // ------------------------------------------------------------------ the map of a system
   function el(tag, attrs, parent, text) {
     const e = document.createElementNS(NS, tag);
     for (const k in attrs) e.setAttribute(k, attrs[k]);
@@ -50,41 +54,126 @@
     (parent || base.svg).appendChild(e);
     return e;
   }
-  function build(d) {   // what does not change: the sun, the orbits, the planets, the stations
+  function systemOf(id) { return data.systems.find(function (s) { return s.id === id; }); }
+  function nameOfSystem(id) { const s = systemOf(id); return s ? s.name : id; }
+
+  // A label beside a point, where it does not cover another label or a dot: right, left, under, over; without its second line when it does not fit with
+  // it; else nowhere (the name is in the dot's tooltip), or (force) on the right anyway.
+  function label(boxes, p, r, lines, force) {
+    if (put(boxes, p, r, lines, false)) return true;
+    if (lines.length > 1 && put(boxes, p, r, lines.slice(0, 1), false)) return true;
+    return force ? put(boxes, p, r, lines.slice(0, 1), true) : false;
+  }
+  function put(boxes, p, r, lines, force) {
+    const w = Math.max.apply(null, lines.map(function (l) { return l.text.length * l.size * 0.58; })) + 2;
+    const h = lines.reduce(function (s, l) { return s + l.size * 1.2; }, 0);
+    const spots = [
+      { x: p[0] + r + 4, y: p[1] - h / 2, a: 'start' }, { x: p[0] - r - 4 - w, y: p[1] - h / 2, a: 'end' },
+      { x: p[0] - w / 2, y: p[1] + r + 3, a: 'middle' }, { x: p[0] - w / 2, y: p[1] - r - 3 - h, a: 'middle' }];
+    const fits = function (b) {
+      if (b.x < 2 || b.y < 2 || b.x + b.w > W - 2 || b.y + b.h > W - 2) return false;
+      return !boxes.some(function (o) { return b.x < o.x + o.w && o.x < b.x + b.w && b.y < o.y + o.h && o.y < b.y + b.h; });
+    };
+    let box = null;
+    for (const s of spots) { const b = { x: s.x, y: s.y, w: w, h: h, a: s.a }; if (fits(b)) { box = b; break; } }
+    if (!box && force) box = { x: Math.min(W - 2 - w, spots[0].x), y: spots[0].y, w: w, h: h, a: 'start' };
+    if (!box) return false;
+    boxes.push(box);
+    const tx = box.a === 'start' ? box.x : box.a === 'end' ? box.x + w : box.x + w / 2;   // the text sits against the dot
+    let y = box.y;
+    lines.forEach(function (l) {
+      y += l.size;
+      el('text', { x: tx.toFixed(1), y: y.toFixed(1), 'text-anchor': box.a, fill: l.fill || '#ecece8', 'font-size': l.size, 'font-weight': l.weight || 400 }, base.labels, l.text);
+      y += l.size * 0.2;
+    });
+    return true;
+  }
+
+  function build(id) {   // what does not change: the star, the orbits, the planets, the gateways, the stations
+    const sys = systemOf(id) || data.systems[0];
+    shown = sys.id;
     const box = document.getElementById('map');
     box.textContent = '';
-    const bg = d.backdrop, sun = bg.sun;
-    const outer = Math.max.apply(null, bg.orbits.concat(d.stations.map(function (s) { return Math.hypot(s.x - sun[0], s.y - sun[1]); })));
-    let sc = (W / 2 - PAD) / outer;
-    d.stations.forEach(function (s) {   // room for the names on the right (Orbituary has its name on the left)
-      const dx = s.x - sun[0], name = s.name.length * 6.6 + 12;
-      if (s.id === '73041') { if (dx < 0) sc = Math.min(sc, (W / 2 - PAD - name) / -dx); }
-      else if (dx > 0) sc = Math.min(sc, (W / 2 - PAD - name) / dx);
-    });
-    const cx = W / 2, cy = W / 2;
-    const at = function (x, y) { return [cx + (x - sun[0]) * sc, cy + (y - sun[1]) * sc]; };
+    const places = sys.places, byKey = {};
+    places.forEach(function (p) { byKey[p.key] = p; });
+    const star = places.find(function (p) { return p.kind === 'star'; }) || { x: 0, y: 0, name: sys.name };
+    const planets = places.filter(function (p) { return p.kind === 'planet' && !p.parent; });
+    const orbit = function (q) { return Math.hypot(q.x - star.x, q.y - star.y); };
+    // the scale: everything (the places and the orbits) as big as the square holds it, in the middle; across is the system's Y, down its X
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    const grow = function (across, down) { x0 = Math.min(x0, across); x1 = Math.max(x1, across); y0 = Math.min(y0, down); y1 = Math.max(y1, down); };
+    places.forEach(function (p) { grow(p.y, p.x); });
+    planets.forEach(function (q) { const r = orbit(q); grow(star.y - r, star.x - r); grow(star.y + r, star.x + r); });
+    const sc = (W - 2 * ROOM) / Math.max(x1 - x0, y1 - y0, 1), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    const at = function (x, y) { return [W / 2 + (y - mx) * sc, W / 2 + (x - my) * sc]; };
+    const cx = at(star.x, star.y)[0], cy = at(star.x, star.y)[1];
     const svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + W);
     svg.setAttribute('width', '100%');
     svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', 'Map of Pyro');
+    svg.setAttribute('aria-label', 'Map of ' + sys.name);
     box.appendChild(svg);
-    base = { svg: svg, at: at, sc: sc, pos: {}, names: {} };
+    base = { svg: svg, sys: sys.id, at: at, anchor: {}, names: {} };
     el('rect', { x: 0, y: 0, width: W, height: W, fill: '#06090e', rx: 6 });
-    bg.orbits.forEach(function (r) { el('circle', { cx: cx, cy: cy, r: r * sc, fill: 'none', stroke: '#ebebf5', 'stroke-opacity': 0.3, 'stroke-width': 1 }); });
-    bg.planets.forEach(function (q) { const p = at(q[0], q[1]); el('circle', { cx: p[0], cy: p[1], r: Math.max(4, 10 * sc), fill: '#8c5514' }); });
-    const sr = Math.max(8, bg.sunRadius * sc);
-    el('circle', { cx: cx, cy: cy, r: sr * 1.9, fill: '#ff461e', 'fill-opacity': 0.22 });
-    el('circle', { cx: cx, cy: cy, r: sr, fill: '#ff3a18' });
-    d.stations.forEach(function (s) {
-      const p = at(s.x, s.y);
-      base.pos[s.id] = p;
-      base.names[s.id] = s.name;
-      if (s.id === 'Ruin') el('rect', { x: p[0] - 6, y: p[1] - 6, width: 12, height: 12, fill: '#ecece8' });
-      else el('circle', { cx: p[0], cy: p[1], r: 4, fill: '#ecece8', 'fill-opacity': 0.8 });
-      const left = s.id === '73041';
-      el('text', { x: p[0] + (left ? -9 : 9), y: p[1] + 4, 'text-anchor': left ? 'end' : 'start', fill: '#ecece8', 'font-size': s.id === 'Ruin' ? 13 : 12, 'font-weight': s.id === 'Ruin' ? 700 : 400 }, null, s.name);
+
+    // the planets around the star; a moon, a city, a station at one of them (or this close on the map) is drawn as the planet
+    const apart = function (a, b) { const p = at(a.x, a.y), q = at(b.x, b.y); return Math.hypot(p[0] - q[0], p[1] - q[1]); };
+    const host = function (p) {   // its planet by the parents (a station at a moon at a planet), else the nearest planet
+      let q = p, guard = 0;
+      while (q && q.parent && guard++ < 5) { q = byKey[sys.id + '/' + q.parent]; if (q && q.kind === 'planet' && !q.parent) return q; }
+      let best = null;
+      planets.forEach(function (pl) { if (!best || apart(pl, p) < apart(best, p)) best = pl; });
+      return best;
+    };
+    const folded = {};   // planet key -> the places drawn as it
+    const own = [];
+    places.forEach(function (p) {
+      base.names[p.key] = p.name;
+      if (p.kind === 'star') { base.anchor[p.key] = [cx, cy]; return; }
+      if (p.kind === 'planet' && !p.parent) { base.anchor[p.key] = at(p.x, p.y); return; }
+      const h = p.kind === 'gateway' ? null : host(p);
+      if (h && apart(h, p) < FOLD) {
+        base.anchor[p.key] = at(h.x, h.y);
+        (folded[h.key] = folded[h.key] || []).push(p);
+      } else {
+        base.anchor[p.key] = at(p.x, p.y);
+        own.push(p);
+      }
     });
+
+    planets.forEach(function (q) { el('circle', { cx: cx, cy: cy, r: (orbit(q) * sc).toFixed(1), fill: 'none', stroke: '#ebebf5', 'stroke-opacity': 0.22, 'stroke-width': 1 }); });
+    const glow = STAR[sys.id] || '#ffd27a';
+    el('circle', { cx: cx, cy: cy, r: 17, fill: glow, 'fill-opacity': 0.22 });
+    el('circle', { cx: cx, cy: cy, r: 9, fill: glow });
+    const boxes = [{ x: cx - 17, y: cy - 17, w: 34, h: 34 }];
+    const dots = el('g', {});
+    base.labels = el('g', {});
+    planets.forEach(function (q) {
+      const p = base.anchor[q.key], g = el('g', {}, dots);
+      el('circle', { cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: 6, fill: '#8c5514' }, g);
+      const here = (folded[q.key] || []).map(function (f) { return f.name; });
+      el('title', {}, g, q.name + (here.length ? '\nAlso here: ' + here.join(', ') : ''));
+      boxes.push({ x: p[0] - 7, y: p[1] - 7, w: 14, h: 14 });
+    });
+    own.forEach(function (s) {
+      const p = base.anchor[s.key], g = el('g', {}, dots);
+      if (s.kind === 'gateway') el('circle', { cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: 5, fill: '#06090e', stroke: '#7fd3ff', 'stroke-width': 2 }, g);
+      else el('circle', { cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: s.kind === 'moon' ? 3 : 3.5, fill: s.kind === 'moon' ? '#a98a63' : '#ecece8', 'fill-opacity': 0.85 }, g);
+      el('title', {}, g, s.name);
+      boxes.push({ x: p[0] - 5, y: p[1] - 5, w: 10, h: 10 });
+    });
+    // the names: the planets (with the cities and stations at them), the gateways, the stations, as long as there is room
+    planets.forEach(function (q) {
+      // the cities and stations at it, the ones in its orbit first (Lorville, Everus Harbor), then the others drawn as it (HUR-L1)
+      const at2 = (folded[q.key] || []).filter(function (f) { return f.kind === 'city' || f.kind === 'station'; })
+        .sort(function (a, b) { return (b.parent === q.key.split('/')[1]) - (a.parent === q.key.split('/')[1]); });
+      const lines = [{ text: q.name, size: 13, weight: 700 }];
+      if (at2.length) lines.push({ text: at2.slice(0, 2).map(function (f) { return f.short; }).join(' · ') + (at2.length > 2 ? ' …' : ''), size: 10, fill: '#a7adb8' });
+      label(boxes, base.anchor[q.key], 7, lines, true);
+    });
+    own.filter(function (s) { return s.kind === 'gateway'; }).forEach(function (s) { label(boxes, base.anchor[s.key], 6, [{ text: s.short, size: 11, fill: '#7fd3ff' }], true); });
+    own.filter(function (s) { return s.kind !== 'gateway'; }).forEach(function (s) { label(boxes, base.anchor[s.key], 5, [{ text: s.short, size: 11 }], false); });
+
     base.objs = el('g', {});
     base.routes = el('g', {});
     base.people = el('g', {});
@@ -103,47 +192,110 @@
   }
   function since(iso) { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
 
+  // ------------------------------------------------------------------ the tabs: a system, and how many are playing in it
+  function counts(d) {
+    const n = {};
+    d.systems.forEach(function (s) { n[s.id] = 0; });
+    d.players.forEach(function (p) { if (p.system && n[p.system] !== undefined) n[p.system]++; });
+    return n;
+  }
+  function show(id, picked) {
+    if (picked) { chosen = true; try { history.replaceState(null, '', '#' + id); } catch (e) { /* only the address */ } }
+    if (!base || base.sys !== id) build(id);
+    render();
+  }
+  function tabs(d) {
+    const n = counts(d), box = document.getElementById('systems');
+    if (box.children.length !== d.systems.length) {   // made once, so a tab keeps the focus
+      box.textContent = '';
+      d.systems.forEach(function (s) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('role', 'tab');
+        b.dataset.sys = s.id;
+        b.addEventListener('click', function () { show(s.id, true); });
+        box.appendChild(b);
+      });
+    }
+    d.systems.forEach(function (s, i) {
+      const b = box.children[i];
+      b.setAttribute('aria-selected', s.id === shown ? 'true' : 'false');
+      b.className = s.id === shown ? 'on' : '';
+      b.textContent = s.name + (n[s.id] ? ' · ' + n[s.id] : '');
+      b.title = n[s.id] ? n[s.id] + (n[s.id] === 1 ? ' player' : ' players') + ' in ' + s.name : 'Nobody in ' + s.name;
+    });
+  }
+  // The system to show: the one picked; else where the most players are (and again when everybody left the one on the map for another).
+  function choose(d) {
+    if (shown === null) {
+      const h = location.hash.replace('#', '').toLowerCase();
+      if (d.systems.some(function (s) { return s.id === h; })) { shown = h; chosen = true; }
+    }
+    if (chosen && d.systems.some(function (s) { return s.id === shown; })) return shown;
+    const n = counts(d);
+    let best = d.systems[0].id;
+    d.systems.forEach(function (s) { if (n[s.id] > n[best]) best = s.id; });
+    if (shown === null || !d.systems.some(function (s) { return s.id === shown; }) || (n[shown] === 0 && n[best] > 0)) return best;
+    return shown;
+  }
+
   function render() {
     const d = data;
+    tabs(d);
     base.objs.textContent = ''; base.routes.textContent = ''; base.people.textContent = '';
-    jumpers = [];
+    movers = [];
+    const here = function (sys) { return sys === base.sys; };
 
-    // the objectives: the ones at a station as a diamond beside it with how many, the ones in space where they are
-    const atStation = {};
+    // the objectives in this system: the ones at a place as a diamond beside it with how many, the ones in space where they are
+    const atPlace = {};
     d.objectives.forEach(function (o) {
-      if (o.station) (atStation[o.station] = atStation[o.station] || []).push(o);
-      else if (o.x !== undefined) { const p = base.at(o.x, o.y); diamond(base.objs, p[0], p[1], 5, o.title + ' (' + o.player + ')'); }
+      if (!here(o.system)) return;
+      if (o.place) {
+        const a = base.anchor[o.place]; if (!a) return;
+        const k = a.join(',');
+        (atPlace[k] = atPlace[k] || { p: a, list: [] }).list.push(o);
+      } else if (o.x !== undefined) { const p = base.at(o.x, o.y); diamond(base.objs, p[0], p[1], 5, o.title + ' (' + o.player + ')'); }
     });
-    Object.keys(atStation).forEach(function (id) {
-      const p = base.pos[id]; if (!p) return;
-      const list = atStation[id];
-      diamond(base.objs, p[0] - 2, p[1] - 13, 5, list.map(function (o) { return o.title; }).join('\n'));
-      if (list.length > 1) el('text', { x: p[0] + 5, y: p[1] - 10, fill: '#f2c14e', 'font-size': 10, 'font-weight': 700 }, base.objs, String(list.length));
+    Object.keys(atPlace).forEach(function (k) {
+      const p = atPlace[k].p, list = atPlace[k].list;
+      diamond(base.objs, p[0] - 2, p[1] - 14, 5, list.map(function (o) { return o.title + ' · ' + o.where; }).join('\n'));
+      if (list.length > 1) el('text', { x: p[0] + 5, y: p[1] - 11, fill: '#f2c14e', 'font-size': 10, 'font-weight': 700 }, base.objs, String(list.length));
     });
 
-    // the players: at a station around it, in quantum on his route
-    const here = {};
-    d.players.forEach(function (pl) { if (pl.state === 'at' && pl.at) (here[pl.at] = here[pl.at] || []).push(pl); });
-    Object.keys(here).forEach(function (id) {
-      const p = base.pos[id]; if (!p) return;
-      here[id].forEach(function (pl, i) {
-        const n = here[id].length, a = -Math.PI / 2 + (n > 1 ? i * 2 * Math.PI / n : 0), r = n > 1 ? 11 : 0;
-        const x = p[0] + Math.cos(a) * r + (n > 1 ? 0 : 0), y = p[1] + Math.sin(a) * r + (n > 1 ? 0 : 12);
-        const dot = el('circle', { cx: x, cy: y, r: 6, fill: pl.color, stroke: '#06090e', 'stroke-width': 1.5 }, base.people);
-        el('title', {}, dot, pl.name + ' at ' + (base.names[id] || id));
+    // the players in this system: at a place around it, on the way to a place the start of which is not known as a ring at it, in quantum on his route
+    const stay = {};
+    d.players.forEach(function (pl) {
+      if (!here(pl.system)) return;
+      if (pl.state === 'at' && base.anchor[pl.at]) { const a = base.anchor[pl.at], k = a.join(','); (stay[k] = stay[k] || { p: a, list: [] }).list.push(pl); }
+      if (pl.state === 'heading' && base.anchor[pl.to]) {
+        const a = base.anchor[pl.to];
+        const ring = el('circle', { cx: a[0], cy: a[1], r: 10, fill: 'none', stroke: pl.color, 'stroke-width': 2, 'stroke-dasharray': '3 3' }, base.routes);
+        el('title', {}, ring, pl.name + ' on his way to ' + pl.toName);
+      }
+    });
+    Object.keys(stay).forEach(function (k) {
+      const p = stay[k].p, list = stay[k].list, n = list.length;
+      list.forEach(function (pl, i) {
+        const a = -Math.PI / 2 + (n > 1 ? i * 2 * Math.PI / n : 0), r = n > 1 ? 11 : 0;
+        const x = p[0] + Math.cos(a) * r, y = p[1] + Math.sin(a) * r + (n > 1 ? 0 : 12);
+        const dot = el('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 6, fill: pl.color, stroke: '#06090e', 'stroke-width': 1.5 }, base.people);
+        el('title', {}, dot, pl.name + ' at ' + pl.atName);
       });
     });
     d.players.forEach(function (pl) {
       if (pl.state !== 'jump') return;
-      const a = base.pos[pl.from], b = base.pos[pl.to];
-      if (!a || !b) return;
-      el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: pl.color, 'stroke-width': 2, 'stroke-dasharray': '2 5', 'stroke-linecap': 'round', 'stroke-opacity': 0.9 }, base.routes);
-      const dot = el('circle', { cx: a[0], cy: a[1], r: 7, fill: pl.color, stroke: '#ecece8', 'stroke-width': 1.5 }, base.people);
-      const label = el('text', { x: a[0] + 10, y: a[1] - 8, fill: pl.color, 'font-size': 11, 'font-weight': 700 }, base.people, pl.name);
-      jumpers.push({ pl: pl, a: a, b: b, dot: dot, label: label });
+      const m = { pl: pl };
+      const a = here(pl.system) && base.anchor[pl.from], b = here(pl.system) && base.anchor[pl.to];
+      if (a && b) {
+        el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: pl.color, 'stroke-width': 2, 'stroke-dasharray': '2 5', 'stroke-linecap': 'round', 'stroke-opacity': 0.9 }, base.routes);
+        m.a = a; m.b = b;
+        m.dot = el('circle', { cx: a[0], cy: a[1], r: 7, fill: pl.color, stroke: '#ecece8', 'stroke-width': 1.5 }, base.people);
+        m.label = el('text', { x: a[0] + 10, y: a[1] - 8, fill: pl.color, 'font-size': 11, 'font-weight': 700 }, base.people, pl.name);
+      }
+      movers.push(m);
     });
 
-    // beside the map: every player and his speed meter, then the objectives
+    // beside the map: every player (the ones in another system say which; a click shows it) and his speed meter, then the objectives
     const side = document.getElementById('players');
     side.textContent = '';
     if (d.players.length === 0) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'Nobody is playing now.'; side.appendChild(p); }
@@ -151,10 +303,22 @@
       const card = document.createElement('div');
       card.className = 'mapplayer';
       card.style.setProperty('--c', pl.color);
-      const who = document.createElement('div'); who.className = 'who'; who.textContent = pl.name; card.appendChild(who);
+      const away = pl.system && !here(pl.system);
+      if (away) {
+        card.classList.add('away');
+        card.tabIndex = 0;
+        card.title = 'Show ' + nameOfSystem(pl.system);
+        const go = function () { show(pl.system, true); };
+        card.addEventListener('click', go);
+        card.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      }
+      const who = document.createElement('div'); who.className = 'who'; who.textContent = pl.name;
+      if (pl.system) { const s = document.createElement('span'); s.className = 'sys'; s.textContent = nameOfSystem(pl.system); who.appendChild(s); }
+      card.appendChild(who);
       const ship = document.createElement('div'); ship.className = 'what'; ship.textContent = [pl.ship, pl.drive].filter(function (x) { return x; }).join(' · '); card.appendChild(ship);
       const what = document.createElement('div'); what.className = 'what'; card.appendChild(what);
-      if (pl.state === 'at') what.textContent = 'At ' + (base.names[pl.at] || pl.at) + (pl.since ? ' since ' + since(pl.since) : '');
+      if (pl.state === 'at') what.textContent = 'At ' + pl.atName + (pl.since ? ' since ' + since(pl.since) : '');
+      else if (pl.state === 'heading') what.textContent = 'In quantum to ' + pl.toName + (pl.since ? ' (since ' + since(pl.since) + ')' : '');
       else if (pl.state === 'unknown') what.textContent = 'Where: not known yet (no quantum jump to a place the map knows)';
       if (pl.state === 'jump') {
         const meter = document.createElement('div'); meter.className = 'speed';
@@ -164,9 +328,8 @@
         const fill = document.createElement('span'); bar.appendChild(fill);
         meter.appendChild(num); meter.appendChild(unit); meter.appendChild(bar);
         card.appendChild(meter);
-        const j = jumpers.find(function (x) { return x.pl === pl; });
-        if (j) { j.what = what; j.num = num; j.unit = unit; j.fill = fill; }
-        else what.textContent = 'In quantum to ' + (pl.toName || pl.to);
+        const m = movers.find(function (x) { return x.pl === pl; });
+        m.what = what; m.num = num; m.unit = unit; m.fill = fill;
       }
       side.appendChild(card);
     });
@@ -176,7 +339,7 @@
     const list = document.createElement('ul'); list.className = 'objs';
     const lines = {};   // the same objective of a mission at the same place once, with how many
     d.objectives.forEach(function (o) {
-      const text = o.title + ' · ' + (o.where || '') + ' (' + o.player + ')';
+      const text = o.title + ' · ' + (o.where || '') + (here(o.system) ? '' : ' · ' + nameOfSystem(o.system)) + ' (' + o.player + ')';
       lines[text] = (lines[text] || 0) + 1;
     });
     Object.keys(lines).forEach(function (text) {
@@ -195,24 +358,28 @@
   // ------------------------------------------------------------------ every frame: the players in quantum move on
   function move() {
     const now = Date.now() + offset;
-    jumpers.forEach(function (j) {
-      const pl = j.pl, t = (now - pl.start) / 1000;
-      const m = motionAt(pl.motion, pl.dist, t);
-      const f = pl.dist > 0 ? m.x / pl.dist : 1;
-      const x = j.a[0] + (j.b[0] - j.a[0]) * f, y = j.a[1] + (j.b[1] - j.a[1]) * f;
-      j.dot.setAttribute('cx', x.toFixed(1)); j.dot.setAttribute('cy', y.toFixed(1));
-      j.label.setAttribute('x', (x + 10).toFixed(1)); j.label.setAttribute('y', (y - 8).toFixed(1));
-      if (!j.what) return;
-      const to = pl.toName || pl.to, from = base.names[pl.from] || pl.from;
-      j.what.textContent = t < 0 ? 'Spooling at ' + from + ' for ' + to + ' (in about ' + clock(-t) + ')'
-        : m.left > 0 ? 'Quantum to ' + to + ' · ' + clock(m.left) + ' left' : 'Arriving at ' + to;
-      j.num.textContent = (m.v / 1e6).toLocaleString(undefined, { maximumFractionDigits: 0 });
-      j.unit.textContent = 'Mm/s · ' + (m.v / C).toFixed(2) + ' c · top ' + (m.p.top / 1e6).toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' Mm/s';
-      j.fill.style.width = (pl.motion.v > 0 ? Math.min(100, m.v / pl.motion.v * 100) : 0).toFixed(1) + '%';
+    movers.forEach(function (m) {
+      const pl = m.pl, t = (now - pl.start) / 1000;
+      const q = motionAt(pl.motion, pl.dist, t);
+      if (m.dot) {
+        const f = pl.dist > 0 ? q.x / pl.dist : 1;
+        const x = m.a[0] + (m.b[0] - m.a[0]) * f, y = m.a[1] + (m.b[1] - m.a[1]) * f;
+        m.dot.setAttribute('cx', x.toFixed(1)); m.dot.setAttribute('cy', y.toFixed(1));
+        m.label.setAttribute('x', (x + 10).toFixed(1)); m.label.setAttribute('y', (y - 8).toFixed(1));
+      }
+      if (m.what) speedText(m, t, q);
     });
   }
+  function speedText(m, t, q) {   // his card: what he does, how fast he goes
+    const pl = m.pl;
+    m.what.textContent = t < 0 ? 'Spooling at ' + pl.fromName + ' for ' + pl.toName + ' (in about ' + clock(-t) + ')'
+      : q.left > 0 ? 'Quantum to ' + pl.toName + ' · ' + clock(q.left) + ' left' : 'Arriving at ' + pl.toName;
+    m.num.textContent = (q.v / 1e6).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    m.unit.textContent = 'Mm/s · ' + (q.v / C).toFixed(2) + ' c · top ' + (q.p.top / 1e6).toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' Mm/s';
+    m.fill.style.width = (pl.motion.v > 0 ? Math.min(100, q.v / pl.motion.v * 100) : 0).toFixed(1) + '%';
+  }
   function loop() {
-    if (jumpers.length && !document.hidden) move();
+    if (movers.length && !document.hidden) move();
     requestAnimationFrame(loop);
   }
 
@@ -224,13 +391,16 @@
       const d = await res.json();
       offset = new Date(d.updated).getTime() - Date.now();   // the server's clock: the jumps start by it
       data = d;
-      if (!base) build(d);
-      render();
+      show(choose(d), false);
       state.textContent = 'Updated ' + new Date().toLocaleTimeString();
     } catch (e) {
       state.textContent = 'The map could not be updated: trying again.';
     }
   }
+  window.addEventListener('hashchange', function () {
+    const h = location.hash.replace('#', '').toLowerCase();
+    if (data && data.systems.some(function (s) { return s.id === h; }) && h !== shown) show(h, true);
+  });
   refresh();
   setInterval(refresh, 3000);
   requestAnimationFrame(loop);

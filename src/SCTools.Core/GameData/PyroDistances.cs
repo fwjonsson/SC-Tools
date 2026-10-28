@@ -57,32 +57,6 @@ public static class PyroDistances
 
     public static string NameOf(string id) => Stations.First(s => s.Id == id).Name;
 
-    /// <summary>
-    /// Where a point of the Pyro system (its position in metres, as the system's own markers write it) is on the top-down map (pixels). Fitted to the real
-    /// positions of the stations against their places on the map: a turn of about 5 degrees and 14.97 pixels per Gm, within 3 pixels for every station.
-    /// </summary>
-    public static (double X, double Y) MapOfSystem(double xMetres, double yMetres)
-    {
-        var x = xMetres / 1e9;
-        var y = yMetres / 1e9;
-        return (1.30693062 * x + 14.9109957 * y + 1920.30221, 14.9185514 * x - 1.31992895 * y + 1078.55506);
-    }
-
-    /// <summary>
-    /// The station of a place the game names in its quantum routes ("Projected Start Location is Ruin Station", "Nyx Gateway"), Ruin included; null when it is not
-    /// one.
-    /// </summary>
-    public static string? IdOfPlace(string name)
-    {
-        var n = Normalize(name.Replace("Gateway", "GW", StringComparison.OrdinalIgnoreCase));
-        if (n.Length == 0) return null;
-        foreach (var s in Stations)
-            if (Normalize(s.Name) == n) return s.Id;
-        // the game's longer names: "Rod's Fuel 'N Supplies", "Megumi Refueling", "Dudley & Daughters"
-        return Stations.Where(s => Normalize(s.Name).Length >= 4 && n.StartsWith(Normalize(s.Name), StringComparison.Ordinal))
-            .OrderByDescending(s => Normalize(s.Name).Length).Select(s => s.Id).FirstOrDefault();
-    }
-
     /// <summary>Every station with its position on the top-down map (pixels of the 3840x2160 map), Ruin included.</summary>
     public static IEnumerable<(string Id, string Name, double X, double Y)> Points => Stations.Select(s => (s.Id, s.Name, s.X, s.Y));
 

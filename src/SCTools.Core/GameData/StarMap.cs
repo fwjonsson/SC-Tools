@@ -1,0 +1,239 @@
+using System.Text.RegularExpressions;
+
+namespace SCTools.GameData;
+
+/// <summary>What a place of a star system is: how the map draws it.</summary>
+public enum PlaceKind { Star, Planet, Moon, City, Gateway, Station }
+
+/// <summary>
+/// A place of a star system and where it is seen from above: X and Y in Gm, the system's own axes, with its star at 0, 0 (the same frame as the system's own
+/// objective markers in the log, in metres there). Parent: the planet or moon it is at (a station in orbit, a city), or null.
+/// </summary>
+public sealed record Place(string System, string Id, string Name, string Short, PlaceKind Kind, string? Parent, double X, double Y)
+{
+    /// <summary>"pyro/ruin-station": unique over the systems (a "Nyx Gateway" is in Pyro and in Stanton).</summary>
+    public string Key => System + "/" + Id;
+}
+
+/// <summary>A star system of the map.</summary>
+public sealed record StarSystem(string Id, string Name);
+
+/// <summary>
+/// The star systems from above, for the Map tool: the stars, planets, moons, cities, gateways and stations of Pyro, Stanton and Nyx, with their positions from the
+/// Star Citizen Wiki API (api.star-citizen.wiki, /api/locations/positions, downloaded with ScApiTool on 20 Oct 2026; Pyro's are the same as PyroDistances').
+/// Planets do not move in the game, so the positions stay valid. Also which place a quantum destination of the log is, and a name the game says.
+/// </summary>
+public static class StarMap
+{
+    public static readonly StarSystem[] Systems = { new("pyro", "Pyro"), new("stanton", "Stanton"), new("nyx", "Nyx") };
+
+    public static readonly Place[] Places =
+    {
+        new("pyro", "pyro", "Pyro", "Pyro", PlaceKind.Star, null, 0.0000, 0.0000),
+        new("pyro", "bloom", "Bloom", "Bloom", PlaceKind.Planet, null, -8.9008, -15.4171),
+        new("pyro", "monox", "Monox", "Monox", PlaceKind.Planet, null, 9.1984, 5.3107),
+        new("pyro", "pyro-i", "Pyro I", "Pyro I", PlaceKind.Planet, null, 1.7200, -8.0920),
+        new("pyro", "pyro-iv", "Pyro IV", "Pyro IV", PlaceKind.Planet, "pyro-v", 42.6145, -7.2730),
+        new("pyro", "pyro-v", "Pyro V", "Pyro V", PlaceKind.Planet, null, 42.2853, -7.4546),
+        new("pyro", "terminus", "Terminus", "Terminus", PlaceKind.Planet, null, -52.3365, -43.9182),
+        new("pyro", "adir", "Adir", "Adir", PlaceKind.Moon, "pyro-v", 42.2638, -7.3557),
+        new("pyro", "fairo", "Fairo", "Fairo", PlaceKind.Moon, "pyro-v", 42.4031, -7.4985),
+        new("pyro", "fuego", "Fuego", "Fuego", PlaceKind.Moon, "pyro-v", 42.3645, -7.3284),
+        new("pyro", "ignis", "Ignis", "Ignis", PlaceKind.Moon, "pyro-v", 42.2969, -7.5086),
+        new("pyro", "vatra", "Vatra", "Vatra", PlaceKind.Moon, "pyro-v", 42.2167, -7.4262),
+        new("pyro", "vuur", "Vuur", "Vuur", PlaceKind.Moon, "pyro-v", 42.1644, -7.5825),
+        new("pyro", "nyx-gateway", "Nyx Gateway", "Nyx Gateway", PlaceKind.Gateway, null, 32.9940, -38.1517),
+        new("pyro", "stanton-gateway", "Stanton Gateway", "Stanton Gateway", PlaceKind.Gateway, null, -37.6092, 37.4357),
+        new("pyro", "checkmate", "Checkmate", "Checkmate", PlaceKind.Station, null, 1.8334, 10.4345),
+        new("pyro", "dudley-daughters", "Dudley & Daughters", "Dudley", PlaceKind.Station, null, 23.3426, -64.2260),
+        new("pyro", "endgame", "Endgame", "Endgame", PlaceKind.Station, null, 48.2968, 48.2920),
+        new("pyro", "gaslight", "Gaslight", "Gaslight", PlaceKind.Station, null, 46.4944, -8.1909),
+        new("pyro", "megumi-refueling", "Megumi Refueling", "Megumi", PlaceKind.Station, null, -59.1456, 34.1455),
+        new("pyro", "orbituary", "Orbituary", "Orbituary", PlaceKind.Station, "bloom", -8.9004, -15.4178),
+        new("pyro", "patch-city", "Patch City", "Patch City", PlaceKind.Station, null, 11.4453, 13.6223),
+        new("pyro", "rats-nest", "Rat's Nest", "Rat's Nest", PlaceKind.Station, null, 3.7326, -42.7669),
+        new("pyro", "rods-fuel-n-supplies", "Rod's Fuel 'N Supplies", "Rod's Fuel", PlaceKind.Station, null, 14.6643, 40.3386),
+        new("pyro", "ruin-station", "Ruin Station", "Ruin Station", PlaceKind.Station, "terminus", -52.3368, -43.9179),
+        new("pyro", "starlight-service-station", "Starlight Service Station", "Starlight", PlaceKind.Station, null, -7.7566, -14.0089),
+        new("stanton", "stanton", "Stanton", "Stanton", PlaceKind.Star, null, 0.0000, 0.0000),
+        new("stanton", "arccorp", "ArcCorp", "ArcCorp", PlaceKind.Planet, null, 18.5877, -22.1519),
+        new("stanton", "crusader", "Crusader", "Crusader", PlaceKind.Planet, null, -18.9622, -2.6650),
+        new("stanton", "hurston", "Hurston", "Hurston", PlaceKind.Planet, null, 12.8505, 0.0000),
+        new("stanton", "microtech", "microTech", "microTech", PlaceKind.Planet, null, 22.4621, 37.1857),
+        new("stanton", "aberdeen", "Aberdeen", "Aberdeen", PlaceKind.Moon, "hurston", 12.9058, 0.0410),
+        new("stanton", "arial", "Arial", "Arial", PlaceKind.Moon, "hurston", 12.8927, -0.0315),
+        new("stanton", "calliope", "Calliope", "Calliope", PlaceKind.Moon, "microtech", 22.5258, 37.2026),
+        new("stanton", "cellin", "Cellin", "Cellin", PlaceKind.Moon, "crusader", -18.9876, -2.7090),
+        new("stanton", "clio", "Clio", "Clio", PlaceKind.Moon, "microtech", 22.4474, 37.2805),
+        new("stanton", "daymar", "Daymar", "Daymar", PlaceKind.Moon, "crusader", -18.9305, -2.6102),
+        new("stanton", "euterpe", "Euterpe", "Euterpe", PlaceKind.Moon, "microtech", 22.4361, 37.2904),
+        new("stanton", "ita", "Ita", "Ita", PlaceKind.Moon, "hurston", 12.8302, 0.1149),
+        new("stanton", "lyria", "Lyria", "Lyria", PlaceKind.Moon, "arccorp", 18.7036, -22.1217),
+        new("stanton", "magda", "Magda", "Magda", PlaceKind.Moon, "hurston", 12.7927, -0.0745),
+        new("stanton", "wala", "Wala", "Wala", PlaceKind.Moon, "arccorp", 18.3796, -22.0005),
+        new("stanton", "yela", "Yela", "Yela", PlaceKind.Moon, "crusader", -19.0229, -2.6140),
+        new("stanton", "area18", "Area18", "Area18", PlaceKind.City, "arccorp", 18.5869, -22.1520),
+        new("stanton", "lorville", "Lorville", "Lorville", PlaceKind.City, "hurston", 12.8501, -0.0008),
+        new("stanton", "new-babbage", "New Babbage", "New Babbage", PlaceKind.City, "microtech", 22.4626, 37.1862),
+        new("stanton", "orison", "Orison", "Orison", PlaceKind.City, "crusader", -18.9569, -2.6658),
+        new("stanton", "nyx-gateway", "Nyx Gateway", "Nyx Gateway", PlaceKind.Gateway, null, -62.2843, 23.4676),
+        new("stanton", "pyro-gateway", "Pyro Gateway", "Pyro Gateway", PlaceKind.Gateway, null, 3.3105, -27.9794),
+        new("stanton", "terra-gateway", "Terra Gateway", "Terra Gateway", PlaceKind.Gateway, null, 51.1182, -5.2700),
+        new("stanton", "arc-l1-wide-forest-station", "ARC-L1 Wide Forest Station", "ARC-L1", PlaceKind.Station, null, 16.7292, -19.9420),
+        new("stanton", "arc-l2-lively-pathway-station", "ARC-L2 Lively Pathway Station", "ARC-L2", PlaceKind.Station, null, 20.4510, -24.3681),
+        new("stanton", "arc-l3-modern-express-station", "ARC-L3 Modern Express Station", "ARC-L3", PlaceKind.Station, null, -25.0455, 14.4633),
+        new("stanton", "arc-l4-faint-glen-station", "ARC-L4 Faint Glen Station", "ARC-L4", PlaceKind.Station, null, 28.4761, 5.0189),
+        new("stanton", "arc-l5-yellow-core-station", "ARC-L5 Yellow Core Station", "ARC-L5", PlaceKind.Station, null, -9.8958, -27.1752),
+        new("stanton", "baijini-point", "Baijini Point", "Baijini Point", PlaceKind.Station, "arccorp", 18.5869, -22.1522),
+        new("stanton", "covalex-shipping-hub-gundo", "Covalex Shipping Hub Gundo", "Covalex Gundo", PlaceKind.Station, "daymar", -18.9308, -2.6097),
+        new("stanton", "cru-l1-ambitious-dream-station", "CRU-L1 Ambitious Dream Station", "CRU-L1", PlaceKind.Station, null, -17.0688, -2.3995),
+        new("stanton", "cru-l4-shallow-fields-station", "CRU-L4 Shallow Fields Station", "CRU-L4", PlaceKind.Station, null, -7.1738, -17.7501),
+        new("stanton", "cru-l5-beautiful-glen-station", "CRU-L5 Beautiful Glen Station", "CRU-L5", PlaceKind.Station, null, -11.7850, 15.0912),
+        new("stanton", "everus-harbor", "Everus Harbor", "Everus Harbor", PlaceKind.Station, "hurston", 12.8499, -0.0009),
+        new("stanton", "grim-hex", "Grim HEX", "Grim HEX", PlaceKind.Station, "yela", -19.0235, -2.6136),
+        new("stanton", "hur-l1-green-glade-station", "HUR-L1 Green Glade Station", "HUR-L1", PlaceKind.Station, null, 11.5614, -0.0003),
+        new("stanton", "hur-l2-faithful-dream-station", "HUR-L2 Faithful Dream Station", "HUR-L2", PlaceKind.Station, null, 14.1396, -0.0020),
+        new("stanton", "hur-l3-thundering-express-station", "HUR-L3 Thundering Express Station", "HUR-L3", PlaceKind.Station, null, -12.8447, -0.0016),
+        new("stanton", "hur-l4-melodic-fields-station", "HUR-L4 Melodic Fields Station", "HUR-L4", PlaceKind.Station, null, 6.4276, 11.1248),
+        new("stanton", "hur-l5-high-course-station", "HUR-L5 High Course Station", "HUR-L5", PlaceKind.Station, null, 6.4257, -11.1284),
+        new("stanton", "mic-l1-shallow-frontier-station", "MIC-L1 Shallow Frontier Station", "MIC-L1", PlaceKind.Station, null, 20.2158, 33.4671),
+        new("stanton", "mic-l2-long-forest-station", "MIC-L2 Long Forest Station", "MIC-L2", PlaceKind.Station, null, 24.7138, 40.9129),
+        new("stanton", "mic-l3-endless-odyssey-station", "MIC-L3 Endless Odyssey Station", "MIC-L3", PlaceKind.Station, null, -22.4522, -37.1799),
+        new("stanton", "mic-l4-red-crossroads-station", "MIC-L4 Red Crossroads Station", "MIC-L4", PlaceKind.Station, null, -20.9687, 38.0561),
+        new("stanton", "mic-l5-modern-icarus-station", "MIC-L5 Modern Icarus Station", "MIC-L5", PlaceKind.Station, null, 43.4486, -0.8577),
+        new("stanton", "port-tressler", "Port Tressler", "Port Tressler", PlaceKind.Station, "microtech", 22.4626, 37.1863),
+        new("stanton", "security-post-kareah", "Security Post Kareah", "Kareah", PlaceKind.Station, "cellin", -18.9876, -2.7094),
+        new("stanton", "seraphim-station", "Seraphim Station", "Seraphim Station", PlaceKind.Station, "crusader", -18.9563, -2.6663),
+        new("stanton", "wikelo-emporium-dasi-station", "Wikelo Emporium Dasi Station", "Wikelo Dasi", PlaceKind.Station, null, 14.3334, 2.0012),
+        new("stanton", "wikelo-emporium-kinga-station", "Wikelo Emporium Kinga Station", "Wikelo Kinga", PlaceKind.Station, null, 23.7614, 39.2254),
+        new("stanton", "wikelo-emporium-selo-station", "Wikelo Emporium Selo Station", "Wikelo Selo", PlaceKind.Station, null, -20.1566, -1.2631),
+        new("nyx", "nyx", "Nyx", "Nyx", PlaceKind.Star, null, 0.0000, 0.0000),
+        new("nyx", "nyx-i", "Nyx I", "Nyx I", PlaceKind.Planet, null, 6.4952, -3.7500),
+        new("nyx", "nyx-ii", "Nyx II", "Nyx II", PlaceKind.Planet, null, -3.5912, 9.8668),
+        new("nyx", "nyx-iii", "Nyx III", "Nyx III", PlaceKind.Planet, null, -29.1097, -24.4259),
+        new("nyx", "pyro-gateway", "Pyro Gateway", "Pyro Gateway", PlaceKind.Gateway, null, -12.0000, 20.7846),
+        new("nyx", "stanton-gateway", "Stanton Gateway", "Stanton Gateway", PlaceKind.Gateway, null, -13.4999, -23.3827),
+        new("nyx", "levski", "Levski", "Levski", PlaceKind.Station, null, -9.6417, -11.4907),
+        new("nyx", "peoples-service-station-alpha", "People's Service Station Alpha", "PSS Alpha", PlaceKind.Station, null, -45.8043, -14.3513),
+        new("nyx", "peoples-service-station-delta", "People's Service Station Delta", "PSS Delta", PlaceKind.Station, null, -6.4325, -47.5670),
+        new("nyx", "peoples-service-station-lambda", "People's Service Station Lambda", "PSS Lambda", PlaceKind.Station, null, 43.3278, 20.6568),
+        new("nyx", "peoples-service-station-theta", "People's Service Station Theta", "PSS Theta", PlaceKind.Station, null, 40.4727, -25.8063),
+        new("nyx", "qv-breaker-station-brk-127", "QV Breaker Station BRK-127", "BRK-127", PlaceKind.Station, null, 47.2704, -8.3350),
+        new("nyx", "qv-breaker-station-brk-204", "QV Breaker Station BRK-204", "BRK-204", PlaceKind.Station, null, -45.1050, 16.4169),
+        new("nyx", "qv-breaker-station-brk-320", "QV Breaker Station BRK-320", "BRK-320", PlaceKind.Station, null, -27.5312, 39.3186),
+        new("nyx", "qv-breaker-station-brk-425", "QV Breaker Station BRK-425", "BRK-425", PlaceKind.Station, null, 27.5310, -39.3184),
+        new("nyx", "qv-breaker-station-brk-546", "QV Breaker Station BRK-546", "BRK-546", PlaceKind.Station, null, 16.4169, 45.1052),
+        new("nyx", "transit-point-glaciem-alpha", "Transit Point Glaciem Alpha", "Glaciem Alpha", PlaceKind.Station, null, -13.5924, 6.3382),
+        new("nyx", "transit-point-glaciem-bravo", "Transit Point Glaciem Bravo", "Glaciem Bravo", PlaceKind.Station, null, 9.6402, -11.4888),
+        new("nyx", "transit-point-glaciem-charlie", "Transit Point Glaciem Charlie", "Glaciem Charlie", PlaceKind.Station, null, 9.6402, 11.4888),
+    };
+
+    static readonly Dictionary<string, Place> ByKey = Places.ToDictionary(p => p.Key, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>A place by its key ("pyro/ruin-station"), or null.</summary>
+    public static Place? Find(string? key) => key != null && ByKey.TryGetValue(key, out var p) ? p : null;
+
+    /// <summary>The places of a system.</summary>
+    public static IEnumerable<Place> Of(string system) => Places.Where(p => p.System == system);
+
+    /// <summary>The flat distance between two places in Gm (the systems are nearly flat).</summary>
+    public static double Distance(Place a, Place b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
+
+    /// <summary>The planets of a system in their order (the game's "pyro3" is the third: Bloom).</summary>
+    static readonly Dictionary<string, string[]> PlanetOrder = new()
+    {
+        ["pyro"] = new[] { "pyro-i", "monox", "bloom", "pyro-iv", "pyro-v", "terminus" },
+        ["stanton"] = new[] { "hurston", "crusader", "arccorp", "microtech" },
+        ["nyx"] = new[] { "nyx-i", "nyx-ii", "nyx-iii" },
+    };
+
+    /// <summary>Stanton's planets as the names of their Lagrange stations start ("HUR-L1").</summary>
+    static readonly string[] StantonPrefix = { "HUR", "CRU", "ARC", "MIC" };
+
+    /// <summary>The Hauling Planner's Pyro stations (PyroDistances ids) and their places.</summary>
+    static readonly Dictionary<string, string> PyroStations = new()
+    {
+        [PyroDistances.Ruin] = "ruin-station", ["73791"] = "rats-nest", ["70269"] = "megumi-refueling", ["70120"] = "patch-city", ["69936"] = "gaslight",
+        ["72785"] = "dudley-daughters", ["73041"] = "orbituary", ["72645"] = "rods-fuel-n-supplies", ["70053"] = "starlight-service-station",
+        ["72952"] = "checkmate", ["74320"] = "nyx-gateway", ["74325"] = "stanton-gateway", ["70273"] = "endgame",
+    };
+
+    /// <summary>The place of one of the Hauling Planner's Pyro stations (its id in PyroDistances), or null.</summary>
+    public static Place? OfPyroStation(string? id) => id != null && PyroStations.TryGetValue(id, out var p) ? Find("pyro/" + p) : null;
+
+    static readonly Dictionary<string, string> PyroIdOf = PyroStations.ToDictionary(kv => "pyro/" + kv.Value, kv => kv.Key);
+
+    /// <summary>
+    /// How far a quantum jump between two places is (Gm): between two of the Hauling Planner's Pyro stations as it has it (the legs from Ruin as the game says
+    /// them), else straight.
+    /// </summary>
+    public static double JumpGm(Place a, Place b) =>
+        PyroIdOf.TryGetValue(a.Key, out var ia) && PyroIdOf.TryGetValue(b.Key, out var ib) ? PyroDistances.Between(ia, ib) : Distance(a, b);
+
+    static string Letters(string s) => new(s.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+
+    static readonly Regex Planet = new(@"^(?:rs_ext_)?(?<s>pyro|stanton|nyx)(?<n>\d)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    static readonly Regex RestStop = new(@"(?:RR_S(?<n>\d)_L(?<l>\d)|stanton(?<n>\d)_l(?<l>\d))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    static readonly Regex Gate = new(@"(?<a>pyro|stanton|nyx)-(?<b>pyro|stanton|nyx|stan|terra)_jp", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// The place a quantum destination of the log is ("rs_ext_pyro6_leo", "pyro3", "LOC_RR_S1_L2", "rs_ext_nyx-pyro_jp1", "levski_all-001"), or null (a party member,
+    /// an asteroid, an encounter: not a place of the map). A name that fits places in more than one system: the one in this system.
+    /// </summary>
+    public static Place? OfQuantumTarget(string target, string? system = null)
+    {
+        if (string.IsNullOrWhiteSpace(target)) return null;
+        if (OfPyroStation(PyroDistances.IdOfQuantumTarget(target)) is { } station) return station;
+        var m = Planet.Match(target);
+        if (m.Success)
+        {
+            var order = PlanetOrder[m.Groups["s"].Value.ToLowerInvariant()];
+            var n = m.Groups["n"].Value[0] - '1';
+            return n >= 0 && n < order.Length ? Find(m.Groups["s"].Value.ToLowerInvariant() + "/" + order[n]) : null;
+        }
+        m = RestStop.Match(target);
+        if (m.Success)
+        {
+            var n = m.Groups["n"].Value[0] - '1';
+            if (n >= 0 && n < StantonPrefix.Length)
+                return Of("stanton").FirstOrDefault(p => p.Short.Equals(StantonPrefix[n] + "-L" + m.Groups["l"].Value, StringComparison.OrdinalIgnoreCase));
+        }
+        m = Gate.Match(target);
+        if (m.Success)
+        {
+            var b = m.Groups["b"].Value.ToLowerInvariant() switch { "stan" => "stanton", var x => x };
+            return Find(m.Groups["a"].Value.ToLowerInvariant() + "/" + b + "-gateway");
+        }
+        // a place whose name is in it ("levski_all-001" is Levski), the longest name; in this system first
+        var t = Letters(target);
+        return Places.Where(p => p.Kind != PlaceKind.Star && Letters(p.Name).Length >= 5 && t.Contains(Letters(p.Name), StringComparison.Ordinal))
+            .OrderByDescending(p => p.System == system).ThenByDescending(p => Letters(p.Name).Length).FirstOrDefault();
+    }
+
+    /// <summary>
+    /// What a name the game says in plain words is ("Projected Start Location is Aberdeen", "... is Pyro System"): the system and the place (null for the system
+    /// alone, or neither). A name of more than one system ("Nyx Gateway" is in Pyro and Stanton): the one in this system; else, after a gateway, the system it
+    /// leads to; else the only one.
+    /// </summary>
+    public static (string? System, Place? Place) OfName(string name, string? system = null, Place? at = null)
+    {
+        var n = Letters(name);
+        if (n.Length == 0) return (null, null);
+        foreach (var s in Systems)
+            if (n == Letters(s.Name + " system") || n == Letters(s.Name)) return (s.Id, null);
+        var all = Places.Where(p => p.Kind != PlaceKind.Star && (Letters(p.Name) == n || Letters(p.Short) == n)).ToList();
+        if (all.Count == 0)   // a longer or a shorter name ("Megumi Refueling Station", "Gaslight"): the place it starts with, the longest
+            all = Places.Where(p => p.Kind != PlaceKind.Star && Letters(p.Name).Length >= 5 && n.Length >= 5 &&
+                    (n.StartsWith(Letters(p.Name), StringComparison.Ordinal) || Letters(p.Name).StartsWith(n, StringComparison.Ordinal)))
+                .GroupBy(p => p.System).Select(g => g.OrderByDescending(p => Letters(p.Name).Length).First()).ToList();
+        if (all.Count == 0) return (null, null);
+        var here = all.FirstOrDefault(p => p.System == system);
+        if (here != null) return (here.System, here);
+        if (at?.Kind == PlaceKind.Gateway)
+        {
+            var to = Systems.FirstOrDefault(s => at.Name.StartsWith(s.Name + " ", StringComparison.OrdinalIgnoreCase));
+            if (to != null && all.FirstOrDefault(p => p.System == to.Id) is { } there) return (there.System, there);
+        }
+        return all.Count == 1 ? (all[0].System, all[0]) : (null, null);
+    }
+}
