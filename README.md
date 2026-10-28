@@ -231,6 +231,10 @@ admin (done), then going live.
   cargo of the runs, the SCU of from-Ruin drop-offs the game did not tell), **Party** (add, remove, active, ship, drive, colour, location of every
   member; a field is saved as soon as it is changed, on its own), **Contracts** (who has every mission, Gone / Bring back) and **Debts** (a member's balances typed over, the Payment tick of his transfers, what a
   mission really paid, the party of the session). What only the program on a PC has (the log sources, the channel, the data file, the look) is not there.
+- **The Gauntlet Tracker** (`/gauntlet`, `Gauntlet/` in the core, `GauntletService`) reads Gilly's Combat Gauntlet from the uploaded logs and keeps
+  every run in the database. Everybody sees only his own runs (Session, Stats, Earnings ranking) and the **Leaderboard** of everybody: total earned, aUEC,
+  MG scrip, total aUEC per hour over the timed runs, completed and completion rate, fastest run, favourite and best scenario, last played. The rewards
+  and what a MG scrip is worth are the same for everybody and set by the admin on **Gauntlet** (`/admin/gauntlet`).
 - **Which tools everybody sees** is the admin's **Tools** page (`/admin/tools`, `SiteTools.cs`, the table `Tools`): a tick per tool, saved as soon as it
   changes. A tool that is not ticked is only for the admin: its card on the landing page (where he sees "Only you see this") and its page (a visitor gets
   the login, a player "not for you"; the hauling tracker's `data.json` too). A tool never set is as `SiteTools` says: the hauling tracker shown, the tools
