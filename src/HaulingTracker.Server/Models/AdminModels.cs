@@ -97,7 +97,7 @@ public sealed class AdminPartyModel
                 var (location, byHand) = t.Whereabouts.LocationOf(n);
                 var mode = t.Crew.OverrideOf(n) switch { true => "in", false => "out", null => "auto" };
                 return new MemberInput(
-                    n, t.Crew.IsActiveAt(n, nowUtc), Math.Max(1, t.Crew.ShipCapacityOf(n)),
+                    n, t.Crew.IsActiveAt(n, nowUtc),
                     byHand ? location : "", PyroDistances.NameOf(t.Whereabouts.AutoLocationOf(n)),
                     ViewPalette.Hex(Edits.ColorOf(t, n)), t.Crew.ShipOf(n)?.Label ?? "", t.Crew.DriveOf(n)?.Label ?? "",
                     follows ? StatusOf(t, n) : "", mode);
@@ -107,7 +107,11 @@ public sealed class AdminPartyModel
 }
 
 public sealed record MemberInput(
-    string Name, bool Active, int Batches, string Location, string AutoLocation, string Color, string Ship, string Drive, string Status = "", string Mode = "auto");
+    string Name, bool Active, string Location, string AutoLocation, string Color, string Ship, string Drive, string Status = "", string Mode = "auto")
+{
+    /// <summary>Black or white, whichever reads on his colour (as on the live page).</summary>
+    public string TextColor => ViewPalette.Hex(ViewPalette.TextOn(Convert.ToInt32(Color.TrimStart('#'), 16)));
+}
 
 /// <summary>The admin's Contracts page: every mission still going (and the ones marked as gone), with who of the party has it.</summary>
 public sealed class AdminContractsModel

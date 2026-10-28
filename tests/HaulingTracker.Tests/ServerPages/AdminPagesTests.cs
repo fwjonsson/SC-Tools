@@ -107,14 +107,12 @@ public class AdminPagesTests
         var ship = Ships.All[1];
         Assert.Contains("Saved for Pilot_C: ship.", await Set("ship", ship.Label));
         Assert.Equal(ship.Name, Read(f, t => t.State.Data.Ship["Pilot_C"]));
-        Assert.Contains("Saved for Pilot_C: batches.", await Set("batches", "5"));
-        Assert.Equal(5, Read(f, t => t.Crew.ShipCapacityOf("Pilot_C")));
         Assert.Contains("Saved for Pilot_C: colour.", await Set("color", "#00ff00"));
         Assert.Equal(unchecked((int)0xFF00FF00), Read(f, t => t.State.Data.WorkerColors["Pilot_C"]));
         Assert.Equal(ship.Name, Read(f, t => t.State.Data.Ship["Pilot_C"]));   // the colour did not touch the ship
         Assert.Contains("Pilot_C left", await Set("active", null));
         Assert.False(Read(f, t => t.Crew.IsActiveAt("Pilot_C", DateTime.UtcNow)));
-        Assert.Equal(5, Read(f, t => t.Crew.ShipCapacityOf("Pilot_C")));   // nor the batches
+        Assert.Equal("#00ff00", ViewPalette.Hex(Read(f, t => t.State.Data.WorkerColors["Pilot_C"])));   // nor the colour
         Assert.Contains("Pilot_C joined", await Set("active", "true"));
         Assert.True(Read(f, t => t.Crew.IsActiveAt("Pilot_C", DateTime.UtcNow)));
         Assert.Contains("not one of the choices", await Set("ship", "A ship that does not exist"));

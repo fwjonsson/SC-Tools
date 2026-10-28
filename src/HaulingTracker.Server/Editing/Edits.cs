@@ -123,16 +123,6 @@ public static class Edits
         return member + (active.Value ? " is In until the logs show him leaving." : " is Out until the logs show him playing.");
     }
 
-    /// <summary>The batches a member's ship holds (1 to 24; what is not a number is the default).</summary>
-    public static string SetBatches(Tracker t, string name, string batches)
-    {
-        var member = Member(t, name);
-        if (member == null) return name + " is not in the party.";
-        var capacity = t.Crew.ShipCapacityOf(member);
-        t.Crew.SetShipCapacity(member, batches);
-        return Saved(member, (t.Crew.ShipCapacityOf(member) != capacity ? new List<string> { "batches" } : new List<string>(), null));
-    }
-
     /// <summary>One of a member's own settings on the Party page (the others stay as they are): his location, colour, ship or quantum drive.</summary>
     public static string SetOwn(Tracker t, string name, Func<OwnSettings, OwnSettings> change)
     {
