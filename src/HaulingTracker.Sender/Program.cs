@@ -1,5 +1,4 @@
 using HaulingTracker.Updates;
-using Microsoft.Win32;
 
 namespace HaulingTracker.Sender;
 
