@@ -69,8 +69,8 @@ public class SessionPageTests
 
         var games = f.Services.GetRequiredService<Playtime>().Games("zzoega", DateTime.UtcNow);
         Assert.Equal(3, games.Count);
-        Assert.True(games[0].Running);
-        Assert.Equal((true, false), (games[1].Quit!.Value, games[2].Quit!.Value));
+        Assert.True(games[0].Running);   // newest first: the game now, the one that crashed, the one that was quit
+        Assert.Equal((false, true), (games[1].Quit!.Value, games[2].Quit!.Value));
     }
 
     [Fact]
