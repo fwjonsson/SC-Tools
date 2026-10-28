@@ -29,6 +29,9 @@ public class LoginTests
         var live = await c.GetStringAsync("/hauling");
         Assert.Contains("href=\"/login\"", live);   // the live page has the link to log in, and back to the tools
         Assert.Contains("href=\"/\"", live);
+        foreach (var tab in new[] { "session", "planner", "debts", "history" })   // every tab at its own address: the same page, which shows that tab
+            Assert.Equal(live, await c.GetStringAsync("/hauling/" + tab));
+        Assert.Equal(HttpStatusCode.NotFound, (await c.GetAsync("/hauling/nothing")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/data.json")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/site.css")).StatusCode);
 
