@@ -10,9 +10,10 @@ public sealed record PartyGroup(string Leader, IReadOnlyList<string> Names)
 /// <summary>
 /// Who of the party is playing, and with whom, from the logs (on the server). The game writes the in-game party in its notifications ("zzatvo has joined the
 /// party.", "Bileh123 has left the party." also when he quits or his game crashes, "zzoega is now party leader.", "The party has been disbanded."), and a
-/// tracker uploads its player's log while his game runs: the log grows all the time (at least every few minutes), so a log that has been quiet for ten minutes
-/// is a game that ended. A member is active while his own game runs, or while somebody who is playing has him in his party: a player whose tracker is off is
-/// still seen through the others' logs. Somebody who is gone for less than ten minutes (a crash, a relog) stays active.
+/// tracker uploads its player's log while his game runs: the log grows all the time (at least every few minutes), so a log that has been quiet for fifteen
+/// minutes is a game that ended (about as long as the game keeps a crashed player in his party). A member is active while his own game runs, or while somebody
+/// who is playing has him in his party: a player whose tracker is off is still seen through the others' logs. Somebody who is gone for less than fifteen
+/// minutes (a crash, a relog) stays active.
 /// A player's party only changes when the game says so: he joins or makes a party, somebody joins or leaves it (when the game says he left, he is out of the
 /// party in his own log too), it is disbanded. A crash or a relog keeps it: the game comes back to the same party and does not always say so again (zzatvo's
 /// crash on 28 Oct: nothing about the party in anybody's log, and still in it in the game). Only a game started more than an hour after his last one ended
@@ -22,11 +23,14 @@ public sealed record PartyGroup(string Leader, IReadOnlyList<string> Names)
 /// </summary>
 public static class AutoParty
 {
-    /// <summary>A game whose log has not grown for this long has ended (the logs show the game writes something at least every five minutes or so).</summary>
-    public static readonly TimeSpan Quiet = TimeSpan.FromMinutes(10);
+    /// <summary>
+    /// A game whose log has not grown for this long has ended (the logs show the game writes something at least every five minutes or so; the game keeps a
+    /// crashed player in his party about this long, Frank 28 Oct).
+    /// </summary>
+    public static readonly TimeSpan Quiet = TimeSpan.FromMinutes(15);
 
     /// <summary>Gone for less than this (a crash, a relog) does not count: he stays active.</summary>
-    public static readonly TimeSpan Blip = TimeSpan.FromMinutes(10);
+    public static readonly TimeSpan Blip = TimeSpan.FromMinutes(15);
 
     /// <summary>A game started this soon after his last one ended (a crash, a relog) is in the same party as that one was.</summary>
     public static readonly TimeSpan Rejoin = TimeSpan.FromHours(1);
@@ -71,7 +75,7 @@ public static class AutoParty
             foreach (var run in log.GameRuns.Values)
             {
                 points.Add((run.Start, 0, points.Count, who, null));
-                // quit, or quiet for ten minutes (a crash): it ended with its last line
+                // quit, or quiet for fifteen minutes (a crash): it ended with its last line
                 if (run.Quit || nowUtc - run.Last >= Quiet) points.Add((run.Last, 2, points.Count, who, null));
             }
             foreach (var e in log.PartyEvents) points.Add((e.Time, 1, points.Count, who, e));
@@ -152,7 +156,7 @@ public static class AutoParty
         var result = new Result();
         foreach (var (m, changes) in raw)
         {
-            // gone for less than ten minutes, or gone for less than ten minutes until now: not gone
+            // gone for less than fifteen minutes, or gone for less than fifteen minutes until now: not gone
             var kept = new List<(DateTime Time, bool Active)>();
             for (var i = 0; i < changes.Count; i++)
             {

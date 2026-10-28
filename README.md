@@ -322,9 +322,10 @@ admin (done), then going live.
 - **Who is active comes from the logs** on the server (`Tracking/AutoParty.cs`), not from a tick. The game writes the in-game party in its notifications
   ("zzatvo has joined the party.", "Bileh123 has left the party." also when he quits or crashes, "zzoega is now party leader.", "The party has been
   disbanded."), and the trackers already send those lines. A tracker also sends the time of the last line of every piece, so the server knows how long each
-  game ran (the log grows at least every few minutes while the game runs; quiet for ten minutes = the game ended; a game quit the normal way, with the
-  quit line in its log, ended at once: `GameRun.Quit`). A member is active while his game runs, or
-  while somebody who is playing has him in his party, so a player whose tracker is off is still seen through the others' logs. Gone for less than ten minutes
+  game ran (the log grows at least every few minutes while the game runs; quiet for fifteen minutes = the game ended, about as long as the game keeps a
+  crashed player in his party; a game quit the normal way, with the quit line in its log, ended at once: `GameRun.Quit`). A member is active while his game
+  runs, or while somebody who is playing has him in his party, so a player whose tracker is off is still seen through the others' logs. Gone for less than
+  fifteen minutes
   (a crash, a relog) does not count. A player's party only changes when the game says so (he joins or makes a party, somebody joins or leaves it, it is
   disbanded; when another log says he left, he is out of it in his own log too): a crash or a relog keeps his party, because the game puts him back in it
   and does not always say so (zzatvo's crash on 28 Oct: nothing about the party in any log afterwards). Only a game started more than an hour after his last

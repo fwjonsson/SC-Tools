@@ -55,7 +55,7 @@ public sealed class Playtime
         }
     }
 
-    /// <summary>The games of this player, newest first; the newest is Running while its log still grows (it was seen in the last ten minutes, not quit).</summary>
+    /// <summary>The games of this player, newest first; the newest is Running while its log still grows (it was seen in the last fifteen minutes, not quit).</summary>
     public List<PlayedGame> Games(string player, DateTime nowUtc)
     {
         Collect();
