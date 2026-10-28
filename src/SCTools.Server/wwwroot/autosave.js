@@ -7,6 +7,12 @@ document.addEventListener('change', function (e) {
   if (form.getAttribute('data-autosave') !== 'quiet' || !window.fetch) { form.requestSubmit(); return; }
   var field = e.target, state = document.getElementById('autosaveState');
   function done(ok, said) {
+    // a new value of a field with a list to pick from (a giver): in the list for the other fields at once
+    if (ok && field.list && field.value.trim() && !Array.prototype.some.call(field.list.options, function (o) { return o.value.toLowerCase() === field.value.trim().toLowerCase(); })) {
+      var option = document.createElement('option');
+      option.value = field.value.trim();
+      field.list.appendChild(option);
+    }
     field.classList.remove('saving');
     field.classList.add(ok ? 'saved' : 'unsaved');
     field.title = ok ? '' : said;

@@ -23,6 +23,13 @@
 
 @* what changes as missions come in: made again by missions.js when the library's version is not this one any more (not while you are typing in it) *@
 <div id="library" data-version="@Model.Version">
+@* every giver typed in so far, to pick in a Giver field (autosave.js adds a new one as soon as it is saved) *@
+<datalist id="givers">
+  @foreach (var g in Model.Givers ?? Array.Empty<string>())
+  {
+    <option value="@g"></option>
+  }
+</datalist>
 <nav class="tabs">
   <a class="tab@(Model.Show == "all" ? " on" : "")" href="/missions">All (@Model.Total)</a>
   <a class="tab@(Model.Show == "todo" ? " on" : "")" href="/missions?show=todo">Without rewards (@Model.ToDo)</a>
@@ -46,7 +53,7 @@ else
         @foreach (var (field, value, cls, hint) in new[]
         {
             ("name", r.Name ?? r.Title, "name", r.Title),
-            ("giver", r.Giver ?? "", "giver", ""),
+            ("giver", r.Giver ?? "", "giver", "Type or pick"),
             ("auec", N(r.Auec), "num", ""),
             ("mg", N(r.MgScrip), "num scrip", ""),
             ("council", N(r.CouncilScrip), "num scrip", ""),
@@ -55,7 +62,7 @@ else
           <td>
             <form method="post" action="/missions/set" asp-antiforgery="true" data-autosave="quiet">
               <input type="hidden" name="id" value="@r.Key"><input type="hidden" name="field" value="@field"><input type="hidden" name="back" value="@back">
-              <input name="value" value="@value" placeholder="@hint" class="@cls" aria-label="@field" autocomplete="off">
+              <input name="value" value="@value" placeholder="@hint" class="@cls" aria-label="@field" autocomplete="off" list="@(field == "giver" ? "givers" : null)">
             </form>
             @if (field == "name" && e.UsedBy != null)
             {

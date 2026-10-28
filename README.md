@@ -304,7 +304,8 @@ admin (done), then going live.
   the players took, by itself: the missions of the live logs and of the old logs are kept for good (`Missions`), grouped by their name as the game shows
   it (`MissionKinds`; the game's ContractId is one per offer, so the same mission at another place has another one). The contracts the Hauling Planner
   reads are grouped by its contract line instead (Hauling: 2 To Ruin ... Direct From Ruin), which is what they pay by. A logged in player types in what
-  the log does not say: the aUEC, MG scrip and Council scrip it pays, another name, the giver (each field saved as soon as it changes, in the
+  the log does not say: the aUEC, MG scrip and Council scrip it pays, another name, the giver (to type, or to pick from every giver typed in so far:
+  a datalist, a new one is in it as soon as it is saved; each field saved as soon as it changes, in the
   background; the Notes column is gone, what was typed in it stays in the database). 20 kinds to a page, the ones played last first; the page keeps
   itself up to date (`missions.js` asks `/missions/version` every few seconds and gets the list again when it changed, not while you type in it), so
   a mission you take comes to the top within seconds, marked **Playing now** (taken in the last six hours and not ended). A mission the player took
