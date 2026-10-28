@@ -268,7 +268,8 @@ admin (done), then going live.
   spaceship of the game data (`ShipModels`: 231, from the Star Citizen Wiki's vehicles in the ScApiTool download of 20 Oct 2026, with their classes,
   cargo grid and stock quantum drive; ground vehicles, display and concept models left out); a ship without a drive picked flies its stock drive
   ("Beacon S1 (stock)"). His **active ship** is the one he picks, or Automatic: the ship of his latest quantum jump (every quantum travel line names it
-  by the game's class, `CRUS_Starlifter_C2`, `VehicleLines`), the ship of his fleet that is that class's ship (`ShipModels.OfClass`), else the one whose
+  by the game's class, `CRUS_Starlifter_C2`, `VehicleLines`; only the lines about his own ship: he picked a destination, the route, the arrival, his
+  ship's navigation; not "Local Route Guard - Server Rerouted", which the game writes for every ship that comes near him), the ship of his fleet that is that class's ship (`ShipModels.OfClass`), else the one whose
   name fits the class best; a class that is not in his fleet shows by the game's name ("Crusader C2 Hercules Starlifter"). The Hauling Planner flies the active ship: its name (when it is a hauler the planner knows: a name like "Crusader C2
   Hercules Starlifter" is the C2), its drive and how much faster the drive is (`AppData.DriveSpeedBonus`, `Crew.QtOf`) go to the planner every few
   seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Party table of the live page shows every member's ship
