@@ -164,14 +164,15 @@ function mapSvg(el, stations, routes, bg) {
   el.textContent = '';
   waveGrads = [];
   const NS = 'http://www.w3.org/2000/svg';
-  const W = 520, H = 560, B = 24, PAD = 6;
+  const W = 520, PAD = 8;
   const legend = routes.filter(function (r) { return r.label; });
   const cols = Math.max(1, Math.floor(W / 170));
-  const T = 14 + Math.ceil(legend.length / cols) * 16;
+  const T = legend.length ? 8 + Math.ceil(legend.length / cols) * 16 : 0;   // the legend (who flies which route) above the map
+  const H = T + W;   // under the legend the map is square: the orbits are as far from the top and the bottom as from the sides
   // the sun in the middle of the map, which is as large as the outer orbit (Ruin is on it) and the names of the stations on the right let it be
-  const cx = W / 2, cy = T + (H - T - B) / 2, sun = bg.sun;
+  const cx = W / 2, cy = T + W / 2, sun = bg.sun;
   const outer = Math.max.apply(null, bg.orbits.concat(stations.map(function (s) { return Math.hypot(s.x - sun[0], s.y - sun[1]); })));
-  let sc = Math.min(W / 2 - PAD, (H - T - B) / 2 - PAD) / outer;
+  let sc = (W / 2 - PAD) / outer;
   stations.forEach(function (s) {
     const dx = s.x - sun[0], name = s.name.length * (s.id === 'Ruin' ? 7.6 : 6.6) + 10;   // about as wide as the name is written
     if (s.id === '73041') { if (dx < 0) sc = Math.min(sc, (W / 2 - PAD - name) / -dx); }   // Orbituary has its name on the left
