@@ -324,7 +324,10 @@ admin (done), then going live.
   disbanded."), and the trackers already send those lines. A tracker also sends the time of the last line of every piece, so the server knows how long each
   game ran (the log grows at least every few minutes while the game runs; quiet for ten minutes = the game ended). A member is active while his game runs, or
   while somebody who is playing has him in his party, so a player whose tracker is off is still seen through the others' logs. Gone for less than ten minutes
-  (a crash, a relog) does not count. It is written to the party changes with its time, so payouts and runs go by it as they went by the tick. The Party page
+  (a crash, a relog) does not count. A player's party only changes when the game says so (he joins or makes a party, somebody joins or leaves it, it is
+  disbanded; when another log says he left, he is out of it in his own log too): a crash or a relog keeps his party, because the game puts him back in it
+  and does not always say so (zzatvo's crash on 28 Oct: nothing about the party in any log afterwards). Only a game started more than an hour after his last
+  one ended (`AutoParty.Rejoin`) starts alone until the game says otherwise. It is written to the party changes with its time, so payouts and runs go by it as they went by the tick. The Party page
   shows who is in the game and with whom ("zzoega's party: zzatvo, zzoega"; the leader is the one the game named, else the one who made the party) and has
   **Auto / In / Out** for every member: In or Out holds until the logs show something new about him (In until he leaves, Out until he plays). It starts the
   first time the server runs it (the ticks before stay in the history); `SCTools:FollowParty` = false turns it off.

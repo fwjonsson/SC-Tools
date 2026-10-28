@@ -13,6 +13,10 @@ public sealed record PartyGroup(string Leader, IReadOnlyList<string> Names)
 /// tracker uploads its player's log while his game runs: the log grows all the time (at least every few minutes), so a log that has been quiet for ten minutes
 /// is a game that ended. A member is active while his own game runs, or while somebody who is playing has him in his party: a player whose tracker is off is
 /// still seen through the others' logs. Somebody who is gone for less than ten minutes (a crash, a relog) stays active.
+/// A player's party only changes when the game says so: he joins or makes a party, somebody joins or leaves it (when the game says he left, he is out of the
+/// party in his own log too), it is disbanded. A crash or a relog keeps it: the game comes back to the same party and does not always say so again (zzatvo's
+/// crash on 28 Oct: nothing about the party in anybody's log, and still in it in the game). Only a game started more than an hour after his last one ended
+/// starts alone, until the game says otherwise (it says "You have joined party" when it puts him back in his party then).
 /// Apply writes it to the party changes with its times (Source "logs"), so the payouts and the runs go by it as they went by the Active tick. In or Out set by
 /// the admin on the Party page holds until the logs change their mind about that member.
 /// </summary>
@@ -23,6 +27,9 @@ public static class AutoParty
 
     /// <summary>Gone for less than this (a crash, a relog) does not count: he stays active.</summary>
     public static readonly TimeSpan Blip = TimeSpan.FromMinutes(10);
+
+    /// <summary>A game started this soon after his last one ended (a crash, a relog) is in the same party as that one was.</summary>
+    public static readonly TimeSpan Rejoin = TimeSpan.FromHours(1);
 
     static readonly StringComparer Same = StringComparer.OrdinalIgnoreCase;
 
@@ -74,6 +81,7 @@ public static class AutoParty
         var party = new Dictionary<string, HashSet<string>>(Same);       // who is in the party of the player of a log, as his game told him (himself too)
         var leader = new Dictionary<string, (string Name, DateTime At)>(Same);
         var joined = new Dictionary<string, DateTime>(Same);             // when the player of a log came into his party (the first one there made it)
+        var ended = new Dictionary<string, DateTime>(Same);              // when the last game of the player of a log ended
         bool Playing(string who) => playing.TryGetValue(who, out var n) && n > 0;
         bool Active(string member) => Playing(member) || party.Any(kv => Playing(kv.Key) && kv.Value.Contains(member));
         HashSet<string> PartyOf(string who, DateTime at)
@@ -95,13 +103,14 @@ public static class AutoParty
         {
             if (p.Order == 0)
             {
-                if (!Playing(p.Who)) Alone(p.Who);   // a new game: in no party until the game says so
+                // a new game long after the last one: in no party until the game says so; soon after it (a crash, a relog): in the party it was in
+                if (!Playing(p.Who) && !(ended.TryGetValue(p.Who, out var end) && p.Time - end <= Rejoin)) Alone(p.Who);
                 playing[p.Who] = playing.GetValueOrDefault(p.Who) + 1;
             }
             else if (p.Order == 2)
             {
                 playing[p.Who] = Math.Max(0, playing.GetValueOrDefault(p.Who) - 1);
-                if (!Playing(p.Who)) Alone(p.Who);
+                if (!Playing(p.Who)) ended[p.Who] = p.Time;   // his party stays as it was: only the game says when it changes
             }
             else
             {
@@ -122,6 +131,8 @@ public static class AutoParty
                     case PartyEventKind.Left:
                         if (party.TryGetValue(p.Who, out var mine)) mine.Remove(e.Name!);
                         if (leader.TryGetValue(p.Who, out var l) && Same.Equals(l.Name, e.Name)) leader.Remove(p.Who);
+                        // he left this player's party: in his own log too (his own game does not always say it), until the game puts him in a party again
+                        if (!Same.Equals(e.Name, p.Who) && party.TryGetValue(e.Name!, out var his) && his.Contains(p.Who)) Alone(e.Name!);
                         break;
                     case PartyEventKind.Disbanded:
                         Alone(p.Who);
