@@ -8,20 +8,22 @@ namespace SCTools.Server;
 /// <summary>
 /// The old logs the trackers send (HistorySender): every backup log on a player's PC once, so the tools that keep everything know what he played before
 /// his tracker ran. They are kept apart from the live logs (the Hauling Planner never reads them): their lines in the history folder (gzip, one folder per
-/// player), and a row per log in LogFiles (when the game ran, its build). The Gauntlet runs in a log go to the database straight away. A log of another
-/// player (somebody else played on that PC) is noted and not read.
+/// player), and a row per log in LogFiles (when the game ran, its build). The Gauntlet runs and the missions (the Mission Library) in a log go to the
+/// database straight away. A log of another player (somebody else played on that PC) is noted and not read.
 /// </summary>
 public sealed class HistoryStore
 {
     readonly DataStore _store;
     readonly GauntletService _gauntlet;
+    readonly MissionLibrary _missions;
     readonly string _dir;
     readonly object _lock = new();
 
-    public HistoryStore(DataStore store, GauntletService gauntlet, ServerPaths paths)
+    public HistoryStore(DataStore store, GauntletService gauntlet, MissionLibrary missions, ServerPaths paths)
     {
         _store = store;
         _gauntlet = gauntlet;
+        _missions = missions;
         _dir = paths.HistoryDir;
     }
 
@@ -57,6 +59,8 @@ public sealed class HistoryStore
             var other = log.Player != null && !string.Equals(log.Player, player, StringComparison.OrdinalIgnoreCase);
             if (!other && log.GauntletRuns.Count > 0)
                 _gauntlet.Add(new Dictionary<string, List<GauntletRun>> { [player] = log.GauntletRuns.ToList() });
+            if (!other && log.Missions.Count > 0)
+                _missions.Add(new Dictionary<string, IReadOnlyList<SCTools.Missions.MissionSeen>> { [player] = log.Missions });
 
             using (var gz = new GZipStream(File.Create(Path.Combine(dir, Safe(file) + ".log.gz")), CompressionLevel.Optimal))
             using (var w = new StreamWriter(gz, Encoding.UTF8))

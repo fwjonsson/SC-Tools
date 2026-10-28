@@ -17,7 +17,7 @@ public static class SiteTools
         "Any kind of play: the contracts you took, finished and failed, time played, deaths, crashes, and what it earned per hour.", null, false);
 
     public static readonly SiteTool Missions = new("missions", "Mission Library",
-        "Every mission you take, with what the log does not say (reward, mission giver), filled in from the Star Citizen Wiki and by you.", null, false);
+        "Every mission you take, with what the log does not say (reward, MG and Council scrip, mission giver), filled in from the Star Citizen Wiki and by you.", "/missions", false);
 
     public static readonly SiteTool Gauntlet = new("gauntlet", "Gauntlet Tracker",
         "Gilly's Combat Gauntlet from your log: runs, times, grind sessions and what each scenario earns per hour.", "/gauntlet", false);

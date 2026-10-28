@@ -1,0 +1,73 @@
+@model MissionLibraryPage
+@using System.Globalization
+@{
+    var inv = CultureInfo.InvariantCulture;
+    string N(long? v) => v?.ToString(inv) ?? "";
+    string When(DateTime? utc) => utc == null ? "" : utc.Value.ToLocalTime().ToString("d MMM yyyy", inv);
+    var back = "/missions" + (Model.Show == "todo" ? "?show=todo" : "") + (Model.Query.Length > 0 ? (Model.Show == "todo" ? "&" : "?") + "q=" + Uri.EscapeDataString(Model.Query) : "");
+    string Wiki(LibraryRow r)
+    {
+        if (r.WikiCheckedUtc == null) return "not asked yet";
+        if (!r.WikiFound) return "not known";
+        var reward = r.WikiRewardMin == null ? "" : r.WikiRewardMax > r.WikiRewardMin ? $"{r.WikiRewardMin:N0}–{r.WikiRewardMax:N0}" : $"{r.WikiRewardMin:N0}";
+        return string.Join(" · ", new[] { r.WikiGiver, reward.Length > 0 ? reward + " " + (r.WikiCurrency ?? "") : null }.Where(s => !string.IsNullOrEmpty(s)));
+    }
+}
+<h1>Mission Library</h1>
+<p class="muted">Every mission you take is here by itself, from your log (also the ones played before your tracker ran, from the old logs). Type in what
+  the log does not say: it is saved as soon as you leave the field. Missions are told apart by the game's ContractId, so a name of your own (a string mod)
+  never makes two of one. The Wiki column is what the Star Citizen Wiki knows about it.</p>
+
+<nav class="tabs">
+  <a class="tab@(Model.Show == "all" ? " on" : "")" href="/missions">All (@Model.Total)</a>
+  <a class="tab@(Model.Show == "todo" ? " on" : "")" href="/missions?show=todo">Without rewards (@Model.ToDo)</a>
+</nav>
+<form method="get" action="/missions" class="line">
+  @if (Model.Show == "todo") { <input type="hidden" name="show" value="todo"> }
+  <input name="q" value="@Model.Query" placeholder="Find a mission or a giver" aria-label="Find">
+  <button type="submit">Find</button>
+</form>
+
+@if (Model.Entries.Count == 0)
+{
+  <p class="card">@(Model.Total == 0 ? "No missions yet: they come in from your tracker as you play." : "Nothing here.")</p>
+}
+else
+{
+  @* every field is a little form of its own (data-autosave: autosave.js sends it when it changes) *@
+  <div class="scroll">
+  <table class="wide missions">
+    <thead><tr><th>Mission</th><th>Giver</th><th>aUEC</th><th>MG scrip</th><th>Council scrip</th><th>Notes</th><th>Played</th><th>Last played</th><th>Wiki</th></tr></thead>
+    <tbody>
+    @foreach (var e in Model.Entries)
+    {
+      var r = e.Row;
+      <tr id="m-@r.ContractId" class="@(e.NeedsInfo ? "todo" : null)">
+        @foreach (var (field, value, cls, hint) in new[]
+        {
+            ("name", r.Name ?? e.Title ?? r.WikiTitle ?? "", "name", e.Title ?? r.WikiTitle ?? ""),
+            ("giver", r.Giver ?? "", "", r.WikiGiver ?? ""),
+            ("auec", N(r.Auec), "num", r.WikiRewardMin == null ? "" : r.WikiRewardMin.Value.ToString(inv)),
+            ("mg", N(r.MgScrip), "num", ""),
+            ("council", N(r.CouncilScrip), "num", ""),
+            ("notes", r.Notes ?? "", "", ""),
+        })
+        {
+          <td>
+            <form method="post" action="/missions/set" asp-antiforgery="true" data-autosave>
+              <input type="hidden" name="id" value="@r.ContractId"><input type="hidden" name="field" value="@field"><input type="hidden" name="back" value="@back">
+              <input name="value" value="@value" placeholder="@hint" class="@cls" aria-label="@field" autocomplete="off">
+            </form>
+          </td>
+        }
+        <td class="right nowrap" title="taken @e.Taken, completed @e.Completed, failed @e.Failed, abandoned @e.Abandoned">@e.Completed / @e.Taken</td>
+        <td class="nowrap">@When(e.LastPlayed)</td>
+        <td class="muted small" title="ContractId @r.ContractId">@Wiki(r)</td>
+      </tr>
+    }
+    </tbody>
+  </table>
+  </div>
+  <p class="hint">Played: completed of taken (hover for failed and abandoned). Rewards are whole numbers; an empty field means not known. A grey hint in a
+    field is the log's title or what the Wiki says.</p>
+}

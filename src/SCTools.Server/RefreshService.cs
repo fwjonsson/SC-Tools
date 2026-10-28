@@ -12,11 +12,13 @@ public sealed class RefreshService : BackgroundService
     readonly DataStore _store;
     readonly ServerPaths _paths;
     readonly GauntletService _gauntlet;
+    readonly MissionLibrary _missions;
     readonly ILogger<RefreshService> _log;
 
-    public RefreshService(LiveTracker live, DataStore store, ServerPaths paths, GauntletService gauntlet, ILogger<RefreshService> log)
+    public RefreshService(LiveTracker live, DataStore store, ServerPaths paths, GauntletService gauntlet, MissionLibrary missions, ILogger<RefreshService> log)
     {
         _gauntlet = gauntlet;
+        _missions = missions;
         _live = live;
         _store = store;
         _paths = paths;
@@ -62,6 +64,14 @@ public sealed class RefreshService : BackgroundService
         catch (Exception ex)
         {
             _log.LogError(ex, "Saving the gauntlet runs failed");
+        }
+        try
+        {
+            _missions.Collect();
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Saving the missions for the Mission Library failed");
         }
         try
         {
