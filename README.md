@@ -212,7 +212,8 @@ admin (done), then going live.
   greens, a red and a dark red) is not taken, on My page and on the Party page. **My page** (`/me`) is his own Current location, colour, ship and quantum drive (the
   same lists as the Party table and the Trip Planner of the program); nobody else's. Five wrong passwords lock the login for ten minutes.
 - **SC Tools.** The site, `sct.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the hauling tracker's live page is at
-  `/hauling`. The old address `haulingtracker.fwjonsson.dev` sends every page to the same page at the site for good (301, `OldAddress`), so there is one
+  `/hauling`, every tab at an address of its own (`/hauling/session`, `/hauling/planner`, `/hauling/debts`, `/hauling/history`; the program's own page
+  keeps them after a #, and the old `#plan` links still work). The old address `haulingtracker.fwjonsson.dev` sends every page to the same page at the site for good (301, `OldAddress`), so there is one
   site and one login. Only the uploads of trackers that have not updated yet (`api/...`) are still taken there; once every tracker has updated itself, the
   old address is removed from the Cloudflare tunnel (and from `OldHosts` in the server's settings). The plan of the tools is `claude/sc-tools-roadmap.md` in the
   project.

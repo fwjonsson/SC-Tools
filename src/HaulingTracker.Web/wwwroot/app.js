@@ -372,16 +372,25 @@ function renderHistory() {
   section(el, 'h2', 'Saved sessions', d.saved);
 }
 
+// Every tab has its own address: /hauling/session, /hauling/planner, /hauling/debts, /hauling/history on the site; the program's own page (at /) keeps
+// them after a # (#planner). The old #plan links still open the Trip Planner.
+const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history' };
+const ON_SITE = /^\/hauling(\/|$)/.test(location.pathname);
+function tabOf(name) {
+  name = (name || '').replace(/^#/, '');
+  if (name === 'plan') name = 'planner';
+  return Object.keys(TABS).find(function (k) { return TABS[k] === name; });
+}
 function show(which) {
   ['S', 'P', 'D', 'H'].forEach(function (k) {
     document.getElementById('view' + k).classList.toggle('hidden', k !== which);
     document.getElementById('tab' + k).classList.toggle('on', k === which);
   });
-  try { history.replaceState(null, '', '#' + { S: 'session', P: 'plan', D: 'debts', H: 'history' }[which]); } catch (e) { }
+  try { history.replaceState(null, '', ON_SITE ? '/hauling/' + TABS[which] : '#' + TABS[which]); } catch (e) { }
   layout();   // the tables of a tab that was hidden could not be measured
 }
 ['S', 'P', 'D', 'H'].forEach(function (k) { document.getElementById('tab' + k).onclick = function () { show(k); }; });
-show({ '#plan': 'P', '#debts': 'D', '#history': 'H' }[location.hash] || 'S');
+show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || 'S');
 
 // The party tabs under Session: with more than one party in the game, All and every party (named by its leader: "zzoega's party"), each with its own
 // stops, contracts, session, leaderboard and runs; the viewer's own party first. With one party, its name alone (the whole session is theirs).

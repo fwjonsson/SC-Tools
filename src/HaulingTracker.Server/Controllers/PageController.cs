@@ -47,6 +47,12 @@ public sealed class PageController : Controller
         return page;
     }
 
+    static readonly string[] HaulingTabs = { "session", "planner", "debts", "history" };
+
+    /// <summary>A tab of the live page at its own address (/hauling/planner): the same page, which shows that tab.</summary>
+    [HttpGet("/hauling/{tab}")]
+    public IActionResult Tab(string tab) => HaulingTabs.Contains(tab) ? Page() : NotFound();
+
     [HttpGet("/data.json")]
     public IActionResult Data()
     {
