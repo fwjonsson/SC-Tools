@@ -16,7 +16,7 @@ using Microsoft.Extensions.Options;
 var builder = WebApplication.CreateBuilder(args);
 
 // the settings ("SCTools" in appsettings.json, the user secrets or the environment: SCTools__Database...), read when the server is built. The names from
-// before the rename (HaulingTracker__Database...) are read first, so a server whose settings still have them works the same.
+// before the rename (SCTools__Database...) are read first, so a server whose settings still have them works the same.
 builder.Services.Configure<ServerSettings>(builder.Configuration.GetSection("HaulingTracker"));
 builder.Services.Configure<ServerSettings>(builder.Configuration.GetSection("SCTools"));
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<ServerSettings>>().Value);
@@ -45,6 +45,7 @@ builder.Services.AddSingleton(sp =>
 });
 builder.Services.AddSingleton<LoginLinks>();
 builder.Services.AddSingleton<ToolAccess>();
+builder.Services.AddSingleton<GauntletService>();
 builder.Services.AddHostedService<RefreshService>();
 
 // the logins: ASP.NET Core Identity, its users and roles in the same database

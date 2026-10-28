@@ -40,10 +40,10 @@ mv /etc/sctools/haulingtracker.env /etc/sctools/sctools.env
 cur="$(basename "$(readlink /opt/sctools/current)")"
 ln -sfn "/opt/sctools/releases/$cur" /opt/sctools/current
 chown -h deploy:deploy /opt/sctools/current
-# the versions from before the rename are HaulingTracker.Server: they get the new name too (a link), so the service starts the one that runs now
+# the versions from before the rename are SCTools.Server: they get the new name too (a link), so the service starts the one that runs now
 for d in /opt/sctools/releases/*/; do
-  if [ -e "${d}HaulingTracker.Server" ] && [ ! -e "${d}SCTools.Server" ]; then
-    ln -s HaulingTracker.Server "${d}SCTools.Server"
+  if [ -e "${d}SCTools.Server" ] && [ ! -e "${d}SCTools.Server" ]; then
+    ln -s SCTools.Server "${d}SCTools.Server"
     chown -h deploy:deploy "${d}SCTools.Server"
   fi
 done
@@ -51,9 +51,9 @@ done
 echo "== the settings"
 env=/etc/sctools/sctools.env
 sed -i 's#/var/lib/haulingtracker#/var/lib/sctools#g; s#restart haulingtracker#restart sctools#g; s#Hauling Tracker web app#SC Tools web app#g' "$env"
-# the new version reads SCTools__..., the one that runs until GitHub puts it in place reads HaulingTracker__...: both are there until then
+# the new version reads SCTools__..., the one that runs until GitHub puts it in place reads SCTools__...: both are there until then
 if ! grep -q '^SCTools__' "$env"; then
-  { echo; echo "# the same settings under the new name (the new version reads these)"; grep '^HaulingTracker__' "$env" | sed 's/^HaulingTracker__/SCTools__/'; } >> "$env"
+  { echo; echo "# the same settings under the new name (the new version reads these)"; grep '^SCTools__' "$env" | sed 's/^SCTools__/SCTools__/'; } >> "$env"
 fi
 
 echo "== the service, the update script and the right to restart it"

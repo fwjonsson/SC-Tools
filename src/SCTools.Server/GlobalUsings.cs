@@ -2,6 +2,7 @@
 global using SCTools.Debts;
 global using SCTools.GameData;
 global using SCTools.GameLog;
+global using SCTools.Gauntlet;
 global using SCTools.Persistence;
 global using SCTools.Tracking;
 global using SCTools.View;

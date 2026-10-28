@@ -11,10 +11,12 @@ public sealed class RefreshService : BackgroundService
     readonly LiveTracker _live;
     readonly DataStore _store;
     readonly ServerPaths _paths;
+    readonly GauntletService _gauntlet;
     readonly ILogger<RefreshService> _log;
 
-    public RefreshService(LiveTracker live, DataStore store, ServerPaths paths, ILogger<RefreshService> log)
+    public RefreshService(LiveTracker live, DataStore store, ServerPaths paths, GauntletService gauntlet, ILogger<RefreshService> log)
     {
+        _gauntlet = gauntlet;
         _live = live;
         _store = store;
         _paths = paths;
@@ -53,6 +55,14 @@ public sealed class RefreshService : BackgroundService
             _log.LogError(ex, "Working out the logs failed");
         }
         Save();
+        try
+        {
+            _gauntlet.Collect();
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Saving the gauntlet runs failed");
+        }
         try
         {
             if (_store.BackupDaily(_paths.BackupDir, DateTime.Now)) _log.LogInformation("Made the daily copy of the database in {Dir}", _paths.BackupDir);

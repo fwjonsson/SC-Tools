@@ -31,6 +31,76 @@ namespace SCTools.Server.Data.Migrations
                     b.ToTable("DroppedMissions", (string)null);
                 });
 
+            modelBuilder.Entity("SCTools.Server.Data.GauntletRunRow", b =>
+                {
+                    b.Property<string>("Player")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MissionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcceptedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EndedUtc")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Scenario")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Player", "MissionId");
+
+                    b.ToTable("GauntletRuns", (string)null);
+                });
+
+            modelBuilder.Entity("SCTools.Server.Data.GauntletSessionRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EndedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Player")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StartedUtc")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GauntletSessions", (string)null);
+                });
+
+            modelBuilder.Entity("SCTools.Server.Data.GauntletSettingsRow", b =>
+                {
+                    b.Property<string>("Player")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RewardAuec")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RewardScrip")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("ScripValue")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Player");
+
+                    b.ToTable("GauntletSettings", (string)null);
+                });
+
             modelBuilder.Entity("SCTools.Server.Data.LocationNameRow", b =>
                 {
                     b.Property<string>("LocationId")
