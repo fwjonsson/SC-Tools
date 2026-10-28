@@ -130,7 +130,7 @@ public static class StarMap
 
     static readonly Dictionary<string, Place> ByKey = Places.ToDictionary(p => p.Key, StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>A place by its key ("pyro/ruin-station"), or null.</summary>
+    /// <summary>A place of the game data by its key ("pyro/ruin-station"), or null (the admin's changes: Atlas).</summary>
     public static Place? Find(string? key) => key != null && ByKey.TryGetValue(key, out var p) ? p : null;
 
     /// <summary>The places of a system.</summary>
@@ -140,7 +140,7 @@ public static class StarMap
     public static double Distance(Place a, Place b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
 
     /// <summary>The planets of a system in their order (the game's "pyro3" is the third: Bloom).</summary>
-    static readonly Dictionary<string, string[]> PlanetOrder = new()
+    internal static readonly Dictionary<string, string[]> PlanetOrder = new()
     {
         ["pyro"] = new[] { "pyro-i", "monox", "bloom", "pyro-iv", "pyro-v", "terminus" },
         ["stanton"] = new[] { "hurston", "crusader", "arccorp", "microtech" },
@@ -148,10 +148,10 @@ public static class StarMap
     };
 
     /// <summary>Stanton's planets as the names of their Lagrange stations start ("HUR-L1").</summary>
-    static readonly string[] StantonPrefix = { "HUR", "CRU", "ARC", "MIC" };
+    internal static readonly string[] StantonPrefix = { "HUR", "CRU", "ARC", "MIC" };
 
     /// <summary>The Hauling Planner's Pyro stations (PyroDistances ids) and their places.</summary>
-    static readonly Dictionary<string, string> PyroStations = new()
+    internal static readonly Dictionary<string, string> PyroStations = new()
     {
         [PyroDistances.Ruin] = "ruin-station", ["73791"] = "rats-nest", ["70269"] = "megumi-refueling", ["70120"] = "patch-city", ["69936"] = "gaslight",
         ["72785"] = "dudley-daughters", ["73041"] = "orbituary", ["72645"] = "rods-fuel-n-supplies", ["70053"] = "starlight-service-station",
@@ -159,7 +159,7 @@ public static class StarMap
     };
 
     /// <summary>The place of one of the Hauling Planner's Pyro stations (its id in PyroDistances), or null.</summary>
-    public static Place? OfPyroStation(string? id) => id != null && PyroStations.TryGetValue(id, out var p) ? Find("pyro/" + p) : null;
+    public static Place? OfPyroStation(string? id) => Atlas.Default.OfPyroStation(id);
 
     static readonly Dictionary<string, string> PyroIdOf = PyroStations.ToDictionary(kv => "pyro/" + kv.Value, kv => kv.Key);
 
@@ -170,70 +170,23 @@ public static class StarMap
     public static double JumpGm(Place a, Place b) =>
         PyroIdOf.TryGetValue(a.Key, out var ia) && PyroIdOf.TryGetValue(b.Key, out var ib) ? PyroDistances.Between(ia, ib) : Distance(a, b);
 
-    static string Letters(string s) => new(s.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+    /// <summary>A name in small letters and digits only ("Rod's Fuel 'N Supplies" is "rodsfuelnsupplies"): names compare so.</summary>
+    public static string Letters(string s) => new(s.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 
-    static readonly Regex Planet = new(@"^(?:rs_ext_)?(?<s>pyro|stanton|nyx)(?<n>\d)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    static readonly Regex RestStop = new(@"(?:RR_S(?<n>\d)_L(?<l>\d)|stanton(?<n>\d)_l(?<l>\d))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    static readonly Regex Gate = new(@"(?<a>pyro|stanton|nyx)-(?<b>pyro|stanton|nyx|stan|terra)_jp", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-    /// <summary>
-    /// The place a quantum destination of the log is ("rs_ext_pyro6_leo", "pyro3", "LOC_RR_S1_L2", "rs_ext_nyx-pyro_jp1", "levski_all-001"), or null (a party member,
-    /// an asteroid, an encounter: not a place of the map). A name that fits places in more than one system: the one in this system.
-    /// </summary>
-    public static Place? OfQuantumTarget(string target, string? system = null)
+    /// <summary>A key for a name: small letters and digits, a dash between the words ("Rod's Fuel 'N Supplies" is "rods-fuel-n-supplies").</summary>
+    public static string Slug(string name)
     {
-        if (string.IsNullOrWhiteSpace(target)) return null;
-        if (OfPyroStation(PyroDistances.IdOfQuantumTarget(target)) is { } station) return station;
-        var m = Planet.Match(target);
-        if (m.Success)
-        {
-            var order = PlanetOrder[m.Groups["s"].Value.ToLowerInvariant()];
-            var n = m.Groups["n"].Value[0] - '1';
-            return n >= 0 && n < order.Length ? Find(m.Groups["s"].Value.ToLowerInvariant() + "/" + order[n]) : null;
-        }
-        m = RestStop.Match(target);
-        if (m.Success)
-        {
-            var n = m.Groups["n"].Value[0] - '1';
-            if (n >= 0 && n < StantonPrefix.Length)
-                return Of("stanton").FirstOrDefault(p => p.Short.Equals(StantonPrefix[n] + "-L" + m.Groups["l"].Value, StringComparison.OrdinalIgnoreCase));
-        }
-        m = Gate.Match(target);
-        if (m.Success)
-        {
-            var b = m.Groups["b"].Value.ToLowerInvariant() switch { "stan" => "stanton", var x => x };
-            return Find(m.Groups["a"].Value.ToLowerInvariant() + "/" + b + "-gateway");
-        }
-        // a place whose name is in it ("levski_all-001" is Levski), the longest name; in this system first
-        var t = Letters(target);
-        return Places.Where(p => p.Kind != PlaceKind.Star && Letters(p.Name).Length >= 5 && t.Contains(Letters(p.Name), StringComparison.Ordinal))
-            .OrderByDescending(p => p.System == system).ThenByDescending(p => Letters(p.Name).Length).FirstOrDefault();
+        var words = Regex.Split(name.ToLowerInvariant().Replace("'", "").Replace("\u2019", ""), "[^a-z0-9]+").Where(w => w.Length > 0);
+        return string.Join("-", words);
     }
 
-    /// <summary>
-    /// What a name the game says in plain words is ("Projected Start Location is Aberdeen", "... is Pyro System"): the system and the place (null for the system
-    /// alone, or neither). A name of more than one system ("Nyx Gateway" is in Pyro and Stanton): the one in this system; else, after a gateway, the system it
-    /// leads to; else the only one.
-    /// </summary>
-    public static (string? System, Place? Place) OfName(string name, string? system = null, Place? at = null)
-    {
-        var n = Letters(name);
-        if (n.Length == 0) return (null, null);
-        foreach (var s in Systems)
-            if (n == Letters(s.Name + " system") || n == Letters(s.Name)) return (s.Id, null);
-        var all = Places.Where(p => p.Kind != PlaceKind.Star && (Letters(p.Name) == n || Letters(p.Short) == n)).ToList();
-        if (all.Count == 0)   // a longer or a shorter name ("Megumi Refueling Station", "Gaslight"): the place it starts with, the longest
-            all = Places.Where(p => p.Kind != PlaceKind.Star && Letters(p.Name).Length >= 5 && n.Length >= 5 &&
-                    (n.StartsWith(Letters(p.Name), StringComparison.Ordinal) || Letters(p.Name).StartsWith(n, StringComparison.Ordinal)))
-                .GroupBy(p => p.System).Select(g => g.OrderByDescending(p => Letters(p.Name).Length).First()).ToList();
-        if (all.Count == 0) return (null, null);
-        var here = all.FirstOrDefault(p => p.System == system);
-        if (here != null) return (here.System, here);
-        if (at?.Kind == PlaceKind.Gateway)
-        {
-            var to = Systems.FirstOrDefault(s => at.Name.StartsWith(s.Name + " ", StringComparison.OrdinalIgnoreCase));
-            if (to != null && all.FirstOrDefault(p => p.System == to.Id) is { } there) return (there.System, there);
-        }
-        return all.Count == 1 ? (all[0].System, all[0]) : (null, null);
-    }
+    internal static readonly Regex Planet = new(@"^(?:rs_ext_)?(?<s>pyro|stanton|nyx)(?<n>\d)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    internal static readonly Regex RestStop = new(@"(?:RR_S(?<n>\d)_L(?<l>\d)|stanton(?<n>\d)_l(?<l>\d))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    internal static readonly Regex Gate = new(@"(?<a>pyro|stanton|nyx)-(?<b>pyro|stanton|nyx|stan|terra)_jp", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    /// <summary>The place a quantum destination of the log is, in the game data (Atlas.OfQuantumTarget).</summary>
+    public static Place? OfQuantumTarget(string target, string? system = null) => Atlas.Default.OfQuantumTarget(target, system);
+
+    /// <summary>What a name the game says in plain words is, in the game data (Atlas.OfName).</summary>
+    public static (string? System, Place? Place) OfName(string name, string? system = null, Place? at = null) => Atlas.Default.OfName(name, system, at);
 }

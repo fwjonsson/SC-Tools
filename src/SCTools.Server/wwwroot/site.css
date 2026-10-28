@@ -167,3 +167,13 @@ table.fleet tr.on td:first-child { box-shadow:inset 3px 0 0 var(--good); }
 .good { color:var(--good); }
 .stale { color:#e3b341; }
 p.tracker { font-weight:600; }
+/* Map places (admin): what the logs say that the map does not know, and the places */
+form.alias { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+form.alias input { flex:1 1 220px; width:auto; }
+form.alias select { flex:1 1 200px; width:auto; }
+form.alias button { margin:0; }
+span.small, a.small { font-size:12px; }
+.sysnav { display:flex; gap:14px; margin:4px 0; }
+table.places tr.added td:first-child { box-shadow:inset 3px 0 0 var(--good); }
+table.places tr.renamed td:first-child { box-shadow:inset 3px 0 0 var(--accent); }
+

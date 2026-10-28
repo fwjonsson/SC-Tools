@@ -20,4 +20,8 @@
   </div>
 </div>
 <p class="hint" id="mapState"></p>
+@if (User.IsInRole(Roles.Admin))
+{
+  <p class="hint"><a href="/admin/places">Map places</a>: say what a destination the map does not know is, rename a place, add one.</p>
+}
 <script src="~/map.js" asp-append-version="true" defer></script>
