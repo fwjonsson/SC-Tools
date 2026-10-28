@@ -4,11 +4,9 @@
     var inv = CultureInfo.InvariantCulture;
 }
 <h1>Gauntlet</h1>
-<p class="muted">What the Gauntlet Tracker counts with, the same for everybody (their pages and the leaderboard).</p>
+<p class="muted">What the Gauntlet Tracker counts with, the same for everybody (their pages and the leaderboard). What a MG scrip is worth in aUEC is on
+  the <a href="/admin/scrip">Scrip</a> page, for every tool.</p>
 <form method="post" action="/admin/gauntlet" asp-antiforgery="true" class="card">
-  <label for="ScripValue">aUEC value of one MG scrip</label>
-  <input id="ScripValue" name="ScripValue" type="number" min="0" step="1" class="num" value="@Math.Round(Model.ScripValue).ToString(inv)">
-  <p class="hint">Used for the totals, the per hour and the rankings. 0 counts scrip as worth nothing.</p>
   <table class="narrow">
     <thead><tr><th>Scenario</th><th>aUEC</th><th>MG scrip</th></tr></thead>
     <tbody>

@@ -170,7 +170,7 @@ else
   <h2>Leaderboard</h2>
   <p class="hint">Everybody with a gauntlet mission, the most earned first. Total is aUEC plus MG scrip at @Money(Model.ScripValue) aUEC each. Per hour is over the
     runs that were timed (from accepting to completing), so a mission shared to you without a start does not count for it.@if (Model.IsAdmin) { <text> The
-    rewards and the scrip value are on your <a href="/admin/gauntlet">Gauntlet page</a>.</text> }</p>
+    rewards are on your <a href="/admin/gauntlet">Gauntlet page</a>, the scrip value on <a href="/admin/scrip">Scrip</a>.</text> }</p>
   @if (Model.Leaderboard.Count == 0)
   {
     <p class="muted">Nobody has a gauntlet mission yet.</p>

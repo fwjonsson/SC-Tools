@@ -760,6 +760,23 @@ namespace SCTools.Server.Data.Migrations
                     b.ToTable("Settings", (string)null);
                 });
 
+            modelBuilder.Entity("SCTools.Server.Data.SiteValueRow", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ChangedUtc")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Value")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("SiteValues", (string)null);
+                });
+
             modelBuilder.Entity("SCTools.Server.Data.ToolRow", b =>
                 {
                     b.Property<string>("Id")

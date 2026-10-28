@@ -54,13 +54,24 @@ public class GauntletPageTests
         Assert.Contains("<tr class=\"me\">", board);   // his own row stands out
         Assert.Contains("227,750", board);
 
-        var fields = new List<(string, string)> { ("ScripValue", "1000") };
+        var fields = new List<(string, string)>();
         for (var n = 1; n <= 8; n++) fields.Add(("A" + n, n == 7 ? "300000" : GauntletRewards.Defaults[n].Auec.ToString()));
         for (var n = 1; n <= 8; n++) fields.Add(("S" + n, GauntletRewards.Defaults[n].Scrip.ToString()));
         var saved = await ServerFactory.Send(admin, "/admin/gauntlet", "/admin/gauntlet", fields.ToArray());
         Assert.Equal("/admin/gauntlet", saved.Headers.Location?.OriginalString);
         Assert.Contains("300,000", await bileh.GetStringAsync("/gauntlet/leaderboard"));   // everybody counts with the admin's rewards
         Assert.Contains("value=\"300000\"", await admin.GetStringAsync("/admin/gauntlet"));
+
+        // what a MG scrip is worth is on the admin's Scrip page, for every tool: #7 pays 16 scrip
+        await ServerFactory.Send(admin, "/admin/scrip", "/admin/scrip/set", ("field", "mg"), ("value", "1,000"));
+        await ServerFactory.Send(admin, "/admin/scrip", "/admin/scrip/set", ("field", "council"), ("value", "2500"));
+        Assert.Contains("316,000", await bileh.GetStringAsync("/gauntlet/leaderboard"));   // 300,000 aUEC + 16 x 1,000
+        var scrip = await admin.GetStringAsync("/admin/scrip");
+        Assert.Contains("value=\"1000\"", scrip);
+        Assert.Contains("value=\"2500\"", scrip);
+        var bad = await ServerFactory.Send(admin, "/admin/scrip", "/admin/scrip/set", ("field", "mg"), ("value", "cheap"));
+        Assert.Contains("Not saved", await admin.GetStringAsync("/admin/scrip"));
+        Assert.Equal(HttpStatusCode.Redirect, (await bileh.GetAsync("/admin/scrip")).StatusCode);   // the admin's
     }
 
     [Fact]
