@@ -671,6 +671,9 @@ namespace SCTools.Server.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Definition")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EndedUtc")
                         .HasColumnType("TEXT");
 
