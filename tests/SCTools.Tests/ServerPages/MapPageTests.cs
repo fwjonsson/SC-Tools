@@ -193,6 +193,17 @@ public class MapPageTests
     }
 
     [Fact]
+    public async Task The_players_stand_beside_the_map_and_the_objectives_beside_them()
+    {
+        using var f = new ServerFactory();
+        var page = await (await f.Admin()).GetStringAsync("/map");
+        var players = page.IndexOf("<div class=\"mapside players\">", StringComparison.Ordinal);
+        var objectives = page.IndexOf("<div class=\"mapside objectives\">", StringComparison.Ordinal);
+        Assert.True(page.IndexOf("<div class=\"mapbox\">", StringComparison.Ordinal) < players && players < objectives);   // three columns of .maptool
+        Assert.Contains(".mapside.objectives { flex:1 1 320px; }", await f.Browser().GetStringAsync("/site.css"));
+    }
+
+    [Fact]
     public async Task The_map_tool_and_the_hauling_planner_draw_with_the_same_engine()
     {
         using var f = new ServerFactory();
