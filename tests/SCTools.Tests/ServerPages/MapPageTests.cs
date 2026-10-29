@@ -40,11 +40,13 @@ public class MapPageTests
         var z = Player(JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement, "zzoii");
         Assert.Equal(("nyx", "at", "nyx/levski"), (z.GetProperty("system").GetString(), z.GetProperty("state").GetString(), z.GetProperty("at").GetString()));
 
-        // a location the map does not know: on the admin's Map places
+        // a location the map does not know: on the admin's Map places, and he is still where the map had him (not "no signal yet")
         Assert.True(f.Live.Uploads.Add("zzoii", Id(now.AddMinutes(-3)), 1000, 2000, log.Lines.Skip(log.Lines.Count - 1).ToList(), now).Ok);
         var page = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/places"));
         Assert.Contains("Stanton9_Nowhere", page);
         Assert.Contains("Inventory location", page);
+        z = Player(JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement, "zzoii");
+        Assert.Equal(("nyx", "at", "nyx/levski"), (z.GetProperty("system").GetString(), z.GetProperty("state").GetString(), z.GetProperty("at").GetString()));
     }
 
     [Fact]
@@ -78,6 +80,20 @@ public class MapPageTests
     }
 
     [Fact]
+    public async Task The_planners_pickups_place_a_member_when_they_are_newer_than_his_jumps()
+    {
+        using var f = new ServerFactory { Data = PlayedSession.Data() };
+        var now = DateTime.UtcNow;
+        // Pilot_A hauled: his last pickup was at Gaslight (the planner knows), and his log has no quantum travel at all (the map does not)
+        Assert.True(f.Live.Uploads.Add(PlayedSession.Player, Id(GameLogWriter.Start), 0, 10000, PlayedSession.Writer().Lines.ToList(), now).Ok);
+        f.Live.Refresh(now);
+        var map = JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/map/map.json")).RootElement;
+        var a = Player(map, PlayedSession.Player);
+        Assert.Equal(("pyro", "at", "pyro/gaslight", "the Hauling Planner"),
+            (a.GetProperty("system").GetString(), a.GetProperty("state").GetString(), a.GetProperty("at").GetString(), a.GetProperty("via").GetString()));
+    }
+
+    [Fact]
     public async Task A_player_in_quantum_is_on_his_way_and_one_who_arrived_is_there()
     {
         using var f = new ServerFactory();
@@ -108,6 +124,10 @@ public class MapPageTests
         var objective = Assert.Single(map.GetProperty("objectives").EnumerateArray());
         Assert.Equal(("pyro", "pyro/patch-city", "Senior | Stellar Large Haul | to Ruin Station [50/200/250/500/1000/2000/4000 Rep]"),   // by its name, as the library
             (objective.GetProperty("system").GetString(), objective.GetProperty("place").GetString(), objective.GetProperty("title").GetString()));
+        var mission = Assert.Single(map.GetProperty("missions").EnumerateArray());   // the table under the map: the mission, who has it, the library's columns
+        Assert.Equal(("Senior | Stellar Large Haul | to Ruin Station [50/200/250/500/1000/2000/4000 Rep]", "zzoega", 1),
+            (mission.GetProperty("title").GetString(), Assert.Single(mission.GetProperty("who").EnumerateArray()).GetString(), mission.GetProperty("open").GetInt32()));
+        Assert.True(mission.TryGetProperty("faction", out _) && mission.TryGetProperty("legality", out _));
 
         // the systems the page draws, with their places
         var systems = map.GetProperty("systems").EnumerateArray().ToList();
