@@ -341,8 +341,9 @@
       const of = pl.mission ? ' (' + pl.mission + ')' : '';   // at or to a mission's objective: which mission
       if (pl.state === 'at' || pl.state === 'mission') what.textContent = 'At ' + pl.atName + of + (pl.since ? ' since ' + since(pl.since) : '');
       else if (pl.state === 'heading') what.textContent = 'In quantum to ' + pl.toName + of + (pl.since ? (of ? ', since ' : ' (since ') + since(pl.since) + (of ? '' : ')') : '');
-      else if (pl.state === 'unknown') what.textContent = pl.note ? pl.note + (pl.since ? ' (' + since(pl.since) + ')' : '')
-        : 'Where: not known yet (no quantum jump to a place the map knows)';
+      else if (pl.state === 'unknown') what.textContent = pl.off
+        ? 'Off the grid: out of comm-array range' + (pl.since ? ' since ' + since(pl.since) : '') + (pl.lastPing ? ' · last ping at ' + pl.lastPing : '')
+        : 'No signal yet: waiting for the first comm-array ping (a quantum jump or an inventory)';
       if (pl.state === 'jump') {
         const meter = document.createElement('div'); meter.className = 'speed';
         const num = document.createElement('span'); num.className = 'num';

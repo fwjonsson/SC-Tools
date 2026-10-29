@@ -68,6 +68,13 @@ public class MapPageTests
         Assert.Equal(("nyx", "Go to Asteroid Cluster", false), (objective.GetProperty("system").GetString(), objective.GetProperty("where").GetString(),
             objective.TryGetProperty("place", out _)));
         Assert.Equal(1, map.GetProperty("unplaced").GetInt32());   // only in the list
+
+        // zzatvo jumped from Levski at something with no mission going on: off the grid, last seen at Levski
+        var lost = new GameLogWriter().At(now.AddMinutes(-6)).Login("zzatvo").Inventory("zzatvo", "Nyx_Levski").Minutes(4).QuantumArrived("ANVL_Arrow", "777777777777");
+        Assert.True(f.Live.Uploads.Add("zzatvo", Id(now.AddMinutes(-6)), 0, 1000, lost.Lines.ToList(), now).Ok);
+        var a = Player(JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/map/map.json")).RootElement, "zzatvo");
+        Assert.Equal(("nyx", "unknown", true, "Levski"),
+            (a.GetProperty("system").GetString(), a.GetProperty("state").GetString(), a.GetProperty("off").GetBoolean(), a.GetProperty("lastPing").GetString()));
     }
 
     [Fact]
