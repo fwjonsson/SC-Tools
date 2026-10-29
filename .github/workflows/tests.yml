@@ -1,9 +1,13 @@
 name: Tests
 
 # The tests of the core, the web view and the server's database, and the planner scenarios (printed in the log, and as a notice on the run). They run on Linux:
-# nothing in them needs Windows.
+# nothing in them needs Windows. Once per change: for every pull request, and for every merge to main that touches what they test (a green run on main is
+# what starts Deploy). A push to a branch that is in a pull request runs them once, as the pull request; the Migration workflow starts them by hand for the
+# migration commit it makes. The NuGet packages are kept between runs.
 on:
   push:
+    branches:
+      - main
     paths:
       - 'src/SCTools.Core/**'
       - 'src/SCTools.Web/**'
@@ -22,6 +26,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - name: Keep the NuGet packages between runs
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
       - name: Run the tests
         shell: bash
         run: |
@@ -35,8 +45,7 @@ jobs:
           body=$(printf "%s\n%s" "$summary" "$problems" | tail -c 6000 | sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g')
           echo "::notice title=Test results::$body"
           exit $code
-      - name: Build the server
-        run: dotnet build src/SCTools.Server -c Release
+      # as Deploy does it: a server that cannot be published for the Arm server is caught here, before the merge (the tests built it for Linux already)
       - name: Build the server for the Arm server (as Deploy does)
         run: dotnet publish src/SCTools.Server -c Release -r linux-arm64 --self-contained true -o publish-arm64 && ls publish-arm64 | head -50 && ls publish-arm64/wwwroot
       - name: Plan the scenarios
