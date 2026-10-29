@@ -10,7 +10,8 @@
   .ok { color:#5fd35f; } .bad { color:#ff6b6b; }
   .top { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
   .top > div:first-child { min-width:0; flex:1 1 560px; }   /* the stops take the width ... */
-  .top > div:last-child { flex:0 0 520px; max-width:100%; }   /* ... the party, contracts and session are as narrow as in the program */
+  .top > div:last-child { flex:0 0 520px; max-width:100%; }   /* ... the party and session are as narrow as in the program */
+  #viewC .scroll { max-width:620px; }   /* the Contracts tab: its table as narrow as it was under Session */
   .scroll { overflow-x:auto; }
   .bal table { table-layout:fixed; }
   .bal th:nth-child(1) { width:24%; }
@@ -21,7 +22,7 @@
   th { background:var(--header); color:#fff; font-weight:600; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   table.tight th { white-space:normal; }
   .kv td:first-child { font-weight:600; width:50%; }
-  /* party, contracts and session: the middle line is straight (the party's four columns, the contracts' first two, the session's two are halves) */
+  /* party, contracts (its own tab) and session: the middle line is straight (the party's four columns, the contracts' first two, the session's two are halves) */
   #party table, #rewards table, #summary table { table-layout:fixed; }
   #party th, #rewards th { width:25%; }
   #party th:nth-child(3) { width:50%; }   /* QT Drive: the other half */
