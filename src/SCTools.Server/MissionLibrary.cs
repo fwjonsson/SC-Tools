@@ -139,6 +139,7 @@ public sealed class MissionLibrary
                 to.MgScrip ??= was.MgScrip;
                 to.CouncilScrip ??= was.CouncilScrip;
                 to.Giver ??= was.Giver;
+                to.Scu ??= was.Scu;
                 to.Notes ??= was.Notes;
                 if (was.EditedUtc != null && (to.EditedUtc == null || was.EditedUtc > to.EditedUtc)) (to.EditedBy, to.EditedUtc) = (was.EditedBy, was.EditedUtc);
             }
@@ -335,7 +336,7 @@ public sealed class MissionLibrary
     }
 
     /// <summary>The fields a player can type in.</summary>
-    public static readonly string[] Fields = { "name", "giver", "auec", "mg", "council", "notes" };
+    public static readonly string[] Fields = { "name", "giver", "scu", "auec", "mg", "council", "notes" };
 
     /// <summary>
     /// Changes one field of a kind of mission (empty: not known). The aUEC of a Hauling Planner kind is what the planner pays for that contract line: the
@@ -345,7 +346,7 @@ public sealed class MissionLibrary
     {
         value = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         long? number = null;
-        if (field is "auec" or "mg" or "council" && value != null)
+        if (field is "auec" or "mg" or "council" or "scu" && value != null)
         {
             if (!long.TryParse(value.Replace(" ", "").Replace(",", "").Replace(".", ""), out var n) || n < 0) return null;
             number = n;
@@ -364,6 +365,7 @@ public sealed class MissionLibrary
                 case "auec": row.Auec = number; break;
                 case "mg": row.MgScrip = number; break;
                 case "council": row.CouncilScrip = number; break;
+                case "scu": row.Scu = number; break;
                 default: return null;
             }
             row.EditedBy = who;
