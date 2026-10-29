@@ -12,7 +12,7 @@
   .top > .main { min-width:0; flex:1 1 560px; }   /* the tabs and the stops take the width ... */
   .top > .side { flex:0 0 560px; max-width:100%; padding-top:8px; }   /* ... the Party table beside the tabs, level with them (the tabs' margin), and the session under it */
   .side h2 { margin-top:18px; }
-  #viewC .scroll { max-width:620px; }   /* the Contracts tab: its table as narrow as it was under Session */
+  #viewC .scroll { max-width:960px; }   /* the Contracts tab: room for the contracts' names ("Senior | Stellar Large Haul | to Ruin Station [...]") */
   .scroll { overflow-x:auto; }
   .bal table { table-layout:fixed; }
   .bal th:nth-child(1) { width:24%; }
@@ -25,11 +25,12 @@
   .kv td:first-child { font-weight:600; width:50%; }
   /* party, contracts (its own tab) and session: set widths (the contracts' first two columns and the session's two are halves) */
   #party table, #rewards table, #summary table { table-layout:fixed; }
-  #rewards th { width:25%; }
+  #rewards th:nth-child(1) { width:44%; } #rewards th:nth-child(2) { width:16%; }   /* Contract: the room; its name wraps when there is still not enough */
+  #rewards td:nth-child(1) { white-space:normal; }
   /* the Party table: Member, Ship (the room: "Crusader C2 Hercules Starlifter"), QT Drive; a ship name that is still too long wraps instead of running into the drive */
   #party th:nth-child(1) { width:24%; } #party th:nth-child(2) { width:46%; } #party th:nth-child(3) { width:30%; }
   #party td:nth-child(2) { white-space:normal; }
-  #rewards th:nth-child(3) { width:14%; } #rewards th:nth-child(4) { width:17%; } #rewards th:nth-child(5) { width:19%; }
+  #rewards th:nth-child(3) { width:11%; } #rewards th:nth-child(4) { width:13%; } #rewards th:nth-child(5) { width:16%; }
   #runs td:nth-child(3) { white-space:normal; }   /* Pickup Location & Time of Cargo runs: a long run wraps instead of running over the next columns */
   #pickups td:nth-child(7), #pickups td:nth-child(8) { white-space:normal; }   /* Notes and Drop-off of Stops: they wrap on a narrower window */
   .empty { opacity:.6; padding:6px 0; }

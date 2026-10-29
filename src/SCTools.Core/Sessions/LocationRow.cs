@@ -15,6 +15,7 @@ public sealed class LocationRow
     public int Delivered;       // stops whose cargo has been handed in at Ruin
     public int Missing;         // of those missions, the ones whose cargo is all handed in but that never completed (cargo missing)
     public List<Mission> OpenMissions = new();   // the missions of the stops that are not picked up yet (a mission twice when two of its stops are here)
+    public List<Mission> StopMissions = new();   // the mission of every stop here, picked up or not (a mission twice when two of its stops are here): what the stops are worth
     public DateTime? LoadedTime;     // latest pickup event here (UTC)
     public DateTime? DeliveredTime;  // set when every stop here has been handed in (UTC)
 }

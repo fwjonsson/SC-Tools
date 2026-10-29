@@ -4,15 +4,16 @@ namespace SCTools.Missions;
 
 /// <summary>
 /// What the Mission Library groups the missions by (their kind). The same mission at another place has another ContractId in the log, but the same name, so a
-/// mission is grouped by its name as the game shows it. The missions the Hauling Planner reads are grouped by its contract line instead ("2 To Ruin",
-/// "Direct From Ruin"): that is what decides what they pay (a direct one is named after where it goes).
+/// mission is grouped by its name as the game shows it, the missions the Hauling Planner reads too (since 29 Oct 2026: an Experienced contract and a
+/// Senior one with as many stops are two kinds, with their own rewards); one of them whose name no log showed is grouped by its contract line ("2 To
+/// Ruin", "Direct From Ruin").
 /// </summary>
 public static class MissionKinds
 {
     public const string HaulingPrefix = "hauling:";
 
-    /// <summary>The key of a mission's kind: its contract line when the Hauling Planner reads it, else its name; null while it has no name.</summary>
-    public static string? KeyOf(string? title, string? hauling) => hauling != null ? HaulingKey(hauling) : TitleKey(title);
+    /// <summary>The key of a mission's kind: its name; a mission the Hauling Planner reads whose name no log showed, its contract line; null without either.</summary>
+    public static string? KeyOf(string? title, string? hauling) => TitleKey(title) ?? (hauling != null ? HaulingKey(hauling) : null);
 
     public static string HaulingKey(string contract) => HaulingPrefix + contract.Trim().ToLowerInvariant();
 

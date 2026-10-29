@@ -22,6 +22,23 @@ public class EarningsTests
     }
 
     [Fact]
+    public void A_contract_pays_what_the_library_says_for_its_kind_before_the_table_by_stops()
+    {
+        const string uuid = "11111111-1111-1111-1111-111111111111";
+        var book = new JobBook(new Dictionary<string, long>(), new Dictionary<string, JobKind> { ["senior | stellar large haul | to ruin station"] = new JobKind(null, null, null, 1_900_000) },
+            () => Atlas.Default, new Dictionary<string, WikiContract> { [uuid] = new WikiContract(uuid, null, null, Array.Empty<ScuRange>(), 1_000_000, 1_200_000, "aUEC") });
+        var inp = new SessionInputs();
+        var senior = new Mission { Multi = 3, Title = "Senior | Stellar Large Haul | to Ruin Station" };
+        var experienced = new Mission { Multi = 3, Title = "Experienced | Stellar Large Haul | to Ruin Station", Definition = uuid };
+        Assert.Equal(1_900_000m, Earnings.RewardOf(senior, inp, book));   // typed in the library for its kind
+        Assert.Equal(1_100_000m, Earnings.RewardOf(experienced, inp, book));   // nothing typed: the Wiki's reward for the contract (the middle of its range)
+        Assert.Equal(Earnings.DefaultReward3, Earnings.RewardOf(new Mission { Multi = 3, Title = "Something else" }, inp, book));   // the library knows nothing: the table by stops
+        Assert.Equal(Earnings.DefaultReward3, Earnings.RewardOf(senior, inp));   // the program has no library
+        Assert.Equal(1_900_000m, Earnings.WasteRewardOf(new Mission { OutDrops = 2, Title = "Senior | Stellar Large Haul | to Ruin Station" }, null, book));
+        Assert.Null(Earnings.KindReward(senior, null));
+    }
+
+    [Fact]
     public void Nothing_typed_is_filled_in_with_the_built_in_payouts()
     {
         var inp = new SessionInputs { Reward2 = 1000m };

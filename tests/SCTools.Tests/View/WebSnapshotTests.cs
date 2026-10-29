@@ -65,7 +65,8 @@ public class WebSnapshotTests
         Assert.Equal(new[] { "Contract", "Mission Reward", "Active", "Completed", "Total" }, Headers(d.GetProperty("rewards")));
         var rewards = Rows(d.GetProperty("rewards"));
         Assert.Equal(2, rewards.Length);   // only the kind of contract the session has, and the Total
-        Assert.Equal(new[] { "2 To Ruin", Earnings.DefaultReward2.ToString("N0"), "1", "1", (2 * Earnings.DefaultReward2).ToString("N0") }, Cells(rewards[0]));   // one still going, one done
+        // the contract by its name as the game shows it (one still going, one done), paying the built-in reward: no library here
+        Assert.Equal(new[] { "Senior | Stellar Large Haul | to Ruin Station [50/200/250/500/1000/2000/4000 Rep]", Earnings.DefaultReward2.ToString("N0"), "1", "1", (2 * Earnings.DefaultReward2).ToString("N0") }, Cells(rewards[0]));
         Assert.Equal(new[] { "Total", "", "1", "1", (2 * Earnings.DefaultReward2).ToString("N0") }, Cells(rewards[^1]));
         Assert.Equal("Total", Cells(rewards[^1])[0]);
         Assert.True(rewards[^1].GetProperty("bold").GetBoolean());

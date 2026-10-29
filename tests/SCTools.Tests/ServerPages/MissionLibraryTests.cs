@@ -44,7 +44,7 @@ public class MissionLibraryTests
         var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));   // only the admin until the tool is shown
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(page, System.Text.RegularExpressions.Regex.Escape(RivalShown)));
         Assert.DoesNotContain("data-autosave", page);   // read-only, the admin's too
-        Assert.Contains("Hauling: 2 To Ruin", page);   // the Hauling Planner's contract lines are there from the start
+        Assert.DoesNotContain("Hauling: 2 To Ruin", page);   // the planner's contracts are kinds by their game names, like every mission (29 Oct 2026)
         Assert.Contains("href=\"/admin/missions\"", page);   // where he changes it
         Assert.DoesNotContain("0 / 2", page);   // zzoega's plays are not the admin's
 
@@ -156,7 +156,7 @@ public class MissionLibraryTests
             .Select(m => (System.Text.RegularExpressions.Regex.Match(m.Value, "<td class=\"name\"[^>]*>([^<]+)").Groups[1].Value.Trim(), m.Value)).ToList();
         var page = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions"));
         var rows = Rows(page);
-        Assert.Equal(MissionsController.PageSize, rows.Count);   // 20 to a page, by name: the Hauling rows, then Kill..., Old Mission 1, 10, 11...
+        Assert.Equal(MissionsController.PageSize, rows.Count);   // 20 to a page, by name: Kill..., Old Mission 1, 10, 11...
         var names = rows.Select(r => r.Name).ToList();
         Assert.Equal(names.OrderBy(n => n, StringComparer.OrdinalIgnoreCase), names);
         Assert.True(names.IndexOf("Kill the Outlaw at Bloom") < names.IndexOf("Old Mission 1"));
@@ -182,7 +182,7 @@ public class MissionLibraryTests
         Assert.Contains("Page 1 of ", WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?page=0")));   // out of range: the nearest one
         // sorted by what he completed: the completed ones first, the one he is playing (0 completed) after them, and the kinds he never played last
         var last = Rows(WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions?sort=played&dir=desc&page=2"))).Select(r => r.Name).ToList();
-        Assert.True(last.IndexOf("Kill the Outlaw at Bloom") < last.IndexOf("Hauling: 2 To Ruin"), string.Join(", ", last));
+        Assert.Equal("Kill the Outlaw at Bloom", last[^1]);   // after the 25 he completed
         Assert.Contains("Nothing here.", await admin.GetStringAsync("/missions?mine=1"));   // the admin played nothing
         // the latest he played first: the one he plays now, then the ones of 21 Oct, then the kinds he never played
         var latest = Rows(WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions?sort=last&dir=desc"))).Select(r => r.Name).ToList();
@@ -285,31 +285,39 @@ public class MissionLibraryTests
     }
 
     [Fact]
-    public async Task The_kinds_of_the_Hauling_Planner_are_named_as_the_game_names_their_missions()
+    public async Task The_planners_contracts_are_kinds_by_their_game_names_and_the_planner_pays_what_the_library_says()
     {
-        using var f = new ServerFactory();
+        using var f = new ServerFactory { Data = PlayedSession.Data() };   // a session started by hand
         var admin = await f.Admin();
         var library = f.Services.GetRequiredService<MissionLibrary>();
-        const string key = "hauling:2 to ruin";
         const string game = "Senior | Stellar Large Haul | to Ruin Station [50/200/250/500/1000/2000/4000 Rep]";
-        Assert.Equal("Hauling: 2 To Ruin", library.Entries().Single(e => e.Row.Key == key).Row.Title);   // no mission of it yet: its contract line
+        var key = MissionKinds.TitleKey(game)!;
+        Assert.DoesNotContain(library.Entries(), e => MissionKinds.IsHauling(e.Row.Key));   // no contract lines: a contract is a kind by its name once one is seen
 
         f.Upload(PlayedSession.Player, PlayedSession.Writer().Lines.ToList());   // two of them, as the game names them
         library.Collect();
         var kind = library.Entries().Single(e => e.Row.Key == key);
-        Assert.Equal((game, 2), (kind.Row.Title, kind.Taken));
-        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));
-        Assert.Contains(game, page);
-        Assert.DoesNotContain("Hauling: 2 To Ruin", page[page.IndexOf("<table", StringComparison.Ordinal)..]);
-        Assert.DoesNotContain("the Hauling Planner pays its aUEC", page);   // nothing under the names
+        Assert.Equal((game, 2, (long?)null), (kind.Row.Title, kind.Taken, kind.Row.Auec));
+        Assert.Contains(game, WebUtility.HtmlDecode(await admin.GetStringAsync("/missions")));
+        Assert.Equal(Earnings.DefaultReward2, f.Live.Read(t => t.Earnings.RewardOf(t.State.Current!.Missions[0])));   // nothing typed: the built-in one
 
-        // the kinds named by their contract line before get the game's name once (the one most of their missions have)
+        // what is typed for it is what the planner pays for every such contract (an Experienced one is another kind, with its own reward)
+        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", key), ("field", "auec"), ("value", "1 500 000"));
+        Assert.Equal(1_500_000m, f.Live.Read(t => t.Earnings.RewardOf(t.State.Current!.Missions[0])));
+        f.Live.Refresh(DateTime.UtcNow);   // data.json is made anew on the next refresh (the server's every two seconds)
+        var contracts = JsonDocument.Parse(await admin.GetStringAsync("/data.json")).RootElement.GetProperty("rewards").GetProperty("rows")[0].GetProperty("cells").EnumerateArray().Select(c => c.GetString()).ToArray();
+        Assert.Equal(new[] { game, 1_500_000m.ToString("N0"), "1", "1", 3_000_000m.ToString("N0") }, contracts);
+
+        // the kinds named by their contract line from before 29 Oct 2026 go to the kinds by name when the server starts, with what was typed for them
         using (var db = f.Store.Open())
         {
-            db.MissionKinds.Single(k => k.Key == key).Title = "Hauling: 2 To Ruin";
+            db.MissionKinds.Add(new MissionKindRow { Key = "hauling:2 to ruin", Title = "Hauling: 2 To Ruin", MgScrip = 3 });
+            foreach (var m in db.Missions) m.Kind = "hauling:2 to ruin";
             db.SaveChanges();
         }
         var again = new MissionLibrary(f.Store, f.Live.Uploads, f.Services.GetRequiredService<ServerPaths>(), f.Live);   // as when the server starts
-        Assert.Equal(game, again.Entries().Single(e => e.Row.Key == key).Row.Title);
+        var moved = again.Entries().Single(e => e.Row.Key == key);
+        Assert.Equal((1_500_000L, 3L, 2), (moved.Row.Auec, moved.Row.MgScrip, moved.Taken));
+        Assert.DoesNotContain(again.Entries(), e => MissionKinds.IsHauling(e.Row.Key));
     }
 }
