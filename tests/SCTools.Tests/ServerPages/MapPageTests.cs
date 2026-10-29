@@ -202,8 +202,8 @@ public class MapPageTests
         var missions = page.IndexOf("<div class=\"mapmissions\">", StringComparison.Ordinal);
         Assert.True(page.IndexOf("<div class=\"mapbox\">", StringComparison.Ordinal) < players && players < objectives && objectives < missions);   // the four cells of the grid
         var css = await f.Browser().GetStringAsync("/site.css");
-        Assert.Contains(".mapside.objectives { grid-column:3; grid-row:1 / span 2; }", css);
-        Assert.Contains(".mapmissions { grid-column:1 / span 2; grid-row:2;", css);   // as wide as the map and the players
+        Assert.Contains(".mapside.objectives { grid-column:3; grid-row:1; }", css);
+        Assert.Contains(".mapmissions { grid-column:1 / span 3; grid-row:2;", css);   // from the map's left edge to the objectives' right edge
         // the objectives list says where and who, not which mission (the Active missions table says that)
         var script = await f.Browser().GetStringAsync("/map.js");
         Assert.Contains("const text = (o.where || '') + (o.system && !here(o.system)", script);

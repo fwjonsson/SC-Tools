@@ -278,7 +278,7 @@ admin (done), then going live.
   fell to "No signal yet" at Ruin). The Hauling Planner's pickups, deliveries and hand-ins place a member of its party too (`Whereabouts.AutoLocationOf`,
   `LastMoveOf`), when they are newer than anything his jumps say; his card says so ("the Hauling Planner"). The players' cards stand beside the map and
   the objectives beside them, three columns on a wide screen (Frank, 29 Oct 2026; under each other on a narrow one); an objective line says the place
-  and who, not the mission. Under the map and the players, as wide as both, **Active missions**: every
+  and who, not the mission. Under all three, from the map's left edge to the objectives' right edge, **Active missions**: every
   mission going on with who has it, its open objectives and the Mission Library's columns for its kind (faction, category, SCU, reward, scrip, XP,
   legality). The objectives he can jump to are the ones the game paired with a quantum beacon (`<PairWithMissionNavpoint>
   MissionObjectiveMarker_21517[21517] - Paired with NavPoint: MISSION_QT_Quantum_Beacon_LongRange_…`, `HaulingLog.Beacons`, with the objective's
