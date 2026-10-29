@@ -94,7 +94,7 @@ public class MissionLibraryTests
         Assert.Contains(">25,000<", seen);
         Assert.Contains(">1,536<", seen);
         Assert.Contains("<option value=\"Red Wind\" selected=\"selected\">Red Wind</option>", WebUtility.HtmlDecode(await player.GetStringAsync("/missions?giver=Red%20Wind")));
-        Assert.DoesNotContain("Hauling: 2 To Ruin", WebUtility.HtmlDecode(await player.GetStringAsync("/missions?giver=Red%20Wind")));   // another giver
+        Assert.DoesNotContain("<tr id=\"" + MissionLibrary.Anchor("hauling:2 to ruin") + "\"", await player.GetStringAsync("/missions?giver=Red%20Wind"));   // no giver: not in it
         Assert.DoesNotContain(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?rewards=todo")));
         Assert.Contains(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?rewards=known")));
         Assert.Contains(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?q=rival")));
@@ -130,6 +130,7 @@ public class MissionLibraryTests
     {
         using var f = new ServerFactory();
         var admin = await f.Admin();
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "missions"), ("value", "true"));   // shown: the players see it
         var zzoega = await f.Player(f.AddKey("zzoega"));
         var library = f.Services.GetRequiredService<MissionLibrary>();
         // 25 kinds played on 21 Oct, then a bounty taken a minute ago: the log never says which offer it is (most missions with comms do not), and one
@@ -211,7 +212,7 @@ public class MissionLibraryTests
             .Concat(Mission("33333333-3333-3333-3333-333333333333", C2, "Stop Rival Attack", "2026-09-01")).ToArray();
         var r = await tracker.PostAsJsonAsync("/api/history", new { file = "2026-09-01T07:00:00.000Z", from = 0, lines, done = true });
         r.EnsureSuccessStatusCode();
-        Assert.Contains("value=\"Stop Rival Attack\"", await admin.GetStringAsync("/missions"));
+        Assert.Contains("value=\"Stop Rival Attack\"", await admin.GetStringAsync("/admin/missions"));
 
         var library = f.Services.GetRequiredService<MissionLibrary>();
         using (var db = f.Store.Open())
