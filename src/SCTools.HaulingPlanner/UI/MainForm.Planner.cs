@@ -507,12 +507,12 @@ public sealed partial class MainForm
 
     const int PlanTitleHeight = 26;
     const int PlanMinText = 110;                            // the text column of a table (Cargo, Route) is never narrower than this
-    const int PlanQueuedFixed = 36 + 64 + 84 + 80 + 74 + 68;  // the Queued routes without its Route column: #, Stops, Batches, Value, Distance, In flight
+    const int PlanQueuedFixed = 36 + 64 + 84 + 64 + 80 + 74 + 68;  // the Queued routes without its Route column: #, Stops, Batches, SCU, Value, Distance, In flight
     const int PlanGap = 8;                                  // between the Current Route and the Queued routes under it
     const int PlanRunsMin = 150;                            // Cargo Runs under the map is never lower than this (the page scrolls instead)
 
     /// <summary>The Current Route without its Cargo column (the one that takes the room that is left): #, Stops, Drop/Collect, Value, Distance, In flight.</summary>
-    static int PlanCurrentFixed(int action) => 36 + 120 + action + 80 + 74 + 68;
+    static int PlanCurrentFixed(int action) => 36 + 120 + action + 64 + 80 + 74 + 68;
 
     static readonly Font PlanBoldFont = new("Segoe UI", 10f, FontStyle.Bold);
 
@@ -533,7 +533,7 @@ public sealed partial class MainForm
             foreach (var l in visible[0].Lines)
             {
                 current = Math.Max(current, Measure(l.ActionText));
-                cargo = Math.Max(cargo, Measure(l.CargoText));
+                cargo = Math.Max(cargo, Measure(l.BoxesText));
             }
             foreach (var r in visible.Skip(1)) queued = Math.Max(queued, Measure(r.Route));
         }
@@ -573,9 +573,10 @@ public sealed partial class MainForm
         if (current)
         {
             grid.Columns.Add(Col(PlanCol.Stop, "Stops", 120, true, DataGridViewContentAlignment.MiddleLeft));
-            action = Col(PlanCol.Action, "Deliver/Collect", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
+            action = Col(PlanCol.Action, "Collect/Deliver", textWidth, true, DataGridViewContentAlignment.MiddleLeft);
             grid.Columns.Add(action);
-            text = Col(PlanCol.Cargo, "Cargo", cargoWidth, true, DataGridViewContentAlignment.MiddleLeft);
+            grid.Columns.Add(Col(PlanCol.Scu, "SCU", 64, true, DataGridViewContentAlignment.MiddleRight));
+            text = Col(PlanCol.Boxes, "Boxes", cargoWidth, true, DataGridViewContentAlignment.MiddleLeft);
             grid.Columns.Add(text);
         }
         else
@@ -584,6 +585,7 @@ public sealed partial class MainForm
             grid.Columns.Add(text);
             grid.Columns.Add(Col(PlanCol.Stops, "Stops", 64, true));   // how many stops it has
             grid.Columns.Add(Col(PlanCol.Batches, "Batches", 84, true));
+            grid.Columns.Add(Col(PlanCol.TripScu, "SCU", 64, true, DataGridViewContentAlignment.MiddleRight));
         }
         grid.Columns.Add(Col(PlanCol.Value, "Value", 80, true, DataGridViewContentAlignment.MiddleRight));
         grid.Columns.Add(Col(PlanCol.Distance, "Distance", 74, true, DataGridViewContentAlignment.MiddleRight));
@@ -618,12 +620,12 @@ public sealed partial class MainForm
             st.SelectionForeColor = TextOn(WorkerColor(w.Name));
         }
         AddTotalRow(grid, PlanText.LineTotals(current.Lines));
-        // a load the game did not tell the SCU of: click its Cargo cell to type it (the program works out the containers)
-        var cargo = grid.Columns[PlanCol.Cargo]!.Index;
+        // a load the game did not tell the SCU of: click its Boxes cell to type it (the program works out the containers)
+        var cargo = grid.Columns[PlanCol.Boxes]!.Index;
         bool Typable(int row, int col) => col == cargo && row >= 0 && row < current.Lines.Count && current.Lines[row].Unknown.Count > 0;
         for (var i = 0; i < current.Lines.Count; i++)
         {
-            if (Typable(i, cargo)) grid.Rows[i].Cells[PlanCol.Cargo].Value = current.Lines[i].CargoText + "  (click to type)";
+            if (Typable(i, cargo)) grid.Rows[i].Cells[PlanCol.Boxes].Value = current.Lines[i].BoxesText + "  (click to type)";
         }
         grid.CellMouseEnter += (_, e) => grid.Cursor = Typable(e.RowIndex, e.ColumnIndex) ? Cursors.Hand : Cursors.Default;
         grid.CellClick += (_, e) =>

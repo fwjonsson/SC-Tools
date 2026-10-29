@@ -170,7 +170,9 @@ static class PlanCol
     public const string Number = GridCol.Number;
     public const string Stop = "stop";             // Current Route: the station
     public const string Action = "action";         // Current Route: what is done there (Deliver/Collect)
-    public const string Cargo = "cargo";           // Current Route: the batches and loads
+    public const string Scu = "scu";               // Current Route: the SCU of the loads, or the guessed SCU of the batches
+    public const string Boxes = "boxes";           // Current Route: the containers of the loads, or the batches
+    public const string TripScu = "tripscu";       // Queued routes: everything the trip carries, in SCU
     public const string Route = "route";           // Queued routes: the stations of the trip
     public const string Stops = "stops";           // Queued routes: how many stops
     public const string Batches = "batches";       // Queued routes

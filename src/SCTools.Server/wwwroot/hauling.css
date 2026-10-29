@@ -28,7 +28,7 @@
 .hauling #rewards td:nth-child(1) { white-space:normal; }
 .hauling #rewards th:nth-child(3) { width:11%; } .hauling #rewards th:nth-child(4) { width:13%; } .hauling #rewards th:nth-child(5) { width:16%; }
 .hauling #runs td:nth-child(3) { white-space:normal; }   /* Pickup Location & Time of Cargo runs: a long run wraps instead of running over the next columns */
-.hauling #pickups td:nth-child(4) { white-space:normal; }   /* Cargo of Stops ("Waste 152 SCU: 4×32 + 24"): it wraps on a narrower window; Drop-off Location is a station name */
+.hauling #pickups td:nth-child(5) { white-space:normal; }   /* Boxes of Stops ("Waste: 4×32 + 24"): it wraps on a narrower window; Drop-off Location is a station name */
 .hauling .empty { opacity:.6; padding:6px 0; }
 .hauling #jobs td:nth-child(1), .hauling #jobs td:nth-child(3), .hauling #jobs td:nth-child(4) { white-space:normal; }   /* Other hauling: the mission and its stops wrap */
 .hauling .note { opacity:.75; font-size:12px; margin:4px 0 0; }
@@ -46,13 +46,14 @@
 .hauling .plantables { flex:1 1 520px; min-width:0; }
 .hauling .plantables h2:first-child { margin-top:0; }
 .hauling .plantables table { table-layout:fixed; }
-/* Current Route: #, Stops, Drop/Collect, Cargo (takes the rest), Value, Distance, In flight */
-.hauling .plancur th:nth-child(1) { width:36px; } .hauling .plancur th:nth-child(2) { width:120px; } .hauling .plancur th:nth-child(3) { width:200px; } .hauling .plancur th:nth-child(5) { width:80px; }
-.hauling .plancur th:nth-child(6) { width:80px; } .hauling .plancur th:nth-child(7) { width:70px; }
-.hauling .plancur td:nth-child(3), .hauling .plancur td:nth-child(4) { white-space:normal; }
-/* Queued routes: #, Route (takes the rest), Stops (how many), Batches, Value, Distance, In flight */
-.hauling .planque th:nth-child(1) { width:36px; } .hauling .planque th:nth-child(3) { width:64px; } .hauling .planque th:nth-child(4) { width:84px; } .hauling .planque th:nth-child(5) { width:80px; }
-.hauling .planque th:nth-child(6) { width:80px; } .hauling .planque th:nth-child(7) { width:70px; }
+/* Current Route: #, Stops, Drop/Collect, SCU, Boxes (takes the rest), Value, Distance, In flight */
+.hauling .plancur th:nth-child(1) { width:36px; } .hauling .plancur th:nth-child(2) { width:120px; } .hauling .plancur th:nth-child(3) { width:200px; } .hauling .plancur th:nth-child(4) { width:64px; }
+.hauling .plancur th:nth-child(6) { width:80px; } .hauling .plancur th:nth-child(7) { width:80px; } .hauling .plancur th:nth-child(8) { width:70px; }
+.hauling .plancur td:nth-child(3), .hauling .plancur td:nth-child(5) { white-space:normal; }
+.hauling .plancur .scuin { width:5em; }   /* the hauler's SCU to a stop */
+/* Queued routes: #, Route (takes the rest), Stops (how many), Batches, SCU, Value, Distance, In flight */
+.hauling .planque th:nth-child(1) { width:36px; } .hauling .planque th:nth-child(3) { width:64px; } .hauling .planque th:nth-child(4) { width:84px; } .hauling .planque th:nth-child(5) { width:64px; }
+.hauling .planque th:nth-child(6) { width:80px; } .hauling .planque th:nth-child(7) { width:80px; } .hauling .planque th:nth-child(8) { width:70px; }
 .hauling .planque td:nth-child(2) { white-space:normal; }
 /* every worker in his own frame: the Current Route, and the Queued routes under it */
 .hauling .planworker { background:var(--cell); border:1px solid var(--line); padding:4px 10px 10px; margin-bottom:12px; }
@@ -69,9 +70,9 @@
 @media (max-width:1600px) {
   .hauling .planleft { flex:0 0 520px; }
   .hauling .plancur table, .hauling .planque table { min-width:0; }
-  .hauling .plancur th:nth-child(2) { width:96px; } .hauling .plancur th:nth-child(3) { width:150px; } .hauling .plancur th:nth-child(5) { width:84px; }
-  .hauling .plancur th:nth-child(6), .hauling .planque th:nth-child(6) { width:72px; } .hauling .plancur th:nth-child(7), .hauling .planque th:nth-child(7) { width:62px; }
-  .hauling .planque th:nth-child(3) { width:52px; } .hauling .planque th:nth-child(4) { width:66px; } .hauling .planque th:nth-child(5) { width:84px; }
+  .hauling .plancur th:nth-child(2) { width:96px; } .hauling .plancur th:nth-child(3) { width:150px; } .hauling .plancur th:nth-child(4) { width:56px; } .hauling .plancur th:nth-child(6) { width:84px; }
+  .hauling .plancur th:nth-child(7), .hauling .planque th:nth-child(7) { width:72px; } .hauling .plancur th:nth-child(8), .hauling .planque th:nth-child(8) { width:62px; }
+  .hauling .planque th:nth-child(3) { width:52px; } .hauling .planque th:nth-child(4) { width:66px; } .hauling .planque th:nth-child(5) { width:56px; } .hauling .planque th:nth-child(6) { width:84px; }
   .hauling .plantables th, .hauling .plantables td { padding:4px 5px; }
 }
 @media (max-width:1200px) {
