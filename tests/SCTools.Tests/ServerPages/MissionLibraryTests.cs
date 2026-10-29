@@ -100,7 +100,7 @@ public class MissionLibraryTests
         Assert.Contains(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?q=rival")));
         Assert.Contains("Nothing here.", await player.GetStringAsync("/missions?mine=1"));   // bileh123 played nothing
         Assert.Contains(RivalShown, WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions?mine=1")));
-        Assert.Contains("href=\"/missions?sort=auec&amp;dir=desc\"", seen);   // a header sorts by its column
+        Assert.Contains("href=\"/missions?sort=auec&dir=desc\"", seen);   // a header sorts by its column (seen is decoded: no &amp;)
         Assert.Contains("href=\"/missions?sort=auec&amp;dir=asc\"", await player.GetStringAsync("/missions?sort=auec&dir=desc"));   // again: the other way round
         Assert.DoesNotContain("Last<br>played", seen);
 
@@ -157,7 +157,7 @@ public class MissionLibraryTests
         var row = rows.Single(r => r.Name == "Kill the Outlaw at Bloom").Html;   // being played by him: marked
         Assert.Contains(" running\"", row);   // its class
         Assert.Contains("<span class=\"now\">playing now</span>", row);
-        Assert.Contains(">0 / 1<", row);
+        Assert.True(row.Contains(">0 / 1<", StringComparison.Ordinal), row);
         Assert.DoesNotContain("running", rows.Single(r => r.Name == "Old Mission 1").Html);
         Assert.DoesNotContain("<span class=\"now\">", await admin.GetStringAsync("/missions"));   // not the admin's play
         Assert.DoesNotContain("Somebody Else", page);
