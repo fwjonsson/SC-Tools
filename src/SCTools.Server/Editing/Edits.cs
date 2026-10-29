@@ -224,14 +224,14 @@ public static class Edits
     // ------------------------------------------------------------------ the debts
 
     /// <summary>The key of a money transfer on the page (it has no id of its own): its time, who to whom, and the amount.</summary>
-    public static string TransferKey(SavedTransfer x) =>
-        x.Time.Ticks.ToString(CultureInfo.InvariantCulture) + "|" + x.From + "|" + x.To + "|" + x.Amount.ToString(CultureInfo.InvariantCulture);
+    public static string TransferKey(SavedTransfer x) => x.Key;
 
     /// <summary>Payment: the transfer pays off a debt (it counts against the balances).</summary>
-    public static string SetPayment(Tracker t, string key, bool payment)
+    public static string SetPayment(Tracker t, string key, bool payment, string? by = null)
     {
         var x = t.State.Data.Transfers.FirstOrDefault(tr => TransferKey(tr) == key);
         if (x == null) return "That transfer is not there any more.";
+        if (by != null && !PlayerNames.SameName(x.From, by)) return "Only " + x.From + ", who sent it, can say whether it is a payment.";   // a player on the live page: his own
         x.Payment = payment;
         return x.From + " to " + x.To + " " + x.Amount.ToString("N0", CultureInfo.CurrentCulture) + (payment ? " pays off a debt." : " is not a payment.");
     }
