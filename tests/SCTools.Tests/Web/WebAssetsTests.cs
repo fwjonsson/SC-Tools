@@ -40,7 +40,7 @@ public class WebAssetsTests
     {
         var page = WebAssets.Page;
         Assert.Contains(".planworker", page);   // app.css
-        Assert.Contains("body { margin:0 auto; max-width:1900px;", page);   // no wider than that on an ultrawide screen
+        Assert.Contains("body > .top, body > #belowS { max-width:1864px; margin-left:auto; margin-right:auto; }", page);   // the tables keep to the band, the bar goes edge to edge
         Assert.Contains("function renderPlanner", page);   // app.js
         Assert.Contains("function paymentTicks", page);   // the sender's Payment tick on the Debts tab
     }
