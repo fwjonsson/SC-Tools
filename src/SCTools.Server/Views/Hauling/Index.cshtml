@@ -1,14 +1,14 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hauling Planner (live)</title>
-<link rel="icon" href="/favicon.ico" type="image/x-icon">
-<link rel="shortcut icon" href="/favicon.ico">
-<link rel="stylesheet" href="app.css">
-</head>
-<body>
+@{
+    ViewData["Title"] = "Hauling Planner";
+    // who is looking (hauling.js reads it): a player logged in by his tracker, or the admin, who gets the list of whose session the tabs show
+    var me = (User.Identity?.IsAuthenticated == true ? User.Identity.Name : null) ?? "";
+    var admin = User.IsInRole(Roles.Admin);
+}
+@* The Hauling Planner, an ordinary page of the site since 29 Oct 2026 (Frank): the site's bar and look, hauling.css and hauling.js for its own tables, tabs
+   and map (systemmap.js, the one map engine). Every tab has its own address (/hauling/<tab>, PageController) and the script shows that tab. *@
+<link rel="stylesheet" href="~/hauling.css" asp-append-version="true">
+@* the admin gets data-admin (Razor writes a data- attribute even when its value is null, so it is written by hand) *@
+<div class="hauling" data-me="@me"@(admin ? Html.Raw(" data-admin=\"1\"") : null)>
 <!-- the title, the tabs and what they show on the left; on the Session tab the Party table beside them, level with the title, and the session under it (the
      leaderboard and the runs under both, over the whole width). After the tabs, for the admin only, the party whose session the tabs show -->
 <div class="top">
@@ -48,8 +48,6 @@
 <h2>Session leaderboard</h2><div class="scroll" id="leaders"></div>
 <h2>Cargo runs</h2><div class="scroll" id="runs"></div>
 </div>
-
-<script src="systemmap.js"></script>
-<script src="app.js"></script>
-</body>
-</html>
+</div>
+<script src="~/systemmap.js" asp-append-version="true"></script>
+<script src="~/hauling.js" asp-append-version="true"></script>

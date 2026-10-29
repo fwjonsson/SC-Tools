@@ -1,10 +1,11 @@
 var last = null;
 var shownStatus = -1;   // the last status line text that was faded in
 
-// who is looking (a player logged in by his tracker, or the admin): the server puts his name in the page; empty for everybody else
-const ME = ((document.querySelector('meta[name="me"]') || {}).content || '').toLowerCase();
+// who is looking (a player logged in by his tracker, or the admin): the page says (data-me on .hauling); empty for everybody else
+const PAGE = document.querySelector('.hauling') || { dataset: {} };
+const ME = (PAGE.dataset.me || '').toLowerCase();
 // the admin: he picks whose session the tabs show (everybody else sees his own party's)
-const ADMIN = !!document.querySelector('meta[name="admin"]');
+const ADMIN = !!PAGE.dataset.admin;
 // what was picked last (the party tab, what the Trip Planner shows), kept in this browser only
 function remembered(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
 function remember(key, value) { try { localStorage.setItem(key, value); } catch (e) { } }
@@ -652,8 +653,7 @@ async function refresh() {
     etag = res.headers.get('ETag');
     last = d;
     fetchedAt = Date.now();
-    const root = document.documentElement.style;
-    if (d.theme) { root.setProperty('--bg', d.theme.bg); root.setProperty('--fg', d.theme.fg); root.setProperty('--header', d.theme.header); root.setProperty('--line', d.theme.line); root.setProperty('--cell', d.theme.cell); }
+    // d.theme (the program's palette) is not applied: the page has the site's colours (site.css) since it became a page of the site, 29 Oct 2026
     document.getElementById('updated').textContent = 'updated ' + d.updated;
     live.textContent = '● live'; live.className = 'live ok';
     render();

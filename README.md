@@ -46,10 +46,8 @@ To make a single exe: `dotnet publish src/SCTools.HaulingPlanner -c Release -r w
         UI/Tables/             the names of the table columns (cells are found by name, never by number) and AddRow
         UI/Controls/           the map (PyroMapView) and the themed controls
         UI/Theming/            the light and dark colours
-        UI/MainForm.Web.cs     the program's own live web view (on this computer)
-      SCTools.Web/             the live web view: the small read-only server, the page itself in wwwroot (index.html, app.css, app.js) and the
-                               map engine every map of the site draws with (systemmap.js)
-      SCTools.Server/          the site (ASP.NET Core MVC): the trackers upload their logs to it, everybody watches the tools
+      SCTools.Server/          the site (ASP.NET Core MVC): the trackers upload their logs to it, everybody watches the tools; the Hauling Planner's
+                               page is Views/Hauling with wwwroot/hauling.js and hauling.css, and wwwroot/systemmap.js is the map engine every map draws with
       SCTools.Tracker/         the SC Tools Tracker every player runs on his gaming PC (SCToolsTracker.exe, a tray icon)
       ScApiTool/               the separate Star Citizen Wiki API tool
     tests/SCTools.Tests/       the tests (xUnit): dotnet test tests/SCTools.Tests
@@ -190,7 +188,10 @@ The **History** tab has the same table for **all saved sessions** (with an extra
 
 ## Live Web View (let somebody watch)
 
-**Options → Live Web View** switches on a small read-only web server inside the program. It shows all the tabs (Session, Trip Planner with its map and pages, Debts and History) with buttons on the page to switch between them, in the colours of your theme, and refreshes every few seconds (the running clocks, the session time and the run time of runs on the way, count up on the page every second in between). The page has the program icon as its icon (also in a bookmark). It only listens on your own computer (`http://localhost:8765`), and it can only show things: there is nothing to click or change, all changes are made in the program. The setting is remembered.
+**Gone (Frank, 29 Oct 2026):** the site is the live view (the Hauling Planner's page at sc-tools.fwjonsson.dev/hauling, for everybody with a tracker), and
+the program's own web server and page went with SCTools.Web; the page is an ordinary page of the site now (see "The web app"). What follows is how it was.
+
+**Options → Live Web View** switched on a small read-only web server inside the program. It shows all the tabs (Session, Trip Planner with its map and pages, Debts and History) with buttons on the page to switch between them, in the colours of your theme, and refreshes every few seconds (the running clocks, the session time and the run time of runs on the way, count up on the page every second in between). The page has the program icon as its icon (also in a bookmark). It only listens on your own computer (`http://localhost:8765`), and it can only show things: there is nothing to click or change, all changes are made in the program. The setting is remembered.
 - To let somebody else watch, point a Cloudflare tunnel at `http://localhost:8765` on the same computer. Quick and free, no account: install `cloudflared` (`winget install Cloudflare.cloudflared`) and run `cloudflared tunnel --url http://localhost:8765`; it prints an `https://...trycloudflare.com` address that changes every time. For a fixed address, make a tunnel in the Cloudflare dashboard (Networking, Tunnels) with a published application for your own domain and the service URL `http://localhost:8765`; its connector runs as a Windows service. Anybody with the address can look, so share it only with people you trust.
 - The program (with the web view on) and the tunnel connector have to be running on the same computer for the page to work.
 
@@ -288,9 +289,8 @@ admin (done), then going live.
   (`StationIds`), where they are when the marker is in the system's own frame (in the system the player is in), at the place their text names
   ("Go to a debris field above Daymar": `MapService.NamedIn`), else only in the list, by what they say and the contract's system (a bounty's marker
   is at 0, 0, 0). Only for the admin until it is shown on the Tools page.
-  **One map engine** (Frank, 29 Oct 2026): the map itself is `systemmap.js` in SCTools.Web's wwwroot, embedded with the live page: `WebAssets` inlines
-  it into the live page before app.js, and the server sends the same text to the Map tool's page as `/systemmap.js?v=<hash>`
-  (`WebAssets.SystemMapVersion`, kept by the browser until it changes). `SystemMap.create(box)` draws a system (`show`: the places of map.json's
+  **One map engine** (Frank, 29 Oct 2026): the map itself is `wwwroot/systemmap.js`, a file of the site both the Map tool's page and the Hauling
+  Planner's page load before their own script (with its version in the address, so a browser keeps it until it changes). `SystemMap.create(box)` draws a system (`show`: the places of map.json's
   `systems`, drawn anew only when they change), the objectives and players of map.json on it (`draw`, with a filter by name), gives the caller a layer
   between the system and the objectives and the anchors of the places (`layer`, `at`) for his own drawing, and makes the line and the speed meter of a
   player by name (`meter`: what he does, `describe`; in quantum his speed every frame). The Hauling Planner's Trip Planner tab draws Pyro with it:
@@ -321,7 +321,7 @@ admin (done), then going live.
   Hercules Starlifter" is the C2), its drive and how much faster the drive is (`AppData.DriveSpeedBonus`, `Crew.QtOf`) go to the planner every few
   seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Party table of the live page shows every member's ship
   and drive ("TS-2 S3 +20 %") instead of Active, which comes from the logs now (a member who is not active is faded).
-- **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the Hauling Planner's live page is at
+- **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the Hauling Planner's page is at
   `/hauling`, every tab at an address of its own (`/hauling/session`, `/hauling/contracts`, `/hauling/planner`, `/hauling/debts`, `/hauling/history`; the program's own page
   keeps them after a #, and the old `#plan` links still work; the live page's tables keep to 1,900 px in the middle of an ultrawide screen, with the bar at the top
   from edge to edge as on every page). The old addresses `haulingtracker.fwjonsson.dev` and `sct.fwjonsson.dev` send every page to the same page at the site for good (301, `OldAddress`), so there is one

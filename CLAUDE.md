@@ -18,7 +18,9 @@ planned, what was decided and why, tool by tool. This file says how we work.
 - The style of the code: one class per file, a namespace per area, comments in full sentences that say what a thing is and why ("the planner only
   gives a load to someone who has the mission"), English everywhere. Commit messages and PR bodies are plain sentences too: what it does and why,
   not a list of files. README.md is updated in the same pull request as the code it describes, and `docs/roadmap.md` when a plan or a decision changes.
-- The live page (`src/SCTools.Web/wwwroot`) is inlined into one page by `WebAssets`; its tabs have addresses (`/hauling/<tab>`), `PageController` lists them.
+- The Hauling Planner's page is an ordinary page of the site (`Views/Hauling/Index.cshtml`, `wwwroot/hauling.js` and `hauling.css`, the map engine
+  `wwwroot/systemmap.js`); its tabs have addresses (`/hauling/<tab>`), `PageController` lists them. The Windows program is not used any more (Frank, 29 Oct
+  2026): the site and the tracker are what counts.
 
 ## Never
 

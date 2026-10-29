@@ -6,4 +6,3 @@ global using SCTools.Gauntlet;
 global using SCTools.Persistence;
 global using SCTools.Tracking;
 global using SCTools.View;
-global using SCTools.Web;
