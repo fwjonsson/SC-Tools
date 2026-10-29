@@ -623,9 +623,10 @@ public sealed class MissionLibrary
 }
 
 /// <summary>
-/// Reads the old logs into the Mission Library once when the server starts (when it has none of them yet) and gives the tracker the library's SCU; reads
-/// the Star Citizen Wiki API's list of every mission when it was not read in the last day (WikiMissions.LearnAll: every kind gets its faction, category,
-/// reward, reputation and legality); then every minute the SCU the game said for a hauling job becomes the library's suggestion for its kind, and the API is
+/// Reads the old logs into the Mission Library once when the server starts (when it has none of them yet) and gives the tracker the library's SCU; then
+/// every minute: the Star Citizen Wiki API's list of every mission is read when it was not read in the last day (WikiMissions.LearnAll: every kind gets
+/// its faction, category, reward, reputation and legality; in the loop, not at the start, so the tests' servers never reach the API), the SCU the game said
+/// for a hauling job becomes the library's suggestion for its kind, and the API is
 /// asked about up to 10 contracts of the library's missions (the live logs' and the old ones') it was not asked about yet (WikiMissions.Learn: their
 /// hauling orders): until it was asked about every one, then only about a new one.
 /// </summary>
@@ -654,14 +655,6 @@ public sealed class MissionLibraryService : BackgroundService
         {
             _log.LogError(ex, "Reading the old logs into the Mission Library failed");
         }
-        try
-        {
-            await ReadList(stop);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _log.LogError(ex, "Reading the Star Citizen Wiki's list of missions failed");
-        }
         // every minute: what the game said the SCU of the hauling jobs is becomes the library's suggestion for their kinds
         while (!stop.IsCancellationRequested)
         {
@@ -671,7 +664,7 @@ public sealed class MissionLibraryService : BackgroundService
                 _library.SuggestFromGame(DateTime.UtcNow);
                 // the contracts of every mission in the library (the live logs' too) the Wiki API was not asked about yet, the newest first: up to 10 a minute
                 _library.Collect();
-                await ReadList(stop);   // once a day
+                await ReadList(stop);   // once a day (the first time within a minute of the start)
                 var learned = await _wiki.Learn(_library.Contracts(), DateTime.UtcNow, stop);
                 if (_library.LinkWiki() == 0 && learned > 0) _library.WikiLearned();   // (a new link made the book and the list again already)
             }
