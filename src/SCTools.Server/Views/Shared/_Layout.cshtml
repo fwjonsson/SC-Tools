@@ -18,8 +18,8 @@
   var path = (Context.Request.Path.Value ?? "").TrimEnd('/');
   bool On(string href) => href == "/admin" ? string.Equals(path, href, StringComparison.OrdinalIgnoreCase) : path.StartsWith(href, StringComparison.OrdinalIgnoreCase);
   <nav class="subnav area" style="--tool:@TopBar.AdminColor">
-    @foreach (var (href, text) in new[] { ("/admin", "Session"), ("/admin/party", "Party"), ("/admin/contracts", "Contracts"), ("/admin/debts", "Debts"),
-                                         ("/admin/gauntlet", "Gauntlet"), ("/admin/missions", "Edit Mission Info"), ("/admin/scrip", "Scrip"), ("/admin/places", "Map places"),
+    @foreach (var (href, text) in new[] { ("/admin", "Session"), ("/admin/party", "Party"), ("/admin/debts", "Debts"),
+                                         ("/admin/missions", "Edit Mission Info"), ("/admin/scrip", "Scrip"), ("/admin/places", "Map places"),
                                          ("/admin/keys", "Tracker keys"), ("/admin/tools", "Tools"),
                                          ("/account", "Account") })
     {

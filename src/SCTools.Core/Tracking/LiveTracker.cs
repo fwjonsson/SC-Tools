@@ -142,8 +142,21 @@ public sealed class LiveTracker
     {
         var data = Tracker.State.Data;
         var parties = AutoParty.Work(Uploads.Logs, data.Party, nowUtc);
+        // the party follows the game's parties (Frank, 29 Oct 2026): whoever the logs show in an in-game party with a member is a member too, with the
+        // settings every member has, so nobody is added by hand (a player alone, or in a party of strangers, is not: he does not haul with the party)
+        var joined = false;
+        foreach (var g in parties.Groups.Where(g => g.Names.Any(n => data.Party.Any(m => PlayerNames.SameName(m, n)))))
+        {
+            foreach (var n in g.Names.Where(n => !data.Party.Any(m => PlayerNames.SameName(m, n))).ToList())
+            {
+                if (!Tracker.Crew.Join(n)) continue;
+                if (data.AutoPartySince != null) Tracker.Crew.SetMemberActive(n, true, nowUtc, PartyChange.BackToLogs);   // the logs say whether he plays
+                joined = true;
+            }
+        }
+        if (joined) parties = AutoParty.Work(Uploads.Logs, data.Party, nowUtc);   // with the newcomers as members: when they were active
         Tracker.State.Parties = parties;
-        if (!AutoParty.Apply(data, parties, nowUtc)) return false;
+        if (!AutoParty.Apply(data, parties, nowUtc) && !joined) return false;
         Tracker.State.Save();
         Tracker.Plan.Invalidate();
         return true;

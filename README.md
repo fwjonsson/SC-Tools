@@ -318,9 +318,10 @@ admin (done), then going live.
   disclaimer. The admin's pages have a second row under it with his pages (Session, Party, Contracts, Debts, Gauntlet, Edit Mission Info, Scrip, Map
   places, Tracker keys, Tools, Account), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
 - **The admin's pages** change what the program changes, with the same logic (`Editing/Edits.cs`, each change saved and worked out again at once):
-  **Session** (`/admin`: the session, which starts and stops by itself (below), Next Stops locked or not, the mission rewards (shown: they are set in the Mission Library), the start time, the names and notes of the stops, the lost
-  cargo of the runs, the SCU of from-Ruin drop-offs the game did not tell), **Party** (add, remove, active, ship, drive, colour, location of every
-  member; a field is saved as soon as it is changed, on its own), **Contracts** (who has every mission, Gone / Bring back) and **Debts** (a member's balances typed over, the Payment tick of his transfers, what a
+  **Session** (`/admin`: the session, which starts and stops by itself (below), Next Stops locked or not, the start time, the names and notes of the
+  stops, **Register lost cargo** (the runs, with what was lost on each), the SCU of from-Ruin drop-offs the game did not tell; the rewards are the
+  Mission Library's and not on this page since 29 Oct 2026), **Party** (active, ship, drive, colour, location of every member, and Add for somebody the
+  logs have not shown yet; a field is saved as soon as it is changed, on its own; the party follows the game's parties, see below) and **Debts** (a member's balances typed over, the Payment tick of his transfers, what a
   mission really paid, the party of the session). What only the program on a PC has (the log sources, the channel, the data file, the look) is not there.
 - **Sessions start and stop by themselves** (`Sessions/AutoSessions` in the core): a session starts when a mission of the tool is accepted and goes on
   while anything happens with its missions; after an hour with nothing (also a crash, or the trackers off) it ended 5 minutes after the last thing that
@@ -336,7 +337,8 @@ admin (done), then going live.
   mission shared in the party is in every member's log and counts for each (the game pays each), as on the leaderboard; only the one who accepted it
   has its start, so it is timed once. The old address `/gauntlet/ranking` goes to History. The **Leaderboard** is everybody's: total earned, aUEC,
   MG scrip, total aUEC per hour over the timed runs, completed and completion rate, fastest run, favourite and best scenario, last played. The rewards
-  are the same for everybody: the Mission Library's "Combat Gauntlet - Scenario #n" (the admin's **Gauntlet** page, `/admin/gauntlet`, shows them).
+  are the same for everybody: the Mission Library's "Combat Gauntlet - Scenario #n", typed on Edit Mission Info (the admin's Gauntlet page and his
+  Contracts page went on 29 Oct 2026).
 - **What scrip is worth** is the admin's **Scrip** page (`/admin/scrip`, `ScripValues`, the table `SiteValues`): aUEC for one MG scrip and for one Council
   scrip, the price he thinks they sell for now. Every tool counts scrip with these, the past included (a new price changes old totals too).
 - **The Mission Library** (`/missions`, `Missions/MissionReader` and `Missions/MissionKinds` in the core, `MissionLibrary`) has every kind of mission
@@ -384,7 +386,10 @@ admin (done), then going live.
   disbanded."), and the trackers already send those lines. A tracker also sends the time of the last line of every piece, so the server knows how long each
   game ran (the log grows at least every few minutes while the game runs; quiet for fifteen minutes = the game ended, about as long as the game keeps a
   crashed player in his party; a game quit the normal way, with the quit line in its log, ended at once: `GameRun.Quit`). A member is active while his game
-  runs, or while somebody who is playing has him in his party, so a player whose tracker is off is still seen through the others' logs. Gone for less than
+  runs, or while somebody who is playing has him in his party, so a player whose tracker is off is still seen through the others' logs. **The party follows
+  the game's parties** (Frank, 29 Oct 2026): whoever the logs show in an in-game party with a member becomes a member by himself (`LiveTracker.Party`:
+  joined with the settings every member has, active while the logs show him playing); a player alone, or in a party of strangers, is not (he does not
+  haul with the party). Gone for less than
   fifteen minutes
   (a crash, a relog) does not count. A player's party only changes when the game says so (he joins or makes a party, somebody joins or leaves it, it is
   disbanded; when another log says he left, he is out of it in his own log too): a crash or a relog keeps his party, because the game puts him back in it

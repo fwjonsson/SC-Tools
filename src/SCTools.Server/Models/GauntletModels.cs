@@ -30,6 +30,3 @@ public sealed class GauntletPage
     public int Selected { get; init; } = 1;
     public int RunCount { get; init; }
 }
-
-/// <summary>The admin's Gauntlet page: the rewards (from the Mission Library).</summary>
-public sealed record GauntletAdminPage(IReadOnlyDictionary<int, GauntletReward> Rewards);

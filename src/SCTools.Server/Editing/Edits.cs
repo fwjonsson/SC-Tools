@@ -221,28 +221,6 @@ public static class Edits
 
     static Mission? MissionOf(Tracker t, string id) => t.Contracts.ContractRows().FirstOrDefault(m => m.Id == id);
 
-    /// <summary>Who has a mission (a box of the Contracts table): it wins over the logs until it is the same as what they say.</summary>
-    public static string SetHolder(Tracker t, string missionId, string member, bool has)
-    {
-        var m = MissionOf(t, missionId);
-        if (m == null) return "That mission is not going any more.";
-        if (m.Dropped) return "That mission is marked as gone: bring it back first.";
-        var name = t.State.Data.Party.FirstOrDefault(x => PlayerNames.SameName(x, member));
-        if (name == null) return member + " is not in the party.";
-        t.Contracts.SetHolder(m, name, has);
-        return name + (has ? " has " : " does not have ") + Contracts.ContractName(m) + (string.IsNullOrEmpty(m.Cargo) ? "" : " (" + m.Cargo + ")") + ".";
-    }
-
-    /// <summary>Gone / Bring back: a mission that is not in the game any more counts as abandoned everywhere (planner, session, payouts).</summary>
-    public static string ToggleGone(Tracker t, string missionId)
-    {
-        var m = MissionOf(t, missionId);
-        if (m == null) return "That mission is not going any more.";
-        var wasDropped = m.Dropped;
-        t.Contracts.ToggleGone(m);
-        return Contracts.ContractName(m) + (wasDropped ? " counts again." : " is marked as gone: it is not planned or counted.");
-    }
-
     // ------------------------------------------------------------------ the debts
 
     /// <summary>The key of a money transfer on the page (it has no id of its own): its time, who to whom, and the amount.</summary>

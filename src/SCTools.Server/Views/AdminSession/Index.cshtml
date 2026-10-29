@@ -35,20 +35,6 @@ else
   </div>
 }
 
-<h2>Mission rewards</h2>
-<p class="hint">@(Model.HasSession ? "What this session pays." : "No session now: the next session pays these.") They are in the
-  Mission Library (the Hauling kinds): change them on <a href="/admin/missions">Edit Mission Info</a> (click a contract). A change counts for the session
-  shown and every new session; an empty one is the built-in reward.</p>
-<table class="narrow">
-  <thead><tr><th>Contract</th><th class="right">Mission Reward</th></tr></thead>
-  <tbody>
-  @foreach (var r in Model.Rewards)
-  {
-    <tr><td><a href="/admin/missions#@r.Anchor">@r.Contract</a></td><td class="right">@r.Amount</td></tr>
-  }
-  </tbody>
-</table>
-
 @if (Model.HasSession)
 {
   <h2>Start time</h2>
@@ -84,7 +70,8 @@ else
     <p class="hint">A name you type replaces the one the program knows; an empty name gives that one back.</p>
   }
 
-  <h2>Cargo runs</h2>
+  <h2>Register lost cargo</h2>
+  <p class="hint">Every run of the session: say what was lost on it.</p>
   @if (Model.Runs.Count == 0)
   {
     <p class="muted">No runs yet.</p>

@@ -278,9 +278,7 @@ public class MissionLibraryTests
         var key = GauntletService.LibraryKey(7);
         await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", key), ("field", "auec"), ("value", "310000"));
         Assert.Equal(310_000, gauntlet.Rewards()[7].Auec);
-        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/gauntlet"));
-        Assert.Contains("310,000", page);
-        Assert.Contains("/admin/missions#" + MissionLibrary.Anchor(key), page);
+        Assert.Contains("value=\"310000\"", await admin.GetStringAsync("/admin/missions?q=combat%20gauntlet"));   // where the admin sees and changes them
 
         await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", key), ("field", "auec"), ("value", ""));
         Assert.Equal(0, gauntlet.Rewards()[7].Auec);   // emptied by somebody: not known, and the old value does not come back
