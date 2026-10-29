@@ -16,16 +16,18 @@
     var edit = Model.Editable;
     var me = Model.Viewer;
     var admin = User.IsInRole(Roles.Admin);
-    // the columns, with the key they sort by (a header is a link: again for the other way round)
-    var columns = new List<(string Key, string Text, string? Cls)> { ("name", "Mission", null), ("giver", "Giver", null), ("scu", "SCU", "right"), ("auec", "aUEC", "right"),
-        ("mg", "MG<br>scrip", "right"), ("council", "Council<br>scrip", "right") };
+    // the columns, with the key they sort by (a header is a link: again for the other way round); Faction, Category, XP and Legality are the Star Citizen
+    // Wiki's (the faction typed in wins), Reward is the aUEC typed in, else the Wiki's reward
+    var columns = new List<(string Key, string Text, string? Cls)> { ("name", "Mission", null), ("faction", "Faction", null), ("category", "Category", null),
+        ("scu", "SCU", "right"), ("auec", "Reward", "right"), ("mg", "MG<br>scrip", "right"), ("council", "Council<br>scrip", "right"), ("xp", "XP", "right"),
+        ("legality", "Legality", null) };
     if (me != null)
     {
         columns.Add(("played", "Failed /<br>Completed", "right"));
         columns.Add(("last", "Last<br>played", null));
     }
     string When(DateTime? utc) => utc == null ? "" : utc.Value.ToLocalTime().ToString("d MMM yyyy", inv);
-    string Arrow(string key) => f.Sort == key ? (f.Desc ? " ▾" : " ▴") : "";
+    string Arrow(string key) => f.Sort == key ? (f.Desc ? " \u25be" : " \u25b4") : "";
 }
 <h1>@(edit ? "Edit Mission Info" : "Mission Library")</h1>
 @if (edit)
@@ -34,24 +36,26 @@
   (the same mission at another place is the same row; the contracts the Hauling Planner reads are one row per contract line, which is what they pay by).
   Type in what the log does not say: it is saved as soon as you leave the field. The Session tool counts what everybody's missions earned with these
   rewards, the Gauntlet Tracker with the ones of the Combat Gauntlet scenarios, and the Hauling Planner pays the aUEC of the Hauling rows and plans with
-  the SCU. Everybody else sees it read-only on the <a href="@MissionsController.Path">Mission Library</a>.</p>
+  the SCU. The Faction, Category, Reward, XP and Legality in grey are the Star Citizen Wiki's (a faction or a reward typed in wins). Everybody else sees it
+  read-only on the <a href="@MissionsController.Path">Mission Library</a>.</p>
 }
 else
 {
 <p class="muted">Every mission we take is here by itself, from our logs (the old ones too), one row per name: the same mission at another place is the same
   row, and the contracts the Hauling Planner reads are one row per contract line (Hauling: 2 To Ruin...), which is what they pay by. With it is what the
-  log does not say: the aUEC, MG scrip and Council scrip it pays, its cargo in SCU and the giver. The Session tool counts what your missions earned with
-  these rewards, the Gauntlet Tracker with the ones of the Combat Gauntlet scenarios, and the Hauling Planner pays the aUEC of the Hauling rows and plans
-  with the SCU. Choose what to see below, and click a column to sort by it.@if (admin) { <text> You change it on <a href="@EditMissionsController.Path">Edit Mission Info</a>.</text> }</p>
+  Star Citizen Wiki says about the mission (the faction, the category, the reward, the XP and whether it is legal) and what we fill in ourselves (the reward
+  in aUEC, MG scrip and Council scrip, its cargo in SCU, the faction). The Session tool counts what your missions earned with these rewards, the Gauntlet
+  Tracker with the ones of the Combat Gauntlet scenarios, and the Hauling Planner pays the aUEC of the Hauling rows and plans with the SCU. Choose what
+  to see below, and click a column to sort by it.@if (admin) { <text> You change it on <a href="@EditMissionsController.Path">Edit Mission Info</a>.</text> }</p>
 }
 
 <form method="get" action="@path" class="line filters">
-  <input name="q" value="@f.Q" placeholder="Find a mission or a giver" aria-label="Find">
-  <select name="giver" aria-label="Giver">
-    <option value="">Every giver</option>
-    @foreach (var g in Model.Givers)
+  <input name="q" value="@f.Q" placeholder="Find a mission, a faction or a category" aria-label="Find">
+  <select name="faction" aria-label="Faction">
+    <option value="">Every faction</option>
+    @foreach (var g in Model.Factions)
     {
-      <option value="@g" selected="@(string.Equals(g, f.Giver, StringComparison.OrdinalIgnoreCase))">@g</option>
+      <option value="@g" selected="@(string.Equals(g, f.Faction, StringComparison.OrdinalIgnoreCase))">@g</option>
     }
   </select>
   <select name="rewards" aria-label="Rewards">
@@ -79,9 +83,9 @@ else
 <div id="library" data-version="@Model.Version" data-version-url="@(path + "/version")">
 @if (edit)
 {
-@* every giver typed in so far, to pick in a Giver field (autosave.js adds a new one as soon as it is saved) *@
-<datalist id="givers">
-  @foreach (var g in Model.Givers)
+@* every faction so far (typed in, or the Wiki's), to pick in a Faction field (autosave.js adds a new one as soon as it is saved) *@
+<datalist id="factions">
+  @foreach (var g in Model.Factions)
   {
     <option value="@g"></option>
   }
@@ -107,25 +111,35 @@ else
     @foreach (var e in Model.Entries)
     {
       var r = e.Row;
+      var w = e.Wiki;
       var mine = e.PlaysOf(me);
       var running = mine?.Running == true;
       <tr id="@e.Anchor" class="@(string.Join(" ", new[] { e.NeedsInfo ? "todo" : null, running ? "running" : null }.Where(c => c != null)) is { Length: > 0 } c ? c : null)">
         @if (edit)
         {
-          foreach (var (field, value, cls, hint) in new[]
+          @* a field where something can be typed in (Field), else the Wiki's text (Text), in the order of the columns *@
+          foreach (var (field, value, cls, hint, text) in new (string? Field, string Value, string Cls, string Hint, string? Text)[]
           {
-              ("name", r.Name ?? r.Title, "name", r.Title),
-              ("giver", r.Giver ?? "", "giver", "Type or pick"),
-              ("scu", N(r.Scu), "num scu", r.ScuSuggested != null ? N(r.ScuSuggested) : WikiScu(e.Wiki)),
-              ("auec", N(r.Auec), "num", e.Wiki?.AuecText ?? ""),
-              ("mg", N(r.MgScrip), "num scrip", ""),
-              ("council", N(r.CouncilScrip), "num scrip", ""),
+              ("name", r.Name ?? r.Title, "name", r.Title, null),
+              ("giver", r.Giver ?? "", "giver", w?.Faction ?? "Type or pick", null),
+              (null, "", "", "", e.Category),
+              ("scu", N(r.Scu), "num scu", r.ScuSuggested != null ? N(r.ScuSuggested) : WikiScu(w), null),
+              ("auec", N(r.Auec), "num", w?.RewardText ?? "", null),
+              ("mg", N(r.MgScrip), "num scrip", "", null),
+              ("council", N(r.CouncilScrip), "num scrip", "", null),
+              (null, "", "right", "", G(e.Xp)),
+              (null, "", "", "", e.Legality),
           })
           {
+            if (field == null)
+            {
+              <td class="@(cls.Length > 0 ? cls : null)">@if (text is { Length: > 0 }) { <span class="muted" title="the Star Citizen Wiki's">@text</span> }</td>
+              continue;
+            }
             <td>
               <form method="post" action="@(path + "/set")" asp-antiforgery="true" data-autosave="quiet">
                 <input type="hidden" name="id" value="@r.Key"><input type="hidden" name="field" value="@field"><input type="hidden" name="back" value="@back">
-                <input name="value" value="@value" placeholder="@hint" class="@cls" aria-label="@field" autocomplete="off" list="@(field == "giver" ? "givers" : null)">
+                <input name="value" value="@value" placeholder="@hint" class="@cls" aria-label="@(field == "giver" ? "faction" : field)" autocomplete="off" list="@(field == "giver" ? "factions" : null)">
               </form>
             </td>
           }
@@ -133,13 +147,17 @@ else
         else
         {
           <td class="name" title="@(r.Name != null && r.Name != r.Title ? "The game calls it " + r.Title : null)">@e.Shown</td>
-          <td>@(r.Giver ?? "")</td>
+          @if (r.Giver?.Trim() is { Length: > 0 } typed) { <td>@typed</td> }
+          else { <td>@if (w?.Faction is { Length: > 0 } wf) { <span class="muted" title="the Star Citizen Wiki's faction">@wf</span> }</td> }
+          <td>@if (e.Category is { Length: > 0 } cat) { <span class="muted" title="the Star Citizen Wiki's category">@cat</span> }</td>
           <td class="right nowrap">@if (r.Scu != null) { @G(r.Scu) }
             else if (r.ScuSuggested != null) { <span class="muted" title="suggested by @r.ScuSuggestedBy">@G(r.ScuSuggested)</span> }
-            else if (WikiScu(e.Wiki) is { Length: > 0 } ws) { <span class="muted" title="the Star Citizen Wiki's hauling orders">@ws</span> }</td>
-          <td class="right nowrap">@if (r.Auec != null) { @G(r.Auec) } else if (e.Wiki?.AuecText is { Length: > 0 } wa) { <span class="muted" title="the Star Citizen Wiki's reward">@wa</span> }</td>
+            else if (WikiScu(w) is { Length: > 0 } ws) { <span class="muted" title="the Star Citizen Wiki's hauling orders">@ws</span> }</td>
+          <td class="right nowrap">@if (r.Auec != null) { @G(r.Auec) } else if (w?.RewardText is { Length: > 0 } wr) { <span class="muted" title="the Star Citizen Wiki's reward">@wr</span> }</td>
           <td class="right">@G(r.MgScrip)</td>
           <td class="right">@G(r.CouncilScrip)</td>
+          <td class="right">@if (e.Xp != null) { <span class="muted" title="the reputation the Star Citizen Wiki says it gives">@G(e.Xp)</span> }</td>
+          <td>@if (e.Legality is { Length: > 0 } leg) { <span class="muted" title="the Star Citizen Wiki's">@leg</span> }</td>
         }
         @if (me != null)
         {
@@ -161,9 +179,10 @@ else
     </nav>
   }
   <p class="hint">@if (me != null) { <text>Failed / Completed and Last played are your own (hover the numbers for taken and abandoned); a green row is one
-    you are playing now. </text> }A grey aUEC is the Star Citizen Wiki's reward for the mission (it counts until one is typed in); a grey SCU is the one suggested last
-    (what a hauler typed in for one of these missions on the <a href="/hauling">Hauling Planner</a>'s Other hauling board, or what the game said) or the
-    Wiki's, and one typed in here wins over it; an empty cell means not known (an empty Hauling aUEC: the Hauling Planner's built-in reward).
+    you are playing now. </text> }What is grey is the Star Citizen Wiki's: the faction, the category, the reward (it counts until one is typed in), the XP (the
+    reputation the mission gives) and whether it is legal; a grey SCU is the one suggested last (what a hauler typed in for one of these missions on the
+    <a href="/hauling">Hauling Planner</a>'s Other hauling board, or what the game said) or the Wiki's hauling orders, and one typed in here wins over
+    it; an empty cell means not known (an empty Hauling reward: the Hauling Planner's built-in one).
     @if (edit) { <text>Rewards and SCU are whole numbers. A grey name is the one the game shows.</text> } else { <text>Hover a name to see what the game calls it when it
     was renamed.</text> }
     Click a column to sort by it, again for the other way round. @MissionsController.PageSize to a page.</p>

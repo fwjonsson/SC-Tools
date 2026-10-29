@@ -128,7 +128,7 @@ table.missions .now { color:var(--good); font-weight:600; font-size:12px; margin
 form.filters select { max-width:260px; }
 form.filters label.check { margin:0; }
 table.missions input.name { width:600px; }   /* the names are long: "Senior | Stellar Large Haul | to Ruin Station [50/200/... Rep]" */
-table.missions input.giver { width:260px; }
+table.missions input.giver { width:200px; }   /* the faction: "Bounty Hunters Guild" */
 table.missions th { line-height:1.15; }
 table.missions input.num { width:110px; text-align:right; }
 table.missions input.num.scrip { width:3.6em; }   /* a mission pays scrip in two figures at most */

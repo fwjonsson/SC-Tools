@@ -105,8 +105,9 @@ public sealed class HaulScuRow
 }
 
 /// <summary>
-/// What the Star Citizen Wiki API said about a contract (WikiMissions): its uuid (the log's contractDefinitionId), whether the API knows it, when it was
-/// asked, its debug name, title and hauling orders ("100-150;100-150": the SCU of every order).
+/// What the Star Citizen Wiki API said about a mission (WikiMissions): its uuid (the log's contractDefinitionId), whether the API knows it, when it was
+/// asked, its debug name, title and hauling orders ("100-150;100-150": the SCU of every order), its reward, and what the Wiki shows besides (the faction,
+/// the category, the reputation, the legality). From the list of every mission (read once a day) or the mission's own page (asked for a contract the logs had).
 /// </summary>
 public sealed class WikiMissionRow
 {
@@ -121,4 +122,17 @@ public sealed class WikiMissionRow
     public long? RewardMin { get; set; }
     public long? RewardMax { get; set; }
     public string? RewardCurrency { get; set; }
+
+    /// <summary>The faction that gives it (the Wiki's faction, else its mission giver), its category (the Wiki's "type": Hauling, Bounty Hunter...), the
+    /// reputation it gives (XP) and "Legal" or "Illegal"; null where the Wiki says nothing.</summary>
+    public string? Faction { get; set; }
+    public string? Category { get; set; }
+    public long? Xp { get; set; }
+    public string? Legality { get; set; }
+
+    /// <summary>
+    /// True while only the list of every mission was read for it (WikiMissions.LearnAll), which has no hauling orders: its own page is asked for when a
+    /// log has the contract (Learn), and then this is false.
+    /// </summary>
+    public bool ListOnly { get; set; }
 }

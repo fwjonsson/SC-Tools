@@ -8,7 +8,8 @@ namespace SCTools.Tests.ServerPages;
 
 /// <summary>
 /// The Star Citizen Wiki API's missions (WikiMissions): the server asks the API about the contracts of the logs by their uuid (the log's contractDefinitionId)
-/// once, keeps their hauling orders, and a hauling job nobody gave the SCU of has the middle of them.
+/// once, keeps their hauling orders, and a hauling job nobody gave the SCU of has the middle of them; it reads the list of every mission once a day, so
+/// every kind of the library shows the Wiki's faction, category, reward, XP and legality, also a kind whose contract id no log showed (by its name).
 /// </summary>
 public class WikiMissionsTests
 {
@@ -24,6 +25,11 @@ public class WikiMissionsTests
             debug_name = Master,
             title = "Master Hauler Needed for Large Shipment",
             mission_type = "Hauling - Stellar",
+            faction = new { name = "Red Wind", uuid = "9f3b4d6c-0000-0000-0000-000000000001" },
+            reward_scope = "Hauling",
+            reputation_amount = 1500,
+            illegal = false,
+            legality_label = "Legal",
             reward_min = 2_000_000,
             reward_max = 2_200_000,
             reward_currency = "aUEC",
@@ -36,6 +42,9 @@ public class WikiMissionsTests
     {
         var row = WikiMissions.Parse(Uuid, Answer)!;
         Assert.Equal((Master, "Master Hauler Needed for Large Shipment", "100-150;100-150;100-150;100-150"), (row.DebugName, row.Title, row.Orders));
+        Assert.Equal(("Red Wind", "Hauling", 1500L, "Legal"), (row.Faction, row.Category, row.Xp, row.Legality));   // what the Wiki shows about it
+        Assert.Equal("5 MG Scrip", new WikiContract(Uuid, null, null, Array.Empty<ScuRange>(), 5, 5, "MG Scrip").RewardText);   // a reward in another currency
+        Assert.Equal("2,000,000–2,200,000", WikiMissions.ToContract(row).RewardText);
         Assert.Equal(new ScuRange(400, 600), WikiMissions.ToContract(row).Total);
         Assert.Equal((2_100_000L, "2,000,000–2,200,000"), (WikiMissions.ToContract(row).Auec!.Value, WikiMissions.ToContract(row).AuecText));
         Assert.Null(new WikiContract(Uuid, null, null, Array.Empty<ScuRange>(), 5, 5, "MG Scrip").Auec);   // not aUEC
@@ -95,6 +104,84 @@ public class WikiMissionsTests
         var shown = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));   // read-only: the Wiki's in grey
         Assert.Contains("<span class=\"muted\" title=\"the Star Citizen Wiki's reward\">2,000,000–2,200,000</span>", shown);
         Assert.Contains("<span class=\"muted\" title=\"the Star Citizen Wiki's hauling orders\">~500</span>", shown);
+    }
+
+    /// <summary>A page of the list of every mission, as the API gives it (the parts the server reads).</summary>
+    static string ListPage(int page, int lastPage, params object[] missions) =>
+        JsonSerializer.Serialize(new { data = missions, meta = new { current_page = page, last_page = lastPage, per_page = 200, total = 3 } });
+
+    static object Listed(string uuid, string title, string? faction, string scope, long rewardMin, long? xp, bool illegal) => new
+    {
+        uuid, title, debug_name = "Debug_" + title.Replace(" ", ""), faction = faction == null ? null : (object)new { name = faction, uuid = "f-" + uuid },
+        mission_giver = faction, reward_scope = scope, reward_min = rewardMin, reward_max = 0, reward_currency = "UEC", reputation_amount = xp, illegal,
+        legality_label = illegal ? "Illegal" : "Legal",
+    };
+
+    [Fact]
+    public async Task The_list_of_every_mission_is_read_once_a_day_and_a_kind_without_a_contract_id_is_linked_by_its_name()
+    {
+        using var f = new ServerFactory();
+        var wiki = f.Services.GetRequiredService<WikiMissions>();
+        const string rival = "26b8773e-0b96-40b4-a33a-27a4e9877e75", batch = "091ffb61-7733-4ebe-8cef-66ec15de2320";
+        var pages = new List<int>();
+        wiki.FetchPage = (page, _) =>
+        {
+            pages.Add(page);
+            return Task.FromResult<string?>(page == 1
+                ? ListPage(1, 2, Listed(rival, "Stop Rival Attack at Asteroid Mining Base", "Red Wind", "Security", 25_000, 250, false), Listed(batch, "A Batch from Scratch", "Wallace Klim", "Hauling", 20_000, 1000, true))
+                : ListPage(2, 2, Listed(Uuid, "Master Hauler Needed for Large Shipment", null, "Hauling", 2_000_000, null, false)));
+        };
+        var now = DateTime.UtcNow;
+        Assert.Null(wiki.ListReadUtc());
+        Assert.Equal(3, await wiki.LearnAll(now));
+        Assert.Equal(new[] { 1, 2 }, pages);
+        Assert.Equal(now, wiki.ListReadUtc()!.Value, TimeSpan.FromSeconds(1));
+        Assert.Equal(0, await wiki.LearnAllIfDue(now.AddHours(20)));   // once a day
+        Assert.Equal(3, await wiki.LearnAllIfDue(now.AddHours(25)));
+        using (var db = f.Store.Open())
+        {
+            var row = db.WikiMissions.Single(r => r.Uuid == batch);
+            Assert.Equal(("Wallace Klim", "Hauling", 1000L, "Illegal", 20_000L, true, true), (row.Faction, row.Category, row.Xp, row.Legality, row.RewardMin, row.Found, row.ListOnly));
+            Assert.Null(row.Orders);   // the list has no hauling orders
+        }
+
+        // a contract the logs have is asked for by its uuid once more (its own page has the hauling orders), then not again
+        var asked = new List<string>();
+        wiki.Fetch = (uuid, _) => { asked.Add(uuid); return Task.FromResult(uuid == Uuid ? Answer : null); };
+        Assert.Equal(1, await wiki.Learn(new[] { Uuid, batch }, now));
+        Assert.Equal(new[] { Uuid, batch }, asked);
+        Assert.Equal(0, await wiki.Learn(new[] { Uuid, batch }, now.AddHours(1)));
+        Assert.Equal(2, asked.Count);
+        using (var db = f.Store.Open())
+        {
+            var master = db.WikiMissions.Single(r => r.Uuid == Uuid);
+            Assert.Equal(("100-150;100-150;100-150;100-150", false, "Red Wind"), (master.Orders, master.ListOnly, master.Faction));
+            Assert.True(db.WikiMissions.Single(r => r.Uuid == batch).Found);   // its own page is not there: what the list said stays
+        }
+
+        // a mission whose log never showed its contract id (no marker): its kind is the Wiki's mission with its name, whatever a string mod adds to it
+        var admin = await f.Admin();
+        f.Upload("zzoega", new GameLogWriter().At(now.AddMinutes(-30)).Login("zzoega").Minutes(1)
+            .AcceptedAs(GameLogWriter.MissionId(7), "Stop Rival Attack at Asteroid Mining Base <EM4>[200 Rep] [BP]*</EM4>").Lines.ToList());
+        var library = f.Services.GetRequiredService<MissionLibrary>();
+        library.Collect();
+        Assert.Empty(library.Contracts());
+        Assert.Equal(1, library.LinkWiki());
+        var entry = library.Entries().Single(e => e.Row.Title.StartsWith("Stop Rival", StringComparison.Ordinal));
+        Assert.Equal((rival, "Red Wind", "Security", 250L, "Legal"), (entry.Row.WikiUuid, entry.FactionShown, entry.Category, entry.Xp, entry.Legality));
+        var page = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));
+        Assert.Contains("<span class=\"muted\" title=\"the Star Citizen Wiki's faction\">Red Wind</span>", page);
+        Assert.Contains("<span class=\"muted\" title=\"the Star Citizen Wiki's category\">Security</span>", page);
+        Assert.Contains(">250</span>", page);
+        Assert.Contains(">Legal</span>", page);
+        Assert.Contains("title=\"the Star Citizen Wiki's reward\">25,000</span>", page);
+        Assert.Contains("<option value=\"Red Wind\">Red Wind</option>", page);   // the Wiki's faction to pick
+        Assert.Contains("Stop Rival Attack", System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?faction=Red%20Wind")));
+        Assert.Contains("Stop Rival Attack", System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?q=security")));
+        Assert.Contains("placeholder=\"Red Wind\" class=\"giver\"", await admin.GetStringAsync("/admin/missions"));   // the Wiki's faction until one is typed in
+        Assert.Contains(">Faction", page);
+        Assert.Contains(">Reward", page);
+        Assert.DoesNotContain(">Giver<", page);
     }
 
     [Fact]

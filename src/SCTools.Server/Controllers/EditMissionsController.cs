@@ -8,7 +8,8 @@ namespace SCTools.Server.Controllers;
 /// <summary>
 /// Edit Mission Info (admin only): the Mission Library as the admin changes it, the same list with the same choices and order as the read-only one
 /// (/missions, MissionsController), but with a field in every cell, where he types in what the log does not say: the aUEC, MG scrip and Council scrip a
-/// kind of mission pays, its SCU, another name, the giver. Every field is saved as soon as it changes (autosave.js: in the background, so the page stays
+/// kind of mission pays, its SCU, another name, the faction (the Giver field as it was called: it wins over the Star Citizen Wiki's faction). Every field is
+/// saved as soon as it changes (autosave.js: in the background, so the page stays
 /// where it is and is not made again).
 /// </summary>
 [Authorize(Roles = Roles.Admin)]
@@ -29,12 +30,12 @@ public sealed class EditMissionsController : Controller
 
     /// <summary>The same choices as the read-only library's (see MissionsController.Index).</summary>
     [HttpGet("")]
-    public IActionResult Index(string? q, string? giver, string? rewards, string? mine, string? sort, string? dir, string? show, int page = 1)
+    public IActionResult Index(string? q, string? faction, string? giver, string? rewards, string? mine, string? sort, string? dir, string? show, int page = 1)
     {
         ViewData["Title"] = "Edit Mission Info";
         var viewer = MissionsController.ViewerOf(HttpContext);
         return View("~/Views/Missions/Index.cshtml",
-            MissionsController.PageOf(_library, LibraryFilter.From(q, giver, rewards ?? show, mine, sort, dir, viewer != null), page, viewer, Path, editable: true));
+            MissionsController.PageOf(_library, LibraryFilter.From(q, faction ?? giver, rewards ?? show, mine, sort, dir, viewer != null), page, viewer, Path, editable: true));
     }
 
     /// <summary>What the open page asks every few seconds (missions.js), as on the read-only library.</summary>
