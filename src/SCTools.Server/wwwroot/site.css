@@ -45,6 +45,7 @@ code { font-family:Consolas, monospace; }
 
 /* the admin's pages: wider tables with a form in every row */
 main.wide, main:has(table.wide) { max-width:1400px; }
+main:has(.hauling) { max-width:1900px; }   /* the Hauling Planner: its tables take the band (hauling.css) */
 table.wide { max-width:none; }
 table.narrow { max-width:720px; }
 td input, td select { width:100%; padding:4px 6px; }

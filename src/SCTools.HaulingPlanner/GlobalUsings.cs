@@ -15,4 +15,3 @@ global using SCTools.UI.Controls;
 global using SCTools.UI.Tables;
 global using SCTools.UI.Theming;
 global using SCTools.Updates;
-global using SCTools.Web;

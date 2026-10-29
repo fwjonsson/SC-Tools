@@ -7,4 +7,3 @@ global using SCTools.Runs;
 global using SCTools.Sessions;
 global using SCTools.Tracking;
 global using SCTools.View;
-global using SCTools.Web;

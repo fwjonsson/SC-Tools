@@ -204,23 +204,20 @@ public class MapPageTests
     }
 
     [Fact]
-    public async Task The_map_tool_and_the_live_page_draw_with_the_same_engine()
+    public async Task The_map_tool_and_the_hauling_planner_draw_with_the_same_engine()
     {
         using var f = new ServerFactory();
         var admin = await f.Admin();
-        // the Map tool's page loads the engine (with its version in the address) before its own script
-        var page = await admin.GetStringAsync("/map");
-        var engine = "/systemmap.js?v=" + WebAssets.SystemMapVersion;
-        Assert.True(page.IndexOf(engine, StringComparison.Ordinal) > 0 && page.IndexOf(engine, StringComparison.Ordinal) < page.IndexOf("map.js?v=", StringComparison.Ordinal));
-        // the engine is the script the live page has inline, for everybody, kept by the browser while its version is the same
-        var res = await f.Browser().GetAsync(engine);
+        // both pages load the engine (a file of the site, with its version in the address) before their own script
+        foreach (var address in new[] { "/map", "/hauling" })
+        {
+            var page = await admin.GetStringAsync(address);
+            var engine = page.IndexOf("src=\"/systemmap.js?v=", StringComparison.Ordinal);
+            Assert.True(engine > 0 && engine < page.IndexOf(".js?v=", engine + 20, StringComparison.Ordinal), address);
+        }
+        var res = await f.Browser().GetAsync("/systemmap.js");
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Equal("text/javascript", res.Content.Headers.ContentType?.MediaType);
-        Assert.Contains("immutable", res.Headers.CacheControl?.ToString());
-        var script = await res.Content.ReadAsStringAsync();
-        Assert.Equal(WebAssets.SystemMap, script);
-        Assert.StartsWith("var SystemMap = (function ()", script.Split('\n').First(l => !l.StartsWith("//")));
-        Assert.Contains(script, WebAssets.Page);
-        Assert.Equal("no-cache", (await f.Browser().GetAsync("/systemmap.js")).Headers.CacheControl?.ToString());
+        Assert.StartsWith("var SystemMap = (function ()", (await res.Content.ReadAsStringAsync()).Split('\n').First(l => !l.StartsWith("//")));
     }
 }

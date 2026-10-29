@@ -131,7 +131,6 @@ public sealed partial class MainForm : Form
 
         InitSessionButtons();
         ClearView();
-        InitWebView();
         SetStatus("Open a log file, or press \"Watch live Game.log\" while you play.");
     }
 
@@ -461,8 +460,6 @@ public sealed partial class MainForm : Form
         backupBtn.Click += (_, _) => OpenBackupFolder();
         _themeBtn.Text = ThemeButtonText();
         _themeBtn.Click += (_, _) => ToggleDark();
-        _webBtn.Text = WebButtonText();
-        _webBtn.Click += (_, _) => ToggleWeb();
 
         options.DropDownItems.AddRange(new ToolStripItem[]
         {
@@ -472,7 +469,7 @@ public sealed partial class MainForm : Form
             new ToolStripSeparator(),
             _resetBtn, _copyBtn, backupBtn,
             new ToolStripSeparator(),
-            _themeBtn, _webBtn,
+            _themeBtn,
             new ToolStripSeparator(),
             _versionItem, _updateBtn,
         });

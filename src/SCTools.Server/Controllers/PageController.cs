@@ -1,14 +1,12 @@
-using System.Net;
-using SCTools.Server.Accounts;
 using SCTools.Server.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ViewFeatures;
 
 namespace SCTools.Server.Controllers;
 
 /// <summary>
-/// The pages for everybody: the landing page of the tools (/), the live page of the hauling tracker (/hauling), its data (data.json, made anew when something
-/// changed, polled with its ETag) and the icon. Watching needs no login, unless the admin hid the hauling tracker on the Tools page: then it is only for him.
+/// The pages for everybody: the landing page of the tools (/), the Hauling Planner's page (/hauling, an ordinary page of the site: Views/Hauling, with
+/// hauling.js and hauling.css in wwwroot) and its data (data.json, made anew when something changed, polled with its ETag). Watching needs no login, unless
+/// the admin hid the Hauling Planner on the Tools page: then it is only for him.
 /// </summary>
 public sealed class PageController : Controller
 {
@@ -17,12 +15,10 @@ public sealed class PageController : Controller
     readonly GauntletService _gauntlet;
     readonly MissionLibrary _missions;
     readonly Playtime _playtime;
-    readonly IFileVersionProvider _files;
     readonly MapService _map;
 
-    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions, Playtime playtime, IFileVersionProvider files, MapService map)
+    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions, Playtime playtime, MapService map)
     {
-        _files = files;
         _map = map;
         _live = live;
         _tools = tools;
@@ -75,34 +71,18 @@ public sealed class PageController : Controller
         return "";
     }
 
-    /// <summary>The live page of the hauling tracker, with the bar of the site at the top (SC Tools, the tools, who is logged in).</summary>
+    /// <summary>The Hauling Planner's page: the site's layout (the bar at the top, the footer) around its tables and tabs.</summary>
     [HttpGet("/hauling")]
-    [HttpGet("/index.html")]
-    public IActionResult Page() => _tools.Sees(User, SiteTools.Hauling) ? Content(WithLinks(WebAssets.Page), "text/html; charset=utf-8") : Hidden();
-
-    string WithLinks(string page)
-    {
-        // the bar of the site at the top, as on every page (SC Tools back to the cards, the tools, who is logged in), with its look. The look's address has
-        // its version in it (as asp-append-version on the other pages): Cloudflare and the browsers keep a .css for hours, and an old one with the new bar
-        // is a mess (the menu button and a big download arrow on a computer)
-        var css = WebUtility.HtmlEncode(_files.AddFileVersionToPath(Request.PathBase, "/topbar.css"));
-        page = page.Replace("</head>", "<link rel=\"stylesheet\" href=\"" + css + "\">\n</head>")
-            .Replace("<body>", "<body class=\"tool\">\n" + TopBar.Html(HttpContext, _tools, SiteTools.Hauling));
-        // who is looking, so the page can show his party first and his own runs on the Trip Planner (a player logged in by his tracker, or the admin)
-        if (User.Identity?.IsAuthenticated == true && !string.IsNullOrEmpty(User.Identity.Name))
-            page = page.Replace("<head>", "<head>\n<meta name=\"me\" content=\"" + WebUtility.HtmlEncode(User.Identity.Name) + "\">"
-                + (User.IsInRole(Roles.Admin) ? "\n<meta name=\"admin\" content=\"1\">" : ""));   // the admin picks whose session the tabs show
-        return page;
-    }
+    public IActionResult Page() => _tools.Sees(User, SiteTools.Hauling) ? View("~/Views/Hauling/Index.cshtml") : Hidden();
 
     static readonly string[] HaulingTabs = { "session", "contracts", "planner", "debts", "history" };
 
-    /// <summary>A tab of the live page at its own address (/hauling/planner): the same page, which shows that tab.</summary>
+    /// <summary>A tab of the page at its own address (/hauling/planner): the same page, which shows that tab.</summary>
     [HttpGet("/hauling/{tab}")]
     public IActionResult Tab(string tab) => HaulingTabs.Contains(tab) ? Page() : NotFound();
 
     /// <summary>
-    /// The live page's data, made anew only when something changed (LiveTracker.Refresh). The page sends back the ETag it got (If-None-Match): the same one
+    /// The page's data, made anew only when something changed (LiveTracker.Refresh). The page sends back the ETag it got (If-None-Match): the same one
     /// means the same data, and the answer is 304 with no body, so a poll that finds nothing new costs next to nothing on both sides.
     /// </summary>
     [HttpGet("/data.json")]
@@ -129,15 +109,4 @@ public sealed class PageController : Controller
         return Json(_map.Snapshot(DateTime.UtcNow, "pyro"));
     }
 
-    /// <summary>The map engine (systemmap.js): the script the live page has inline, for the Map tool's page. With its version in the address, a browser keeps it until it changes.</summary>
-    [HttpGet("/systemmap.js")]
-    public IActionResult SystemMap([FromQuery] string? v)
-    {
-        Response.Headers.CacheControl = v == WebAssets.SystemMapVersion ? "public, max-age=31536000, immutable" : "no-cache";
-        return Content(WebAssets.SystemMap, "text/javascript; charset=utf-8");
-    }
-
-    [HttpGet("/favicon.ico")]
-    [ResponseCache(Duration = 86400)]
-    public IActionResult Icon() => WebAssets.Icon is { } icon ? File(icon, "image/x-icon") : NotFound();
 }

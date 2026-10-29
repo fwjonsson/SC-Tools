@@ -67,12 +67,12 @@ public class ToolsPageTests
         using var f = new ServerFactory();
         var visitor = f.Browser();
         var live = await visitor.GetStringAsync("/hauling");
-        Assert.Contains("<body class=\"tool\">\n<header class=\"topbar\">", live);   // the hauling tracker's own page has the bar at the top
+        Assert.Contains("<header class=\"topbar\">", live);   // the Hauling Planner's page has the bar at the top, like every page
         Assert.Contains("<a class=\"brand\" href=\"/\">SC Tools</a>", live);   // back to the cards
         Assert.Contains("<a href=\"/hauling\" class=\"on\" aria-current=\"page\" style=\"--tool:#4682ff\">Hauling Planner</a>", live);   // the tool you are in, in its colour
         Assert.Contains("href=\"/topbar.css?v=", live);   // with its version, so a new look is never an old one from a cache
         Assert.Contains("<a href=\"/login\">Log in</a>", live);
-        Assert.DoesNotContain("<meta name=\"admin\"", live);   // a watcher is not the admin
+        Assert.DoesNotContain("data-admin=", live);   // a watcher is not the admin
         Assert.DoesNotContain("position:absolute", live);   // the old links in the corner are gone
         Assert.Equal(HttpStatusCode.OK, (await visitor.GetAsync("/topbar.css")).StatusCode);
         Assert.Contains("max(18px, calc((100% - 1900px) / 2))", await visitor.GetStringAsync("/topbar.css"));   // the bar keeps to the pages' 1,900 px band on an ultrawide screen
@@ -84,7 +84,7 @@ public class ToolsPageTests
         var admin = await f.Admin();
         live = await admin.GetStringAsync("/hauling");
         Assert.Contains("<a href=\"/admin\" class=\"area\" style=\"--tool:#e5534b\">Admin</a>", live);
-        Assert.Contains("<meta name=\"admin\" content=\"1\">", live);   // the page lets him pick whose session the tabs show
+        Assert.Contains("data-admin=\"1\"", live);   // the page lets him pick whose session the tabs show
         var party = await admin.GetStringAsync("/admin/party");
         Assert.Contains("<a href=\"/admin\" class=\"area on\" aria-current=\"page\" style=\"--tool:#e5534b\">Admin</a>", party);   // in the admin's part
         Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#e5534b\">", party);   // the admin's pages under the bar, in Admin's colour

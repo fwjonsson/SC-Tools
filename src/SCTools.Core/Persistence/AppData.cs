@@ -14,7 +14,7 @@ public sealed class AppData
     public bool DarkMode { get; set; }   // the dark look
     public string? Channel { get; set; }   // Auto, LIVE, HOTFIX...
     public List<ManualSession> ManualSessions { get; set; } = new();   // started and stopped with the Start Session / Stop Session buttons
-    public bool WebView { get; set; }      // the read-only live web view is switched on
+    public bool WebView { get; set; }      // the program's read-only live web view (gone 29 Oct 2026: the site is the live view; kept so an old data file reads)
     public int WebViewPort { get; set; } = 8765;   // the port of the live web view (on this computer only)
     public Dictionary<string, string> Ship { get; set; } = new();   // worker -> his ship (Ships name, like "C2 Hercules Starlifter"), for the SCU his ship holds
     public Dictionary<string, string> QuantumDrive { get; set; } = new();   // worker -> the quantum drive in his ship (QuantumDrives key, like "Eos S1"), for the travel time estimates
