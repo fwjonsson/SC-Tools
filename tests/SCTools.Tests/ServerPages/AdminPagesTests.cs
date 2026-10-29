@@ -30,12 +30,13 @@ public class AdminPagesTests
     }
 
     [Fact]
-    public async Task The_session_page_has_the_buttons_rewards_stops_and_runs()
+    public async Task The_session_page_has_the_buttons_stops_and_runs()
     {
         var (f, admin) = await Start();
         using var _ = f;
         var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin"));
-        Assert.Contains("Mission rewards", page);
+        Assert.DoesNotContain("Mission rewards", page);   // the rewards are the Mission Library's, not on this page
+        Assert.Contains("Register lost cargo", page);
         Assert.Contains("Patch City", page);
         Assert.Contains("Next Stops: Unlocked", page);
         Assert.Contains("Stop Session", page);   // the played session was started by hand and runs
@@ -44,8 +45,6 @@ public class AdminPagesTests
         await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", "hauling:2 to ruin"), ("field", "auec"), ("value", "1 300 000"));
         Assert.Equal(1_300_000m, Read(f, t => t.State.Inputs!.Reward2));
         Assert.Equal(1_300_000m, Read(f, t => t.State.Data.DefaultRewards["2 To Ruin"]));   // and the next sessions start with it
-        Assert.Contains(1_300_000m.ToString("N0"), WebUtility.HtmlDecode(await admin.GetStringAsync("/admin")));
-        Assert.Contains("href=\"/admin/missions#" + SCTools.Server.MissionLibrary.Anchor("hauling:2 to ruin") + "\"", await admin.GetStringAsync("/admin"));
 
         Assert.Contains("The session time runs from 07:05.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/start-time", ("startTime", "7:05")), "/admin"));
         Assert.Contains("Type the start time as 19:30.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/start-time", ("startTime", "soon")), "/admin"));
@@ -77,16 +76,13 @@ public class AdminPagesTests
     {
         using var f = new ServerFactory();   // no data, no logs: no session
         var admin = await f.Admin();
-        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin"));
-        Assert.Contains("No session now", page);
-        Assert.Contains(Earnings.DefaultReward2.ToString("N0"), page);   // the built-in reward
+        Assert.DoesNotContain("Mission Reward", await admin.GetStringAsync("/admin"));   // the rewards are only in the library now
         var library = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/missions"));
         Assert.Contains("value=\"Hauling: 2 To Ruin\"", library);   // the library starts with what the planner pays
         Assert.Contains("value=\"" + Earnings.DefaultReward2.ToString("0") + "\"", library);
 
         await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", "hauling:2 to ruin"), ("field", "auec"), ("value", "1400000"));
         await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", "hauling:3 to ruin"), ("field", "auec"), ("value", ""));
-        Assert.Contains(1_400_000m.ToString("N0"), WebUtility.HtmlDecode(await admin.GetStringAsync("/admin")));
 
         await ServerFactory.Send(admin, "/admin", "/admin/session");   // Start Session
         Assert.Equal(1_400_000m, Read(f, t => t.State.Inputs!.Reward2));
@@ -130,26 +126,6 @@ public class AdminPagesTests
     }
 
     [Fact]
-    public async Task The_contracts_page_sets_who_has_a_mission_and_marks_it_gone()
-    {
-        var (f, admin) = await Start();
-        using var _ = f;
-        Assert.Contains(PlayedSession.M2, await admin.GetStringAsync("/admin/contracts"));
-
-        Assert.True(Read(f, t => t.Contracts.HasMission(t.Contracts.ContractRows().Single(m => m.Id == PlayedSession.M2), PlayedSession.Player)));
-        var r = await ServerFactory.Send(admin, "/admin/contracts", "/admin/contracts/holder", ("id", PlayedSession.M2), ("member", "Pilot_B"), ("has", "true"));
-        Assert.Contains("Pilot_B has", await Said(admin, r, "/admin/contracts"));
-        Assert.True(Read(f, t => t.Contracts.HasMission(t.Contracts.ContractRows().Single(m => m.Id == PlayedSession.M2), "Pilot_B")));
-
-        r = await ServerFactory.Send(admin, "/admin/contracts", "/admin/contracts/gone", ("id", PlayedSession.M2));
-        Assert.Contains("is marked as gone", await Said(admin, r, "/admin/contracts"));
-        Assert.True(Read(f, t => t.State.Data.DroppedMissions.ContainsKey(PlayedSession.M2)));
-        Assert.Contains("Bring back", await admin.GetStringAsync("/admin/contracts"));
-        await ServerFactory.Send(admin, "/admin/contracts", "/admin/contracts/gone", ("id", PlayedSession.M2));
-        Assert.False(Read(f, t => t.State.Data.DroppedMissions.ContainsKey(PlayedSession.M2)));
-    }
-
-    [Fact]
     public async Task The_debts_page_ticks_payments_corrects_balances_and_payouts()
     {
         var (f, admin) = await Start(w => w.Minutes(1).Sent("Pilot_B", 100_000));
@@ -186,7 +162,7 @@ public class AdminPagesTests
         var (f, _) = await Start();
         using var __ = f;
         var player = await f.Player(f.AddKey("Pilot_B"));
-        foreach (var url in new[] { "/admin", "/admin/party", "/admin/contracts", "/admin/debts" })
+        foreach (var url in new[] { "/admin", "/admin/party", "/admin/debts", "/admin/missions" })
         {
             var r = await player.GetAsync(url);
             Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);

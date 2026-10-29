@@ -3,7 +3,10 @@ using SCTools.Tests.Support;
 
 namespace SCTools.Tests.ServerPages;
 
-/// <summary>On the server the logs decide who is active (the in-game party and the trackers); the admin's Party page shows it and can override it.</summary>
+/// <summary>
+/// On the server the logs decide who is in the party (whoever is in an in-game party with a member) and who is active (the in-game party and the trackers);
+/// the admin's Party page shows it and can override Active.
+/// </summary>
 public class AutoPartyPageTests
 {
     static string Id(GameLogWriter w) => w.Lines[0][1..24] + "Z";
@@ -18,7 +21,7 @@ public class AutoPartyPageTests
     [Fact]
     public async Task The_party_page_shows_who_plays_with_whom_and_the_admin_can_override_it()
     {
-        using var f = new ServerFactory { Data = new AppData { Party = new List<string> { "zzoega", "zzatvo", "bileh123" } }, FollowParty = true };
+        using var f = new ServerFactory { Data = new AppData { Party = new List<string> { "zzoega", "bileh123" } }, FollowParty = true };   // zzatvo is not a member yet
         _ = f.Live;   // the server starts (and the logs take over from then)
         var now = DateTime.UtcNow;
         // zzoega's tracker: he made a party half an hour ago and zzatvo (no tracker) joined it; his game is still writing its log
@@ -29,6 +32,8 @@ public class AutoPartyPageTests
 
         var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/party"));
         Assert.Contains("zzoega's party: zzatvo, zzoega", page);
+        Assert.Equal(new[] { "zzoega", "bileh123", "zzatvo" }, f.Live.Read(t => t.State.Data.Party.ToList()));   // in the party with a member: a member by himself
+        Assert.Contains("ZZATVO", page);
         Assert.Contains("Leads his party", page);
         Assert.Contains("In zzoega's party", page);   // zzatvo, seen through zzoega's log
         Assert.Contains("Not playing", page);         // bileh123

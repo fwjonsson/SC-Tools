@@ -88,10 +88,10 @@ public class ToolsPageTests
         Assert.Contains("<a href=\"/admin\">Session</a>", party);
         Assert.Contains("aria-current=\"page\" style=\"--tool:#e5534b\">Admin</a>", await admin.GetStringAsync("/account"));
         Assert.DoesNotContain("<nav class=\"subnav", await admin.GetStringAsync("/"));
-        // a tool's page has its tool marked (from its address), the admin's Gauntlet page does not mark the Gauntlet Tracker
+        // a tool's page has its tool marked (from its address), the admin's Scrip page does not mark the Gauntlet Tracker
         Assert.Contains("<a href=\"/map\" class=\"on\" aria-current=\"page\"", await admin.GetStringAsync("/map"));
         Assert.Contains("<a href=\"/gauntlet\" class=\"on\" aria-current=\"page\"", await admin.GetStringAsync("/gauntlet/stats"));
-        Assert.DoesNotContain("<a href=\"/gauntlet\" class=\"on\"", await admin.GetStringAsync("/admin/gauntlet"));
+        Assert.DoesNotContain("<a href=\"/gauntlet\" class=\"on\"", await admin.GetStringAsync("/admin/scrip"));
 
         // Log out from the hauling tracker's page: its form has the token
         var r = await admin.PostAsync("/logout", new FormUrlEncodedContent(new[] { KeyValuePair.Create("__RequestVerificationToken", ServerFactory.Token(live)) }));

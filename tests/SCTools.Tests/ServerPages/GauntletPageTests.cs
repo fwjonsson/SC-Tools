@@ -54,7 +54,6 @@ public class GauntletPageTests
         Assert.Contains("Earlier grind sessions", page);   // his run of 30 Sep was a grind session by itself
         Assert.DoesNotContain("Start grind session", page);   // no buttons: they start and stop by themselves
         Assert.DoesNotContain("name=\"player\"", page);   // his own page only: nobody else's to pick
-        Assert.Equal(HttpStatusCode.Redirect, (await player.GetAsync("/admin/gauntlet")).StatusCode);   // the rewards are the admin's
     }
 
     [Fact]
@@ -151,7 +150,7 @@ public class GauntletPageTests
         // the rewards are in the Mission Library (the admin's Gauntlet page shows them), the same for everybody
         await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", GauntletService.LibraryKey(7)), ("field", "auec"), ("value", "300000"));
         Assert.Contains("300,000", await bileh.GetStringAsync("/gauntlet/leaderboard"));   // everybody counts with them
-        Assert.Contains("300,000", await admin.GetStringAsync("/admin/gauntlet"));
+        Assert.Equal(HttpStatusCode.NotFound, (await admin.GetAsync("/admin/gauntlet")).StatusCode);   // no page of its own any more: Edit Mission Info
 
         // what a MG scrip is worth is on the admin's Scrip page, for every tool: #7 pays 16 scrip
         await ServerFactory.Send(admin, "/admin/scrip", "/admin/scrip/set", ("field", "mg"), ("value", "1,000"));

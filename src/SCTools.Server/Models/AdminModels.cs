@@ -3,7 +3,7 @@ using SCTools.Server.Editing;
 
 namespace SCTools.Server.Models;
 
-/// <summary>The admin's Session page: the session buttons, the mission rewards, the start time, the stops, the runs and the SCU of the from-Ruin drop-offs.</summary>
+/// <summary>The admin's Session page: the session buttons, the start time, the stops, the runs (to register lost cargo) and the SCU of the from-Ruin drop-offs.</summary>
 public sealed class AdminSessionModel
 {
     public string Session { get; set; } = "";
@@ -17,7 +17,6 @@ public sealed class AdminSessionModel
 
     public bool Locked { get; set; }
     public string StartTime { get; set; } = "";
-    public List<RewardShown> Rewards { get; set; } = new();
     public List<StopInput> Stops { get; set; } = new();
     public List<RunInput> Runs { get; set; } = new();
     public List<ScuInput> Scu { get; set; } = new();
@@ -35,9 +34,6 @@ public sealed class AdminSessionModel
             Locked = inp?.NextStopsLocked == true,
             StartTime = inp?.Start ?? "",
         };
-        m.Rewards = Earnings.RewardLines
-            .Select(l => new RewardShown(l.Contract, (inp != null && l.Get(inp) > 0 ? l.Get(inp) : Earnings.StartReward(l, s.Data)).ToString("N0", CultureInfo.CurrentCulture),
-                MissionLibrary.Anchor(SCTools.Missions.MissionKinds.HaulingKey(l.Contract)))).ToList();
         if (inp == null) return m;
 
         m.Stops = s.OpenRows.Select(r => new StopInput(
@@ -58,8 +54,6 @@ public sealed class AdminSessionModel
     }
 }
 
-/// <summary>What a contract line pays in the session shown (set in the Mission Library: Anchor is its row there).</summary>
-public sealed record RewardShown(string Contract, string Amount, string Anchor);
 public sealed record StopInput(string Zone, string Name, string Notes, string Batches);
 public sealed record RunInput(string Key, int Number, string Worker, string Started, string Completed, string Places, string Lost);
 public sealed record ScuInput(string Key, string Label, int Scu);
@@ -117,32 +111,6 @@ public sealed record MemberInput(
     /// <summary>Black or white, whichever reads on his colour (as on the live page).</summary>
     public string TextColor => ViewPalette.Hex(ViewPalette.TextOn(Convert.ToInt32(Color.TrimStart('#'), 16)));
 }
-
-/// <summary>The admin's Contracts page: every mission still going (and the ones marked as gone), with who of the party has it.</summary>
-public sealed class AdminContractsModel
-{
-    public List<string> Members { get; set; } = new();
-    public List<ContractLine> Contracts { get; set; } = new();
-
-    public static AdminContractsModel Of(Tracker t)
-    {
-        var members = t.State.Data.Party.ToList();
-        return new AdminContractsModel
-        {
-            Members = members,
-            Contracts = t.Contracts.ContractRows().Select(m => new ContractLine(
-                m.Id,
-                global::SCTools.Tracking.Contracts.ContractName(m),
-                m.IsOut ? m.OutCargo ?? "Cargo" : m.Cargo ?? "",
-                t.Contracts.ContractStopsText(m),
-                m.Dropped,
-                members.Select(n => new HolderBox(n, t.Contracts.HasMission(m, n), m.Taker != null && PlayerNames.SameName(m.Taker, n))).ToList())).ToList(),
-        };
-    }
-}
-
-public sealed record ContractLine(string Id, string Contract, string Cargo, string Stops, bool Gone, List<HolderBox> Holders);
-public sealed record HolderBox(string Member, bool Has, bool Took);
 
 /// <summary>The admin's Debts page: the balances of one member (typed over to correct them), the money transfers, the mission payouts, and the session party.</summary>
 public sealed class AdminDebtsModel

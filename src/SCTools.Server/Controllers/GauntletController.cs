@@ -90,23 +90,3 @@ public sealed class GauntletController : Controller
         return View(model);
     }
 }
-
-/// <summary>
-/// The admin's Gauntlet page: the rewards of the eight scenarios the Gauntlet Tracker counts with, the same for everybody. They are in the Mission Library
-/// (a link to each), where they are changed; what a MG scrip is worth is on his Scrip page.
-/// </summary>
-[Authorize(Roles = Roles.Admin)]
-[Route("/admin/gauntlet")]
-public sealed class GauntletAdminController : Controller
-{
-    readonly GauntletService _gauntlet;
-
-    public GauntletAdminController(GauntletService gauntlet) => _gauntlet = gauntlet;
-
-    [HttpGet("")]
-    public IActionResult Index()
-    {
-        ViewData["Title"] = "Gauntlet";
-        return View("~/Views/Gauntlet/Admin.cshtml", new GauntletAdminPage(_gauntlet.Rewards()));
-    }
-}

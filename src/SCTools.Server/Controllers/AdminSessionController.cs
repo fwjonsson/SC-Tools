@@ -5,8 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace SCTools.Server.Controllers;
 
 /// <summary>
-/// The admin's Session page: the session (it starts and stops by itself; Start / Stop Session only when SCTools:FollowSessions is off), Next Stops, the mission rewards (set in the Mission Library), the start time, the names and notes of
-/// the stops, the lost cargo of the runs, and the SCU of the from-Ruin drop-offs the game did not tell.
+/// The admin's Session page: the session (it starts and stops by itself; Start / Stop Session only when SCTools:FollowSessions is off), Next Stops, the start
+/// time, the names and notes of the stops, the lost cargo of the runs (Register lost cargo), and the SCU of the from-Ruin drop-offs the game did not tell.
+/// The rewards are the Mission Library's (Edit Mission Info), not here any more (Frank, 29 Oct 2026).
 /// </summary>
 [Route("/admin")]
 public sealed class AdminSessionController : AdminControllerBase
