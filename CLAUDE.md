@@ -8,7 +8,8 @@ planned, what was decided and why, tool by tool. This file says how we work.
 - Frank (GitHub fwjonsson, zzoega in the game; his other accounts are zzatvo and zzoii) asks for one thing at a time, in Swedish or English. One
   branch and one pull request per request (`claude/<topic>`); Frank reviews and merges. `main` is protected: the Build and Tests checks must be green.
 - CI is what counts: Build (Windows: the program and the tracker), Tests (Linux: `dotnet test tests/SCTools.Tests` and the planner scenarios of
-  `tools/PlanTest`), Deploy on every merge to `main` (the site), Migration on a commit whose message has `[migration: Name]`.
+  `tools/PlanTest`), Deploy after a green Tests run of a merge to `main` (the site), Migration on a commit whose message has `[migration: Name]`.
+  Build and Tests run only when a change touches what they build or test (the paths in the workflows), so a pull request for the README alone has no checks.
 - Database changes: never write an EF Core migration by hand. Put `[migration: Name]` in the commit message, the Migration workflow adds a migration
   commit on the branch, pull it. The Tests run of that first commit fails (the model change is pending); the migration commit's run is the one to check.
 - Stacked pull requests: say the merge order in the PR body.

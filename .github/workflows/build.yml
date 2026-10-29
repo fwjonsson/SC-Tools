@@ -1,8 +1,34 @@
 name: Build
 
+# Builds the Windows programs as single exes: the Hauling Planner and the SC Tools Tracker, and the API tool when its code changed (or by hand, Run workflow).
+# It runs for a pull request and for a merge to main that can change the programs: not for the README and the docs, the tests, the planner scenarios, the
+# server or the deploy, which are no part of them (Tests and Deploy cover those; a pull request that changes nothing else gets no Build run). The exes of a
+# run are kept as its artifact; on main all the zips also go to the "latest" release, which the installed programs update from.
 on:
   push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'deploy/**'
+      - 'tests/**'
+      - 'tools/**'
+      - 'src/SCTools.Server/**'
+      - '.github/workflows/tests.yml'
+      - '.github/workflows/deploy.yml'
+      - '.github/workflows/migration.yml'
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'deploy/**'
+      - 'tests/**'
+      - 'tools/**'
+      - 'src/SCTools.Server/**'
+      - '.github/workflows/tests.yml'
+      - '.github/workflows/deploy.yml'
+      - '.github/workflows/migration.yml'
   workflow_dispatch:
 
 permissions:
@@ -13,17 +39,53 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the whole history (small): the step below looks at what changed
+
       - uses: actions/setup-dotnet@v4
+        id: dotnet
         with:
           dotnet-version: 10.0.x
 
+      # The packages of the last run with the same project files and SDK (a new SDK brings new runtime packs); the restore fetches only what is missing
+      - name: The NuGet packages of the last run
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ steps.dotnet.outputs.dotnet-version }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-${{ steps.dotnet.outputs.dotnet-version }}-
+            nuget-${{ runner.os }}-
+
+      # The API tool is a rarely used development tool and no part of the programs: it is built by hand (Run workflow) or when its own code changed
+      - name: Is the API tool to be built?
+        id: api-tool
+        shell: bash
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}   # a pull request: its base; a push to main: the commit before; by hand: nothing
+        run: |
+          build=true
+          if [ -n "$BASE" ] && git cat-file -e "$BASE^{commit}" 2>/dev/null && git diff --quiet "$BASE" HEAD -- src/ScApiTool; then
+            build=false
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "The API tool is built: $build"
+
+      # One restore for both programs (they share the core); the publishes below do not restore again
+      - name: Restore the packages
+        shell: bash
+        run: |
+          dotnet restore src/SCTools.HaulingPlanner -r win-x64
+          dotnet restore src/SCTools.Tracker -r win-x64
+
       - name: Build and publish the Hauling Planner (the Windows program, a single exe)
-        run: dotnet publish src/SCTools.HaulingPlanner/SCTools.HaulingPlanner.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:InformationalVersion=release-${{ github.sha }} -o publish
+        run: dotnet publish src/SCTools.HaulingPlanner/SCTools.HaulingPlanner.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:InformationalVersion=release-${{ github.sha }} --no-restore -o publish
 
       - name: Build and publish the SC Tools Tracker (the tracker on the gaming PCs)
-        run: dotnet publish src/SCTools.Tracker/SCTools.Tracker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:InformationalVersion=release-${{ github.sha }} -o publish-sender
+        run: dotnet publish src/SCTools.Tracker/SCTools.Tracker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:InformationalVersion=release-${{ github.sha }} --no-restore -o publish-sender
 
       - name: Build and publish the API tool
+        if: steps.api-tool.outputs.build == 'true'
         run: dotnet publish src/ScApiTool/ScApiTool.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish-api
 
       - name: Zip the exes
@@ -38,8 +100,9 @@ jobs:
           Copy-Item publish-sender/SCToolsTracker.exe old-name/HaulingTrackerSender.exe
           Compress-Archive -Path old-name/HaulingTracker.exe -DestinationPath HaulingTracker.zip
           Compress-Archive -Path old-name/HaulingTrackerSender.exe -DestinationPath HaulingTrackerSender.zip
-          Compress-Archive -Path publish-api/ScApiTool.exe -DestinationPath ScApiTool.zip
+          if (Test-Path publish-api/ScApiTool.exe) { Compress-Archive -Path publish-api/ScApiTool.exe -DestinationPath ScApiTool.zip }
 
+      # The two programs; the old-name copies are the same exes, and the API tool is in the release
       - name: Keep the exe of this run
         uses: actions/upload-artifact@v4
         with:
@@ -47,9 +110,6 @@ jobs:
           path: |
             HaulingPlanner.zip
             SCToolsTracker.zip
-            HaulingTracker.zip
-            HaulingTrackerSender.zip
-            ScApiTool.zip
 
       # On main the newest exe is also put on the Releases page under one fixed link
       - name: Update the "latest" release
@@ -58,6 +118,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # When the API tool was not built in this run, the release keeps the tool's zip of the release before
+          if (-not (Test-Path ScApiTool.zip)) { gh release download latest --pattern ScApiTool.zip 2>$null }
           # Remove the old release, and any half-made draft left behind by an earlier run (a draft has no tag, so the updater cannot find it)
           gh release delete latest --cleanup-tag --yes 2>$null
           foreach ($id in (gh api "repos/${{ github.repository }}/releases" --paginate --jq '.[] | select(.draft) | .id')) {
@@ -67,7 +129,9 @@ jobs:
           # The release is made without its files first, so it is published at once (with files, gh makes a draft, uploads and publishes it at the end, and
           # GitHub has left that draft unpublished: a draft has no public tag, so the updater said it could not read the newest version). The files come after.
           gh release create latest --target ${{ github.sha }} --latest --title "Latest build" --notes "Newest build of main. SCToolsTracker.zip is the SC Tools Tracker every player runs on his gaming PC: it sends the lines of his Game.log the tools read to sc-tools.fwjonsson.dev (it needs a key from Frank; the download and the steps are on sc-tools.fwjonsson.dev/tracker). HaulingPlanner.zip is the Windows program. HaulingTracker.zip and HaulingTrackerSender.zip are the same two programs under their names from before the rename, for programs that update from before. ScApiTool.zip is the small tool that downloads data from the Star Citizen Wiki API. The programs check this release to update themselves. build: ${{ github.sha }}"
-          gh release upload latest HaulingPlanner.zip SCToolsTracker.zip HaulingTracker.zip HaulingTrackerSender.zip ScApiTool.zip --clobber
+          $zips = 'HaulingPlanner.zip', 'SCToolsTracker.zip', 'HaulingTracker.zip', 'HaulingTrackerSender.zip'
+          if (Test-Path ScApiTool.zip) { $zips += 'ScApiTool.zip' }
+          gh release upload latest $zips --clobber
           # The program finds the release by its tag: check a few times that it is published, has the tag and the exe; publish it when it is a draft, and fail loudly if that does not help
           $ok = $false
           for ($i = 0; $i -lt 6; $i++) {

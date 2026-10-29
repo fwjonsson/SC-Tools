@@ -1,18 +1,22 @@
 name: Deploy
 
-# Puts the web app on the server (Hetzner, Arm64) when main changes, or by hand (Run workflow). It builds the server for linux-arm64 with .NET inside
-# (nothing to install on the server), copies it there as the user "deploy" and runs sctools-install, which switches to it, restarts the service and
+# Puts the web app on the server (Hetzner, Arm64) after a green Tests run of main, or by hand (Run workflow). It builds the server for linux-arm64 with .NET
+# inside (nothing to install on the server), copies it there as the user "deploy" and runs sctools-install, which switches to it, restarts the service and
 # puts the version before back when the new one does not answer. Nothing happens until the three secrets exist (see "Going live" in the README):
 # DEPLOY_HOST (the server's IP), DEPLOY_KEY (the private key setup.sh made) and DEPLOY_KNOWN_HOSTS (the server's key, so nobody can pose as it).
+#
+# Tests runs for every merge to main that changes src/SCTools.Core, src/SCTools.Web or src/SCTools.Server (and for a change to this file), so every change
+# of the server gets a Tests run and, when it is green, its deploy; a red run deploys nothing. Tests also runs for a change to the tests alone: then the same
+# server is installed once more (a restart of a few seconds). What is deployed is the commit the tests ran on, unless main has a newer version of the server
+# by then: that one's own Tests run deploys it, so two merges close together never leave the older one on the server.
 on:
-  push:
+  workflow_run:
+    workflows:
+      - Tests
+    types:
+      - completed
     branches:
       - main
-    paths:
-      - 'src/SCTools.Server/**'
-      - 'src/SCTools.Core/**'
-      - 'src/SCTools.Web/**'
-      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 concurrency:
@@ -21,29 +25,47 @@ concurrency:
 
 jobs:
   deploy:
+    # by hand always; after Tests only when they were green, for a push to main (not for a pull request from a branch called main, nor a run started by hand)
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}   # the commit to deploy: the one the tests ran on; by hand, the newest of the branch chosen
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+          fetch-depth: 0   # the whole history (small): the step below compares with main
+
+      - name: Is this the newest version of the server on main?
+        id: newest
+        if: github.event_name == 'workflow_run'
+        run: |
+          tip=$(git rev-parse origin/main)
+          if [ "$tip" != "$SHA" ] && ! git diff --quiet "$SHA" "$tip" -- src/SCTools.Server src/SCTools.Core src/SCTools.Web .github/workflows/deploy.yml; then
+            echo "::notice title=Not deployed::main has a newer version of the server (${tip::7}); its own Tests run deploys it."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/setup-dotnet@v4
+        if: steps.newest.outputs.skip != 'true'
         with:
           dotnet-version: 10.0.x
 
       - name: Build the server for the Arm server
+        if: steps.newest.outputs.skip != 'true'
         run: |
-          dotnet publish src/SCTools.Server -c Release -r linux-arm64 --self-contained true -p:InformationalVersion=release-${{ github.sha }} -o publish
+          dotnet publish src/SCTools.Server -c Release -r linux-arm64 --self-contained true -p:InformationalVersion=release-$SHA -o publish
           rm -f publish/appsettings.Development.json
           tar -czf app.tgz -C publish .
           ls -la app.tgz
 
       - name: Is the server set up?
-        if: env.DEPLOY_HOST == ''
+        if: steps.newest.outputs.skip != 'true' && env.DEPLOY_HOST == ''
         run: echo "::notice title=Not deployed::There are no DEPLOY_ secrets yet, so the build is not put on a server (see Going live in the README)."
 
       - name: Put it on the server
-        if: env.DEPLOY_HOST != ''
+        if: steps.newest.outputs.skip != 'true' && env.DEPLOY_HOST != ''
         env:
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
@@ -54,4 +76,4 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           scp -i ~/.ssh/deploy -o BatchMode=yes app.tgz "deploy@$DEPLOY_HOST:/opt/sctools/incoming/app.tgz"
           ssh -i ~/.ssh/deploy -o BatchMode=yes "deploy@$DEPLOY_HOST" sctools-install /opt/sctools/incoming/app.tgz
-          echo "::notice title=Deployed::The web app of ${GITHUB_SHA::7} runs on the server."
+          echo "::notice title=Deployed::The web app of ${SHA::7} runs on the server."

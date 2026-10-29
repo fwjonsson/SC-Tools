@@ -55,7 +55,9 @@ To make a single exe: `dotnet publish src/SCTools.HaulingPlanner -c Release -r w
     tools/PlanTest/            prints the plans the trip planner makes for situations from real sessions
 
 Every area has its own namespace (`SCTools.Planning`, `SCTools.UI`, ...), one class per file.
-GitHub builds the program on every change (Build, Windows) and runs the tests and the planner scenarios (Tests, Linux).
+GitHub builds the programs for every pull request and every merge to main that can change them (Build, Windows), runs the tests and the planner scenarios
+when the core, the web view, the server or the tests change (Tests, Linux), and puts a merge to main that changes the server on the site once its Tests run
+is green (Deploy, see "Going live").
 
 ## Updates
 
@@ -417,7 +419,7 @@ admin (done), then going live.
 ### Going live (the server)
 
 The site runs on a Hetzner server (Ubuntu, Arm64, host name SC-Tools) as the service `sctools`; Cloudflare's tunnel brings sc-tools.fwjonsson.dev to it (no
-open ports but SSH). GitHub puts every new version of main on it (the **Deploy** workflow). Once:
+open ports but SSH). GitHub puts every new version of main on it once its tests have passed (the **Deploy** workflow, after a green **Tests** run). Once:
 
 1. **Set up the server.** Log in (`ssh root@SERVER-IP`) and run
    `curl -fsSL https://raw.githubusercontent.com/fwjonsson/SC-Tools/main/deploy/setup.sh -o setup.sh && bash setup.sh`. It makes the users, the
@@ -438,7 +440,8 @@ open ports but SSH). GitHub puts every new version of main on it (the **Deploy**
 8. **The trackers.** On the **Tracker keys** page make a key for zzoega, zzatvo and bileh123, and put each in the SC Tools Tracker on his PC
    (Server `https://sc-tools.fwjonsson.dev`, the default).
 
-After that every merge to main that changes the server is deployed by itself; a version that does not start is replaced by the one before it. The
+After that every merge to main that changes the server is deployed by itself once its Tests run is green (a red run deploys nothing: fix it, or deploy
+by hand with **Run workflow**); a version that does not start is replaced by the one before it. The
 settings are in `/etc/sctools/sctools.env` (`sudo systemctl restart sctools` after a change), the data in `/var/lib/sctools`
 (the database, the uploaded logs, the daily copies, the keys of the login cookies), the versions in `/opt/sctools/releases`.
 
@@ -449,7 +452,7 @@ pull request of the rename is merged, and GitHub deploys to the new places. Afte
 
 ## ScApiTool (Star Citizen Wiki API)
 
-A separate small program, `ScApiTool.exe` (in the same Releases download, `ScApiTool.zip`). It asks the [Star Citizen Wiki API](https://api.star-citizen.wiki) for game data (locations, missions, commodities, ships, items, and the API's own list of addresses) and saves the raw answers as `.json` files in a `ScApiData` folder next to it, with a `summary.txt` and a zip of everything.
+A separate small program, `ScApiTool.exe` (in the same Releases download, `ScApiTool.zip`; Build makes it anew when its code changes or when Build is run by hand, and the release keeps the newest one). It asks the [Star Citizen Wiki API](https://api.star-citizen.wiki) for game data (locations, missions, commodities, ships, items, and the API's own list of addresses) and saves the raw answers as `.json` files in a `ScApiData` folder next to it, with a `summary.txt` and a zip of everything.
 - Double-click it with no arguments for the standard set. `--all` removes the page limit. Give it an address like `ScApiTool.exe /api/missions` to download anything else the API has.
 - **UEX** (uexcorp.space): create an app on the UEX site (My Apps) and copy its access token. Put the token alone on the first line of a file called `uex-token.txt` next to `ScApiTool.exe` (or set the environment variable `UEX_TOKEN`). The tool then also downloads the UEX places, terminals, commodities and prices, saved as `uex-....json`. `ScApiTool.exe --uex` does only UEX, `ScApiTool.exe uex:/terminals` any other UEX address. The token is a secret: it is sent only to the UEX site and is never written to the results, so the zip is safe to hand over. Never put the token in the repository.
 - Pages are asked for by number, so a list is never downloaded twice (the API's own "next" link repeated a page and filled the mission list with the same 270 missions).
