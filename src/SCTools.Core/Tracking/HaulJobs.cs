@@ -30,11 +30,12 @@ public sealed record ScuRange(int Min, int Max)
 
 /// <summary>
 /// What the Star Citizen Wiki API says about a contract (/api/missions/{uuid}, the uuid is the log's contractDefinitionId): its debug name (the log's
-/// contract name), its title, its hauling orders' SCU (one per stop: a "Master" Red Wind contract has 4 of 100 - 150 SCU), and its reward (a range, in
-/// its currency; many missions have none there).
+/// contract name), its title, its hauling orders' SCU (one per stop: a "Master" Red Wind contract has 4 of 100 - 150 SCU), its reward (a range, in
+/// its currency; many missions have none there), the faction that gives it, its category (the Wiki's "type": Hauling, Bounty Hunter, Security...), the
+/// reputation it gives (XP) and whether it is legal.
 /// </summary>
 public sealed record WikiContract(string Uuid, string? DebugName, string? Title, IReadOnlyList<ScuRange> Orders, long? RewardMin = null, long? RewardMax = null,
-    string? Currency = null)
+    string? Currency = null, string? Faction = null, string? Category = null, long? Xp = null, string? Legality = null)
 {
     /// <summary>The SCU of the whole contract: the orders' ranges added up.</summary>
     public ScuRange Total => new(Orders.Sum(o => o.Min), Orders.Sum(o => o.Max));
@@ -48,9 +49,18 @@ public sealed record WikiContract(string Uuid, string? DebugName, string? Title,
         ? (one + (Max ?? Min)!.Value) / 2 : null;
 
     /// <summary>The reward as a text: "25,000" or "20,000–30,000" (aUEC), or null.</summary>
-    public string? AuecText => Auec == null ? null : Min == Max || Min == null || Max == null
-        ? Auec.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)
+    public string? AuecText => Auec == null ? null : Range;
+
+    /// <summary>The reward is in aUEC (the API writes UEC), or nothing says otherwise.</summary>
+    bool InAuec => Currency == null || Currency.Contains("UEC", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The ends of the range as a text ("25,000", "20,000–30,000"), or null without a reward.</summary>
+    string? Range => (Min ?? Max) is not { } one ? null : Min == Max || Min == null || Max == null
+        ? one.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)
         : Min.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + "–" + Max.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>The reward as a text in its currency: "25,000" or "20,000–30,000" in aUEC, "5 MG Scrip" in another; null without a reward.</summary>
+    public string? RewardText => Range is not { } r ? null : InAuec ? r : r + " " + Currency;
 }
 
 /// <summary>

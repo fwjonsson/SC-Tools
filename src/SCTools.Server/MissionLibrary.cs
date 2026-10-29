@@ -29,6 +29,14 @@ public sealed record LibraryEntry(MissionKindRow Row, int Taken, int Completed, 
     /// <summary>The aUEC the page shows: the one typed in, else the Star Citizen Wiki's reward (the middle of its range).</summary>
     public long? AuecShown => Row.Auec ?? Wiki?.Auec;
 
+    /// <summary>The faction the page shows: the one typed in (the Giver field, as it was called), else the Star Citizen Wiki's.</summary>
+    public string? FactionShown => Row.Giver?.Trim() is { Length: > 0 } g ? g : Wiki?.Faction;
+
+    /// <summary>The Star Citizen Wiki's category of the mission (Hauling, Bounty Hunter, Security...), the reputation it gives and Legal or Illegal; null: not known.</summary>
+    public string? Category => Wiki?.Category;
+    public long? Xp => Wiki?.Xp;
+    public string? Legality => Wiki?.Legality;
+
     /// <summary>Nothing typed in about its rewards yet.</summary>
     public bool NeedsInfo => Row.Auec == null && Row.MgScrip == null && Row.CouncilScrip == null;
 
@@ -172,7 +180,9 @@ public sealed class MissionLibrary
 
     /// <summary>
     /// Which mission of the Star Citizen Wiki API every kind is: the contract id (contractDefinitionId) of its newest mission that has one, the live logs' and
-    /// the old ones' (whatever names a string mod shows). A kind that has one keeps it. Returns how many kinds got one.
+    /// the old ones' (whatever names a string mod shows); a kind whose missions never showed one (no marker seen, or only in old logs) gets the Wiki's
+    /// mission with the name the game shows for it (from the list of every mission, WikiMissions.LearnAll; the rep and blueprint marks a string mod adds
+    /// to a name do not count). A kind that has one keeps it. Returns how many kinds got one.
     /// </summary>
     public int LinkWiki()
     {
@@ -183,10 +193,20 @@ public sealed class MissionLibrary
             var newest = db.Missions.AsNoTracking().Where(m => m.Kind != null && m.Definition != null).ToList()
                 .GroupBy(m => m.Kind!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(m => m.StartedUtc ?? DateTime.MinValue).First().Definition!, StringComparer.OrdinalIgnoreCase);
+            // the Wiki's missions by name: with the same name more than once (a mission at several places), the one read from its own page, else the one
+            // with the biggest reward, so the choice is the same every time
+            var byName = db.WikiMissions.AsNoTracking().Where(r => r.Found && r.Title != null).ToList()
+                .GroupBy(r => PlainName(r.Title!), StringComparer.OrdinalIgnoreCase).Where(g => g.Key.Length > 0)
+                .ToDictionary(g => g.Key, g => g.OrderBy(r => r.ListOnly).ThenByDescending(r => r.RewardMin ?? 0).ThenBy(r => r.Uuid, StringComparer.Ordinal).First().Uuid,
+                    StringComparer.OrdinalIgnoreCase);
             var linked = 0;
             foreach (var kind in db.MissionKinds.Where(k => k.WikiUuid == null).ToList())
             {
-                if (!newest.TryGetValue(kind.Key, out var uuid)) continue;
+                if (!newest.TryGetValue(kind.Key, out var uuid))
+                {
+                    // no contract id in any log: the Wiki's mission with the kind's name (not a contract line of the Hauling Planner that no mission named yet)
+                    if (MissionKinds.IsPlaceholder(kind.Title) || !byName.TryGetValue(PlainName(kind.Title), out uuid)) continue;
+                }
                 kind.WikiUuid = uuid;
                 linked++;
             }
@@ -209,6 +229,9 @@ public sealed class MissionLibrary
                 .Select(g => g.Key).ToList();
         }
     }
+
+    /// <summary>A mission's name without what a string mod adds to it ("[200 Rep] [BP]*"): what the Wiki calls it.</summary>
+    public static string PlainName(string title) => System.Text.RegularExpressions.Regex.Replace(title, @"\s*\[[^\]]*\]|\*", "").Trim();
 
     /// <summary>The id of a kind's row on the page (a key has spaces, # and the like).</summary>
     public static string Anchor(string key) => "m-" + Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(key)))[..12].ToLowerInvariant();
@@ -601,9 +624,11 @@ public sealed class MissionLibrary
 
 /// <summary>
 /// Reads the old logs into the Mission Library once when the server starts (when it has none of them yet) and gives the tracker the library's SCU; then
-/// every minute the SCU the game said for a hauling job becomes the library's suggestion for its kind, and the Star Citizen Wiki API is asked about up to
-/// 10 contracts of the library's missions (the live logs' and the old ones') it was not asked about yet (WikiMissions): until it was asked about every one,
-/// then only about a new one.
+/// every minute: the Star Citizen Wiki API's list of every mission is read when it was not read in the last day (WikiMissions.LearnAll: every kind gets
+/// its faction, category, reward, reputation and legality; in the loop, not at the start, so the tests' servers never reach the API), the SCU the game said
+/// for a hauling job becomes the library's suggestion for its kind, and the API is
+/// asked about up to 10 contracts of the library's missions (the live logs' and the old ones') it was not asked about yet (WikiMissions.Learn: their
+/// hauling orders): until it was asked about every one, then only about a new one.
 /// </summary>
 public sealed class MissionLibraryService : BackgroundService
 {
@@ -639,6 +664,7 @@ public sealed class MissionLibraryService : BackgroundService
                 _library.SuggestFromGame(DateTime.UtcNow);
                 // the contracts of every mission in the library (the live logs' too) the Wiki API was not asked about yet, the newest first: up to 10 a minute
                 _library.Collect();
+                await ReadList(stop);   // once a day (the first time within a minute of the start)
                 var learned = await _wiki.Learn(_library.Contracts(), DateTime.UtcNow, stop);
                 if (_library.LinkWiki() == 0 && learned > 0) _library.WikiLearned();   // (a new link made the book and the list again already)
             }
@@ -648,5 +674,14 @@ public sealed class MissionLibraryService : BackgroundService
                 _log.LogError(ex, "Suggesting the SCU the game said failed");
             }
         }
+    }
+
+    /// <summary>The list of every mission of the Wiki, when it is due (once a day): then every kind that can be linked to one is, and the pages show what it says.</summary>
+    async Task ReadList(CancellationToken stop)
+    {
+        var listed = await _wiki.LearnAllIfDue(DateTime.UtcNow, stop);
+        if (listed == 0) return;
+        _log.LogInformation("The Star Citizen Wiki's list has {Count} missions", listed);
+        if (_library.LinkWiki() == 0) _library.WikiLearned();
     }
 }

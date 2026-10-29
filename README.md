@@ -342,14 +342,19 @@ admin (done), then going live.
   of their missions have when the server starts). With every kind is what the log
   does not say: the aUEC, MG scrip and Council scrip it pays, its cargo in SCU (it wins over the suggestion in grey: the last SCU a hauler typed in for
   one of these missions on the Hauling Planner's Other hauling board, or what the game said for one; the board uses it; else the Star Citizen Wiki's in
-  grey), another name, the giver. The page everybody sees is **read-only** (`MissionsController`; for everybody when the tool is shown on the Tools
+  grey), another name, the faction (the Giver field, as it was called until 29 Oct 2026). With it is what the **Star Citizen Wiki** says about the
+  mission, in grey: the **Faction** (the one typed in wins), the **Category** (the Wiki's type: Hauling, Bounty Hunter, Security...), the **Reward**
+  (the aUEC typed in wins; a reward in another currency says which), the **XP** (the reputation it gives) and the **Legality**. The server reads the
+  Wiki's list of every mission once a day (`WikiMissions.LearnAll`, 1,800 missions, 200 to a page, `SiteValues` says when), so every kind can show
+  them: a kind is the Wiki's mission with its contract id (from the logs' markers), else the one with its name (`MissionLibrary.LinkWiki`; the rep and
+  blueprint marks a string mod adds to a name do not count). The page everybody sees is **read-only** (`MissionsController`; for everybody when the tool is shown on the Tools
   page, like the Hauling Planner's live page, else only for the admin): a library to look things up in, not a list of what was played last. The viewer
-  chooses what to see (a search of the names and givers, one giver, with or without rewards, only the kinds he played) and the order (click a column's
+  chooses what to see (a search of the names, factions and categories, one faction, with or without rewards, only the kinds he played) and the order (click a column's
   header: names A to Z, numbers the biggest first, again for the other way round; the kinds without a value in the column last; `LibraryFilter` keeps
   it all in the address), 20 to a page. What is played is his own: **Failed / Completed** (how often he failed and completed it, hover for taken and
   abandoned) and **Last played** (sort by it for the latest he played; a mission he is playing now, taken in the last six hours and not ended, says so
   and has a green row), never anybody else's, and a visitor not logged in sees no plays at all. The admin changes the library on **Edit Mission Info** (`/admin/missions`, `EditMissionsController`, in his row
-  of pages): the same list, choices and order with a field in every cell (the giver to type, or to pick from every giver typed in so far: a datalist, a
+  of pages): the same list, choices and order with a field in every cell (the faction to type, or to pick from every faction so far: a datalist, a
   new one is in it as soon as it is saved; each field saved as soon as it changes, in the background; the Notes column is gone, what was typed in it
   stays in the database). Both pages keep themselves up to date (`missions.js` asks the page's `version` address every few seconds and gets the list
   again when it changed, not while you type in it). A mission the player took himself is in it also when the log never says which offer it is (most
@@ -410,7 +415,9 @@ admin (done), then going live.
     history folder). Every minute the server asks `api.star-citizen.wiki/api/missions/{uuid}` about up to 10 contracts of the library's missions it did
     not ask about yet, the newest first, until it asked about every one; after that only about a contract it has not seen (a new kind of mission taken).
     One the API does not know is asked again after a week; when the API cannot be reached, the next minute. It keeps their debug name, title, hauling
-    orders (`min_scu`–`max_scu` of every order, one per stop) and reward.
+    orders (`min_scu`–`max_scu` of every order, one per stop) and reward. The list of every mission (`api/missions?limit=200&page=n`), read once a day,
+    gives the Mission Library the faction, category, reward, XP and legality of every mission, but no hauling orders: a mission only the list was read
+    for (`ListOnly`) has its own page asked for when a log has the contract.
   - **Value:** the Mission Library's aUEC for the kind.
   - The server gives the tracker what it knows besides the logs as a `JobBook` (the haulers' SCU, the library's kinds, the map's places), made new
     whenever the library changes, so the tracker never waits for the library.

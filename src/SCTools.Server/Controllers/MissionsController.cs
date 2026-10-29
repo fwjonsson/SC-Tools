@@ -5,9 +5,10 @@ namespace SCTools.Server.Controllers;
 
 /// <summary>
 /// The Mission Library, to look things up: every kind of mission the players took (from their logs, one row per name, or per contract line of the Hauling
-/// Planner) with what the admin typed in about it (the aUEC, MG scrip and Council scrip it pays, its SCU, the giver; Edit Mission Info, /admin/missions).
-/// Read-only: for everybody when the tool is shown (the admin's Tools page), like the Hauling Planner's live page, else only for the admin. The viewer
-/// chooses what to see (a search, a giver, with or without rewards, the ones he played) and the order (a column's header), and sees how often he played
+/// Planner) with what the admin typed in about it (the reward in aUEC, MG scrip and Council scrip, its SCU, the faction; Edit Mission Info, /admin/missions)
+/// and what the Star Citizen Wiki says (the faction, the category, the reward, the XP and the legality; WikiMissions). Read-only: for everybody when the
+/// tool is shown (the admin's Tools page), like the Hauling Planner's live page, else only for the admin. The viewer chooses what to see (a search, a
+/// faction, with or without rewards, the ones he played) and the order (a column's header), and sees how often he played
 /// each one himself (nobody else's play). The list is kept until something in it changes (MissionLibrary.Entries), so the page comes at once, and it keeps
 /// itself up to date (missions.js).
 /// </summary>
@@ -42,26 +43,26 @@ public sealed class MissionsController : Controller
         var found = filter.Apply(all, viewer).ToList();
         var pages = Math.Max(1, (found.Count + PageSize - 1) / PageSize);
         page = Math.Clamp(page, 1, pages);
-        var givers = all.Select(e => e.Row.Giver?.Trim()).Where(g => !string.IsNullOrEmpty(g)).Select(g => g!).Distinct(StringComparer.OrdinalIgnoreCase)
+        var factions = all.Select(e => e.FactionShown).Where(g => !string.IsNullOrEmpty(g)).Select(g => g!).Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(g => g, StringComparer.OrdinalIgnoreCase).ToList();
         return new MissionLibraryPage(found.Skip((page - 1) * PageSize).Take(PageSize).ToList(), filter, all.Count, found.Count, all.Count(e => e.NeedsInfo),
-            all.Count(e => !e.NeedsInfo), viewer == null ? 0 : all.Count(e => e.PlaysOf(viewer) != null), page, pages, library.Version, givers, viewer, path, editable);
+            all.Count(e => !e.NeedsInfo), viewer == null ? 0 : all.Count(e => e.PlaysOf(viewer) != null), page, pages, library.Version, factions, viewer, path, editable);
     }
 
-    /// <param name="q">a part of the name or the giver</param>
-    /// <param name="giver">one giver</param>
+    /// <param name="q">a part of the name, the faction or the category</param>
+    /// <param name="faction">one faction (giver: as the address was before 29 Oct 2026)</param>
     /// <param name="rewards">all, known (with rewards) or todo (without rewards yet; show=todo as the address was)</param>
     /// <param name="mine">1: only the kinds the viewer played</param>
     /// <param name="sort">the column (LibraryFilter.Sorts; name when empty)</param>
     /// <param name="dir">asc or desc (empty: A to Z for a name, the biggest first for a number)</param>
     /// <param name="page">the page</param>
     [HttpGet("")]
-    public IActionResult Index(string? q, string? giver, string? rewards, string? mine, string? sort, string? dir, string? show, int page = 1)
+    public IActionResult Index(string? q, string? faction, string? giver, string? rewards, string? mine, string? sort, string? dir, string? show, int page = 1)
     {
         if (!_tools.Sees(User, SiteTools.Missions)) return Hidden();
         ViewData["Title"] = "Mission Library";
         var viewer = ViewerOf(HttpContext);
-        return View(PageOf(_library, LibraryFilter.From(q, giver, rewards ?? show, mine, sort, dir, viewer != null), page, viewer, Path, editable: false));
+        return View(PageOf(_library, LibraryFilter.From(q, faction ?? giver, rewards ?? show, mine, sort, dir, viewer != null), page, viewer, Path, editable: false));
     }
 
     /// <summary>What the open page asks every few seconds: when the version is not the one it shows, it gets the list again (missions.js).</summary>

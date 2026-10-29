@@ -88,8 +88,8 @@ public class MissionLibraryTests
         Assert.Equal(1536L, entry.Row.Scu);   // its cargo
         var withGiver = await admin.GetStringAsync("/admin/missions");
         Assert.Contains("Not saved", withGiver);
-        Assert.Contains("<option value=\"Red Wind\"></option>", withGiver);   // to pick in the other Giver fields
-        Assert.Contains("list=\"givers\"", withGiver);
+        Assert.Contains("<option value=\"Red Wind\"></option>", withGiver);   // to pick in the other Faction fields
+        Assert.Contains("list=\"factions\"", withGiver);
         Assert.Contains("name=\"value\" value=\"1536\" placeholder=\"\" class=\"num scu\"", withGiver);   // in the SCU column
         Assert.DoesNotContain(RivalShown, WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/missions?rewards=todo")));   // it has rewards now
 
@@ -98,8 +98,9 @@ public class MissionLibraryTests
         Assert.Contains("<td>Red Wind</td>", seen);
         Assert.Contains(">25,000<", seen);
         Assert.Contains(">1,536<", seen);
-        Assert.Contains("<option value=\"Red Wind\" selected=\"selected\">Red Wind</option>", WebUtility.HtmlDecode(await player.GetStringAsync("/missions?giver=Red%20Wind")));
-        Assert.DoesNotContain("<tr id=\"" + MissionLibrary.Anchor("hauling:2 to ruin") + "\"", await player.GetStringAsync("/missions?giver=Red%20Wind"));   // no giver: not in it
+        Assert.Contains("<option value=\"Red Wind\" selected=\"selected\">Red Wind</option>", WebUtility.HtmlDecode(await player.GetStringAsync("/missions?faction=Red%20Wind")));
+        Assert.DoesNotContain("<tr id=\"" + MissionLibrary.Anchor("hauling:2 to ruin") + "\"", await player.GetStringAsync("/missions?faction=Red%20Wind"));   // no faction: not in it
+        Assert.Contains("<option value=\"Red Wind\" selected=\"selected\">Red Wind</option>", WebUtility.HtmlDecode(await player.GetStringAsync("/missions?giver=Red%20Wind")));   // the address as it was
         Assert.DoesNotContain(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?rewards=todo")));
         Assert.Contains(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?rewards=known")));
         Assert.Contains(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?q=rival")));

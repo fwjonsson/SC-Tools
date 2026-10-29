@@ -6,7 +6,7 @@ using SCTools.Tracking;
 namespace SCTools.Tests.ServerPages;
 
 /// <summary>
-/// What a viewer asks the Mission Library for: a search, a giver, with or without rewards, the kinds he played, and the order (a column, either way: the
+/// What a viewer asks the Mission Library for: a search, a faction, with or without rewards, the kinds he played, and the order (a column, either way: the
 /// kinds without a value in it last, the same values by name). The same choices on the read-only library and on Edit Mission Info, kept in the address.
 /// </summary>
 public class LibraryFilterTests
@@ -23,7 +23,8 @@ public class LibraryFilterTests
             plays.ToDictionary(p => p.Player, p => new PlayCount(p.Completed + 1, p.Completed, 0, 0, T.AddDays(-p.DaysAgo), false)));
     }
 
-    static readonly WikiContract Master = new("26e80306-6190-447f-a214-634d8ed8ca7d", "Master", "Master Hauler", new[] { new ScuRange(400, 600) }, 2_000_000, 2_200_000, "aUEC");
+    static readonly WikiContract Master = new("26e80306-6190-447f-a214-634d8ed8ca7d", "Master", "Master Hauler", new[] { new ScuRange(400, 600) }, 2_000_000, 2_200_000, "aUEC",
+        "Red Wind", "Hauling", 500, "Legal");   // the Wiki's faction, category, XP and legality (the faction typed in, Covalex, wins)
 
     static readonly LibraryEntry[] All =
     {
@@ -51,8 +52,15 @@ public class LibraryFilterTests
         Assert.Equal(new[] { "Stop Rival Attack", "Kill the Outlaw", "Hauling: 2 To Ruin", "Master Hauler Needed", "Deliver Supplies" }, Names(auec with { Desc = false }));
         Assert.Equal(new[] { "Stop Rival Attack", "Master Hauler Needed", "Deliver Supplies", "Hauling: 2 To Ruin", "Kill the Outlaw" }, Names(LibraryFilter.From(null, null, null, null, "scu", null, false)));
 
-        // the givers: A to Z (capitals do not matter), the kinds without one last; the same giver by name
-        Assert.Equal(new[] { "Kill the Outlaw", "Master Hauler Needed", "Deliver Supplies", "Stop Rival Attack", "Hauling: 2 To Ruin" }, Names(LibraryFilter.From(null, null, null, null, "giver", null, false)));
+        // the factions: A to Z (capitals do not matter), the kinds without one last; the same faction by name (giver: the column's name before)
+        Assert.Equal(new[] { "Kill the Outlaw", "Master Hauler Needed", "Deliver Supplies", "Stop Rival Attack", "Hauling: 2 To Ruin" }, Names(LibraryFilter.From(null, null, null, null, "faction", null, false)));
+        Assert.Equal("faction", LibraryFilter.From(null, null, null, null, "giver", null, false).Sort);
+        // the Wiki's category, XP and legality: only Master has them, the others last by name
+        Assert.Equal(new[] { "Master Hauler Needed", "Deliver Supplies", "Hauling: 2 To Ruin", "Kill the Outlaw", "Stop Rival Attack" }, Names(LibraryFilter.From(null, null, null, null, "category", null, false)));
+        var xp = LibraryFilter.From(null, null, null, null, "xp", null, false);
+        Assert.True(xp.Desc);
+        Assert.Equal(new[] { "Master Hauler Needed", "Deliver Supplies", "Hauling: 2 To Ruin", "Kill the Outlaw", "Stop Rival Attack" }, Names(xp));
+        Assert.Equal(new[] { "Master Hauler Needed", "Deliver Supplies", "Hauling: 2 To Ruin", "Kill the Outlaw", "Stop Rival Attack" }, Names(LibraryFilter.From(null, null, null, null, "legality", null, false)));
 
         // what the viewer completed: his own, the kinds he never played last; only for somebody logged in
         Assert.Equal(new[] { "Stop Rival Attack", "Kill the Outlaw", "Deliver Supplies", "Hauling: 2 To Ruin", "Master Hauler Needed" }, Names(LibraryFilter.From(null, null, null, null, "played", null, true), "zzoega"));
@@ -71,7 +79,9 @@ public class LibraryFilterTests
     public void The_choices_keep_the_kinds_asked_for()
     {
         Assert.Equal(new[] { "Deliver Supplies", "Stop Rival Attack" }, Names(LibraryFilter.From(null, "Red Wind", null, null, null, null, false)));   // capitals do not matter
-        Assert.Equal(new[] { "Deliver Supplies", "Stop Rival Attack" }, Names(LibraryFilter.From("wind", null, null, null, null, null, false)));   // the giver too
+        Assert.Equal(new[] { "Deliver Supplies", "Stop Rival Attack" }, Names(LibraryFilter.From("wind", null, null, null, null, null, false)));   // the faction too (Master's typed in one is Covalex)
+        Assert.Equal(new[] { "Hauling: 2 To Ruin", "Master Hauler Needed" }, Names(LibraryFilter.From("haul", null, null, null, null, null, false)));   // the names, and the Wiki's category
+        Assert.Equal(new[] { "Master Hauler Needed" }, Names(LibraryFilter.From(null, "covalex", null, null, null, null, false)));
         Assert.Equal(new[] { "Kill the Outlaw" }, Names(LibraryFilter.From("outlaw", null, null, null, null, null, false)));
         Assert.Equal(new[] { "Deliver Supplies", "Master Hauler Needed" }, Names(LibraryFilter.From(null, null, "todo", null, null, null, false)));
         Assert.Equal(new[] { "Hauling: 2 To Ruin", "Kill the Outlaw", "Stop Rival Attack" }, Names(LibraryFilter.From(null, null, "known", null, null, null, false)));
@@ -85,11 +95,11 @@ public class LibraryFilterTests
     public void The_address_keeps_the_choices_and_a_header_sorts_by_its_column_or_the_other_way_round()
     {
         var f = LibraryFilter.From(" rival ", "Red Wind", "todo", "1", "auec", "asc", true);
-        Assert.Equal("/missions?q=rival&giver=Red%20Wind&rewards=todo&mine=1&sort=auec&dir=asc", f.Link("/missions"));
-        Assert.Equal("/admin/missions?q=rival&giver=Red%20Wind&rewards=todo&mine=1&sort=auec&dir=asc&page=3", f.Link("/admin/missions", 3));
-        Assert.Equal("/missions?q=rival&giver=Red%20Wind&rewards=todo&mine=1&sort=auec&dir=desc", f.SortLink("/missions", "auec"));   // the other way round
-        Assert.Equal("/missions?q=rival&giver=Red%20Wind&rewards=todo&mine=1&sort=scu&dir=desc", f.SortLink("/missions", "scu"));   // a number: the biggest first
-        Assert.Equal("/missions?q=rival&giver=Red%20Wind&rewards=todo&mine=1", f.SortLink("/missions", "name"));   // by name A to Z: the default, nothing to say
+        Assert.Equal("/missions?q=rival&faction=Red%20Wind&rewards=todo&mine=1&sort=auec&dir=asc", f.Link("/missions"));
+        Assert.Equal("/admin/missions?q=rival&faction=Red%20Wind&rewards=todo&mine=1&sort=auec&dir=asc&page=3", f.Link("/admin/missions", 3));
+        Assert.Equal("/missions?q=rival&faction=Red%20Wind&rewards=todo&mine=1&sort=auec&dir=desc", f.SortLink("/missions", "auec"));   // the other way round
+        Assert.Equal("/missions?q=rival&faction=Red%20Wind&rewards=todo&mine=1&sort=scu&dir=desc", f.SortLink("/missions", "scu"));   // a number: the biggest first
+        Assert.Equal("/missions?q=rival&faction=Red%20Wind&rewards=todo&mine=1", f.SortLink("/missions", "name"));   // by name A to Z: the default, nothing to say
         Assert.Equal("/missions?sort=name&dir=desc", new LibraryFilter().SortLink("/missions", "name"));
         Assert.Equal("/missions", new LibraryFilter().Link("/missions"));
         Assert.Equal("/missions?page=2", new LibraryFilter().Link("/missions", 2));

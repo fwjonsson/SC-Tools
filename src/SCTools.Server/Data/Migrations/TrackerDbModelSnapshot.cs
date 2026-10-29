@@ -1075,10 +1075,22 @@ namespace SCTools.Server.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Category")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DebugName")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Faction")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("Found")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Legality")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("ListOnly")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Orders")
@@ -1095,6 +1107,9 @@ namespace SCTools.Server.Data.Migrations
 
                     b.Property<string>("Title")
                         .HasColumnType("TEXT");
+
+                    b.Property<long?>("Xp")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Uuid");
 

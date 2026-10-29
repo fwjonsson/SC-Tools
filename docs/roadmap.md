@@ -47,6 +47,10 @@ All the tools track at the same time, all the time. The tracking runs on the ser
      visitor sees no plays). **Edit Mission Info** (`/admin/missions`, in the admin row) is the same list with a field in every cell: name, giver,
      SCU, aUEC, MG and Council scrip, autosaved. Only Frank edits the library; a hauler's SCU goes in on the Hauling Planner's board and becomes the
      library's suggestion. Nothing under the names.
+   - **The Wiki's columns** (Frank, 29 Oct, later): the server reads the Star Citizen Wiki API's list of every mission once a day
+     (`api/missions`, 1,800 missions), so every kind shows the Wiki's **Faction** (the Giver column became Faction; one typed in wins), **Category**
+     (the Wiki's type), **Reward** (was aUEC; typed in wins), **XP** (the reputation it gives) and **Legality**. A kind whose contract id no log showed
+     is linked to the Wiki's mission by its name.
 4. **Gauntlet Tracker** (`/gauntlet`, PRs #224, #226): everybody sees only his own runs; a Leaderboard of everybody (total earned, aUEC/h over timed
    runs, completion rate, fastest run, favourite and best scenario, last played). Rewards from the Mission Library; the admin's `/admin/gauntlet`
    shows them. Top 10 fastest: picking a scenario shows it at once (no Show button).
