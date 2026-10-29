@@ -7,6 +7,9 @@ program, where it all started: it reads the logs and fills in your hauling sessi
 Renamed from Hauling Tracker on 28 Oct 2026 (the repository was SCHaulingTracker, the site haulingtracker.fwjonsson.dev and then sct.fwjonsson.dev, the
 programs HaulingTracker.exe and HaulingTrackerSender.exe): the old addresses send you to the new ones, and the programs rename themselves when they update.
 
+This file says how it all works. `docs/roadmap.md` says what is planned, what was decided and why; `docs/partial-submits.md` has the test notes on
+what a hauling contract pays when it is handed in short; `CLAUDE.md` says how we work on it (branches, CI, migrations, what never to commit).
+
 ## Build and run
 
 You need the .NET 10 SDK (Windows).
