@@ -28,7 +28,9 @@ public class WebAssetsTests
     public void Every_tab_has_its_own_address_on_the_site_and_a_hash_on_the_programs_own_page()
     {
         var page = WebAssets.Page;
-        Assert.Contains("const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history' };", page);   // /hauling/planner, or #planner
+        Assert.Contains("const TABS = { S: 'session', C: 'contracts', P: 'planner', D: 'debts', H: 'history' };", page);   // /hauling/planner, or #planner
+        Assert.Contains("<div id=\"viewC\"", page);   // the Contracts tab, with the contracts table in it
+        Assert.Contains("<div class=\"scroll\" id=\"rewards\">", page[page.IndexOf("<div id=\"viewC\"", StringComparison.Ordinal)..]);
         Assert.Contains("'/hauling/' + TABS[which]", page);
     }
 }
