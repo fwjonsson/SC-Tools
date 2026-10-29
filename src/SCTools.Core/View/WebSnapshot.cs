@@ -234,28 +234,28 @@ public sealed partial class WebSnapshot
         return table;
     }
 
-    /// <summary>The Stops board: the most valuable stop on top, with the waste to bring there (a station with only drop-offs is a row of its own).</summary>
+    /// <summary>
+    /// The Stops board: the most valuable stop on top, with the waste to bring there (a station with only drop-offs is a row of its own). No From Ruin and
+    /// Notes columns since 29 Oct 2026 (Frank; the program's board still has them).
+    /// </summary>
     ViewTable Stops()
     {
         var table = new ViewTable(_p,
-            new ViewColumn("#"), new ViewColumn("Pickup Location", "left"), new ViewColumn("From Ruin", "right"), new ViewColumn("Batches"),
-            new ViewColumn("Cargo", "right"), new ViewColumn("Value", "right"), new ViewColumn("Notes", "left"), new ViewColumn("Drop-off"));
+            new ViewColumn("#"), new ViewColumn("Pickup Location", "left"), new ViewColumn("Batches"), new ViewColumn("Cargo", "right"), new ViewColumn("Value", "right"),
+            new ViewColumn("Drop-off"));
         if (_s.Current == null || _s.Inputs == null) return table;
         foreach (var stop in _t.Earnings.StopsBoard(_t.DropOffs.OpenDrops()))
         {
             var r = stop.Row;
-            _s.Inputs.Rows.TryGetValue(stop.Zone, out var inp);
             var row = table.Add(
                 "",
                 _t.Places.LocationName(stop.Zone),
-                _t.Places.DistanceText(stop.Zone),
                 r == null ? "" : BoardTexts.MissionsText(r),
                 r == null ? "" : CargoRuns.WaitingScuText(r),
                 ValueText(stop.Value),
-                inp?.Notes ?? "",
                 stop.Drops.Count == 0 ? "" : DropOffs.StationText(stop.Drops));
-            if (r != null && r.Loaded >= r.Missions) row.Color(3, _p.Green);   // everything there is picked up
-            if (stop.Drops.Count > 0) row.Color(7, _p.Gold, 0x000000);
+            if (r != null && r.Loaded >= r.Missions) row.Color(2, _p.Green);   // everything there is picked up
+            if (stop.Drops.Count > 0) row.Color(5, _p.Gold, 0x000000);
         }
         return table.Number();
     }
@@ -264,8 +264,8 @@ public sealed partial class WebSnapshot
     ViewTable Finished()
     {
         var table = new ViewTable(_p,
-            new ViewColumn("#"), new ViewColumn("Pickup Location", "left"), new ViewColumn("From Ruin", "right"), new ViewColumn("Delivered"),
-            new ViewColumn("Worker"), new ViewColumn("Value", "right"), new ViewColumn("Handed In"));
+            new ViewColumn("#"), new ViewColumn("Pickup Location", "left"), new ViewColumn("Delivered"), new ViewColumn("Worker"), new ViewColumn("Value", "right"),
+            new ViewColumn("Handed In"));
         if (_s.Current == null || _s.Inputs == null) return table;
         foreach (var r in _s.DoneRows.OrderByDescending(x => x.DeliveredTime ?? x.LoadedTime ?? DateTime.MinValue))
         {
@@ -273,13 +273,12 @@ public sealed partial class WebSnapshot
             var row = table.Add(
                 "",
                 _t.Places.LocationName(r.Zone),
-                _t.Places.DistanceText(r.Zone),
                 r.Delivered + "/" + r.Missions,
                 carriers,
                 _t.Earnings.StopValueText(r),
                 BoardTexts.DeliveredText(r));
-            row.Color(3, _p.Green);
-            if (r.Missing > 0) row.Color(6, _p.Orange);   // cargo is missing from a mission that has this stop
+            row.Color(2, _p.Green);
+            if (r.Missing > 0) row.Color(5, _p.Orange);   // cargo is missing from a mission that has this stop
         }
         return table.Number();
     }

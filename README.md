@@ -396,10 +396,12 @@ admin (done), then going live.
 - **Your own party.** With more than one party (the ones in the game, "zzoega's party", named by its leader, and the parties that hauled in this session
   and are not playing now), the Session and Contracts tabs of the live page show the viewer's own party by themselves (the page knows who is logged in):
   the stops, contracts, session, leaderboard and runs of that party only (the missions its players have by their own logs, and their runs;
-  `Tracker.Focus`); a viewer in none of them (or not logged in) sees all of them together. A line under the tabs says whose it is; there is no picker
-  (Frank, 29 Oct 2026; there was a Party list). The Trip Planner can still show Everyone, one party in the game, or Only me (the plan is the same;
-  only whose routes are drawn and listed changes). The **Party** table (Member, Ship, QT Drive) sits beside the tabs, level with them, with the
-  Session table under it; the Ship column has the room for a long name ("Crusader C2 Hercules Starlifter"), and a longer one wraps.
+  `Tracker.Focus`); a viewer in none of them (or not logged in) sees all of them together. A line under the tabs says whose it is. The admin alone
+  has a list after the tabs (the page knows he is the admin: `<meta name="admin">`) to pick whose session the tabs show: All parties, or one of them,
+  his own first (remembered in the browser); everybody else just sees his own (Frank, 29 Oct 2026). The Trip Planner can still show Everyone, one
+  party in the game, or Only me (the plan is the same; only whose routes are drawn and listed changes). The **Party** table (Member, Ship, QT Drive)
+  sits beside the title and the tabs, level with the title, with the Session table under it; the Ship column has the room for a long name ("Crusader
+  C2 Hercules Starlifter"), and a longer one wraps. The Stops and Finished stops boards have no From Ruin and Notes columns (the program's still do).
 - **Hauling of every system** (`Tracking/HaulJobs`, `JobBook` in the core; `HaulJobsController`). Besides its own contracts, the Session tab has an
   **Other hauling** board: every mission with drop-offs (`dropoff_…` objectives) that a member of the party has going, taken in the last 12 hours
   of the logs and not ended (with a party picked, only theirs): *RSI Disc. Month: Ling Small Haul*, courier runs, the cargo of a salvage order.

@@ -10,7 +10,7 @@
   .ok { color:#5fd35f; } .bad { color:#ff6b6b; }
   .top { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
   .top > .main { min-width:0; flex:1 1 560px; }   /* the tabs and the stops take the width ... */
-  .top > .side { flex:0 0 560px; max-width:100%; padding-top:8px; }   /* ... the Party table beside the tabs, level with them (the tabs' margin), and the session under it */
+  .top > .side { flex:0 0 560px; max-width:100%; }   /* ... the Party table beside the title, level with it, and the session under it */
   .side h2 { margin-top:18px; }
   #viewC .scroll { max-width:620px; }   /* the Contracts tab: its table as narrow as it was under Session */
   .scroll { overflow-x:auto; }
@@ -31,7 +31,7 @@
   #party td:nth-child(2) { white-space:normal; }
   #rewards th:nth-child(3) { width:14%; } #rewards th:nth-child(4) { width:17%; } #rewards th:nth-child(5) { width:19%; }
   #runs td:nth-child(3) { white-space:normal; }   /* Pickup Location & Time of Cargo runs: a long run wraps instead of running over the next columns */
-  #pickups td:nth-child(7), #pickups td:nth-child(8) { white-space:normal; }   /* Notes and Drop-off of Stops: they wrap on a narrower window */
+  #pickups td:nth-child(6) { white-space:normal; }   /* Drop-off of Stops: it wraps on a narrower window */
   .empty { opacity:.6; padding:6px 0; }
   #jobs td:nth-child(1), #jobs td:nth-child(3), #jobs td:nth-child(4) { white-space:normal; }   /* Other hauling: the mission and its stops wrap */
   .note { opacity:.75; font-size:12px; margin:4px 0 0; }
@@ -43,6 +43,7 @@
   .nav, .sub { display:flex; gap:8px; margin:8px 0 4px; flex-wrap:wrap; }
   .nav button, .sub button { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 16px; font:inherit; font-weight:600; cursor:pointer; border-radius:4px; }
   .nav button.on, .sub button.on { background:var(--header); color:#fff; }
+  .nav select { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 10px; font:inherit; font-weight:600; border-radius:4px; margin-left:auto; }   /* the admin: whose session */
   .hidden { display:none; }
   .plantables { flex:1 1 520px; min-width:0; }
   .plantables h2:first-child { margin-top:0; }

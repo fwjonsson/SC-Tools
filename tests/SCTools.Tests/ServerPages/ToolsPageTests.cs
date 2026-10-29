@@ -72,6 +72,7 @@ public class ToolsPageTests
         Assert.Contains("<a href=\"/hauling\" class=\"on\" aria-current=\"page\" style=\"--tool:#4682ff\">Hauling Planner</a>", live);   // the tool you are in, in its colour
         Assert.Contains("href=\"/topbar.css?v=", live);   // with its version, so a new look is never an old one from a cache
         Assert.Contains("<a href=\"/login\">Log in</a>", live);
+        Assert.DoesNotContain("<meta name=\"admin\"", live);   // a watcher is not the admin
         Assert.DoesNotContain("position:absolute", live);   // the old links in the corner are gone
         Assert.Equal(HttpStatusCode.OK, (await visitor.GetAsync("/topbar.css")).StatusCode);
 
@@ -81,6 +82,7 @@ public class ToolsPageTests
         var admin = await f.Admin();
         live = await admin.GetStringAsync("/hauling");
         Assert.Contains("<a href=\"/admin\" class=\"area\" style=\"--tool:#e5534b\">Admin</a>", live);
+        Assert.Contains("<meta name=\"admin\" content=\"1\">", live);   // the page lets him pick whose session the tabs show
         var party = await admin.GetStringAsync("/admin/party");
         Assert.Contains("<a href=\"/admin\" class=\"area on\" aria-current=\"page\" style=\"--tool:#e5534b\">Admin</a>", party);   // in the admin's part
         Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#e5534b\">", party);   // the admin's pages under the bar, in Admin's colour
