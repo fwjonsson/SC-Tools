@@ -13,38 +13,42 @@
     string Hours(double h) => Dur(h * 3600);
     string Tab(string key, string text) =>
         $"<a class=\"tab{(Model.Tab == key ? " on" : "")}\" href=\"/gauntlet/{key}\">{text}</a>";
+    var whose = Model.InParty ? "your party" : "you";
 }
 <h1>Gauntlet Tracker</h1>
 
 <nav class="tabs">
   @Html.Raw(Tab("session", "Session"))
   @Html.Raw(Tab("stats", "Stats"))
-  @Html.Raw(Tab("ranking", "Earnings ranking"))
+  @Html.Raw(Tab("history", "History"))
   @Html.Raw(Tab("leaderboard", "Leaderboard"))
 </nav>
 
+@* whose runs the tabs show: the viewer's in-game party now (from the logs), or his own when he is alone or not playing *@
+@if (Model.Tab != "leaderboard")
+{
+  @if (Model.InParty)
+  {
+    <p class="hint party">Your party: @string.Join(", ", Model.Party). Session, Stats and History are the party's runs together (a mission shared in the party
+      counts for everybody who has it, as on the Leaderboard).</p>
+  }
+  else
+  {
+    <p class="hint party">Your own runs (you are not in a party now; in one, the party's runs are shown together).</p>
+  }
+}
+
 @if (Model.RunCount == 0 && Model.Tab != "leaderboard")
 {
-  <p class="card">No gauntlet missions seen yet for @Model.Player. They are counted from the log your tracker uploads, from the moment the tracker runs (keep it running while you play).</p>
+  <p class="card">No gauntlet missions seen yet for @(Model.InParty ? "your party" : Model.Player). They are counted from the log your tracker uploads, from the moment the tracker runs (keep it running while you play).</p>
 }
 
 @if (Model.Tab == "session")
 {
-  <h2>Lifetime</h2>
-  <table class="narrow">
-    <tbody>
-      <tr><th>Total earned (aUEC + scrip at your value)</th><td class="right">@Money(Model.Lifetime.TotalAuec) aUEC</td></tr>
-      <tr><th>aUEC</th><td class="right">@Money(Model.Lifetime.Auec)</td></tr>
-      <tr><th>MG scrip</th><td class="right">@Money(Model.Lifetime.Scrip)</td></tr>
-      <tr><th>Completed</th><td class="right">@Model.Lifetime.Completed</td></tr>
-      <tr><th>Cancelled (not counted)</th><td class="right">@Model.Lifetime.Cancelled</td></tr>
-    </tbody>
-  </table>
-
   @if (Model.Game != null)
   {
     <h2>This game session</h2>
-    <p class="hint">Counted passively from the start of the game (@When(Model.Game.Start)) to now.</p>
+    <p class="hint">Counted passively from the start of the game (@When(Model.Game.Start)) to now@(Model.InParty ? ", the first of the party's games" : "").</p>
     @await Html.PartialAsync("_Totals", Model.Game)
   }
 
@@ -58,7 +62,7 @@
   {
     <p class="muted">No grind session now.</p>
   }
-  <p class="hint">A grind session starts by itself when you accept a scenario and goes on while you play them. After an hour without accepting, completing
+  <p class="hint">A grind session starts by itself when @whose accept@(Model.InParty ? "" : "s") a scenario and goes on while @whose play@(Model.InParty ? "" : "s") them. After an hour without accepting, completing
     or abandoning one (also when the game crashed or the tracker was off), it ended 5 minutes after the last one.</p>
 
   @if (Model.PastGrinds.Count > 0)
@@ -124,20 +128,32 @@ else if (Model.Tab == "stats")
   else
   {
     <table class="narrow">
-      <thead><tr><th>#</th><th>Time</th><th>When</th></tr></thead>
+      <thead><tr><th>#</th><th>Time</th>@if (Model.InParty) { <th>Who</th> }<th>When</th></tr></thead>
       <tbody>
       @for (var i = 0; i < top.Count; i++)
       {
-        <tr><td>@(i + 1)</td><td class="right">@Dur(top[i].TimingSec)</td><td>@When(top[i].EndedUtc)</td></tr>
+        <tr><td>@(i + 1)</td><td class="right">@Dur(top[i].TimingSec)</td>@if (Model.InParty) { <td>@Model.RunBy.GetValueOrDefault(top[i].MissionId, "")</td> }<td>@When(top[i].EndedUtc)</td></tr>
       }
       </tbody>
     </table>
   }
 }
-else if (Model.Tab == "ranking")
+else if (Model.Tab == "history")
 {
+  <h2>Lifetime</h2>
+  <table class="narrow">
+    <tbody>
+      <tr><th>Total earned (aUEC + scrip at your value)</th><td class="right">@Money(Model.Lifetime.TotalAuec) aUEC</td></tr>
+      <tr><th>aUEC</th><td class="right">@Money(Model.Lifetime.Auec)</td></tr>
+      <tr><th>MG scrip</th><td class="right">@Money(Model.Lifetime.Scrip)</td></tr>
+      <tr><th>Completed</th><td class="right">@Model.Lifetime.Completed</td></tr>
+      <tr><th>Cancelled (not counted)</th><td class="right">@Model.Lifetime.Cancelled</td></tr>
+    </tbody>
+  </table>
+
   <h2>Earnings ranking</h2>
-  <p class="hint">Every scenario with a timed run, ranked by total aUEC per hour at its average time (aUEC plus MG scrip at @Money(Model.ScripValue) aUEC each).</p>
+  <p class="hint">Every scenario with a timed run, ranked by total aUEC per hour at its average time (aUEC plus MG scrip at @Money(Model.ScripValue) aUEC each).
+    Scrip/h is the MG scrip alone.</p>
   @if (Model.Ranking.Count == 0)
   {
     <p class="muted">Nothing to rank yet: no timed runs.</p>
@@ -145,7 +161,7 @@ else if (Model.Tab == "ranking")
   else
   {
     <table class="wide">
-      <thead><tr><th>Rank</th><th>Scenario</th><th>Average</th><th>Total aUEC/h (average)</th><th>Total aUEC/h (at fastest)</th><th>Lifetime earned</th></tr></thead>
+      <thead><tr><th>Rank</th><th>Scenario</th><th>Average</th><th>Scrip/h</th><th>Total aUEC/h (average)</th><th>Total aUEC/h (at fastest)</th><th>Lifetime earned</th></tr></thead>
       <tbody>
       @for (var i = 0; i < Model.Ranking.Count; i++)
       {
@@ -154,6 +170,7 @@ else if (Model.Tab == "ranking")
           <td>@(i + 1)</td>
           <td>#@s.Scenario</td>
           <td class="right">@Dur(s.Average)</td>
+          <td class="right">@((s.ScripPerHourAtAverage ?? 0).ToString("N1", inv))</td>
           <td class="right">@Money(s.TotalPerHourAtAverage ?? 0)</td>
           <td class="right">@Money(s.TotalPerHourAtFastest ?? 0)</td>
           <td class="right">@Money(s.LifetimeTotal)</td>

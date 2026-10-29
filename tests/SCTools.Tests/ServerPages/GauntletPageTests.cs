@@ -1,13 +1,15 @@
+using System.Globalization;
 using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using SCTools.Gauntlet;
 using SCTools.Server;
+using SCTools.Tests.Support;
 
 namespace SCTools.Tests.ServerPages;
 
 /// <summary>
-/// The Gauntlet Tracker pages: only for a logged in player or the admin, everybody his own runs and the grind session buttons, the leaderboard of everybody,
-/// and the rewards on the admin's page.
+/// The Gauntlet Tracker pages: only for a logged in player or the admin, everybody his own runs (his in-game party's together when he is in one), the
+/// grind sessions, the History tab with the lifetime totals and the earnings ranking, the leaderboard of everybody, and the rewards on the admin's page.
 /// </summary>
 public class GauntletPageTests
 {
@@ -37,8 +39,18 @@ public class GauntletPageTests
         var stats = await player.GetStringAsync("/gauntlet/stats?scenario=7");
         Assert.Contains("<option value=\"7\" selected=\"selected\">#7</option>", stats);
         Assert.Contains("action=\"/gauntlet/stats#top10\" class=\"line\" data-autosave", stats);   // picking a scenario shows it: no Show button
-        var ranking = await player.GetStringAsync("/gauntlet/ranking");
-        Assert.Contains("Earnings ranking", ranking);
+        var history = await player.GetStringAsync("/gauntlet/history");   // the Earnings ranking tab is History: the lifetime totals, then the ranking with Scrip/h
+        Assert.Contains("<a class=\"tab on\" href=\"/gauntlet/history\">History</a>", history);
+        Assert.Contains("<h2>Lifetime</h2>", history);
+        Assert.Contains("Earnings ranking", history);
+        Assert.Contains("<th>Scrip/h</th>", history);
+        Assert.Contains("<td class=\"right\">192.0</td>", history);   // 16 scrip in 5 minutes
+        Assert.DoesNotContain("<h2>Lifetime</h2>", page);   // the Session tab has the game and grind sessions only
+        Assert.DoesNotContain("Earnings ranking", page);
+        var old = await player.GetAsync("/gauntlet/ranking");   // the old address
+        Assert.Equal(HttpStatusCode.Redirect, old.StatusCode);
+        Assert.Equal("/gauntlet/history", old.Headers.Location?.OriginalString);
+        Assert.Contains("Your own runs (you are not in a party now", page);
         Assert.Contains("Earlier grind sessions", page);   // his run of 30 Sep was a grind session by itself
         Assert.DoesNotContain("Start grind session", page);   // no buttons: they start and stop by themselves
         Assert.DoesNotContain("name=\"player\"", page);   // his own page only: nobody else's to pick
@@ -73,6 +85,52 @@ public class GauntletPageTests
         var page = await (await f.Player(f.AddKey("zzoega"))).GetStringAsync("/gauntlet");
         Assert.Contains("Running since", page);
         Assert.Contains("Earlier grind sessions", page);
+    }
+
+    [Fact]
+    public async Task The_tabs_show_the_party_s_runs_together_when_the_viewer_is_in_a_party()
+    {
+        using var f = new ServerFactory();
+        var admin = await f.Admin();
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "gauntlet"), ("value", "true"));
+        var now = DateTime.UtcNow;
+        string T(DateTime t) => t.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
+        string Accept(int scenario, string id, DateTime t) => $"<{T(t)}> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Accepted:  Combat Gauntlet - Scenario #{scenario}: \" [12] to queue. New queue size: 1, MissionId: [{id}], ObjectiveId: [x]";
+        string Done(int scenario, string id, DateTime t) => $"<{T(t)}> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Complete:  Combat Gauntlet - Scenario #{scenario}: \" [12] to queue. New queue size: 1, MissionId: [{id}], ObjectiveId: [x]";
+        // zzoega made a party and zzatvo joined it; each ran a scenario (#7 in 5 minutes, #1 in 4 minutes); bileh123 plays alone and ran #2
+        var zzoegaLog = new GameLogWriter().At(now.AddMinutes(-30)).Login("zzoega").Minutes(1).PartyCreated().Minutes(1).MemberJoined("zzatvo").Lines
+            .Concat(new[] { Accept(7, "71111111-1111-1111-1111-111111111111", now.AddMinutes(-12)), Done(7, "71111111-1111-1111-1111-111111111111", now.AddMinutes(-7)) }).ToList();
+        var zzatvoLog = new GameLogWriter().At(now.AddMinutes(-29)).Login("zzatvo").Minutes(1).PartyJoined().Lines
+            .Concat(new[] { Accept(1, "11111111-2222-1111-1111-111111111111", now.AddMinutes(-10)), Done(1, "11111111-2222-1111-1111-111111111111", now.AddMinutes(-6)) }).ToList();
+        var bilehLog = new GameLogWriter().At(now.AddMinutes(-25)).Login("bileh123").Lines
+            .Concat(new[] { Accept(2, "21111111-3333-1111-1111-111111111111", now.AddMinutes(-12)), Done(2, "21111111-3333-1111-1111-111111111111", now.AddMinutes(-7)) }).ToList();
+        // the files are named by the time the game started, as the trackers name them: the game runs from before the party lines
+        f.Upload("zzoega", zzoegaLog, T(now.AddMinutes(-30)));
+        f.Upload("zzatvo", zzatvoLog, T(now.AddMinutes(-29)));
+        f.Upload("bileh123", bilehLog, T(now.AddMinutes(-25)));
+
+        var zzoega = await f.Player(f.AddKey("zzoega"));
+        var page = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet/history"));
+        Assert.Contains("Your party: zzatvo, zzoega", page);
+        Assert.Contains("250,750 aUEC", page);   // #7 (227,750) and #1 (23,000) together
+        Assert.Contains("<td class=\"right\">2</td>", page);   // completed
+        var stats = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet/stats?scenario=1"));
+        Assert.Contains("<th>Who</th>", stats);   // the top 10 of a party says whose run it is
+        Assert.Contains("<td>zzatvo</td>", stats);
+        var session = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet"));
+        Assert.Contains("Running since", session);   // one grind session for the party
+        Assert.Contains("the first of the party's games", session);
+
+        var bileh = await f.Player(f.AddKey("bileh123"));
+        var his = WebUtility.HtmlDecode(await bileh.GetStringAsync("/gauntlet/history"));
+        Assert.Contains("Your own runs (you are not in a party now", his);
+        Assert.Contains("36,000 aUEC", his);   // #2 alone
+        Assert.DoesNotContain("250,750", his);
+        Assert.DoesNotContain("<th>Who</th>", WebUtility.HtmlDecode(await bileh.GetStringAsync("/gauntlet/stats?scenario=2")));
+        var board = WebUtility.HtmlDecode(await bileh.GetStringAsync("/gauntlet/leaderboard"));   // the leaderboard is everybody's, one row each
+        Assert.Contains("<td>zzoega</td>", board);
+        Assert.Contains("<td>zzatvo</td>", board);
+        Assert.Contains("<td>bileh123</td>", board);
     }
 
     [Fact]

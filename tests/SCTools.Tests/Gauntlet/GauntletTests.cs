@@ -74,6 +74,7 @@ public class GauntletTests
         var ranking = GauntletStats.Ranking(scenarios);
         Assert.Equal(new[] { 7, 6 }, ranking.Select(s => s.Scenario));
         Assert.Equal(227_750.0 / 300 * 3600, ranking[0].TotalPerHourAtAverage!.Value);
+        Assert.Equal(16.0 / 300 * 3600, ranking[0].ScripPerHourAtAverage!.Value);   // the scrip alone: #7 pays 16
         Assert.Equal(227_750, ranking[0].LifetimeAuec);
     }
 

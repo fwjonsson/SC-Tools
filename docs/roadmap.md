@@ -48,7 +48,9 @@ All the tools track at the same time, all the time. The tracking runs on the ser
      library's suggestion. Nothing under the names.
 4. **Gauntlet Tracker** (`/gauntlet`, PRs #224, #226): everybody sees only his own runs; a Leaderboard of everybody (total earned, aUEC/h over timed
    runs, completion rate, fastest run, favourite and best scenario, last played). Rewards from the Mission Library; the admin's `/admin/gauntlet`
-   shows them. Top 10 fastest: picking a scenario shows it at once (no Show button).
+   shows them. Top 10 fastest: picking a scenario shows it at once (no Show button). Since 29 Oct (Frank): the Session, Stats and History tabs are
+   the viewer's in-game party's runs together (alone: his own); the Earnings ranking tab is **History**, with the lifetime totals moved there from
+   Session and a Scrip/h column in the ranking.
 5. **Party tool** (`/party`, PR #241): who is playing in which in-game party with the ship each one flies, everybody else with when they were last
    seen, and a page per player. `PartyService` keeps the site's party in one place for every tool.
 6. **Map tool** (`/map`, PR #242; all three systems in PR #243): Pyro, Stanton and Nyx from above, one tab per system (it opens on the system where
