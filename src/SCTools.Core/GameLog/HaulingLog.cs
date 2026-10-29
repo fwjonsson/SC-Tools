@@ -45,8 +45,13 @@ public sealed class HaulingLog
         @"Added notification ""Contract Accepted:.*"" \[\d+\] to queue.*MissionId: \[(?<m>[0-9a-f-]{36})\]",
         RegexOptions.Compiled);
 
+    // the title of a contract: "Contract Accepted:  RSI Disc. Month: Ling Small Haul: " (or Shared, when it was shared with him)
+    static readonly Regex ContractTitle = new(
+        @"Added notification ""Contract (?<k>Accepted|Shared):\s*(?<t>.*?)\s*"" \[\d+\] to queue.*MissionId: \[(?<m>[0-9a-f-]{36})\]",
+        RegexOptions.Compiled);
+
     static readonly Regex Deliver = new(
-        @"Added notification ""New Objective: Deliver (?<x>\d+)/(?<n>\d+) SCU of (?<c>\w+) to [^""]*"" \[\d+\] to queue.*MissionId: \[(?<m>[0-9a-f-]{36})\](?:, ObjectiveId: \[(?<o>[^\]]+)\])?",
+        @"Added notification ""New Objective: Deliver (?<x>\d+)/(?<n>\d+) SCU of (?<c>.+?) to [^""]*"" \[\d+\] to queue.*MissionId: \[(?<m>[0-9a-f-]{36})\](?:, ObjectiveId: \[(?<o>[^\]]+)\])?",
         RegexOptions.Compiled);
 
     static readonly Regex Member = new(
@@ -271,6 +276,10 @@ public sealed class HaulingLog
                 t.OutCargo ??= m.OutCargo;
                 if (t.OutDrops == 0) t.OutDrops = m.OutDrops;
                 foreach (var kv in m.ObjScu) t.ObjScu.TryAdd(kv.Key, kv.Value);
+                foreach (var kv in m.ObjText) t.ObjText.TryAdd(kv.Key, kv.Value);
+                foreach (var kv in m.ObjPos) t.ObjPos.TryAdd(kv.Key, kv.Value);
+                t.Title = SCTools.Missions.MissionKinds.Better(t.Title, m.Title);
+                t.System ??= m.System;
                 if (t.Multi == 0) t.Multi = m.Multi;
                 if (m.Accepted.HasValue && (!t.Accepted.HasValue || m.Accepted < t.Accepted)) t.Accepted = m.Accepted;
                 if (m.FirstSeen.HasValue && (!t.FirstSeen.HasValue || m.FirstSeen < t.FirstSeen)) t.FirstSeen = m.FirstSeen;
@@ -667,6 +676,20 @@ public sealed class HaulingLog
                 }
             }
             return;
+        }
+
+        x = ContractTitle.Match(line);
+        if (x.Success)
+        {
+            var title = SCTools.Missions.MissionReader.CleanTitle(x.Groups["t"].Value);
+            var known = Missions.TryGetValue(x.Groups["m"].Value, out var tm);
+            if (x.Groups["k"].Value == "Accepted" && !known) tm = Get(x.Groups["m"].Value);
+            if (tm != null && title.Length > 0 && !title.StartsWith("~mission(", StringComparison.Ordinal)) tm.Title = SCTools.Missions.MissionKinds.Better(tm.Title, title);
+            if (x.Groups["k"].Value == "Shared")
+            {
+                if (tm != null) Touch(t);
+                return;
+            }
         }
 
         x = Accepted.Match(line);

@@ -50,6 +50,14 @@ sealed class GameLogWriter
     public GameLogWriter Accepted(string mission) =>
         Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Accepted:  Senior | Stellar Large Haul | to Ruin Station <EM4>[50/200/250/500/1000/2000/4000 Rep]</EM4>: \" [9] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [] [Missions][Comms]");
 
+    /// <summary>A contract of any kind accepted, with its title as the game shows it.</summary>
+    public GameLogWriter AcceptedAs(string mission, string title) =>
+        Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Accepted:  {title}: \" [9] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [] [Team_CoreGameplayFeatures][Missions][Comms]");
+
+    /// <summary>A contract shared with him by another player, with its title.</summary>
+    public GameLogWriter SharedAs(string mission, string title) =>
+        Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Shared:  {title}: \" [9] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [] [Team_CoreGameplayFeatures][Missions][Comms]");
+
     public GameLogWriter Marker(string mission, string contract, string objective, string zone, (double X, double Y, double Z) at) =>
         Add($"{Ts} [Notice] <CLocalMissionPhaseMarker::CreateMarker> Creating objective marker: missionId [{mission}], generator name [RedWind_Hauling], contract [{contract}], contractDefinitionId[d8c129e3-b995-4a44-82ea-c21694da0260], objectiveId [{objective}], markerEntityId [1474], zoneHostId [{zone}], position [x: {F(at.X)}, y: {F(at.Y)}, z: {F(at.Z)}] [Team_MissionFeatures][Missions]");
 

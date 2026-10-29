@@ -43,6 +43,9 @@ public sealed class Mission
     /// <summary>What every objective says, from its popup ("New Objective: Go to Asteroid Cluster": objective id to "Go to Asteroid Cluster").</summary>
     public Dictionary<string, string> ObjText = new();
 
+    /// <summary>The title of the contract, as the game shows it ("RSI Disc. Month: Ling Small Haul"), when the log has it.</summary>
+    public string? Title;
+
     /// <summary>The star system of the contract, when its name says ("..._DrawOutBoss_Nyx_Super": "nyx"), as StarMap names systems.</summary>
     public string? System;
 
