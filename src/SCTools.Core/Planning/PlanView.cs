@@ -24,6 +24,7 @@ public sealed class PlanRow
     public int Passed;               // a run that is drawn on the map by itself: how many of its stops are done (the waves run on the leg after them)
     public string? From;             // a trip that continues a run in progress starts at this station
     public List<StopLine> Lines = new();   // the route one stop at a time (the Current Route table)
+    public double Scu => Lines.Sum(l => l.Scu + l.WasteScu);   // everything the route carries, in SCU (the batches are a guess): the SCU column of the Queued routes (Frank, 29 Oct 2026)
     public int Here = -1;            // the line where the worker is now (his Current location): the worker colour follows it
     public bool IsPlan => Level == "plan";
 }
@@ -42,13 +43,22 @@ public sealed class StopLine
     public decimal Value;
     public double Gm;                // the leg from the line before it
     public double Seconds;           // the estimated flying time of that leg
-    public List<string> Loads = new();   // the Cargo column: a load that goes out from Ruin or is dropped here, with the containers it is cut into (152 SCU: 4×32 + 24)
-    public List<string> Unknown = new();   // drop-offs on this line whose SCU nobody knows ("mission id|objective id"): clicking the Cargo cell lets you type it
+    public List<int> Parts = new();      // the loads from Ruin on this line (delivered here, or collected here on a run in progress), the SCU of each (0 = not known)
+    public List<string> Keys = new();    // the drop-offs of those loads ("mission id|objective id"), in the same order
+    public bool Typable;                 // a planned trip's drop-off stop: the hauler (or the admin) types the SCU going there on the page (Frank, 29 Oct 2026), kept for that drop-off only
+    public List<string> Unknown = new();   // drop-offs on this line whose SCU nobody knows ("mission id|objective id"): clicking the Boxes cell lets you type it (the program)
     public double Scu;               // SCU picked up here: a guess, the log only knows the SCU of a whole mission, so every stop of it counts as an equal share
     public string ActionText => string.Join(" | ", Actions);
     public int Count;                // the batches picked up here, or handed in here at Ruin: "3 Batches" in the Cargo column
     public double WasteScu;          // the SCU of the cargo from Ruin collected on this line (for the total the route carries)
-    public string CargoText => string.Join(" | ", (PlanText.ShowPickupScu && Scu > 0 ? Loads.Append(PlanText.ScuGuess(Scu)) : Loads).Concat(Count > 0 ? new[] { PlanText.BatchText(Count, Scu) } : Array.Empty<string>()));
+    /// <summary>The SCU column: the loads from Ruin on this line ("152", "? " when one is not known), or the guessed SCU of the batches picked up here ("~375").</summary>
+    public string ScuText => Parts.Count > 0
+        ? (Parts.Any(p => p <= 0) ? (Parts.Sum() > 0 ? Parts.Sum() + " + ?" : "?") : Parts.Sum().ToString(System.Globalization.CultureInfo.InvariantCulture))
+        : Count > 0 && Scu >= 1 ? "~" + Math.Round(Scu).ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
+    /// <summary>The Boxes column: the containers every load is cut into ("4×32 + 24", "?" for a load nobody knows the SCU of), or the batches picked up here ("3 Batches").</summary>
+    public string BoxesText => Parts.Count > 0
+        ? string.Join(" | ", Parts.Select(p => p > 0 ? DropOffs.ContainersText(p) : "?"))
+        : Count > 0 ? PlanText.BatchText(Count) : "";
 }
 
 /// <summary>What was done at one line of a run in progress (for the text of its Drop/Collect column).</summary>

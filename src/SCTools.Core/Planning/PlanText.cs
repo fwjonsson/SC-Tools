@@ -8,13 +8,13 @@ public static class PlanText
     /// <summary>The columns of the Current Route table, in the order of the cells of LineCells and LineTotals: the header and where the text sits.</summary>
     public static readonly IReadOnlyList<(string Header, string Align)> CurrentColumns = new[]
     {
-        ("#", "center"), ("Stops", "left"), ("Deliver/Collect", "left"), ("Cargo", "left"), ("Value", "right"), ("Distance", "right"), ("In flight", "right"),
+        ("#", "center"), ("Stops", "left"), ("Collect/Deliver", "left"), ("SCU", "right"), ("Boxes", "left"), ("Value", "right"), ("Distance", "right"), ("In flight", "right"),
     };
 
     /// <summary>The columns of the Queued routes table, in the order of the cells of QueuedCells and PlanTotals.</summary>
     public static readonly IReadOnlyList<(string Header, string Align)> QueuedColumns = new[]
     {
-        ("#", "center"), ("Route", "left"), ("Stops", "center"), ("Batches", "center"), ("Value", "right"), ("Distance", "right"), ("In flight", "right"),
+        ("#", "center"), ("Route", "left"), ("Stops", "center"), ("Batches", "center"), ("SCU", "right"), ("Value", "right"), ("Distance", "right"), ("In flight", "right"),
     };
 
     /// <summary>
@@ -35,14 +35,11 @@ public static class PlanText
         return string.Join("  \u2192  ", parts);
     }
 
-    /// <summary>
-    /// Whether the Cargo column also guesses the SCU (as containers, "~5×32 + 2 + 1") of the cargo that is picked up for Ruin. Off: every pickup goes to the same place, so the
-    /// number of batches at a station is all that matters; the code stays for a later version.
-    /// </summary>
-    public const bool ShowPickupScu = false;
-
-    /// <summary>How many batches, for the Cargo column: "1 Batch", "3 Batches".</summary>
+    /// <summary>How many batches, for the Boxes column: "1 Batch", "3 Batches".</summary>
     public static string BatchText(int n, double scu = 0) => n + (n == 1 ? " Batch" : " Batches") + (scu >= 1 ? " (~" + Math.Round(scu).ToString(CultureInfo.InvariantCulture) + " SCU)" : "");   // the SCU is an estimate: mission SCU / its stops
+
+    /// <summary>A sum of SCU for an SCU column: "~839" (a guess when batches are in it), "152", or nothing below one.</summary>
+    public static string ScuSum(double scu, bool guess = true) => scu < 1 ? "" : (guess ? "~" : "") + Math.Round(scu).ToString(CultureInfo.InvariantCulture);
 
     /// <summary>A guessed amount of SCU as containers, like "~12×32 + 8".</summary>
     public static string ScuGuess(double scu) => Math.Round(scu) < 1 ? "? SCU" : "~" + DropOffs.ContainersText((int)Math.Round(scu));
@@ -59,6 +56,7 @@ public static class PlanText
             "",
             stops.ToString(CultureInfo.InvariantCulture),
             rows.Sum(r => r.BatchCount).ToString(CultureInfo.InvariantCulture),
+            ScuSum(rows.Sum(r => r.Scu)),
             ValueText(rows.Sum(r => r.Value)),
             gm > 0 ? Gm(gm) : "",
             flight > 0 ? "~" + FlightSpan(flight) : "",
@@ -77,7 +75,8 @@ public static class PlanText
                 (i + 1).ToString(CultureInfo.InvariantCulture),
                 l.Name,
                 l.ActionText,
-                l.CargoText,
+                l.ScuText,
+                l.BoxesText,
                 ValueText(l.Value),
                 l.Gm > 0 ? Gm(l.Gm) : "",
                 l.Seconds > 0 ? "~" + FlightSpan(l.Seconds) : "",
@@ -95,15 +94,14 @@ public static class PlanText
         var waste = lines.Sum(l => l.WasteScu);
         var gm = lines.Sum(l => l.Gm);
         var flight = lines.Sum(l => l.Seconds);
-        // everything the route carries: the batches to Ruin and the cargo from Ruin, in SCU together (the batches are an estimate, so ~)
+        // everything the route carries: the batches to Ruin and the cargo from Ruin, in SCU together (the batches are an estimate, so ~) and in words
         var carried = (batches > 0 ? BatchText(batches) : "") + (waste > 0 ? (batches > 0 ? " + " : "") + "Waste" : "");
-        var all = scu + waste;
-        if (carried.Length > 0 && all >= 1) carried += " (" + (scu > 0 ? "~" : "") + Math.Round(all).ToString(CultureInfo.InvariantCulture) + " SCU)";
         return new[]
         {
             "\u03a3",
             stops + (stops == 1 ? " stop" : " stops"),
             batches > 0 ? "Collect" : "",
+            ScuSum(scu + waste, scu > 0),
             carried,
             ValueText(lines.Sum(l => l.Value)),
             gm > 0 ? Gm(gm) : "",
@@ -118,6 +116,7 @@ public static class PlanText
         r.Route,
         r.Stops.Count.ToString(CultureInfo.InvariantCulture),
         r.BatchCount.ToString(CultureInfo.InvariantCulture),
+        ScuSum(r.Scu),
         ValueText(r.Value),
         r.Gm > 0 ? Gm(r.Gm) : "",
         FlightText(r),

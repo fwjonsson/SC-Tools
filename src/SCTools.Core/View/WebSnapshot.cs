@@ -20,6 +20,9 @@ public sealed class WebSnapshotOptions
 
     /// <summary>Where the admin's Lost Cargo pick in the Cargo runs table goes (the server's address; Frank, 29 Oct 2026). The program has none.</summary>
     public string? RunsLost { get; init; }
+
+    /// <summary>Where the SCU a hauler types for a drop-off of his own trip on the Trip Planner goes (the server's address; Frank, 29 Oct 2026). The program has none.</summary>
+    public string? TripScu { get; init; }
 }
 
 /// <summary>
@@ -226,50 +229,66 @@ public sealed partial class WebSnapshot
     }
 
     /// <summary>
-    /// The Stops board: the most valuable stop on top, with the waste to bring there (a station with only drop-offs is a row of its own). No From Ruin and
-    /// Notes columns since 29 Oct 2026 (Frank; the program's board still has them).
+    /// The Stops board, the most valuable row on top: every pickup location with its batches, its cargo, its value and Ruin as the drop-off, and every
+    /// station that from-Ruin drop-offs go to as a row of its own, read the same way (Frank, 29 Oct 2026): Ruin as the pickup, how many drop-offs, the
+    /// cargo with its SCU in containers, their value, and the station as the drop-off. The SCU and the Boxes are two columns (Frank, 29 Oct 2026). No From
+    /// Ruin and Notes columns since 29 Oct 2026 (Frank; the program's board still has them).
     /// </summary>
     ViewTable Stops()
     {
         var table = new ViewTable(_p,
-            new ViewColumn("#"), new ViewColumn("Pickup Location", "left"), new ViewColumn("Batches"), new ViewColumn("Cargo", "right"), new ViewColumn("Value", "right"),
-            new ViewColumn("Drop-off"));
+            new ViewColumn("#"), new ViewColumn("Pickup Location", "left"), new ViewColumn("Batches"), new ViewColumn("SCU", "right"), new ViewColumn("Boxes", "left"),
+            new ViewColumn("Value", "right"), new ViewColumn("Drop-off Location", "left"));
         if (_s.Current == null || _s.Inputs == null) return table;
+        var ruin = PyroDistances.NameOf(PyroDistances.Ruin);
+        var lines = new List<(decimal Value, string[] Cells, bool AllPicked, bool Waste)>();
         foreach (var stop in _t.Earnings.StopsBoard(_t.DropOffs.OpenDrops()))
         {
-            var r = stop.Row;
-            var row = table.Add(
-                "",
-                _t.Places.LocationName(stop.Zone),
-                r == null ? "" : BoardTexts.MissionsText(r),
-                r == null ? "" : CargoRuns.WaitingScuText(r),
-                ValueText(stop.Value),
-                stop.Drops.Count == 0 ? "" : DropOffs.StationText(stop.Drops));
-            if (r != null && r.Loaded >= r.Missions) row.Color(2, _p.Green);   // everything there is picked up
-            if (stop.Drops.Count > 0) row.Color(5, _p.Gold, 0x000000);
+            if (stop.Row is { } r)
+            {
+                var value = _t.Earnings.StopValue(r);
+                var waiting = CargoRuns.WaitingScu(r);   // a guess (mission SCU / its stops), nothing when everything there is picked up
+                lines.Add((value, new[] { "", _t.Places.LocationName(stop.Zone), BoardTexts.MissionsText(r), PlanText.ScuSum(waiting), waiting >= 1 ? PlanText.ScuGuess(waiting) : "", ValueText(value), ruin }, r.Loaded >= r.Missions, false));
+            }
+            if (stop.Drops.Count > 0)
+            {
+                var value = _t.Earnings.WasteValue(stop.Drops);
+                var scu = stop.Drops.Sum(d => d.Scu);
+                var cargo = string.Join(", ", stop.Drops.Select(d => d.Mission.OutCargo ?? "Cargo").Distinct()) + ": " + (scu > 0 ? DropOffs.ContainersText(scu) : "?");
+                lines.Add((value, new[] { "", ruin, stop.Drops.Count.ToString(CultureInfo.InvariantCulture), scu > 0 ? scu.ToString(CultureInfo.InvariantCulture) : "?", cargo, ValueText(value), _t.Places.LocationName(stop.Zone) }, false, true));
+            }
+        }
+        foreach (var l in lines.OrderByDescending(l => l.Value))
+        {
+            var row = table.Add(l.Cells);
+            if (l.AllPicked) row.Color(2, _p.Green);   // everything there is picked up
+            if (l.Waste) row.Color(6, _p.Gold, 0x000000);   // a drop-off to bring out
         }
         return table.Number();
     }
 
-    /// <summary>Finished Stops: the latest hand-in on top, with who carried from there.</summary>
+    /// <summary>Finished Stops: the latest hand-in on top, with the SCU and boxes delivered (a guess: mission SCU / its stops) and who carried from there.</summary>
     ViewTable Finished()
     {
         var table = new ViewTable(_p,
-            new ViewColumn("#"), new ViewColumn("Pickup Location", "left"), new ViewColumn("Delivered"), new ViewColumn("Worker"), new ViewColumn("Value", "right"),
-            new ViewColumn("Handed In"));
+            new ViewColumn("#"), new ViewColumn("Pickup Location", "left"), new ViewColumn("Delivered"), new ViewColumn("SCU", "right"), new ViewColumn("Boxes", "left"),
+            new ViewColumn("Worker"), new ViewColumn("Value", "right"), new ViewColumn("Handed In"));
         if (_s.Current == null || _s.Inputs == null) return table;
         foreach (var r in _s.DoneRows.OrderByDescending(x => x.DeliveredTime ?? x.LoadedTime ?? DateTime.MinValue))
         {
             var carriers = string.Join(", ", _s.Trips.Where(t => t.Pickups.Any(p => p.Zone == r.Zone)).Select(t => t.Worker).Distinct(StringComparer.OrdinalIgnoreCase));
+            var delivered = r.Missions > 0 ? r.StopMissions.Sum(CargoRuns.StopScu) * r.Delivered / r.Missions : 0;   // the stops handed in, in SCU (a guess)
             var row = table.Add(
                 "",
                 _t.Places.LocationName(r.Zone),
                 r.Delivered + "/" + r.Missions,
+                PlanText.ScuSum(delivered),
+                delivered >= 1 ? PlanText.ScuGuess(delivered) : "",
                 carriers,
                 _t.Earnings.StopValueText(r),
                 BoardTexts.DeliveredText(r));
             row.Color(2, _p.Green);
-            if (r.Missing > 0) row.Color(5, _p.Orange);   // cargo is missing from a mission that has this stop
+            if (r.Missing > 0) row.Color(7, _p.Orange);   // cargo is missing from a mission that has this stop
         }
         return table.Number();
     }

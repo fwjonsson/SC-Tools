@@ -329,7 +329,14 @@ admin (done), then going live.
   seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Trip Planner is the first tab of the page (Frank, 29 Oct
   2026: `/hauling` opens it), the Σ line of its Current Route table is like the Queued routes' total, and the Time of a run on the way counts up under
   the map too. On the Session tab the admin picks the Lost Cargo of a run in the Cargo runs table (`/hauling/runs/lost`, sent in the background, the
-  same edit as his Session page's). The Party button's panel in the top bar shows every member's
+  same edit as his Session page's). The **Stops** board (`WebSnapshot.Stops`) reads the from-Ruin drop-offs the same way as the pickups (Frank, 29 Oct
+  2026): a pickup location is a row with its batches, its cargo, its value and Ruin as the **Drop-off Location**, and every station that drop-offs go
+  to is a row of its own with Ruin as the pickup, how many drop-offs, the cargo with its SCU in containers, their value and the station as the drop-off
+  (in gold); the most valuable row on top. The SCU and the boxes are two columns, **SCU** and **Boxes**, on the Stops, Finished stops and Current Route
+  tables (Frank, 29 Oct 2026), and the Queued routes have an SCU column beside Batches (everything the trip carries). On the Current Route the drop-off
+  of a planned trip has its SCU and boxes on the line of the stop it goes to, and the hauler of that trip (or the admin) types the SCU there
+  (`/hauling/trips/scu`, sent in the background): it is kept for that drop-off only (`AppData.TypedScu`, the same as the admin's SCU of the drop-offs on
+  his Session page), not in the Mission Library, the plan is worked out again with it, and the game's own number wins once it writes it. The Party button's panel in the top bar shows every member's
   ship and drive ("TS-2 S3 +20 %"); the Hauling Planner's page has no Party table of its own since 29 Oct 2026 (Frank).
 - **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the Hauling Planner's page is at
   `/hauling`, every tab at an address of its own (`/hauling/session`, `/hauling/contracts`, `/hauling/planner`, `/hauling/debts`, `/hauling/history`; the program's own page
