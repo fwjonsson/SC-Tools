@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using SCTools.Missions;
 using SCTools.Server.Editing;
@@ -10,7 +11,9 @@ namespace SCTools.Server;
 /// arrives, not when the jump itself starts: a jump is taken to start a few seconds after the destination was picked (JumpDelay), and the page works out
 /// where he is and how fast he goes from his drive (crafted as it is), so a player in quantum moves along his route with his speed. When he arrives, the log
 /// puts him there. A jump with no destination picked (at a marker he looked at, or as crew) is one too: to a mission's objective going on, to where the
-/// pilot picked, or somewhere the map does not know.
+/// pilot picked, or somewhere the map does not know. The Hauling Planner knows where its party is from the pickups, deliveries and hand-ins too (Whereabouts):
+/// where that is newer than what the jumps say, the map takes it (Frank, 29 Oct 2026: the planner knew they were at Ruin when the map did not). Under the
+/// map, the missions going on with what the Mission Library says about them.
 /// </summary>
 public sealed class MapService
 {
@@ -33,13 +36,15 @@ public sealed class MapService
     readonly LiveTracker _live;
     readonly FleetService _fleet;
     readonly MapPlaces _places;
+    readonly MissionLibrary? _library;
 
-    public MapService(LogUploads uploads, LiveTracker live, FleetService fleet, MapPlaces places)
+    public MapService(LogUploads uploads, LiveTracker live, FleetService fleet, MapPlaces places, MissionLibrary? library = null)
     {
         _uploads = uploads;
         _live = live;
         _fleet = fleet;
         _places = places;
+        _library = library;
     }
 
     /// <summary>
@@ -99,12 +104,14 @@ public sealed class MapService
         {
             if (step.Seen is { } s)
             {
-                // he opened the inventory of a place: he is there (and not in quantum, unless it is where the jump he picked starts)
+                // he opened the inventory of a place: he is there (and not in quantum, unless it is where the jump he picked starts). A place the map does not
+                // know (an inventory at a mission's spot, an outpost) does not take away where it had him: he is still there, or near it
                 var (sys, place) = atlas.OfLocation(s.Location);
                 if (place == null && unknown != null && !atlas.AliasOf(s.Location).Said) unknown(s.Time, s.Location, UnknownKind.Location, sys ?? system);
                 if (sys != null) system = sys;
                 if (picked != null && place != null && Equals(place, from)) continue;
-                if (!Equals(place, at) || since == null || atMission != null || jumped) (at, since) = (place, s.Time);   // null: a place the map does not know
+                if (place == null && picked == null) continue;
+                if (!Equals(place, at) || since == null || atMission != null || jumped) (at, since) = (place ?? at, s.Time);
                 picked = null;
                 from = to = null;
                 atMission = toMission = null;
@@ -237,6 +244,7 @@ public sealed class MapService
         var objectives = new List<object>();
         var placed = new HashSet<(string, string)>();
         var unplaced = 0;
+        var going = new Dictionary<string, GoingMission>(StringComparer.OrdinalIgnoreCase);   // the missions going on, by id (shared: once), for the table under the map
         List<HaulingLog> logs;
         lock (_uploads.Sync) logs = _uploads.Logs.ToList();
 
@@ -261,7 +269,24 @@ public sealed class MapService
             var others = playing.Where(o => !ReferenceEquals(o.Log, log)).Select(o => (IReadOnlyList<QtEvent>)o.Qt).ToList();
             var points = Points(p.Beacons.Where(b => b.Time >= nowUtc - MissionAge), p.Missions, Title, atlas);
             var where = Follow(WithPilots(p.Qt, others), atlas, null, p.Seen, points);
-            players.Add(Player(name, where, nowUtc));
+            // the Hauling Planner saw him pick up, deliver or hand in later than the jumps say anything: he is at that station
+            var planner = _live.Read(t => t.State.Data.Party.Any(n => PlayerNames.SameName(n, name)) ? (Station: t.Whereabouts.AutoLocationOf(name), At: t.Whereabouts.LastMoveOf(name)) : (null, DateTime.MinValue));
+            var byPlanner = false;
+            if (planner.Station != null && planner.At > (where.Since ?? DateTime.MinValue) && planner.At > (where.Picked?.Time ?? DateTime.MinValue)
+                && atlas.OfPyroStation(planner.Station) is { } there && !Equals(there, where.At))
+            {
+                where = new Whereabouts(there.System, there, planner.At, null, null, null);
+                byPlanner = true;
+            }
+            players.Add(Player(name, where, nowUtc, byPlanner));
+            foreach (var m in p.Missions.Values)
+            {
+                if (m.EndState != null || m.Dropped || (m.FirstSeen ?? m.Accepted ?? DateTime.MinValue) < nowUtc - MissionAge) continue;
+                if (seen.TryGetValue(m.Id, out var s2) && s2.Outcome != null) continue;
+                var open = m.ObjZone.Keys.Count(o => !(m.Events.TryGetValue(o, out var ev) && ev.Count > 0 && IsOver(ev[^1].State)));
+                if (!going.TryGetValue(m.Id, out var row)) going[m.Id] = row = new GoingMission(Title(m), new List<string>(), open);
+                if (!row.Who.Contains(name)) row.Who.Add(name);
+            }
 
             foreach (var m in p.Missions.Values)
             {
@@ -308,7 +333,32 @@ public sealed class MapService
             players,
             objectives,
             unplaced,
+            missions = Missions(going),
         };
+    }
+
+    /// <summary>A mission going on: its name, who has it, and how many of its objectives are still open.</summary>
+    sealed record GoingMission(string Title, List<string> Who, int Open);
+
+    /// <summary>
+    /// The table under the map: every mission going on, with who has it, its open objectives, and what the Mission Library says about its kind (the
+    /// library's columns: faction, category, SCU, reward, scrip, XP, legality), by name.
+    /// </summary>
+    List<object> Missions(Dictionary<string, GoingMission> going)
+    {
+        var entries = _library == null ? new Dictionary<string, LibraryEntry>(StringComparer.OrdinalIgnoreCase)
+            : _library.Entries().GroupBy(e => e.Row.Key, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        static string N(long? v) => v?.ToString("N0", CultureInfo.InvariantCulture) ?? "";
+        return going.Values.OrderBy(g => g.Title, StringComparer.OrdinalIgnoreCase).Select(g =>
+        {
+            var e = MissionKinds.TitleKey(g.Title) is { } key && entries.TryGetValue(key, out var found) ? found : null;
+            return (object)new
+            {
+                title = e?.Shown ?? g.Title, who = g.Who.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList(), open = g.Open,
+                faction = e?.FactionShown ?? "", category = e?.Category ?? "", scu = N(e?.ScuShown), reward = e == null ? "" : e.Row.Auec != null ? N(e.Row.Auec) : e.Wiki?.RewardText ?? "",
+                mg = N(e?.Row.MgScrip), council = N(e?.Row.CouncilScrip), xp = N(e?.Xp), legality = e?.Legality ?? "",
+            };
+        }).ToList();
     }
 
     /// <summary>
@@ -316,7 +366,7 @@ public sealed class MapService
     /// heading somewhere the jump cannot be drawn to (only where to); at a mission's objective the map cannot place; or not known (the system, when that is;
     /// after a jump somewhere the map does not know, since when).
     /// </summary>
-    object Player(string name, Whereabouts w, DateTime nowUtc)
+    object Player(string name, Whereabouts w, DateTime nowUtc, bool byPlanner = false)
     {
         var (color, drive, driveText) = _live.Read(t => (ViewPalette.Hex(Edits.ColorOf(t, name)), t.Crew.QtOf(name), t.Crew.DriveTextOf(name)));
         var ship = _fleet.Active(name).Text;
@@ -324,7 +374,7 @@ public sealed class MapService
         static string AtMission(MissionPoint p) => "the mission: " + p.Text;
         object At(Place place, DateTime? since, MissionPoint? mission) =>
             new { name, color, ship, drive = shown, system = place.System, state = "at", at = place.Key, atName = mission != null ? AtMission(mission) : place.Name,
-                mission = mission?.Title, since };
+                mission = mission?.Title, since, via = byPlanner ? "the Hauling Planner" : null };
 
         if (w.Picked is { } picked && (w.To != null || w.ToMission != null))
         {

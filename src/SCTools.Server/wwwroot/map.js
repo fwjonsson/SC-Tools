@@ -339,7 +339,7 @@
       const ship = document.createElement('div'); ship.className = 'what'; ship.textContent = [pl.ship, pl.drive].filter(function (x) { return x; }).join(' · '); card.appendChild(ship);
       const what = document.createElement('div'); what.className = 'what'; card.appendChild(what);
       const of = pl.mission ? ' (' + pl.mission + ')' : '';   // at or to a mission's objective: which mission
-      if (pl.state === 'at' || pl.state === 'mission') what.textContent = 'At ' + pl.atName + of + (pl.since ? ' since ' + since(pl.since) : '');
+      if (pl.state === 'at' || pl.state === 'mission') what.textContent = 'At ' + pl.atName + of + (pl.since ? ' since ' + since(pl.since) : '') + (pl.via ? ' (' + pl.via + ')' : '');
       else if (pl.state === 'heading') what.textContent = 'In quantum to ' + pl.toName + of + (pl.since ? (of ? ', since ' : ' (since ') + since(pl.since) + (of ? '' : ')') : '');
       else if (pl.state === 'unknown') what.textContent = pl.off
         ? 'Off the grid: out of comm-array range' + (pl.since ? ' since ' + since(pl.since) : '') + (pl.lastPing ? ' · last ping at ' + pl.lastPing : '')
@@ -377,6 +377,26 @@
       (d.unplaced > 0 ? (d.unplaced === 1 ? 'One objective is' : d.unplaced + ' objectives are') + ' only in the list: the game does not say where ' +
         (d.unplaced === 1 ? 'it is.' : 'they are.') : '');
     if (note.textContent) objs.appendChild(note);
+
+    // under the map: the missions going on, with who has them and what the Mission Library says about them
+    const mis = document.getElementById('missions');
+    mis.textContent = '';
+    if (!d.missions || d.missions.length === 0) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'No missions going on.'; mis.appendChild(p); }
+    else {
+      const t = document.createElement('table'); t.className = 'missions view';
+      const hr = t.createTHead().insertRow();
+      [['Mission', ''], ['Who', ''], ['Open', 'right'], ['Faction', ''], ['Category', ''], ['SCU', 'right'], ['Reward', 'right'], ['MG scrip', 'right'], ['Council scrip', 'right'], ['XP', 'right'], ['Legality', '']]
+        .forEach(function (h) { const th = document.createElement('th'); th.textContent = h[0]; if (h[1]) th.className = h[1]; hr.appendChild(th); });
+      const tb = t.createTBody();
+      d.missions.forEach(function (m) {
+        const tr = tb.insertRow();
+        [m.title, m.who.join(', '), String(m.open), m.faction, m.category, m.scu, m.reward, m.mg, m.council, m.xp, m.legality].forEach(function (v, i) {
+          const td = tr.insertCell(); td.textContent = v;
+          if (i === 0) td.className = 'name'; else if (i === 2 || (i >= 5 && i <= 9)) td.className = 'right';
+        });
+      });
+      const box = document.createElement('div'); box.className = 'scroll'; box.appendChild(t); mis.appendChild(box);
+    }
     move();
   }
 
