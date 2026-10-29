@@ -63,4 +63,47 @@ public class LiveTrackerTests
         Assert.Equal("#112233", party.GetProperty("back")[0].GetString());   // data.json has the new colour already
         Assert.Equal(unchecked((int)0xFF112233), live.Read(t => t.Crew.PickedColor(PlayedSession.Player)));
     }
+
+    [Fact]
+    public void Data_json_stays_as_it_is_while_nothing_changes()
+    {
+        var uploads = new LogUploads();
+        var live = new LiveTracker(PlayedSession.Data(), _ => { }, uploads);
+        uploads.Add(PlayedSession.Player, "f", 0, 100, PlayedSession.Writer().Lines.ToList());
+        var now = DateTime.UtcNow;
+        live.Refresh(now);
+        var made = live.Snapshot;
+        Assert.StartsWith("\"", made.ETag);   // an ETag is a quoted string
+        Assert.Equal(made.Json, System.Text.Encoding.UTF8.GetString(made.Bytes));
+
+        live.Refresh(now);
+        live.Refresh(now);
+        Assert.Same(made, live.Snapshot);   // nothing came in, nothing was saved, the status line is the same: the same data.json, not made again
+        Assert.Equal(1, live.Builds);
+    }
+
+    [Fact]
+    public void Data_json_is_made_anew_when_something_comes_in_and_after_half_a_minute()
+    {
+        var uploads = new LogUploads();
+        var live = new LiveTracker(PlayedSession.Data(), _ => { }, uploads);
+        var w = PlayedSession.Writer();
+        var lines = w.Lines.ToList();
+        uploads.Add(PlayedSession.Player, "f", 0, 100, lines);
+        var now = DateTime.UtcNow;
+        live.Refresh(now);
+        var first = live.Snapshot;
+
+        var more = w.Minutes(15).Unstow().Seconds(5).Objective(PlayedSession.M2, "pickup_m2_1", "COMPLETED");
+        uploads.Add(PlayedSession.Player, "f", 100, 200, more.Lines.Skip(lines.Count).ToList());
+        live.Refresh(now);
+        var second = live.Snapshot;
+        Assert.NotSame(first, second);   // a new piece of log: made again
+        Assert.NotEqual(first.ETag, second.ETag);
+
+        live.Refresh(now);
+        Assert.Same(second, live.Snapshot);
+        live.Refresh(now + LiveTracker.MaxAge);
+        Assert.NotSame(second, live.Snapshot);   // half a minute gone by: made again, so what follows the clock alone keeps up
+    }
 }

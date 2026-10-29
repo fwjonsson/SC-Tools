@@ -42,8 +42,20 @@ public sealed class GauntletService
         });
     }
 
-    /// <summary>Writes the missions the logs show that the database does not have yet. Returns how many were new.</summary>
-    public int Collect() => Add(_uploads.GauntletRuns());
+    long _collected = -1;   // Uploads.Pieces when the live logs were last looked at
+
+    /// <summary>
+    /// Writes the missions the logs show that the database does not have yet, when anything came in since the last time (this runs every two seconds, and for
+    /// the Gauntlet pages: with nothing new, the database is left alone). Returns how many were new.
+    /// </summary>
+    public int Collect()
+    {
+        var pieces = _uploads.Pieces;
+        if (pieces == _collected) return 0;
+        var added = Add(_uploads.GauntletRuns());
+        _collected = pieces;
+        return added;
+    }
 
     /// <summary>Writes these missions where the database does not have them yet (the live logs, or an old log a tracker sent). Returns how many were new.</summary>
     public int Add(IReadOnlyDictionary<string, List<GauntletRun>> found)

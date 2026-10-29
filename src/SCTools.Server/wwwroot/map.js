@@ -407,6 +407,7 @@
   }
 
   async function refresh() {
+    if (document.hidden) return;   // nobody is looking: the map polls again when the tab is shown
     const state = document.getElementById('mapState');
     try {
       const res = await fetch('/map/map.json', { cache: 'no-store' });
@@ -424,6 +425,7 @@
     const h = location.hash.replace('#', '').toLowerCase();
     if (data && data.systems.some(function (s) { return s.id === h; }) && h !== shown) show(h, true);
   });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
   refresh();
   setInterval(refresh, 3000);
   requestAnimationFrame(loop);

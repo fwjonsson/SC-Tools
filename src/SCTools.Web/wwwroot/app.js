@@ -40,15 +40,16 @@ function table(el, g) {
   el.appendChild(t);
 }
 
-// Clocks that run (the session time and the run time of runs on the way) count up on the page every second between the updates.
-let tickers = [];
+// Clocks that run (the session time and the run time of runs on the way) count up on the page every second between the updates: a cell keeps the time it
+// came with (data-tick, in seconds) and shows it plus what passed since the data was fetched.
 let fetchedAt = Date.now();
 function parseHms(s) { const m = /^(\d+):(\d\d):(\d\d)$/.exec(s || ''); return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : null; }
 function fmtHms(n) { const h = Math.floor(n / 3600), m = Math.floor(n % 3600 / 60), s = n % 60; return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0'); }
-function addTicker(td) { const b = parseHms(td.textContent); if (b !== null) tickers.push({ td: td, base: b }); }
+function addTicker(td) { const b = parseHms(td.textContent); if (b !== null) td.dataset.tick = b; }
 setInterval(function () {
+  if (document.hidden) return;
   const dt = Math.floor((Date.now() - fetchedAt) / 1000);
-  tickers.forEach(function (t) { t.td.textContent = fmtHms(t.base + dt); });
+  document.querySelectorAll('[data-tick]').forEach(function (td) { td.textContent = fmtHms(+td.dataset.tick + dt); });
 }, 1000);
 
 // The first columns of Stops, Finished stops and Cargo runs are as wide as the same columns of the Session leaderboard, so they line up (like in the program).
@@ -320,12 +321,7 @@ function renderPlanner() {
     w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, passed: r.passed || 0, bold: !!r.solid, dashed: !r.solid }); });
   });
   mapSvg(mapBox, p.stations, routes, p.backdrop);
-  if (p.status) {
-    // the small team status line under the map: it fades in only when the text really changed (the page is built again every few seconds)
-    const st = document.createElement('div'); st.className = 'status'; st.textContent = p.status;
-    if (p.statusKey !== shownStatus) { st.classList.add('fade'); shownStatus = p.statusKey; }
-    mapBox.appendChild(st);
-  }
+  renderStatus(mapBox);
   workers.forEach(function (w) {
     const frame = document.createElement('div'); frame.className = 'planworker'; tables.appendChild(frame);   // every worker in his own frame
     const h = document.createElement('h2'); frame.appendChild(h);
@@ -344,6 +340,23 @@ function renderPlanner() {
   // the short copy of Cargo Runs under the map: #, Worker, Value, Started, Completed, Time and In flight (the Session tab has the whole table)
   const runs = last.planRuns || last.runs;
   section(left, 'h2', 'Cargo Runs', runs && names ? { headers: runs.headers, rows: runs.rows.filter(function (r) { return shown(r.cells[1]); }) } : runs);
+}
+
+// The small team status line under the map: it fades in only when the text really changed. It is drawn on its own, so a new line (every few seconds while
+// somebody plays) does not draw the map and the tables anew.
+function renderStatus(mapBox) {
+  const p = last.planner;
+  mapBox = mapBox || document.querySelector('#planBody .mapbox');
+  if (!mapBox) return;
+  let st = mapBox.querySelector('.status');
+  if (!p || !p.status) { if (st) st.remove(); return; }
+  if (!st) { st = document.createElement('div'); st.className = 'status'; mapBox.appendChild(st); }
+  st.textContent = p.status;
+  if (p.statusKey !== shownStatus) {
+    st.classList.remove('fade'); void st.offsetWidth;   // the fade starts again on a line that is already there
+    st.classList.add('fade');
+    shownStatus = p.statusKey;
+  }
 }
 
 function renderDebts() {
@@ -376,17 +389,22 @@ function renderHistory() {
 // own page (at /) keeps them after a # (#planner). The old #plan links still open the Trip Planner.
 const TABS = { S: 'session', C: 'contracts', P: 'planner', D: 'debts', H: 'history' };
 const ON_SITE = /^\/hauling(\/|$)/.test(location.pathname);
+// Only the tab shown is drawn when data comes; the others are drawn when they are shown (dirty: the tabs with data they have not shown yet).
+const dirty = { S: true, C: true, P: true, D: true, H: true };
+let shownTab = 'S';
 function tabOf(name) {
   name = (name || '').replace(/^#/, '');
   if (name === 'plan') name = 'planner';
   return Object.keys(TABS).find(function (k) { return TABS[k] === name; });
 }
 function show(which) {
+  shownTab = which;
   Object.keys(TABS).forEach(function (k) {
     document.getElementById('view' + k).classList.toggle('hidden', k !== which);
     document.getElementById('tab' + k).classList.toggle('on', k === which);
   });
   try { history.replaceState(null, '', ON_SITE ? '/hauling/' + TABS[which] : '#' + TABS[which]); } catch (e) { }
+  if (last && dirty[which]) renderTab(which);
   layout();   // the tables of a tab that was hidden could not be measured
 }
 Object.keys(TABS).forEach(function (k) { document.getElementById('tab' + k).onclick = function () { show(k); }; });
@@ -489,54 +507,91 @@ function sendScu(e, input, from, url) {
     .catch(function () { done(false, 'Not saved: the site could not be reached. Try again.'); });
 }
 
-// Everything on the page from the data fetched last (again when a tab of a party or a choice on the Trip Planner is clicked).
+// What every part of the page was drawn from last (as JSON text): a part whose data is the same is left as it is, so an update that changes one table
+// draws one table, and the status line alone draws nothing but the status line.
+const drawn = {};
+function changed(key, value) {
+  const s = JSON.stringify(value === undefined ? null : value);
+  if (drawn[key] === s) return false;
+  drawn[key] = s;
+  return true;
+}
+
+// Everything on the page from the data fetched last (again when a tab of a party or a choice on the Trip Planner is clicked): the tab shown now is drawn,
+// the others when they are shown.
 function render() {
+  Object.keys(dirty).forEach(function (k) { dirty[k] = true; });
+  renderTab(shownTab);
+}
+
+function renderTab(k) {
+  dirty[k] = false;
   const d = last;
-  tickers = [];
-  const v = partyView();
-  document.getElementById('session').textContent = v.session || d.session || '';
-  table(document.getElementById('pickups'), v.pickups);
-  document.getElementById('finishedBox').classList.toggle('hidden', !v.finished || !v.finished.rows || v.finished.rows.length === 0);
-  table(document.getElementById('finished'), v.finished);
-  // the hauling jobs of every system (not the planner's own contracts); a hauler logged in types the SCU the game did not say right in the board
-  const jobs = v.jobs || d.jobs;
-  const jobsBox = document.getElementById('jobs');
-  document.getElementById('jobsBox').classList.toggle('hidden', !jobs || !jobs.rows || jobs.rows.length === 0);
-  if (!typingIn(jobsBox)) {   // not while he types in it (the page comes again every few seconds)
-    table(jobsBox, jobs);
-    scuFields(jobsBox, v.jobsEdit || d.jobsEdit || [], d.jobsScu);
+  const v = k === 'S' || k === 'C' ? partyView() : null;
+  if (k === 'S') {
+    let measure = false;   // a table that lines up with the others was drawn anew: line them up again
+    document.getElementById('session').textContent = v.session || d.session || '';
+    if (changed('pickups', v.pickups)) { table(document.getElementById('pickups'), v.pickups); measure = true; }
+    document.getElementById('finishedBox').classList.toggle('hidden', !v.finished || !v.finished.rows || v.finished.rows.length === 0);
+    if (changed('finished', v.finished)) { table(document.getElementById('finished'), v.finished); measure = true; }
+    // the hauling jobs of every system (not the planner's own contracts); a hauler logged in types the SCU the game did not say right in the board
+    const jobs = v.jobs || d.jobs;
+    const jobsBox = document.getElementById('jobs');
+    document.getElementById('jobsBox').classList.toggle('hidden', !jobs || !jobs.rows || jobs.rows.length === 0);
+    const edits = v.jobsEdit || d.jobsEdit || [];
+    if (!typingIn(jobsBox) && changed('jobs', [jobs, edits, d.jobsScu])) {   // not while he types in it (the board comes again when it changes)
+      table(jobsBox, jobs);
+      scuFields(jobsBox, edits, d.jobsScu);
+    }
+    const note = document.getElementById('jobsNote');
+    note.textContent = jobs && jobs.rows && jobs.rows.length
+      ? 'SCU: what the game said; else ' + (d.jobsScu && ME ? 'the number you type in here for the mission (only that one; the Mission Library gets it as the suggestion for its kind)' : 'a hauler\'s number for the mission')
+        + '; else the Mission Library\'s; else the Star Citizen Wiki\'s. Split evenly over the stops (~).'
+      : '';
+    if (changed('summary', v.summary || [])) summary(document.getElementById('summary'), v.summary || []);
+    if (changed('party', d.party)) table(document.getElementById('party'), d.party);
+    if (changed('leaders', v.leaders)) { table(document.getElementById('leaders'), v.leaders); measure = true; }
+    if (changed('runs', [v.runs, v.runsLive])) {
+      table(document.getElementById('runs'), v.runs);
+      measure = true;
+      if (v.runsLive) {
+        const runRows = document.querySelectorAll('#runs tbody tr');
+        v.runsLive.forEach(function (live, i) { if (live && runRows[i] && runRows[i].cells[7]) addTicker(runRows[i].cells[7]); });
+      }
+    }
+    if (measure) alignColumns();
+  } else if (k === 'C') {
+    // the Contracts tab: the contract lines of the party picked under Session (named there when there is more than one party)
+    if (changed('rewards', v.rewards)) table(document.getElementById('rewards'), v.rewards);
+    const partyPick = document.getElementById('partyPick');
+    document.getElementById('rewardsParty').textContent = partyPick && (last.parties || []).length > 1
+      ? partyPick.options[partyPick.selectedIndex].text + ' (the party is picked under Session)' : '';
+  } else if (k === 'P') {
+    if (!d.planner) return;
+    const rest = Object.assign({}, d.planner);
+    delete rest.status; delete rest.statusKey;   // the status line is drawn on its own
+    if (changed('planner', [rest, d.planRuns || d.runs, d.parties, planShown])) renderPlanner();
+    else renderStatus();
+  } else if (k === 'D') {
+    if (d.debts && changed('debts', d.debts)) renderDebts();
+  } else if (k === 'H') {
+    if (d.history && changed('history', d.history)) renderHistory();
   }
-  const note = document.getElementById('jobsNote');
-  note.textContent = jobs && jobs.rows && jobs.rows.length
-    ? 'SCU: what the game said; else ' + (d.jobsScu && ME ? 'the number you type in here for the mission (only that one; the Mission Library gets it as the suggestion for its kind)' : 'a hauler\'s number for the mission')
-      + '; else the Mission Library\'s; else the Star Citizen Wiki\'s. Split evenly over the stops (~).'
-    : '';
-  // the Contracts tab: the contract lines of the party picked under Session (named there when there is more than one party)
-  table(document.getElementById('rewards'), v.rewards);
-  const partyPick = document.getElementById('partyPick');
-  document.getElementById('rewardsParty').textContent = partyPick && (last.parties || []).length > 1
-    ? partyPick.options[partyPick.selectedIndex].text + ' (the party is picked under Session)' : '';
-  summary(document.getElementById('summary'), v.summary || []);
-  table(document.getElementById('party'), d.party);
-  table(document.getElementById('leaders'), v.leaders);
-  table(document.getElementById('runs'), v.runs);
-  alignColumns();
-  if (v.runsLive) {
-    const runRows = document.querySelectorAll('#runs tbody tr');
-    v.runsLive.forEach(function (live, i) { if (live && runRows[i] && runRows[i].cells[7]) addTicker(runRows[i].cells[7]); });
-  }
-  if (d.planner) renderPlanner();
-  if (d.debts) renderDebts();
-  if (d.history) renderHistory();
   fitHeaders();
 }
 
+// The poll, every 3 seconds: the ETag of the data fetched last goes with it (If-None-Match), and the same data again comes back as 304 with no body, which
+// costs nothing to speak of on either side. A tab nobody looks at does not poll; it does when it is shown again.
+let etag = null;
 async function refresh() {
+  if (document.hidden) return;
   const live = document.getElementById('live');
   try {
-    const res = await fetch('/data.json', { cache: 'no-store' });
+    const res = await fetch('/data.json', { cache: 'no-store', headers: etag ? { 'If-None-Match': etag } : {} });
+    if (res.status === 304) { live.textContent = '● live'; live.className = 'live ok'; return; }   // the same data as last time: nothing to draw
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
+    etag = res.headers.get('ETag');
     last = d;
     fetchedAt = Date.now();
     const root = document.documentElement.style;
@@ -548,5 +603,6 @@ async function refresh() {
     live.textContent = '● connection lost, trying again'; live.className = 'live bad';
   }
 }
+document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
 refresh();
 setInterval(refresh, 3000);

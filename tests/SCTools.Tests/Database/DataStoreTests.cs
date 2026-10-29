@@ -79,6 +79,18 @@ public class DataStoreTests
     }
 
     [Fact]
+    public void The_database_writes_ahead_so_a_write_does_not_make_the_readers_wait()
+    {
+        using var temp = new TempDatabase();
+        using var db = temp.Store.Open();
+        var connection = db.Database.GetDbConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA journal_mode";
+        Assert.Equal("wal", (string)command.ExecuteScalar()!);   // set when the database is made or brought up to date (Migrate)
+    }
+
+    [Fact]
     public void Every_field_of_the_data_comes_back_out_of_the_database()
     {
         using var temp = new TempDatabase();
