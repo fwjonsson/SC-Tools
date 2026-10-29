@@ -77,12 +77,13 @@ public class HaulJobsPageTests
         var library = f.Services.GetRequiredService<MissionLibrary>();
         var kind = library.Entries().Single(e => e.Row.Title == CourierTitle).Row;
         Assert.Equal((6L, "zzoega", (long?)null), (kind.ScuSuggested!.Value, kind.ScuSuggestedBy, kind.Scu));
-        Assert.Contains("placeholder=\"6\" class=\"num scu\"", await admin.GetStringAsync("/missions"));   // grey in the library: the suggestion
+        Assert.Contains("placeholder=\"6\" class=\"num scu\"", await admin.GetStringAsync("/admin/missions"));   // grey in the library: the suggestion
+        Assert.Contains("<span class=\"muted\" title=\"suggested by zzoega\">6</span>", await admin.GetStringAsync("/missions"));
 
         // another courier run of the kind: the library's suggestion; Frank types the kind's SCU in the library: it wins over the suggestion, not over the hauler's
         f.Upload("zzoega", CourierRun(new GameLogWriter().At(w.Now.AddMinutes(1)).Login("zzoega"), second).Lines.ToList(), "second.log");
         Assert.Equal("6 (library)", (await Board(f, admin))[2][4]);
-        await ServerFactory.Send(admin, "/missions", "/missions/set", ("id", kind.Key), ("field", "scu"), ("value", "10"));
+        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", kind.Key), ("field", "scu"), ("value", "10"));
         (rows, fields) = await BoardAndFields(f, admin);
         Assert.Equal(("6 (hauler)", "10 (library)"), (rows[1][4], rows[2][4]));
         Assert.Equal(((long?)null, "10", "library"), (Field(fields[2]).Value, Field(fields[2]).Hint, Field(fields[2]).From));

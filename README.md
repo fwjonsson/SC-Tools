@@ -295,8 +295,8 @@ admin (done), then going live.
   **Tracker** (its page: download and setup), who is logged in, My page, Admin and Log out (or Log in); on a phone all of it is behind a menu button.
   The part of the site you are in is marked in its own colour: a tool (by its address, `/gauntlet/stats` too) in the colour of its card, My page in
   green, Admin in red on the admin's pages and his account. The pages of the site end with a footer: the tracker's download, how to set it up, and the
-  disclaimer. The admin's pages have a second row under it with his pages (Session, Party, Contracts, Debts, Gauntlet, Scrip, Map places, Tracker
-  keys, Tools, Account), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
+  disclaimer. The admin's pages have a second row under it with his pages (Session, Party, Contracts, Debts, Gauntlet, Edit Mission Info, Scrip, Map
+  places, Tracker keys, Tools, Account), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
 - **The admin's pages** change what the program changes, with the same logic (`Editing/Edits.cs`, each change saved and worked out again at once):
   **Session** (`/admin`: the session, which starts and stops by itself (below), Next Stops locked or not, the mission rewards (shown: they are set in the Mission Library), the start time, the names and notes of the stops, the lost
   cargo of the runs, the SCU of from-Ruin drop-offs the game did not tell), **Party** (add, remove, active, ship, drive, colour, location of every
@@ -317,20 +317,26 @@ admin (done), then going live.
 - **The Mission Library** (`/missions`, `Missions/MissionReader` and `Missions/MissionKinds` in the core, `MissionLibrary`) has every kind of mission
   the players took, by itself: the missions of the live logs and of the old logs are kept for good (`Missions`), grouped by their name as the game shows
   it (`MissionKinds`; the game's ContractId is one per offer, so the same mission at another place has another one). The contracts the Hauling Planner
-  reads are grouped by its contract line instead (Hauling: 2 To Ruin ... Direct From Ruin), which is what they pay by. A logged in player types in what
-  the log does not say: the aUEC, MG scrip and Council scrip it pays, its cargo in SCU (it wins over the suggestion in grey: the last SCU a hauler
-  typed in for one of these missions on the Hauling Planner's Other hauling board, or what the game said for one; the board uses it), another name, the giver (to type, or to pick from every giver typed in so far:
-  a datalist, a new one is in it as soon as it is saved; each field saved as soon as it changes, in the
-  background; the Notes column is gone, what was typed in it stays in the database). 20 kinds to a page, the ones played last first; the page keeps
-  itself up to date (`missions.js` asks `/missions/version` every few seconds and gets the list again when it changed, not while you type in it), so
-  a mission you take comes to the top within seconds, marked **Playing now** (taken in the last six hours and not ended). A mission the player took
-  himself is in it also when the log never says which offer it is (most missions with comms, like bounties, do not); one shared with him whose offer
-  never showed is the other account's. The scrip columns are narrow (a mission pays two figures at most,
-  their headers on two lines), so the mission and the giver have the room.
-  **Without rewards** lists the ones nobody filled in yet. It shows how often each was taken, completed, failed and abandoned, and when it was played
-  last. The other tools count with it: the Session tool (all of it), the Gauntlet Tracker (the scenarios) and the Hauling Planner (the aUEC of a Hauling
-  row is what it pays for that line: the session shown and every new one; the admin's Session page shows them). The first time it runs it reads the
-  missions of the old logs already on the server; what was typed in the library when it went by ContractId is carried over to the names once.
+  reads are grouped by its contract line instead (Hauling: 2 To Ruin ... Direct From Ruin), which is what they pay by. With every kind is what the log
+  does not say: the aUEC, MG scrip and Council scrip it pays, its cargo in SCU (it wins over the suggestion in grey: the last SCU a hauler typed in for
+  one of these missions on the Hauling Planner's Other hauling board, or what the game said for one; the board uses it; else the Star Citizen Wiki's in
+  grey), another name, the giver. The page everybody sees is **read-only** (`MissionsController`; for everybody when the tool is shown on the Tools
+  page, like the Hauling Planner's live page, else only for the admin): a library to look things up in, not a list of what was played last. The viewer
+  chooses what to see (a search of the names and givers, one giver, with or without rewards, only the kinds he played) and the order (click a column's
+  header: names A to Z, numbers the biggest first, again for the other way round; the kinds without a value in the column last; `LibraryFilter` keeps
+  it all in the address), 20 to a page. What is played is his own: **Played by me** (how often he completed it of how often he took it, hover for
+  failed and abandoned; a mission he is playing now, taken in the last six hours and not ended, has a green row), never anybody else's, and a visitor
+  not logged in sees no plays at all. The admin changes the library on **Edit Mission Info** (`/admin/missions`, `EditMissionsController`, in his row
+  of pages): the same list, choices and order with a field in every cell (the giver to type, or to pick from every giver typed in so far: a datalist, a
+  new one is in it as soon as it is saved; each field saved as soon as it changes, in the background; the Notes column is gone, what was typed in it
+  stays in the database). Both pages keep themselves up to date (`missions.js` asks the page's `version` address every few seconds and gets the list
+  again when it changed, not while you type in it). A mission the player took himself is in it also when the log never says which offer it is (most
+  missions with comms, like bounties, do not); one shared with him whose offer never showed is the other account's. The scrip columns are narrow (a
+  mission pays two figures at most, their headers on two lines), so the mission and the giver have the room. The other tools count with it: the
+  Session tool (all of it; its "no reward yet" line links the player to the kinds he played without rewards, the admin to filling them in), the
+  Gauntlet Tracker (the scenarios) and the Hauling Planner (the aUEC of a Hauling row is what it pays for that line: the session shown and every new
+  one; the admin's Session page shows them). The first time it runs it reads the missions of the old logs already on the server; what was typed in the
+  library when it went by ContractId is carried over to the names once.
 - **The Session tool** (`/session`, `Play/PlayStats` in the core, `Playtime`, `SessionController`): your own play. Time played today, this week (from
   Monday), this month and in all, the games and the crashes (a log without the game's quit line, `SystemQuit`, crashed), the missions you completed
   and what they earned (aUEC, MG and Council scrip as the Mission Library says they pay, shared ones too; the scrip at the Scrip page's value), and per

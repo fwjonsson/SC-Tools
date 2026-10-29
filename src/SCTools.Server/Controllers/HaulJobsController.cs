@@ -37,7 +37,7 @@ public sealed class HaulJobsController : Controller
     {
         if (!_tools.Sees(User, SiteTools.Hauling)) return Hidden();
         var said = _library.SetMissionScu(id ?? "", title, value, User.Identity?.Name ?? "", DateTime.UtcNow);
-        if (Request.Headers.ContainsKey(MissionsController.AutosaveHeader))
+        if (Request.Headers.ContainsKey(EditMissionsController.AutosaveHeader))
             return Json(new { ok = said != null, said = said ?? NotSaved, version = _library.Version });
         if (said == null) TempData["Message"] = NotSaved;
         return LocalRedirect("/hauling");

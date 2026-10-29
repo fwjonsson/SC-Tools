@@ -37,14 +37,14 @@ else
 
 <h2>Mission rewards</h2>
 <p class="hint">@(Model.HasSession ? "What this session pays." : "No session now: the next session pays these.") They are in the
-  <a href="/missions">Mission Library</a> (the Hauling kinds): change them there (click a contract). A change counts for the session shown and every new
-  session; an empty one is the built-in reward.</p>
+  Mission Library (the Hauling kinds): change them on <a href="/admin/missions">Edit Mission Info</a> (click a contract). A change counts for the session
+  shown and every new session; an empty one is the built-in reward.</p>
 <table class="narrow">
   <thead><tr><th>Contract</th><th class="right">Mission Reward</th></tr></thead>
   <tbody>
   @foreach (var r in Model.Rewards)
   {
-    <tr><td><a href="/missions#@r.Anchor">@r.Contract</a></td><td class="right">@r.Amount</td></tr>
+    <tr><td><a href="/admin/missions#@r.Anchor">@r.Contract</a></td><td class="right">@r.Amount</td></tr>
   }
   </tbody>
 </table>
