@@ -39,6 +39,8 @@
 .topbar .partypanel table.members th { background:#1f4b7a; color:#fff; font-weight:600; text-align:center; }
 .topbar .partypanel table.members th:nth-child(1) { width:26%; } .topbar .partypanel table.members th:nth-child(2) { width:46%; }
 .topbar .partypanel table.members td a { color:inherit; text-decoration:none; font-weight:600; }
+.topbar .partypanel table.members td.center { text-align:center; width:60px; }   /* the Active tick of the admin and the party leader */
+.topbar .partypanel table.members tr.inactive td { opacity:.55; }   /* ticked off: the Hauling Planner plans no trips for him */
 .topbar .partypanel table.members td a:hover { text-decoration:underline; }
 .topbar .partypanel .small { font-size:12px; white-space:normal; margin-top:6px; }
 /* the menu button and its panel: on a computer the panel's parts sit in the bar as they are, on a phone they open under it */

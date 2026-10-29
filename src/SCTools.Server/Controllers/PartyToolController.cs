@@ -55,17 +55,47 @@ public sealed class PartyToolController : Controller
         var roster = _party.Roster(now);
         var inParty = new HashSet<string>(parties.SelectMany(p => p.Names), StringComparer.OrdinalIgnoreCase);
         var ships = parties.SelectMany(p => p.Names).Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(n => n, n => Line(n), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(n => n, n => Line(n, now), StringComparer.OrdinalIgnoreCase);
         return new PartyToolPage(parties, roster.Where(r => !inParty.Contains(r.Name)).ToList(), ships, now);
     }
 
-    /// <summary>A member's ship (his fleet's active one, or the class of his last quantum jump), its drive, and his colour (Edits.ColorOf: the Hauling Planner's).</summary>
-    PartyMemberLine Line(string name)
+    /// <summary>
+    /// A member's ship (his fleet's active one, or the class of his last quantum jump), its drive, his colour (Edits.ColorOf: the Hauling Planner's), and
+    /// whether the planner has him active (null when he is not in its party).
+    /// </summary>
+    PartyMemberLine Line(string name, DateTime now)
     {
         var active = _fleet.Active(name);
-        var color = _live.Read(t => Edits.ColorOf(t, name));
-        return new PartyMemberLine(active.Text, active.Ship?.DriveText ?? "", ViewPalette.Hex(color), ViewPalette.Hex(ViewPalette.TextOn(color)));
+        var (color, inPlanner) = _live.Read(t => (Edits.ColorOf(t, name),
+            t.State.Data.Party.Any(n => PlayerNames.SameName(n, name)) ? t.Crew.IsActiveAt(name, now) : (bool?)null));
+        return new PartyMemberLine(active.Text, active.Ship?.DriveText ?? "", ViewPalette.Hex(color), ViewPalette.Hex(ViewPalette.TextOn(color)), inPlanner);
     }
+
+    /// <summary>
+    /// The Active tick of a member in the panel (the admin, and the leader of a party for his members): off when he stopped playing and the logs still
+    /// count him in the Hauling Planner's party (the planner stops planning trips for him at once), on to bring him back. The same as In and Out on the
+    /// admin's Party page: it holds until the logs change their mind about him. Sent in the background (X-Autosave: JSON back), else a redirect to the
+    /// Party page.
+    /// </summary>
+    [HttpPost("active")]
+    [AutoValidateAntiforgeryToken]
+    public IActionResult Active(string name, bool active)
+    {
+        if (!_tools.Sees(User, SiteTools.Party)) return Hidden();
+        var now = DateTime.UtcNow;
+        name ??= "";
+        var said = "";
+        if (!User.IsInRole(Roles.Admin) && !Leads(User.Identity?.Name ?? "", name, now)) said = "Only the leader of his party (or the admin) ticks a member.";
+        else _live.Edit(t => said = Edits.SetActive(t, name, active, now), now);
+        var ok = said.Contains("joined", StringComparison.Ordinal) || said.Contains("left", StringComparison.Ordinal) || said == "Nothing changed.";
+        if (Request.Headers.ContainsKey(EditMissionsController.AutosaveHeader)) return Json(new { ok, said });
+        TempData["Message"] = said;
+        return LocalRedirect("/party");
+    }
+
+    /// <summary>Is this player the leader of the in-game party the member is in now?</summary>
+    bool Leads(string player, string member, DateTime now) =>
+        _party.Parties(now).Any(p => PlayerNames.SameName(p.Leader, player) && p.Names.Any(n => PlayerNames.SameName(n, member)));
 
     [HttpGet("{name}")]
     public IActionResult Member(string name)
