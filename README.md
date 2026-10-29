@@ -393,11 +393,13 @@ admin (done), then going live.
   shows who is in the game and with whom ("zzoega's party: zzatvo, zzoega"; the leader is the one the game named, else the one who made the party) and has
   **Auto / In / Out** for every member: In or Out holds until the logs show something new about him (In until he leaves, Out until he plays). It starts the
   first time the server runs it (the ticks before stay in the history); `SCTools:FollowParty` = false turns it off.
-- **The party picker.** With more than one party, the Session tab of the live page has a **Party** list: All parties, every party in the game
-  ("zzoega's party", named by its leader), and the parties that hauled in this session and are not playing now ("(not playing now)"): the stops,
-  contracts, session, leaderboard and runs of that party only (the missions its players have by their own logs, and their runs; `Tracker.Focus`). The
-  viewer's own party comes first (the page knows who is logged in), and the one picked last is remembered in the browser. The Trip Planner can show
-  Everyone, one party in the game, or Only me (the plan is the same; only whose routes are drawn and listed changes).
+- **Your own party.** With more than one party (the ones in the game, "zzoega's party", named by its leader, and the parties that hauled in this session
+  and are not playing now), the Session and Contracts tabs of the live page show the viewer's own party by themselves (the page knows who is logged in):
+  the stops, contracts, session, leaderboard and runs of that party only (the missions its players have by their own logs, and their runs;
+  `Tracker.Focus`); a viewer in none of them (or not logged in) sees all of them together. A line under the tabs says whose it is; there is no picker
+  (Frank, 29 Oct 2026; there was a Party list). The Trip Planner can still show Everyone, one party in the game, or Only me (the plan is the same;
+  only whose routes are drawn and listed changes). The **Party** table (Member, Ship, QT Drive) sits beside the tabs, level with them, with the
+  Session table under it; the Ship column has the room for a long name ("Crusader C2 Hercules Starlifter"), and a longer one wraps.
 - **Hauling of every system** (`Tracking/HaulJobs`, `JobBook` in the core; `HaulJobsController`). Besides its own contracts, the Session tab has an
   **Other hauling** board: every mission with drop-offs (`dropoff_…` objectives) that a member of the party has going, taken in the last 12 hours
   of the logs and not ended (with a party picked, only theirs): *RSI Disc. Month: Ling Small Haul*, courier runs, the cargo of a salvage order.

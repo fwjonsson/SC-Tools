@@ -82,7 +82,8 @@ public sealed partial class WebSnapshot
     /// The parties in the game now (see AutoParty) with somebody of the party table in them: their name ("zzoega's party"), leader and players; then the
     /// parties that hauled in the session shown and are not playing now (its Groups: their payouts went apart), so their part can still be looked at. With
     /// more than one, each has the Session tab of its own (view: its stops, contracts, session, leaderboard and runs: the missions one of them has, and their
-    /// runs); the page lets you pick one under Session, and on the Trip Planner. Empty where the logs do not say.
+    /// runs); the page shows the viewer his own party's under Session (everybody's together to somebody in none), and lets him pick one on the Trip Planner.
+    /// Empty where the logs do not say.
     /// </summary>
     object[] Parties()
     {

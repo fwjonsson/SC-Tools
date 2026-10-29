@@ -403,6 +403,9 @@ function show(which) {
     document.getElementById('view' + k).classList.toggle('hidden', k !== which);
     document.getElementById('tab' + k).classList.toggle('on', k === which);
   });
+  // the Session tab has more than its view: the Party table and the session beside the tabs, the leaderboard and the runs under both
+  document.getElementById('sideS').classList.toggle('hidden', which !== 'S');
+  document.getElementById('belowS').classList.toggle('hidden', which !== 'S');
   try { history.replaceState(null, '', ON_SITE ? '/hauling/' + TABS[which] : '#' + TABS[which]); } catch (e) { }
   if (last && dirty[which]) renderTab(which);
   layout();   // the tables of a tab that was hidden could not be measured
@@ -410,46 +413,22 @@ function show(which) {
 Object.keys(TABS).forEach(function (k) { document.getElementById('tab' + k).onclick = function () { show(k); }; });
 show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || 'S');
 
-// The party picker under Session: with more than one party (the ones in the game, then the ones that hauled in this session and are not playing now),
-// All parties and every party (named by its leader: "zzoega's party"), each with its own stops, contracts, session, leaderboard and runs; the viewer's own
-// party first. With one party, its name alone (the whole session is theirs). The list is made again only when the parties change, so a list that is open
-// stays open while the page updates.
-let partyShown = null;   // the leader of the party shown, '' for All
+// Whose session the Session and Contracts tabs show (no picker since 29 Oct 2026): with one party, the whole session is theirs; with more than one (the
+// ones in the game, then the ones that hauled in this session and are not playing now), the viewer's own party by itself when he is logged in and in one
+// (its stops, contracts, session, leaderboard and runs: the missions its players have by their own logs, and their runs), else all of them together. The
+// line under the tabs says whose it is; the Trip Planner has its own choice (Everyone, a party, Only me).
+let partyText = '';   // whose session is shown, for the Session and Contracts tabs
 function partyView() {
-  const el = document.getElementById('partyTabs');
+  const el = document.getElementById('partyNote');
   const parties = last.parties || [];
-  el.classList.toggle('hidden', parties.length === 0);
-  if (parties.length === 0) { el.textContent = ''; return last; }
-  if (parties.length > 1) {
-    if (partyShown === null) { const kept = remembered('party'); partyShown = kept !== null ? kept : ((myParty() || {}).leader || ''); }
-    if (!parties.some(function (p) { return p.leader === partyShown; })) partyShown = '';
-  }
-  const choices = (parties.length > 1 ? [{ key: '', text: 'All parties' }] : []).concat(parties.map(function (p) {
-    return { key: p.leader, text: p.title + (p.playing === false ? ' (not playing now)' : '') };
-  }));
-  let pick = document.getElementById('partyPick');
-  if (!pick) {
-    el.textContent = '';
-    const label = document.createElement('label');
-    label.htmlFor = 'partyPick';
-    label.textContent = 'Party';
-    pick = document.createElement('select');
-    pick.id = 'partyPick';
-    pick.onchange = function () { partyShown = pick.value; remember('party', pick.value); render(); };
-    el.appendChild(label);
-    el.appendChild(pick);
-  }
-  const key = JSON.stringify(choices);
-  if (pick.dataset.choices !== key) {
-    pick.textContent = '';
-    choices.forEach(function (c) { const o = document.createElement('option'); o.value = c.key; o.textContent = c.text; pick.appendChild(o); });
-    pick.dataset.choices = key;
-  }
-  const on = parties.length > 1 ? partyShown : parties[0].leader;
-  if (pick.value !== on) pick.value = on;
-  pick.disabled = parties.length === 1;
-  const shown = parties.length > 1 ? parties.find(function (p) { return p.leader === partyShown; }) : null;
-  return shown && shown.view ? shown.view : last;
+  const mine = parties.length > 1 ? myParty() : null;
+  const shown = mine && mine.view ? mine : null;
+  partyText = parties.length <= 1 ? ''
+    : shown ? 'Your party: ' + shown.title + ' (' + shown.names.join(', ') + ')' + (shown.playing === false ? ', not playing now' : '') + '. The others haul in this session too.'
+    : 'All parties together: ' + parties.map(function (p) { return p.title; }).join(', ') + (ME ? ' (you are in none of them).' : ' (log in to see your own).');
+  el.textContent = partyText;
+  el.classList.toggle('hidden', partyText === '');
+  return shown ? shown.view : last;
 }
 
 // ------------------------------------------------------------------ the SCU field of the Other hauling board
@@ -517,8 +496,8 @@ function changed(key, value) {
   return true;
 }
 
-// Everything on the page from the data fetched last (again when a tab of a party or a choice on the Trip Planner is clicked): the tab shown now is drawn,
-// the others when they are shown.
+// Everything on the page from the data fetched last (again when a choice on the Trip Planner is clicked): the tab shown now is drawn, the others when they
+// are shown.
 function render() {
   Object.keys(dirty).forEach(function (k) { dirty[k] = true; });
   renderTab(shownTab);
@@ -561,11 +540,9 @@ function renderTab(k) {
     }
     if (measure) alignColumns();
   } else if (k === 'C') {
-    // the Contracts tab: the contract lines of the party picked under Session (named there when there is more than one party)
+    // the Contracts tab: the contract lines of the party shown under Session (the viewer's own, or all of them: the same line says whose)
     if (changed('rewards', v.rewards)) table(document.getElementById('rewards'), v.rewards);
-    const partyPick = document.getElementById('partyPick');
-    document.getElementById('rewardsParty').textContent = partyPick && (last.parties || []).length > 1
-      ? partyPick.options[partyPick.selectedIndex].text + ' (the party is picked under Session)' : '';
+    document.getElementById('rewardsParty').textContent = partyText;
   } else if (k === 'P') {
     if (!d.planner) return;
     const rest = Object.assign({}, d.planner);
