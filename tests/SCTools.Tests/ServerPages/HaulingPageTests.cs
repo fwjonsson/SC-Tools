@@ -21,7 +21,9 @@ public class HaulingPageTests
         Assert.Contains("src=\"/systemmap.js?v=", page);   // the map engine, then the page's own script
         Assert.True(page.IndexOf("systemmap.js?v=", StringComparison.Ordinal) < page.IndexOf("src=\"/hauling.js?v=", StringComparison.Ordinal));
         Assert.Contains("<div class=\"hauling\" data-me=\"\">", page);   // a watcher: nobody
-        Assert.Contains("<button id=\"tabS\" class=\"on\">Session</button>", page);
+        Assert.Contains("<button id=\"tabP\" class=\"on\">Trip Planner</button><button id=\"tabS\">Session</button>", page);   // the Trip Planner first (29 Oct 2026)
+        Assert.Contains("<div id=\"viewP\">", page);
+        Assert.Contains("<div id=\"viewS\" class=\"hidden\">", page);
         Assert.DoesNotContain("id=\"party\"", page);   // no Party table of its own: the Party button in the top bar shows it (29 Oct 2026)
         Assert.Contains("<select id=\"partyPick\" class=\"hidden\"", page);
         Assert.DoesNotContain("<style>", page);   // nothing inline any more
@@ -43,6 +45,8 @@ public class HaulingPageTests
         var script = await visitor.GetStringAsync("/hauling.js");
         Assert.Contains("const TABS = { S: 'session', C: 'contracts', P: 'planner', D: 'debts', H: 'history' };", script);   // /hauling/planner
         Assert.Contains("'/hauling/' + TABS[which]", script);
+        Assert.Contains("|| tabOf(location.hash) || 'P');", script);   // /hauling opens the Trip Planner
+        Assert.Contains("function lostPicks", script);   // the admin's Lost Cargo pick in the Cargo runs
         Assert.Contains("function renderPlanner", script);
         Assert.Contains("function paymentTicks", script);
         Assert.Contains("PAGE.dataset.me", script);   // who is looking, from the page

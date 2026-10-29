@@ -42,6 +42,7 @@
 .hauling .nav button.on, .hauling .sub button.on { background:var(--header); color:#fff; }
 .hauling .nav select { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 10px; font:inherit; font-weight:600; border-radius:4px; margin-left:auto; }   /* the admin: whose session */
 .hauling .hidden { display:none; }
+.hauling .lostpick { background:var(--cell); color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:2px 4px; font:inherit; }   /* the admin's Lost Cargo pick */
 .hauling .plantables { flex:1 1 520px; min-width:0; }
 .hauling .plantables h2:first-child { margin-top:0; }
 .hauling .plantables table { table-layout:fixed; }
