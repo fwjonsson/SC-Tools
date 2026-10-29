@@ -362,6 +362,7 @@ function renderPlanner() {
       const box = document.createElement('div'); box.className = 'scroll'; col.appendChild(box);
       table(box, x[2]);
       if (x[0] === 'plancur' && p.actionWidth) { const th = box.querySelector('th:nth-child(3)'); if (th) th.style.width = p.actionWidth + 'px'; }
+      if (x[0] === 'plancur') tripScuFields(box, w, p.tripScu);
     });
   });
   // the short copy of Cargo Runs under the map: #, Worker, Value, Started, Completed, Time and In flight (the Session tab has the whole table); the Time
@@ -433,6 +434,35 @@ function paymentTicks(box, edits, url) {
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(function (d) { input.disabled = false; if (!d.ok) { input.checked = !input.checked; input.title = d.said || 'Not saved.'; } })
         .catch(function () { input.disabled = false; input.checked = !input.checked; input.title = 'Not saved: the site could not be reached. Try again.'; });
+    });
+    cell.appendChild(input);
+  });
+}
+
+// The SCU column of a Current Route: on the stop a drop-off of a planned trip goes to, the hauler of that trip (or the admin) types how much goes there
+// (Frank, 29 Oct 2026); it is kept for that drop-off only, and the plan is worked out again with it. Everybody else sees the number.
+function tripScuFields(box, w, url) {
+  if (!url || !ME || !w.lines || !(ADMIN || (w.name || '').toLowerCase() === ME)) return;
+  const rows = box.querySelectorAll('tbody tr');
+  w.lines.forEach(function (l, i) {
+    const row = rows[i];
+    if (!l || !l.typable || !l.keys || l.keys.length !== 1 || !row || !row.cells[3]) return;
+    const cell = row.cells[3], was = l.scu > 0 ? String(l.scu) : '';
+    cell.textContent = '';
+    const input = document.createElement('input');
+    input.className = 'scuin'; input.inputMode = 'numeric'; input.value = was; input.placeholder = '?';
+    input.setAttribute('aria-label', 'SCU to ' + (row.cells[1].textContent || 'this stop'));
+    input.title = 'How many SCU go to this stop (your own trip only; the boxes follow). Empty: back to what the game or the library says.';
+    input.addEventListener('change', function () {
+      const token = document.querySelector('input[name="__RequestVerificationToken"]');
+      const body = new FormData();
+      body.append('key', l.keys[0]); body.append('value', input.value.trim());
+      if (token) body.append('__RequestVerificationToken', token.value);
+      input.className = 'scuin saving';
+      fetch(url, { method: 'POST', body: body, headers: { 'X-Autosave': '1' }, credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (d) { input.className = 'scuin ' + (d.ok ? 'saved' : 'unsaved'); input.title = d.said || ''; if (d.ok) refresh(); })
+        .catch(function () { input.className = 'scuin unsaved'; input.title = 'Not saved: the site could not be reached. Try again.'; });
     });
     cell.appendChild(input);
   });

@@ -33,7 +33,7 @@ public sealed partial class WebSnapshot
         ViewTable QueuedGrid(List<PlanRow> queued)
         {
             var table = Table(PlanText.QueuedColumns);
-            if (queued.Count == 0) table.Add("", "none", "", "", "", "", "").RowColor(_p.Cell, _p.Muted);
+            if (queued.Count == 0) table.Add("", "none", "", "", "", "", "", "").RowColor(_p.Cell, _p.Muted);
             foreach (var r in queued) table.Add(Keep(PlanText.QueuedCells(r))).RowColor(_p.PlanRowColor(r.Level) ?? _p.Cell, _p.Text);
             if (queued.Count > 0) table.Add(Keep(PlanText.PlanTotals(queued))).RowColor(_p.Calc, _p.Text).Bold = true;
             return table;
@@ -49,6 +49,8 @@ public sealed partial class WebSnapshot
                 heading = w.Name.ToUpperInvariant(),   // his name in capitals, shown in his colour
                 title = "   –   Current location: " + PyroDistances.NameOf(w.LocationId) + (w.LocationByHand ? " (set by hand)" : ""),
                 current = shown.Count > 0 ? CurrentGrid(w, shown[0]) : null,
+                // the lines of the Current Route: the drop-offs on each (their keys), and whether the hauler types the SCU there (a planned trip's drop-off stop)
+                lines = shown.Count > 0 ? shown[0].Lines.Select(l => new { keys = l.Keys, typable = l.Typable, scu = l.Parts.Count > 0 ? l.Parts.Sum() : 0 }).ToList() : null,
                 queued = shown.Count > 0 ? QueuedGrid(shown.Skip(1).ToList()) : null,
                 routes = w.MapRows.Select(r => new
                 {
@@ -63,6 +65,7 @@ public sealed partial class WebSnapshot
 
         return new
         {
+            tripScu = _o.TripScu,   // where a typed SCU goes (the site); nothing: the SCU is text
             summary = plan.Summary,
             note = plan.Note,
             status = _t.Status.Text,

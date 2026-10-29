@@ -56,11 +56,13 @@ public class WebSnapshotTests
         Assert.EndsWith("(2 missions)", d.GetProperty("session").GetString());
 
         var stops = d.GetProperty("pickups");
-        Assert.Equal(new[] { "#", "Pickup Location", "Batches", "Cargo", "Value", "Drop-off Location" }, Headers(stops));   // no From Ruin and Notes (29 Oct 2026)
+        Assert.Equal(new[] { "#", "Pickup Location", "Batches", "SCU", "Boxes", "Value", "Drop-off Location" }, Headers(stops));   // no From Ruin and Notes; SCU and Boxes apart (29 Oct 2026)
         var patch = Rows(stops).Select(Cells).Single(c => c[1] == "Patch City");
         Assert.Equal("1/1", patch[2]);   // the open mission's batch still waiting (the completed mission is gone from the board)
-        Assert.Equal(PyroDistances.NameOf(PyroDistances.Ruin), patch[5]);   // a pickup goes to Ruin
-        Assert.Equal(CargoRuns.WaitingScuText(new LocationRow { Missions = 1, OpenMissions = { new Mission { Multi = 2 } } }), patch[3]);
+        Assert.Equal(PyroDistances.NameOf(PyroDistances.Ruin), patch[6]);   // a pickup goes to Ruin
+        var waiting = CargoRuns.WaitingScu(new LocationRow { Missions = 1, OpenMissions = { new Mission { Multi = 2 } } });
+        Assert.Equal((PlanText.ScuSum(waiting), PlanText.ScuGuess(waiting)), (patch[3], patch[4]));   // a guess: "~250" and its boxes
+        Assert.Equal(new[] { "#", "Pickup Location", "Delivered", "SCU", "Boxes", "Worker", "Value", "Handed In" }, Headers(d.GetProperty("finished")));
         Assert.All(Rows(stops).Select(Cells).Select((c, i) => (c, i)), x => Assert.Equal((x.i + 1).ToString(), x.c[0]));   // numbered
 
         Assert.Equal(new[] { "Contract", "Mission Reward", "Active", "Completed", "Total" }, Headers(d.GetProperty("rewards")));
@@ -93,14 +95,15 @@ public class WebSnapshotTests
         var ruin = PyroDistances.NameOf(PyroDistances.Ruin);
         var drops = rows.Where(r => Cells(r)[1] == ruin).ToList();
         Assert.Equal(2, drops.Count);
-        Assert.Equal(new[] { "Patch City", "Rod's Fuel" }, drops.Select(r => Cells(r)[5]).OrderBy(x => x));
+        Assert.Equal(new[] { "Patch City", "Rod's Fuel" }, drops.Select(r => Cells(r)[6]).OrderBy(x => x));
         Assert.All(drops, r => Assert.Equal("1", Cells(r)[2]));
-        Assert.All(drops, r => Assert.StartsWith("Waste ", Cells(r)[3]));
-        Assert.All(drops, r => Assert.Equal((Earnings.DefaultReward2 / 2).ToString("N0"), Cells(r)[4]));   // its part of the contract
-        Assert.All(drops, r => Assert.Equal(Hex(ViewPalette.Dark.Gold), r.GetProperty("back")[5].GetString()));
+        Assert.All(drops, r => Assert.StartsWith("Waste: ", Cells(r)[4]));   // the boxes; the SCU beside it is a number, or ? when nobody knows it
+        Assert.All(drops, r => Assert.True(Cells(r)[3] == "?" || int.TryParse(Cells(r)[3], out _)));
+        Assert.All(drops, r => Assert.Equal((Earnings.DefaultReward2 / 2).ToString("N0"), Cells(r)[5]));   // its part of the contract
+        Assert.All(drops, r => Assert.Equal(Hex(ViewPalette.Dark.Gold), r.GetProperty("back")[6].GetString()));
         var patch = Cells(rows.Single(r => Cells(r)[1] == "Patch City"));   // the pickup stop there is its own row still, worth its pickups alone
-        Assert.Equal(ruin, patch[5]);
-        Assert.Equal(t.Earnings.StopValue(t.State.PickupRows.Single(r => r.Zone == PlayedSession.PatchZone)).ToString("N0"), patch[4]);
+        Assert.Equal(ruin, patch[6]);
+        Assert.Equal(t.Earnings.StopValue(t.State.PickupRows.Single(r => r.Zone == PlayedSession.PatchZone)).ToString("N0"), patch[5]);
     }
 
     [Fact]
@@ -110,7 +113,7 @@ public class WebSnapshotTests
         static string[] Backs(JsonElement row) => row.GetProperty("back").EnumerateArray().Select(c => c.GetString()!).ToArray();
         var stop = Backs(Rows(d.GetProperty("pickups"))[0]);
         Assert.Equal(stop[3], stop[1]);   // Pickup Location and Drop-off look like the rest (nothing is typed on the page; Batches is green when all is picked up)
-        Assert.Equal(stop[3], stop[5]);
+        Assert.Equal(stop[3], stop[6]);
         Assert.Equal(Hex(ViewPalette.Dark.Calc), stop[3]);
         Assert.Single(Backs(Rows(d.GetProperty("rewards"))[0]).Distinct());   // the Mission Reward too
 

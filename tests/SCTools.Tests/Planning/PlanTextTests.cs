@@ -42,13 +42,21 @@ public class PlanTextTests
         Assert.Equal("\u03a3", total[0]);   // the same Σ as the Queued routes' total
         Assert.Equal("2 stops", total[1]);
         Assert.Equal("Collect", total[2]);
-        Assert.Equal("6 Batches + Waste (~839 SCU)", total[3]);
-        Assert.Equal("70.0 Gm", total[5]);
-        Assert.Equal("~4:10", total[6]);
+        Assert.Equal("~839", total[3]);   // the SCU column: everything it carries (a guess, the batches are one)
+        Assert.Equal("6 Batches + Waste", total[4]);
+        Assert.Equal("70.0 Gm", total[6]);
+        Assert.Equal("~4:10", total[7]);
 
         var cells = PlanText.LineCells(lines);
         Assert.Equal(new[] { "1", "2", "3", "4" }, cells.Select(c => c[0]));   // every line has its number, the Ruin lines too
         Assert.All(cells, c => Assert.Equal(PlanText.CurrentColumns.Count, c.Length));
+        // the SCU and the Boxes of a line are two columns (Frank, 29 Oct 2026): a pickup stop guesses its SCU and counts its batches, a drop-off has its load
+        var rods = new StopLine { Name = "Rod's Fuel", Count = 3, Scu = 375 };
+        Assert.Equal(("~375", "3 Batches"), (rods.ScuText, rods.BoxesText));
+        var drop = new StopLine { Name = "Patch City", Parts = { 152 }, Keys = { "m|dropoff_0" } };
+        Assert.Equal(("152", "4×32 + 24"), (drop.ScuText, drop.BoxesText));
+        var unknown = new StopLine { Parts = { 152, 0 } };
+        Assert.Equal(("152 + ?", "4×32 + 24 | ?"), (unknown.ScuText, unknown.BoxesText));
     }
 
     [Fact]
@@ -57,8 +65,8 @@ public class PlanTextTests
         var row = new PlanRow { Label = "1", Route = "Ruin  →  Gaslight  →  Ruin", Stops = { "69936" }, BatchCount = 4, Value = 2_000_000m, Gm = 12.5, Flight = 300 };
         var cells = PlanText.QueuedCells(row);
         Assert.Equal(PlanText.QueuedColumns.Count, cells.Length);
-        Assert.Equal(new[] { "1", row.Route, "1", "4" }, cells.Take(4));
-        Assert.Equal("~5:00", cells[6]);
+        Assert.Equal(new[] { "1", row.Route, "1", "4", "" }, cells.Take(5));   // SCU beside Batches (29 Oct 2026): nothing without lines
+        Assert.Equal("~5:00", cells[7]);
         var totals = PlanText.PlanTotals(new List<PlanRow> { row, row });
         Assert.Equal("Σ", totals[0]);
         Assert.Equal(new[] { "2", "8" }, totals.Skip(2).Take(2));
