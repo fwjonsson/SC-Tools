@@ -41,8 +41,11 @@ public static class MissionKinds
 
     public static bool IsHauling(string key) => key.StartsWith(HaulingPrefix, StringComparison.Ordinal);
 
-    /// <summary>The name of a kind of the Hauling Planner: "Hauling: 2 To Ruin".</summary>
+    /// <summary>The name of a kind of the Hauling Planner until a mission of it is seen: "Hauling: 2 To Ruin". Then it is named as the game names them.</summary>
     public static string HaulingTitle(string contract) => "Hauling: " + contract;
+
+    /// <summary>A name of a Hauling Planner kind that is still its contract line (no mission of it seen yet).</summary>
+    public static bool IsPlaceholder(string title) => title.StartsWith("Hauling: ", StringComparison.Ordinal);
 
     /// <summary>The contract line of a mission the Hauling Planner reads (a hauling contract to Ruin, a from-Ruin one), or null for any other mission.</summary>
     public static string? HaulingLine(Mission m) => (m.IsHauling && m.Multi > 0) || m.IsOut ? Contracts.ContractName(m) : null;

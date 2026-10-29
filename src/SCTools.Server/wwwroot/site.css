@@ -130,7 +130,6 @@ form.filters label.check { margin:0; }
 table.missions input.name { width:600px; }   /* the names are long: "Senior | Stellar Large Haul | to Ruin Station [50/200/... Rep]" */
 table.missions input.giver { width:260px; }
 table.missions th { line-height:1.15; }
-table.missions .used { display:block; margin:2px 0 0 4px; }
 table.missions input.num { width:110px; text-align:right; }
 table.missions input.num.scrip { width:3.6em; }   /* a mission pays scrip in two figures at most */
 table.missions input.num.scu { width:4.6em; }   /* a mission's cargo: four figures at most */

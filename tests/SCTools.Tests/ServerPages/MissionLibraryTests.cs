@@ -280,10 +280,37 @@ public class MissionLibraryTests
         var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/gauntlet"));
         Assert.Contains("310,000", page);
         Assert.Contains("/admin/missions#" + MissionLibrary.Anchor(key), page);
-        Assert.Contains("the Gauntlet Tracker counts with it", await admin.GetStringAsync("/missions"));
-        Assert.Contains("the Gauntlet Tracker counts with it", await admin.GetStringAsync("/admin/missions"));
 
         await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", key), ("field", "auec"), ("value", ""));
         Assert.Equal(0, gauntlet.Rewards()[7].Auec);   // emptied by somebody: not known, and the old value does not come back
+    }
+
+    [Fact]
+    public async Task The_kinds_of_the_Hauling_Planner_are_named_as_the_game_names_their_missions()
+    {
+        using var f = new ServerFactory();
+        var admin = await f.Admin();
+        var library = f.Services.GetRequiredService<MissionLibrary>();
+        const string key = "hauling:2 to ruin";
+        const string game = "Senior | Stellar Large Haul | to Ruin Station [50/200/250/500/1000/2000/4000 Rep]";
+        Assert.Equal("Hauling: 2 To Ruin", library.Entries().Single(e => e.Row.Key == key).Row.Title);   // no mission of it yet: its contract line
+
+        f.Upload(PlayedSession.Player, PlayedSession.Writer().Lines.ToList());   // two of them, as the game names them
+        library.Collect();
+        var kind = library.Entries().Single(e => e.Row.Key == key);
+        Assert.Equal((game, 2), (kind.Row.Title, kind.Taken));
+        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));
+        Assert.Contains(game, page);
+        Assert.DoesNotContain("Hauling: 2 To Ruin", page[page.IndexOf("<table", StringComparison.Ordinal)..]);
+        Assert.DoesNotContain("the Hauling Planner pays its aUEC", page);   // nothing under the names
+
+        // the kinds named by their contract line before get the game's name once (the one most of their missions have)
+        using (var db = f.Store.Open())
+        {
+            db.MissionKinds.Single(k => k.Key == key).Title = "Hauling: 2 To Ruin";
+            db.SaveChanges();
+        }
+        var again = new MissionLibrary(f.Store, f.Live.Uploads, f.Services.GetRequiredService<ServerPaths>(), f.Live);   // as when the server starts
+        Assert.Equal(game, again.Entries().Single(e => e.Row.Key == key).Row.Title);
     }
 }

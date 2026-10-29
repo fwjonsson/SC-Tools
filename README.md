@@ -317,7 +317,9 @@ admin (done), then going live.
 - **The Mission Library** (`/missions`, `Missions/MissionReader` and `Missions/MissionKinds` in the core, `MissionLibrary`) has every kind of mission
   the players took, by itself: the missions of the live logs and of the old logs are kept for good (`Missions`), grouped by their name as the game shows
   it (`MissionKinds`; the game's ContractId is one per offer, so the same mission at another place has another one). The contracts the Hauling Planner
-  reads are grouped by its contract line instead (Hauling: 2 To Ruin ... Direct From Ruin), which is what they pay by. With every kind is what the log
+  reads are grouped by its contract line instead (2 To Ruin ... Direct From Ruin), which is what they pay by, but named as the game names their
+  missions like every other kind, as soon as one of them is seen ("Hauling: 2 To Ruin" until then; the kinds named so from before get the name most
+  of their missions have when the server starts). With every kind is what the log
   does not say: the aUEC, MG scrip and Council scrip it pays, its cargo in SCU (it wins over the suggestion in grey: the last SCU a hauler typed in for
   one of these missions on the Hauling Planner's Other hauling board, or what the game said for one; the board uses it; else the Star Citizen Wiki's in
   grey), another name, the giver. The page everybody sees is **read-only** (`MissionsController`; for everybody when the tool is shown on the Tools

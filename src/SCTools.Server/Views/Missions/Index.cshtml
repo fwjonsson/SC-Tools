@@ -127,18 +127,12 @@ else
                 <input type="hidden" name="id" value="@r.Key"><input type="hidden" name="field" value="@field"><input type="hidden" name="back" value="@back">
                 <input name="value" value="@value" placeholder="@hint" class="@cls" aria-label="@field" autocomplete="off" list="@(field == "giver" ? "givers" : null)">
               </form>
-              @if (field == "name" && e.UsedBy != null)
-              {
-                <span class="used muted small">@e.UsedBy</span>
-              }
             </td>
           }
         }
         else
         {
-          <td class="name" title="@(r.Name != null && r.Name != r.Title ? "The game calls it " + r.Title : null)">@e.Shown
-            @if (e.UsedBy != null) { <span class="used muted small">@e.UsedBy</span> }
-          </td>
+          <td class="name" title="@(r.Name != null && r.Name != r.Title ? "The game calls it " + r.Title : null)">@e.Shown</td>
           <td>@(r.Giver ?? "")</td>
           <td class="right nowrap">@if (r.Scu != null) { @G(r.Scu) }
             else if (r.ScuSuggested != null) { <span class="muted" title="suggested by @r.ScuSuggestedBy">@G(r.ScuSuggested)</span> }

@@ -39,14 +39,18 @@ public sealed record WikiContract(string Uuid, string? DebugName, string? Title,
     /// <summary>The SCU of the whole contract: the orders' ranges added up.</summary>
     public ScuRange Total => new(Orders.Sum(o => o.Min), Orders.Sum(o => o.Max));
 
+    /// <summary>The ends of the reward's range as given: a 0 there is not given (the API has "reward_max": 0 for many missions with a reward_min).</summary>
+    long? Min => RewardMin is > 0 ? RewardMin : null;
+    long? Max => RewardMax is > 0 ? RewardMax : null;
+
     /// <summary>The aUEC it pays (the middle of the range), or null: no reward there, or not in aUEC.</summary>
-    public long? Auec => (RewardMin ?? RewardMax) is > 0 && (Currency == null || Currency.Contains("UEC", StringComparison.OrdinalIgnoreCase))
-        ? ((RewardMin ?? RewardMax)!.Value + (RewardMax ?? RewardMin)!.Value) / 2 : null;
+    public long? Auec => (Min ?? Max) is { } one && (Currency == null || Currency.Contains("UEC", StringComparison.OrdinalIgnoreCase))
+        ? (one + (Max ?? Min)!.Value) / 2 : null;
 
     /// <summary>The reward as a text: "25,000" or "20,000–30,000" (aUEC), or null.</summary>
-    public string? AuecText => Auec == null ? null : RewardMin == RewardMax || RewardMin == null || RewardMax == null
+    public string? AuecText => Auec == null ? null : Min == Max || Min == null || Max == null
         ? Auec.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)
-        : RewardMin.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + "–" + RewardMax.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+        : Min.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + "–" + Max.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
 }
 
 /// <summary>
