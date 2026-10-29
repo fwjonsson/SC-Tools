@@ -218,6 +218,10 @@ public class MapPageTests
         var res = await f.Browser().GetAsync("/systemmap.js");
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Equal("text/javascript", res.Content.Headers.ContentType?.MediaType);
-        Assert.StartsWith("var SystemMap = (function ()", (await res.Content.ReadAsStringAsync()).Split('\n').First(l => !l.StartsWith("//")));
+        var script = await res.Content.ReadAsStringAsync();
+        Assert.StartsWith("var SystemMap = (function ()", script.Split('\n').First(l => !l.StartsWith("//")));
+        // the speed meter stays at 0 Mm/s when a player is not in quantum, so his card keeps its size (Frank, 29 Oct 2026)
+        Assert.DoesNotContain("m.speed.style.display", script);
+        Assert.Contains("m.unit.textContent = 'Mm/s · 0.00 c'", script);
     }
 }
