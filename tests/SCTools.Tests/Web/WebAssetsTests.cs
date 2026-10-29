@@ -21,6 +21,7 @@ public class WebAssetsTests
     {
         var page = WebAssets.Page;
         Assert.Contains(".planworker", page);   // app.css
+        Assert.Contains("body { margin:0 auto; max-width:1900px;", page);   // no wider than that on an ultrawide screen
         Assert.Contains("function renderPlanner", page);   // app.js
     }
 
