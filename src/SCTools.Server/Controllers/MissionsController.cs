@@ -30,7 +30,7 @@ public sealed class MissionsController : Controller
     /// <summary>A field sent in the background by autosave.js (data-autosave="quiet") has this header: the answer is what to say, not the page again.</summary>
     public const string AutosaveHeader = "X-Autosave";
 
-    const string NotSaved = "Not saved: a reward is a whole number (no letters).";
+    const string NotSaved = "Not saved: a reward or SCU is a whole number (no letters).";
 
     /// <summary>How many kinds of mission a page of the library shows.</summary>
     public const int PageSize = 20;
