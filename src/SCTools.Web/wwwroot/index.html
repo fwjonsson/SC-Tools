@@ -11,7 +11,7 @@
 <body>
 <h1>Hauling Planner</h1>
 <div class="bar"><span id="session"></span><span id="live" class="live"></span><span id="updated"></span></div>
-<div class="nav"><button id="tabS" class="on">Session</button><button id="tabP">Trip Planner</button><button id="tabD">Debts</button><button id="tabH">History</button></div>
+<div class="nav"><button id="tabS" class="on">Session</button><button id="tabC">Contracts</button><button id="tabP">Trip Planner</button><button id="tabD">Debts</button><button id="tabH">History</button></div>
 
 <div id="viewS">
 <div id="partyTabs" class="sub hidden"></div>
@@ -21,12 +21,16 @@
     <div id="jobsBox" class="hidden"><h2>Other hauling</h2><div class="scroll" id="jobs"></div><p class="note" id="jobsNote"></p></div></div>
   <div>
     <h2>Party</h2><div class="scroll" id="party"></div>
-    <h2>Contracts</h2><div class="scroll" id="rewards"></div>
     <h2>Session</h2><div class="scroll" id="summary"></div>
   </div>
 </div>
 <h2>Session leaderboard</h2><div class="scroll" id="leaders"></div>
 <h2>Cargo runs</h2><div class="scroll" id="runs"></div>
+</div>
+
+<div id="viewC" class="hidden">
+  <h2>Contracts</h2><p class="note" id="rewardsParty"></p><div class="scroll" id="rewards"></div>
+  <p class="note">What every contract line pays (set in the Mission Library), how many of them are active and completed, and what they earned.</p>
 </div>
 
 <div id="viewP" class="hidden">

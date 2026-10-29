@@ -372,9 +372,9 @@ function renderHistory() {
   section(el, 'h2', 'Saved sessions', d.saved);
 }
 
-// Every tab has its own address: /hauling/session, /hauling/planner, /hauling/debts, /hauling/history on the site; the program's own page (at /) keeps
-// them after a # (#planner). The old #plan links still open the Trip Planner.
-const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history' };
+// Every tab has its own address: /hauling/session, /hauling/contracts, /hauling/planner, /hauling/debts, /hauling/history on the site; the program's
+// own page (at /) keeps them after a # (#planner). The old #plan links still open the Trip Planner.
+const TABS = { S: 'session', C: 'contracts', P: 'planner', D: 'debts', H: 'history' };
 const ON_SITE = /^\/hauling(\/|$)/.test(location.pathname);
 function tabOf(name) {
   name = (name || '').replace(/^#/, '');
@@ -382,14 +382,14 @@ function tabOf(name) {
   return Object.keys(TABS).find(function (k) { return TABS[k] === name; });
 }
 function show(which) {
-  ['S', 'P', 'D', 'H'].forEach(function (k) {
+  Object.keys(TABS).forEach(function (k) {
     document.getElementById('view' + k).classList.toggle('hidden', k !== which);
     document.getElementById('tab' + k).classList.toggle('on', k === which);
   });
   try { history.replaceState(null, '', ON_SITE ? '/hauling/' + TABS[which] : '#' + TABS[which]); } catch (e) { }
   layout();   // the tables of a tab that was hidden could not be measured
 }
-['S', 'P', 'D', 'H'].forEach(function (k) { document.getElementById('tab' + k).onclick = function () { show(k); }; });
+Object.keys(TABS).forEach(function (k) { document.getElementById('tab' + k).onclick = function () { show(k); }; });
 show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || 'S');
 
 // The party picker under Session: with more than one party (the ones in the game, then the ones that hauled in this session and are not playing now),
@@ -511,7 +511,11 @@ function render() {
     ? 'SCU: what the game said; else ' + (d.jobsScu && ME ? 'the number you type in here for the mission (only that one; the Mission Library gets it as the suggestion for its kind)' : 'a hauler\'s number for the mission')
       + '; else the Mission Library\'s; else the Star Citizen Wiki\'s. Split evenly over the stops (~).'
     : '';
+  // the Contracts tab: the contract lines of the party picked under Session (named there when there is more than one party)
   table(document.getElementById('rewards'), v.rewards);
+  const partyPick = document.getElementById('partyPick');
+  document.getElementById('rewardsParty').textContent = partyPick && (last.parties || []).length > 1
+    ? partyPick.options[partyPick.selectedIndex].text + ' (the party is picked under Session)' : '';
   summary(document.getElementById('summary'), v.summary || []);
   table(document.getElementById('party'), d.party);
   table(document.getElementById('leaders'), v.leaders);

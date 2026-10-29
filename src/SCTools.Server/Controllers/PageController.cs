@@ -101,7 +101,7 @@ public sealed class PageController : Controller
         return page;
     }
 
-    static readonly string[] HaulingTabs = { "session", "planner", "debts", "history" };
+    static readonly string[] HaulingTabs = { "session", "contracts", "planner", "debts", "history" };
 
     /// <summary>A tab of the live page at its own address (/hauling/planner): the same page, which shows that tab.</summary>
     [HttpGet("/hauling/{tab}")]
