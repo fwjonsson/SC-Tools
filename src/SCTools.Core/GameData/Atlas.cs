@@ -44,6 +44,17 @@ public sealed class Atlas
     public IEnumerable<Place> Of(string system) => Places.Where(p => p.System == system);
 
     /// <summary>
+    /// A system as the map engine of the pages (systemmap.js) draws it: its id and name, and its places with their key, name, short name (the label), kind,
+    /// parent and position (Gm). The Map tool's map.json has the three systems this way, the Hauling Planner's data.json has Pyro for its Trip Planner.
+    /// </summary>
+    public object SystemData(StarSystem s) => new
+    {
+        id = s.Id,
+        name = s.Name,
+        places = Of(s.Id).Select(p => new { key = p.Key, name = p.Name, @short = p.Short, kind = p.Kind.ToString().ToLowerInvariant(), parent = p.Parent, x = p.X, y = p.Y }).ToList(),
+    };
+
+    /// <summary>
     /// The admin's word on a text of the log: (true, the place) or (true, null) when it is not a place to show; (false, null) when he said nothing (or the
     /// place he named is gone). A party member's marker is never a place, nor a mission's beacon or marker (MapService follows those by the missions).
     /// </summary>

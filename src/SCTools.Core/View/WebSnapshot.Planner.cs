@@ -2,7 +2,7 @@ namespace SCTools.View;
 
 public sealed partial class WebSnapshot
 {
-    /// <summary>The Trip Planner tab: the stations for the map and, for every crew member, his Current Route and Queued routes tables and his planned routes.</summary>
+    /// <summary>The Trip Planner tab: the map (Pyro, with the stations on it) and, for every crew member, his Current Route and Queued routes tables and his planned routes.</summary>
     object Planner()
     {
         var plan = _t.Plan.GetPlan();
@@ -68,14 +68,9 @@ public sealed partial class WebSnapshot
             status = _t.Status.Text,
             statusKey = _t.Status.Seq,
             palette = ViewPalette.MapPalette.Select(ViewPalette.Hex).ToArray(),
-            stations = PyroDistances.Points.Select(p => new { id = p.Id, name = p.Name, x = p.X, y = p.Y }).ToList(),
-            backdrop = new
-            {
-                sun = new[] { PyroDistances.Sun.X, PyroDistances.Sun.Y },
-                sunRadius = PyroDistances.SunRadius,
-                orbits = PyroDistances.OrbitRadii,
-                planets = PyroDistances.Planets.Select(q => new[] { q.X, q.Y }).ToList(),
-            },
+            // the map: Pyro as the map engine draws it (the same places as the Map tool, from the game data), and the planner's stations with their place on it
+            map = Atlas.Default.SystemData(StarMap.Systems[0]),
+            stations = PyroDistances.Points.Select(p => new { id = p.Id, name = p.Name, key = Atlas.Default.OfPyroStation(p.Id)?.Key }).ToList(),
             workers,
             actionWidth = widest + 16,
         };

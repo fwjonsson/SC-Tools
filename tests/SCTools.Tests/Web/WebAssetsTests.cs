@@ -14,6 +14,25 @@ public class WebAssetsTests
         Assert.Contains("</script>", page);
         Assert.DoesNotContain("href=\"app.css\"", page);   // the style is in the page, not a file of its own
         Assert.DoesNotContain("src=\"app.js\"", page);
+        Assert.DoesNotContain("src=\"systemmap.js\"", page);
+    }
+
+    [Fact]
+    public void The_map_engine_is_inline_before_the_pages_script_and_the_trip_planner_draws_with_it()
+    {
+        var page = WebAssets.Page;
+        var engine = page.IndexOf(WebAssets.SystemMap.Trim(), StringComparison.Ordinal);   // the whole engine, as it is
+        var own = page.IndexOf("function renderPlanner", StringComparison.Ordinal);
+        Assert.True(engine > 0 && engine < own, "the engine (systemmap.js) comes before app.js, which uses it");
+        Assert.Contains("var SystemMap = (function ()", page);
+        Assert.Contains("const map = SystemMap.create(box, { active: plannerOn });", page);   // the Trip Planner's map is the Map tool's
+        Assert.Contains("fetch('/hauling/map.json'", page);   // its players and objectives, while the tab is shown
+        Assert.Contains("if (res.status === 404) { mapOff = true; return; }", page);   // the program's own page has none: the routes alone
+        Assert.Contains("frame.appendChild(planMap.map.meter(w.name || ''));", page);   // the speed meter under every worker's name
+        Assert.Contains("map.show(pyroOf(mapData) || p.map);", page);   // Pyro from data.json until map.json comes
+        Assert.Contains(".maplegend", page);   // app.css: the legend above the map, the meter's look
+        Assert.Contains(".speed .bar", page);
+        Assert.DoesNotContain("backdrop", page);   // the planner's old backdrop is gone: one map engine
     }
 
     [Fact]

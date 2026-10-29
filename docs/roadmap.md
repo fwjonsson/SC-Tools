@@ -67,6 +67,12 @@ All the tools track at the same time, all the time. The tracking runs on the ser
    with a speed meter. The jump start is a guess (10 s after picking the destination); the arrival line corrects it. Objectives at stations, in
    space, at the place their text names, else listed by text and system (#258). A jump with no destination picked: to the mission's objective, to
    where the pilot picked (crew), else "Off the grid" with the last ping (#258, #260).
+   - **One map engine** (Frank's TODO of 29 Oct: Map 3 and the Trip planner tab; branch `claude/map-engine`): the Map tool's map is the one engine
+     (`systemmap.js` in SCTools.Web, inlined into the live page and served to the Map tool), and the Hauling Planner's Trip Planner tab draws Pyro
+     with it: the players as arrows moving along their routes, the objectives as diamonds with a count, the speed meter under every worker's name,
+     with the planner's routes (bold, dotted, arrows, waves, legend) on top, from `/hauling/map.json` (Pyro alone). The planner's and the map's
+     "done" agree: a pickup the planner credits is off the map at once, for everybody with the mission. Ruin is a station like any other on it
+     (Frank, 29 Oct: the planner is to work with every kind of hauling and lose its Ruin bias). The Windows program keeps its own PyroMapView.
 7. **Map places** (`/admin/places`, PR #244, Frank 28 Oct): the admin says what a quantum destination or start name the map does not know is (a
    place, or not a place to show; `Text*` for every one that starts so), renames places, and adds places the game data does not have (at a place, or
    X/Y in Gm). Saved in the database and used by the map at once.

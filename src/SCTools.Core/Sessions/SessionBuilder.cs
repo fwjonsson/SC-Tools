@@ -229,6 +229,12 @@ public static class SessionBuilder
         return result;
     }
 
+    /// <summary>
+    /// Is this objective a pickup stop of the mission whose cargo is picked up, as the planner counts it (any pickup signal, COMPLETED or INPROGRESS)? The
+    /// map takes the objective off the map by this too, so the diamond goes when the planner credits the pickup.
+    /// </summary>
+    public static bool PickedUp(Mission m, string objective) => IsStop(objective) && StopInfo(m, objective).State.StartsWith("loaded");
+
     /// <summary>The pickup stops of a mission (their zone and whether the cargo there is picked up), in the order the game made them.</summary>
     public static List<(string Zone, bool PickedUp)> StopsOf(Mission m) =>
         m.ObjZone.Where(kv => IsStop(kv.Key)).Select(kv => (kv.Value, StopInfo(m, kv.Key).State.StartsWith("loaded"))).ToList();

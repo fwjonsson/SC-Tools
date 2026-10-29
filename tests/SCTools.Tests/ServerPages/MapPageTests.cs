@@ -5,7 +5,10 @@ using SCTools.Tests.Support;
 
 namespace SCTools.Tests.ServerPages;
 
-/// <summary>The Map tool: everybody playing where his quantum jumps put him (on his way: from where, to where, since when, with his drive), and the objectives.</summary>
+/// <summary>
+/// The Map tool: everybody playing where his quantum jumps put him (on his way: from where, to where, since when, with his drive), and the objectives. The
+/// Hauling Planner's Trip Planner draws the same map of Pyro (/hauling/map.json) with the same engine (systemmap.js).
+/// </summary>
 public class MapPageTests
 {
     static string Id(DateTime t) => t.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
@@ -137,5 +140,76 @@ public class MapPageTests
         var player = await f.Player(f.AddKey("bileh123"));
         Assert.StartsWith("/login/denied", (await player.GetAsync("/map")).Headers.Location!.PathOf());
         Assert.StartsWith("/login", (await f.Browser().GetAsync("/map/map.json")).Headers.Location!.PathOf());
+    }
+
+    [Fact]
+    public async Task The_trip_planner_gets_the_map_tools_Pyro_and_a_pickup_the_planner_credits_is_off_it()
+    {
+        using var f = new ServerFactory();
+        var now = DateTime.UtcNow;
+        var m = GameLogWriter.MissionId(7);
+        var contract = string.Format(GameLogWriter.HaulingContract, 2);
+        // zzoega took a 2 stop contract (Gaslight, Patch City, hand-in at Ruin) and shared it with zzatvo; he picked up at Gaslight
+        var mine = new GameLogWriter().At(now.AddMinutes(-40)).Login("zzoega").Accepted(m)
+            .Marker(m, contract, "pickup_m7_0", PlayedSession.GaslightZone, GameLogWriter.Gaslight)
+            .Marker(m, contract, "pickup_m7_1", PlayedSession.PatchZone, GameLogWriter.PatchCity)
+            .Marker(m, contract, "dropoff_m7_0", PlayedSession.RuinZone, GameLogWriter.RuinStation)
+            .Minutes(19).Unstow().Seconds(5).Objective(m, "pickup_m7_0", "COMPLETED");
+        var his = new GameLogWriter().At(now.AddMinutes(-39)).Login("zzatvo").SharedAs(m, "Senior | Stellar Large Haul | to Ruin Station")
+            .Marker(m, contract, "pickup_m7_0", PlayedSession.GaslightZone, GameLogWriter.Gaslight)
+            .Marker(m, contract, "pickup_m7_1", PlayedSession.PatchZone, GameLogWriter.PatchCity)
+            .Marker(m, contract, "dropoff_m7_0", PlayedSession.RuinZone, GameLogWriter.RuinStation)
+            .Minutes(19).Objective(m, "pickup_m7_0", "COMPLETED");
+        Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-40)), 0, 10000, mine.Lines.ToList(), now).Ok);
+        Assert.True(f.Live.Uploads.Add("zzatvo", Id(now.AddMinutes(-39)), 0, 10000, his.Lines.ToList(), now).Ok);
+
+        // a player sees the planner's map (the Map tool itself is only the admin's until it is shown): Pyro alone, with the players and the objectives
+        var player = await f.Player(f.AddKey("zzoega"));
+        Assert.StartsWith("/login/denied", (await player.GetAsync("/map/map.json")).Headers.Location!.PathOf());
+        var res = await player.GetAsync("/hauling/map.json");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains("no-store", res.Headers.CacheControl?.ToString());
+        var map = JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal(new[] { "pyro" }, map.GetProperty("systems").EnumerateArray().Select(x => x.GetProperty("id").GetString()));
+        Assert.Contains(map.GetProperty("systems")[0].GetProperty("places").EnumerateArray(), x => x.GetProperty("key").GetString() == "pyro/ruin-station");
+        Assert.Equal(new[] { "zzoega", "zzatvo" }, map.GetProperty("players").EnumerateArray().Select(x => x.GetProperty("name").GetString()).OrderByDescending(n => n));
+        var objectives = map.GetProperty("objectives").EnumerateArray().ToList();
+        // the pickup at Gaslight is done; the one at Patch City is on the map and the hand-in (its zone is not a pickup station: only in the list), once each,
+        // with both who have the mission
+        static string? PlaceOf(JsonElement o) => o.TryGetProperty("place", out var place) ? place.GetString() : null;
+        Assert.Equal(new[] { null, "pyro/patch-city" }, objectives.Select(PlaceOf).OrderBy(x => x));
+        var patch = objectives.Single(o => PlaceOf(o) == "pyro/patch-city");
+        Assert.Equal(new[] { "zzoega", "zzatvo" }, patch.GetProperty("who").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal(2, Assert.Single(map.GetProperty("missions").EnumerateArray()).GetProperty("open").GetInt32());
+
+        // he starts loading at Patch City (INPROGRESS): the planner counts the stop as picked up, so the map takes the objective off too
+        var more = new GameLogWriter().At(now.AddMinutes(-10)).Unstow().Seconds(5).Objective(m, "pickup_m7_1", "INPROGRESS");
+        Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-40)), 10000, 20000, more.Lines.ToList(), now).Ok);
+        var mission = f.Live.Uploads.Logs.First(l => l.Uploader == "zzoega").Missions[m];
+        Assert.True(SCTools.Sessions.SessionBuilder.PickedUp(mission, "pickup_m7_1"));
+        map = JsonDocument.Parse(await player.GetStringAsync("/hauling/map.json")).RootElement;
+        Assert.Equal(new string?[] { null }, map.GetProperty("objectives").EnumerateArray().Select(PlaceOf));
+        Assert.Equal(1, Assert.Single(map.GetProperty("missions").EnumerateArray()).GetProperty("open").GetInt32());
+    }
+
+    [Fact]
+    public async Task The_map_tool_and_the_live_page_draw_with_the_same_engine()
+    {
+        using var f = new ServerFactory();
+        var admin = await f.Admin();
+        // the Map tool's page loads the engine (with its version in the address) before its own script
+        var page = await admin.GetStringAsync("/map");
+        var engine = "/systemmap.js?v=" + WebAssets.SystemMapVersion;
+        Assert.True(page.IndexOf(engine, StringComparison.Ordinal) > 0 && page.IndexOf(engine, StringComparison.Ordinal) < page.IndexOf("map.js?v=", StringComparison.Ordinal));
+        // the engine is the script the live page has inline, for everybody, kept by the browser while its version is the same
+        var res = await f.Browser().GetAsync(engine);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Equal("text/javascript", res.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("immutable", res.Headers.CacheControl?.ToString());
+        var script = await res.Content.ReadAsStringAsync();
+        Assert.Equal(WebAssets.SystemMap, script);
+        Assert.StartsWith("var SystemMap = (function ()", script.Split('\n').First(l => !l.StartsWith("//")));
+        Assert.Contains(script, WebAssets.Page);
+        Assert.Equal("no-cache", (await f.Browser().GetAsync("/systemmap.js")).Headers.CacheControl?.ToString());
     }
 }

@@ -172,6 +172,25 @@ public class WebSnapshotTests
     }
 
     [Fact]
+    public void The_trip_planner_has_the_map_tools_Pyro_with_its_stations_on_it()
+    {
+        var planner = Snapshot().GetProperty("planner");
+        var map = planner.GetProperty("map");   // Pyro as the map engine draws it (StarMap): the same places as the Map tool
+        Assert.Equal(("pyro", "Pyro"), (map.GetProperty("id").GetString(), map.GetProperty("name").GetString()));
+        var places = map.GetProperty("places").EnumerateArray().ToList();
+        Assert.Contains(places, p => p.GetProperty("key").GetString() == "pyro/pyro" && p.GetProperty("kind").GetString() == "star");
+        var ruin = places.Single(p => p.GetProperty("key").GetString() == "pyro/ruin-station");
+        Assert.Equal(("station", "terminus", "Ruin Station"), (ruin.GetProperty("kind").GetString(), ruin.GetProperty("parent").GetString(), ruin.GetProperty("short").GetString()));
+        Assert.Equal(-52.3368, ruin.GetProperty("x").GetDouble(), 4);
+        // the planner's stations by their place on that map (the routes are drawn between them)
+        var stations = planner.GetProperty("stations").EnumerateArray().ToDictionary(s => s.GetProperty("id").GetString()!, s => s.GetProperty("key").GetString());
+        Assert.Equal("pyro/ruin-station", stations["Ruin"]);
+        Assert.Equal("pyro/orbituary", stations["73041"]);
+        Assert.Equal("pyro/endgame", stations["70273"]);
+        Assert.False(planner.TryGetProperty("backdrop", out _));
+    }
+
+    [Fact]
     public void The_light_theme_has_light_colours()
     {
         var d = Snapshot(dark: false);
