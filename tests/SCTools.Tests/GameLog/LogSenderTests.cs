@@ -106,6 +106,42 @@ public sealed class LogSenderTests : IDisposable
     }
 
     [Fact]
+    public void A_finished_backup_and_a_game_log_that_did_not_grow_are_not_opened_again()
+    {
+        var backup = Path.Combine(_live, "logbackups", "Game Build(1) 21 Oct 26 (05 00 00).log");
+        File.WriteAllText(backup, Text(new GameLogWriter().At(GameLogWriter.Start.AddHours(-3)).Login("Pilot_A").Unstow().Lines));
+        File.WriteAllText(GameLog, Text(PlayedSession.Writer().Lines));
+        var sender = Sender();
+        sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();
+        Assert.Equal(new FileInfo(backup).Length, _server.Uploads.Cursor("Pilot_A", LogSender.FileId(backup)!));
+        var pieces = _server.Pieces;
+        var names = new[] { LogSender.FileId(backup), LogSender.FileId(GameLog) };
+
+        // other logs under the same names, as long as before: a tick that opened them would find the new names and send them
+        File.WriteAllText(backup, File.ReadAllText(backup).Replace("2026-10-21T05", "2026-10-21T04"));
+        File.WriteAllText(GameLog, File.ReadAllText(GameLog).Replace("2026-10-21T08", "2026-10-21T07"));
+        Assert.NotEqual(names, new[] { LogSender.FileId(backup), LogSender.FileId(GameLog) });
+        sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();
+        sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();
+        Assert.Equal(pieces, _server.Pieces);
+    }
+
+    [Fact]
+    public void A_game_log_deleted_by_hand_and_written_anew_is_read_as_a_new_file()
+    {
+        File.WriteAllText(GameLog, Text(PlayedSession.Writer().Lines));
+        var sender = Sender();
+        sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();
+
+        // no backup this time, and the new log is shorter than what was sent from the old one
+        File.WriteAllText(GameLog, Text(new GameLogWriter().At(GameLogWriter.Start.AddHours(2)).Login("Pilot_A").Unstow().Lines));
+        sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();   // it sees that the file is shorter than its cursor
+        sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();   // and sends it under its own name
+        Assert.Equal(new FileInfo(GameLog).Length, _server.Uploads.Cursor("Pilot_A", LogSender.FileId(GameLog)!));
+        Assert.Equal(SessionUnstows + 1, _server.Log.Unstows.Count);
+    }
+
+    [Fact]
     public void A_tracker_that_starts_again_goes_on_where_the_server_is()
     {
         var lines = PlayedSession.Writer().Lines;

@@ -16,6 +16,12 @@ public static class Updater
 {
     const string Repo = "fwjonsson/SC-Tools";
 
+    /// <summary>
+    /// The start of the name of what an update puts in Temp: the zip while it downloads (SCToolsUpdate-&lt;guid&gt;.zip, removed again). Before 29 Oct 2026 it was a
+    /// folder of that name with the zip and the exe in it, which stayed: AppName.RemoveLeftoversAsync sweeps them.
+    /// </summary>
+    public const string TempName = "SCToolsUpdate-";
+
     static readonly HttpClient Http = CreateClient();
 
     static HttpClient CreateClient()
@@ -58,27 +64,46 @@ public static class Updater
         return doc.RootElement.TryGetProperty("status", out var s) && s.GetString() == "ahead";
     }
 
-    /// <summary>Downloads the newest exe (zipName of the latest release, with exeName in it) into a temporary folder and returns its path.</summary>
+    /// <summary>
+    /// Downloads the newest exe (exeName, in zipName of the latest release) and puts it next to the running program as Name.new.exe, ready for ReplaceAndStart;
+    /// returns its path. The zip only passes through Temp and is removed again, so an update leaves nothing there.
+    /// </summary>
     public static async Task<string> DownloadAsync(string zipName, string exeName)
     {
-        var dir = Path.Combine(Path.GetTempPath(), "SCToolsUpdate-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
-        var zip = Path.Combine(dir, zipName);
-        using (var resp = await Http.GetAsync("https://github.com/" + Repo + "/releases/download/latest/" + zipName, HttpCompletionOption.ResponseHeadersRead))
+        var me = Environment.ProcessPath ?? throw new InvalidOperationException("The path of the program is not known.");
+        var zip = Path.Combine(Path.GetTempPath(), TempName + Guid.NewGuid().ToString("N") + ".zip");
+        try
         {
-            resp.EnsureSuccessStatusCode();
-            await using var file = File.Create(zip);
-            await resp.Content.CopyToAsync(file);
+            using (var resp = await Http.GetAsync("https://github.com/" + Repo + "/releases/download/latest/" + zipName, HttpCompletionOption.ResponseHeadersRead))
+            {
+                resp.EnsureSuccessStatusCode();
+                await using var file = File.Create(zip);
+                await resp.Content.CopyToAsync(file);
+            }
+            return Unpack(zip, exeName, Path.ChangeExtension(me, ".new.exe"));
         }
-        ZipFile.ExtractToDirectory(zip, dir);
-        var exe = Path.Combine(dir, exeName);
-        if (!File.Exists(exe)) throw new FileNotFoundException("The download does not contain " + exeName + ".");
-        return exe;
+        finally
+        {
+            try { File.Delete(zip); }
+            catch (IOException) { }                   // held for a moment (a virus scanner): RemoveLeftoversAsync takes it next time
+            catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    /// <summary>Takes the exe (exeName) out of the zip to the target path (over what is there) and returns that path; a zip without the exe is refused.</summary>
+    public static string Unpack(string zip, string exeName, string target)
+    {
+        using var archive = ZipFile.OpenRead(zip);
+        var entry = archive.Entries.FirstOrDefault(e => string.Equals(e.FullName, exeName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new FileNotFoundException("The download does not contain " + exeName + ".");
+        entry.ExtractToFile(target, overwrite: true);
+        return target;
     }
 
     /// <summary>
     /// Windows does not let a program overwrite itself while it runs, but it does let the running exe be renamed. So the running exe becomes
-    /// HaulingPlanner.old.exe (removed when the new one starts, AppName.RemoveLeftoversAsync), the new exe takes its place and is started (the same for the tracker's exe).
+    /// HaulingPlanner.old.exe (removed when the new one starts, AppName.RemoveLeftoversAsync), the new exe (HaulingPlanner.new.exe next to it, DownloadAsync)
+    /// takes its place and is started (the same for the tracker's exe).
     /// </summary>
     public static void ReplaceAndStart(string newExe, string? arguments = null)
     {

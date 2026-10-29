@@ -20,7 +20,8 @@ public interface ILogServer
 /// The sending side of a tracker: follows the Game.log of a Star Citizen folder (LIVE, HOTFIX... as LogSources picks it) while the game writes it, and the backup
 /// logs of the last day, and uploads every file from where the server's cursor is, in pieces of whole lines (a line the game is still writing waits). Only the
 /// lines the tracker reads are sent (LineFilter). A file is named by the time of its first line, so when the game starts again and its Game.log moves to
-/// logbackups, that copy goes on where the upload was and is not sent twice.
+/// logbackups, that copy goes on where the upload was and is not sent twice. A tick opens no file it does not need: a file is opened for its first line once
+/// (it never changes), a backup that is sent completely is not looked at again, and the Game.log is only opened when it grew.
 /// </summary>
 public sealed class LogSender
 {
@@ -35,7 +36,8 @@ public sealed class LogSender
 
     readonly ILogServer _server;
     readonly Dictionary<string, FileState> _files = new(StringComparer.Ordinal);
-    readonly HashSet<string> _finished = new(StringComparer.Ordinal);   // backup logs sent completely (they do not grow any more)
+    readonly HashSet<string> _finished = new(StringComparer.Ordinal);                  // backup logs sent completely (they do not grow any more)
+    readonly Dictionary<string, DateTime?> _firstLine = new(StringComparer.Ordinal);   // the time of the first line of every file seen (null: none yet)
 
     public LogSender(ILogServer server) => _server = server;
 
@@ -53,8 +55,19 @@ public sealed class LogSender
     public int LinesSent { get; private set; }
 
     /// <summary>The name of a log file for the server: the time of its first line ("2026-10-23T13:09:38.304Z"), or null while it has none.</summary>
-    public static string? FileId(string path) =>
-        HaulingLog.FirstTimestamp(path)?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
+    public static string? FileId(string path) => HaulingLog.FirstTimestamp(path) is { } firstLine ? Id(firstLine) : null;
+
+    static string Id(DateTime firstLine) => firstLine.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
+
+    /// <summary>The time of the first line of a file, read once: it never changes (a file that has none yet is looked at again next time).</summary>
+    DateTime? FirstLine(string path)
+    {
+        if (!_firstLine.TryGetValue(path, out var time) || time == null) _firstLine[path] = time = HaulingLog.FirstTimestamp(path);
+        return time;
+    }
+
+    /// <summary>The name of a file for the server (FileId), from the first line it was opened for once.</summary>
+    string? IdOf(string path) => FirstLine(path) is { } firstLine ? Id(firstLine) : null;
 
     /// <summary>Sends what is new: the backup logs of the last day first (in the order they were written), then the Game.log.</summary>
     public async Task TickAsync(CancellationToken ct)
@@ -65,18 +78,20 @@ public sealed class LogSender
         await SendAsync(LiveFile, true, ct);
     }
 
-    /// <summary>The logs in the logbackups folder next to the Game.log that were written in the last day, oldest first.</summary>
-    static IEnumerable<string> Backups(string liveFile)
+    /// <summary>
+    /// The logs in the logbackups folder next to the Game.log that were written in the last day, oldest first. A backup that was not there before means the
+    /// game started again, so its Game.log is a new file under the same name: it is opened for its first line again.
+    /// </summary>
+    IEnumerable<string> Backups(string liveFile)
     {
         try
         {
             var dir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(liveFile) ?? "", "logbackups");
             if (!Directory.Exists(dir)) return Array.Empty<string>();
             var since = DateTime.UtcNow - LogSources.BackupAge;
-            return Directory.GetFiles(dir, "*.log")
-                .Where(f => File.GetLastWriteTimeUtc(f) >= since)
-                .OrderBy(f => HaulingLog.FirstTimestamp(f) ?? DateTime.MaxValue)
-                .ToList();
+            var files = Directory.GetFiles(dir, "*.log").Where(f => File.GetLastWriteTimeUtc(f) >= since).ToList();
+            if (files.Any(f => !_firstLine.ContainsKey(f))) _firstLine.Remove(liveFile);
+            return files.OrderBy(f => FirstLine(f) ?? DateTime.MaxValue).ToList();
         }
         catch (IOException) { return Array.Empty<string>(); }
         catch (UnauthorizedAccessException) { return Array.Empty<string>(); }
@@ -84,12 +99,27 @@ public sealed class LogSender
 
     async Task SendAsync(string path, bool live, CancellationToken ct)
     {
-        var id = FileId(path);
+        var id = IdOf(path);
         if (id == null || (!live && _finished.Contains(id))) return;
         if (!_files.TryGetValue(id, out var state))
         {
             state = new FileState { At = await _server.CursorAsync(id, ct) };
             _files[id] = state;
+        }
+
+        var info = new FileInfo(path);
+        if (!info.Exists) return;
+        if (live && info.Length < state.At)
+        {
+            // shorter than what was sent from it: a new Game.log under the same name, and the old one did not go to logbackups (deleted by hand).
+            // It is opened for its first line again next time.
+            _firstLine.Remove(path);
+            return;
+        }
+        if (info.Length <= state.At)   // nothing new: the file is not opened
+        {
+            if (!live) _finished.Add(id);
+            return;
         }
 
         long length;

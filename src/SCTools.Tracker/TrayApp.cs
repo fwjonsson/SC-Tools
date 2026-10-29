@@ -7,9 +7,10 @@ using SCTools.Updates;
 namespace SCTools.Tracker;
 
 /// <summary>
-/// The SC Tools Tracker in the tray: every three seconds it uploads what is new in the Game.log (and the backup logs of the last day) to the server, it sends
-/// the old backup logs the server does not have yet (HistorySender: all of them the first time, then the new ones), and it updates itself from the latest
-/// release on GitHub. The menu shows how each goes and its version, opens the site, the settings, and starts it with Windows.
+/// The SC Tools Tracker in the tray: every three seconds it uploads what is new in the Game.log (and the backup logs of the last day) to the server (with
+/// longer waits when that fails, RetryDelay), it sends the old backup logs the server does not have yet (HistorySender: all of them the first time, then the
+/// new ones), and it updates itself from the latest release on GitHub. The menu shows how each goes and its version, opens the site, the settings, and starts
+/// it with Windows.
 /// </summary>
 sealed class TrayApp : ApplicationContext
 {
@@ -23,6 +24,8 @@ sealed class TrayApp : ApplicationContext
     readonly ToolStripMenuItem _version = new() { Enabled = false };
     readonly ToolStripMenuItem _startWithWindows = new("Start with Windows") { CheckOnClick = true };
     readonly CancellationTokenSource _stop = new();
+    readonly RetryDelay _delay = new();
+    readonly SemaphoreSlim _wake = new(0, 1);   // released by Reconnect: new settings are tried at once, not after the wait
 
     SenderSettings _settings = SenderSettings.Load();
     HttpLogServer? _server;
@@ -114,31 +117,37 @@ sealed class TrayApp : ApplicationContext
         Reconnect();
     }
 
-    /// <summary>New settings: a new connection, and the logs are followed again from where the server is.</summary>
+    /// <summary>New settings: a new connection, tried at once, and the logs are followed again from where the server is.</summary>
     void Reconnect()
     {
         _server?.Dispose();
         _server = null;
         _sender = null;
         _player = null;
+        _delay.Reset();
+        if (_wake.CurrentCount == 0) _wake.Release();
     }
 
+    /// <summary>Upload round after upload round: every 3 seconds while all goes well, longer after failures (RetryDelay); new settings end a wait at once.</summary>
     async Task SendLoopAsync()
     {
         while (!_stop.IsCancellationRequested)
         {
-            await SendOnceAsync();
-            try { await Task.Delay(TimeSpan.FromSeconds(3), _stop.Token); }
-            catch (TaskCanceledException) { return; }
+            var outcome = await SendOnceAsync();
+            var wait = _delay.Next(outcome);
+            if (outcome == SendOutcome.Failed) SetStatus(_status.Text + ", trying again in " + (wait < TimeSpan.FromMinutes(1) ? wait.TotalSeconds + " s" : wait.TotalMinutes + " min"));
+            try { await _wake.WaitAsync(wait, _stop.Token); }
+            catch (OperationCanceledException) { return; }
         }
     }
 
-    async Task SendOnceAsync()
+    /// <summary>One upload round: what came of it says how long to wait before the next (RetryDelay).</summary>
+    async Task<SendOutcome> SendOnceAsync()
     {
         if (!_settings.Complete)
         {
             SetStatus("Not set up: open Settings and type your key");
-            return;
+            return SendOutcome.Ok;
         }
         try
         {
@@ -153,33 +162,38 @@ sealed class TrayApp : ApplicationContext
                 if (_player == null)
                 {
                     SetStatus("The server does not know this key: check it in Settings");
-                    return;
+                    return SendOutcome.UnknownKey;
                 }
             }
             await _sender.TickAsync(_stop.Token);
             if (_sender.LiveFile == null)
             {
                 SetStatus("No Game.log found in " + _settings.StarCitizenFolder);
-                return;
+                return SendOutcome.Ok;
             }
             var last = _sender.LastUpload.HasValue ? _sender.LastUpload.Value.ToLocalTime().ToString("HH:mm:ss") : "nothing new yet";
             SetStatus("Sending as " + _player + ", last upload " + last + " (" + _sender.LinesSent.ToString("N0") + " lines)");
+            return SendOutcome.Ok;
         }
         catch (OperationCanceledException) when (_stop.IsCancellationRequested)
         {
+            return SendOutcome.Ok;
         }
         catch (UnauthorizedAccessException)
         {
             _player = null;
             SetStatus("The server does not know this key: check it in Settings");
+            return SendOutcome.UnknownKey;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            SetStatus("Cannot reach the server, trying again (" + ex.Message + ")");
+            SetStatus("Cannot reach the server (" + ex.Message + ")");
+            return SendOutcome.Failed;
         }
         catch (IOException ex)
         {
-            SetStatus("Cannot read the log, trying again (" + ex.Message + ")");
+            SetStatus("Cannot read the log (" + ex.Message + ")");
+            return SendOutcome.Failed;
         }
     }
 

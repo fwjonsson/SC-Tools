@@ -22,8 +22,8 @@ To make a single exe: `dotnet publish src/SCTools.HaulingPlanner -c Release -r w
       SCTools.Core/            the logic, without any user interface (runs anywhere .NET runs, so it can be tested on any machine)
         GameLog/               reading Game.log: missions, objectives, quantum travel, money transfers (HaulingLog), and the files
                                that are read, opened by hand or followed live with their backup logs (LogSources); for the web app:
-                               the lines a tracker uploads (LineFilter), its sending side (LogSender, HttpLogServer) and the server's
-                               side (LogUploads)
+                               the lines a tracker uploads (LineFilter), its sending side (LogSender, HttpLogServer, and the wait between
+                               its rounds, RetryDelay) and the server's side (LogUploads)
         Sessions/              which missions belong to a session, the pickup locations (SessionBuilder)
         Runs/                  the runs of every worker: pickups, deliveries, hand-ins (WorkerTripBuilder)
         Planning/              the trip planner (TripPlanner), the loads from Ruin (DropChunk), and the plan as the tab shows it
@@ -56,7 +56,7 @@ GitHub builds the program on every change (Build, Windows) and runs the tests an
 
 ## Updates
 
-The exe from the [Releases page](https://github.com/fwjonsson/SC-Tools/releases/tag/latest) (the "latest" release the build makes from `main`) updates itself. At startup it asks GitHub for the newest build; if there is a newer one it asks **Update now?** (default No). On Yes it downloads the new exe, renames the running one to `HaulingTracker.old.exe` (kept as a backup until the next update), puts the new one in its place and restarts. Your data is not touched. **Options → Check for Updates…** does the same by hand and always answers. The version (the first letters of the commit) is at the bottom of the Options menu.
+The exe from the [Releases page](https://github.com/fwjonsson/SC-Tools/releases/tag/latest) (the "latest" release the build makes from `main`) updates itself. At startup it asks GitHub for the newest build; if there is a newer one it asks **Update now?** (default No). On Yes it downloads the zip and takes the new exe out of it next to the program (`HaulingPlanner.new.exe`; the zip passes through Temp and is removed again), renames the running one to `HaulingPlanner.old.exe` (removed when the new one starts), puts the new one in its place and restarts. Your data is not touched. **Options → Check for Updates…** does the same by hand and always answers. The version (the first letters of the commit) is at the bottom of the Options menu.
 A program you built yourself (Visual Studio, `dotnet run`) has no build version, so it never updates itself. A build from a branch that is not merged yet is never replaced by an older one. If the exe sits in a folder that needs administrator rights (like Program Files) the update fails with a message and nothing changes.
 
 ## Use
@@ -200,9 +200,14 @@ admin (done), then going live.
   itself `SCToolsTracker.exe` when it starts (and moves Start with Windows along; `AppName`, the same for HaulingTracker.exe, now HaulingPlanner.exe). Its settings are the
   server (`https://sc-tools.fwjonsson.dev`; a tracker with an old address, haulingtracker or sct, saved moves to it by itself, `SiteAddress`; the settings are in `%AppData%\SCTools\tracker.json`), your **key** (Frank gives every player his own; **Test** asks the server whose key it is), the Star Citizen folder and the log channel. Every
   3 seconds it uploads what is new in the Game.log, and the backup logs of the last day, from where the server is, so nothing is sent twice (also after a
-  restart of the tracker or the game). It only sends the lines the tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money
+  restart of the tracker or the game); it keeps the time of the first line of every file (its name for the server), so a file is only opened when it grew.
+  When the server cannot be reached or answers with an error it waits longer after every failure in a row (3, 6, 12 seconds... up to 2 minutes, `RetryDelay`)
+  and goes back to 3 seconds with the first upload that works; a key the server does not know is asked about once a minute; new settings are tried at once.
+  It only sends the lines the tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money
   transfers, the freight elevator and the loading platform); the rest of the game's log stays on the PC. It can start with Windows, and it updates itself
-  (it looks when it starts and every half hour, so a new kind of line the site reads comes from every tracker soon after it is merged).
+  (it looks when it starts and every half hour, so a new kind of line the site reads comes from every tracker soon after it is merged; the new exe is taken
+  out of the downloaded zip next to the program, `SCToolsTracker.new.exe`, so nothing stays in Temp, and the `SCToolsUpdate-*` folders earlier updates left
+  there go when it starts).
   Every request says its version (`X-Tracker-Version`: the commit it was built from), so the site knows whether it updated: the `/tracker` page shows a
   logged in player his own tracker's version (the newest or not, and when it was last in touch), the admin's Keys page everybody's (`TrackerVersions`;
   the newest build is the "latest" release on GitHub, asked at most every 10 minutes).
