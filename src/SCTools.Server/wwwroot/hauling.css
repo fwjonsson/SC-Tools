@@ -64,16 +64,20 @@
 .hauling .plancur table, .hauling .planque table { min-width:640px; }
 .hauling .planpair h3 { margin:6px 0 4px; }
 .hauling .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
-.hauling .planleft { flex:0 0 520px; max-width:100%; }
+/* the map is the Map tool's size (820 px, .mapbox in site.css; Frank, 29 Oct 2026), smaller on a narrower window so the workers' tables keep their columns */
+.hauling .planleft { flex:0 0 820px; max-width:100%; }
 .hauling .planleft h2 { margin-top:14px; }
-/* a tablet or a smaller window: a smaller map, so the tables of the workers keep all their columns in view */
+/* a smaller window: a smaller map, so the tables of the workers keep all their columns in view */
 @media (max-width:1600px) {
-  .hauling .planleft { flex:0 0 340px; }
+  .hauling .planleft { flex:0 0 520px; }
   .hauling .plancur table, .hauling .planque table { min-width:0; }
   .hauling .plancur th:nth-child(2) { width:96px; } .hauling .plancur th:nth-child(3) { width:150px; } .hauling .plancur th:nth-child(5) { width:84px; }
   .hauling .plancur th:nth-child(6), .hauling .planque th:nth-child(6) { width:72px; } .hauling .plancur th:nth-child(7), .hauling .planque th:nth-child(7) { width:62px; }
   .hauling .planque th:nth-child(3) { width:52px; } .hauling .planque th:nth-child(4) { width:66px; } .hauling .planque th:nth-child(5) { width:84px; }
   .hauling .plantables th, .hauling .plantables td { padding:4px 5px; }
+}
+@media (max-width:1200px) {
+  .hauling .planleft { flex:0 0 340px; }
 }
 /* a phone, or a tablet held upright: the map on top, the tables under it, full width */
 @media (max-width:900px) {
