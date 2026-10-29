@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Text.Json;
 using SCTools.Tests.Support;
 
 namespace SCTools.Tests.ServerPages;
@@ -46,10 +47,23 @@ public class PartyToolTests
         Assert.Contains("zzoega's party", panel);
         // every party a table like the Hauling Planner's old Party table: member, ship, drive, the row in his colour (zzoega orange with black text)
         Assert.Contains("<table class=\"members\">", panel);
-        Assert.Contains("<tr><th>Member</th><th>Ship</th><th>QT Drive</th></tr>", panel);
+        Assert.Contains("<tr><th>Member</th><th>Ship</th><th>QT Drive</th>", panel);
         Assert.Contains("<tr style=\"background:#ff9628;color:#000000\"><td><a href=\"/party/zzoega\">ZZOEGA</a></td><td>", panel);
         Assert.Contains("href=\"/party/zzatvo\">ZZATVO</a></td><td>", panel);
-        Assert.Contains("<td>Crusader C2 Hercules Starlifter</td><td></td></tr>", panel);   // the class of his last quantum jump; no fleet: no drive
+        // the admin's Active tick (the Hauling Planner's party: zzoega and zzatvo are in it, bileh123 is not): off when somebody stopped playing and the
+        // logs still count him, so the planner plans no trips for him; it holds until the logs change their mind (Frank, 29 Oct 2026)
+        Assert.Contains("<th>Active</th>", panel);
+        Assert.Contains("<input type=\"checkbox\" name=\"active\" data-name=\"zzatvo\" checked=\"checked\"", panel);
+        Assert.DoesNotContain("data-name=\"bileh123\"", panel);   // not in the planner's party: nothing to tick
+        var res = await ServerFactory.Send(admin, "/party", "/party/active", ("name", "zzatvo"), ("active", "false"));
+        Assert.StartsWith("/party", res.Headers.Location!.PathOf());
+        Assert.False(f.Live.Read(t => t.Crew.IsActiveAt("zzatvo", DateTime.UtcNow)));
+        Assert.DoesNotContain("zzatvo", f.Live.Read(t => t.Crew.ActiveCrew()), StringComparer.OrdinalIgnoreCase);   // the planner's crew: without him
+        var after = WebUtility.HtmlDecode(await admin.GetStringAsync("/party/panel"));
+        Assert.Contains("<tr class=\"inactive\"", after);
+        Assert.Contains("data-name=\"zzatvo\" aria-label", after);   // not checked
+        Assert.Contains("function(r){if(!r.ok)throw new Error(r.status);return r.json();}", await admin.GetStringAsync("/"));   // the tick is sent in the background
+        Assert.Contains("<td>Crusader C2 Hercules Starlifter</td><td></td>", panel);   // the class of his last quantum jump; no fleet: no drive
         Assert.Contains("Not playing: ", panel);   // everybody else the site knows (pilot_x has a key and has not played)
         Assert.Contains("pilot_x", panel[panel.IndexOf("Not playing: ", StringComparison.Ordinal)..]);
         Assert.Contains("href=\"/party\"", panel);
@@ -70,6 +84,33 @@ public class PartyToolTests
         Assert.Contains("Party is in the top bar for everybody now.", await admin.GetStringAsync("/admin/tools"));
         Assert.Equal(HttpStatusCode.OK, (await player.GetAsync("/party/zzoega")).StatusCode);
         Assert.Contains("<details class=\"party\"", await player.GetStringAsync("/"));
-        Assert.Contains("bileh123", WebUtility.HtmlDecode(await player.GetStringAsync("/party/panel")));
+        var his2 = WebUtility.HtmlDecode(await player.GetStringAsync("/party/panel"));
+        Assert.Contains("bileh123", his2);
+        Assert.DoesNotContain("<th>Active</th>", his2);   // bileh123 leads nobody in the planner's party: no tick for him (zzoega's party is not his)
+        // the leader of a party ticks his members (Frank, 29 Oct 2026): zzoega brings zzatvo back; bileh123 cannot touch zzoega's party
+        var leader = await f.Player(f.AddKey("zzoega"));
+        var leaders = WebUtility.HtmlDecode(await leader.GetStringAsync("/party/panel"));
+        Assert.Contains("<th>Active</th>", leaders);
+        Assert.Contains("data-name=\"zzatvo\" aria-label", leaders);
+        var quiet = await Quiet(leader, "zzatvo", true);
+        Assert.True(JsonDocument.Parse(await quiet.Content.ReadAsStringAsync()).RootElement.GetProperty("ok").GetBoolean());
+        Assert.True(f.Live.Read(t => t.Crew.IsActiveAt("zzatvo", DateTime.UtcNow)));
+        var refused = JsonDocument.Parse(await (await Quiet(player, "zzoega", false)).Content.ReadAsStringAsync()).RootElement;
+        Assert.False(refused.GetProperty("ok").GetBoolean());
+        Assert.Contains("leader", refused.GetProperty("said").GetString());
+        Assert.True(f.Live.Read(t => t.Crew.IsActiveAt("zzoega", DateTime.UtcNow)));
+    }
+
+    /// <summary>The Active tick sent in the background, as the panel's script sends it (X-Autosave: JSON back).</summary>
+    static async Task<HttpResponseMessage> Quiet(HttpClient c, string name, bool active)
+    {
+        var page = await c.GetStringAsync("/");
+        using var req = new HttpRequestMessage(HttpMethod.Post, "/party/active")
+        {
+            Content = new FormUrlEncodedContent(new[] { KeyValuePair.Create("name", name), KeyValuePair.Create("active", active ? "true" : "false"),
+                KeyValuePair.Create("__RequestVerificationToken", ServerFactory.Token(page)) }),
+        };
+        req.Headers.Add("X-Autosave", "1");
+        return await c.SendAsync(req);
     }
 }

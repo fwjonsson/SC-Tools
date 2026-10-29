@@ -60,7 +60,9 @@ All the tools track at the same time, all the time. The tracking runs on the ser
 5. **Party tool** (`/party`, PR #241): who is playing in which in-game party with the ship each one flies, everybody else with when they were last
    seen, and a page per player. `PartyService` keeps the site's party in one place for every tool. Since 29 Oct not a card on the landing page: a
    **Party** button beside the name in the top bar, with a panel (fetched when it opens) of the parties as tables like the Hauling Planner's old
-   Party table (member, ship, drive, the rows in the members' colours; Frank, 29 Oct), which the Hauling Planner's page lost that day.
+   Party table (member, ship, drive, the rows in the members' colours; Frank, 29 Oct), which the Hauling Planner's page lost that day, with an
+   Active tick for the admin and the party's leader (29 Oct, after the planner kept planning trips for a member who had stopped playing while the
+   logs still counted him).
 6. **Map tool** (`/map`, PR #242; all three systems in PR #243): Pyro, Stanton and Nyx from above, one tab per system (it opens on the system where
    most players are). The places (stars, planets, moons, cities, gateways, stations: 26 + 52 + 19) come from the Star Citizen Wiki API positions in
    Frank's ScApiTool download of 20 Oct 2026 (`StarMap` in the core; Pyro's match the Trip Planner's distances). Everybody playing is placed where

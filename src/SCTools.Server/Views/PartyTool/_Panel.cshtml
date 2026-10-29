@@ -5,6 +5,12 @@
     Layout = null;
     string Link(string name) => "/party/" + Uri.EscapeDataString(name);
     var playing = Model.Parties.Sum(p => p.Names.Count);
+    // the admin, and the leader of a party for his members, ticks a member of the Hauling Planner's party off when he stopped playing and the logs still
+    // count him (the planner plans no trips for him then)
+    var admin = User.IsInRole(Roles.Admin);
+    // the column only where there is somebody to tick: a member of the planner's party (Active known)
+    bool Ticks(PartyGroup p) => (admin || string.Equals(p.Leader, User.Identity?.Name, StringComparison.OrdinalIgnoreCase))
+        && p.Names.Any(n => Model.Ships.TryGetValue(n, out var l) && l.Active != null);
 }
 <div class="partypanel">
   <p class="head"><span>@(playing == 0 ? "Nobody is playing now." : playing + " playing" + (Model.Parties.Count > 1 ? " in " + Model.Parties.Count + " parties" : ""))</span>
@@ -14,12 +20,14 @@
     <div class="group">
       <b>@p.Title</b>
       <table class="members">
-        <thead><tr><th>Member</th><th>Ship</th><th>QT Drive</th></tr></thead>
+        <thead><tr><th>Member</th><th>Ship</th><th>QT Drive</th>@if (Ticks(p)) { <th>Active</th> }</tr></thead>
         <tbody>
         @foreach (var n in p.Names)
         {
-          var m = Model.Ships.TryGetValue(n, out var line) ? line : new PartyMemberLine("", "", "#888888", "#ffffff");
-          <tr style="background:@m.Color;color:@m.Text"><td><a href="@Link(n)">@n.ToUpperInvariant()</a></td><td>@m.Ship</td><td>@m.Drive</td></tr>
+          var m = Model.Ships.TryGetValue(n, out var line) ? line : new PartyMemberLine("", "", "#888888", "#ffffff", null);
+          <tr class="@(m.Active == false ? "inactive" : null)" style="background:@m.Color;color:@m.Text"><td><a href="@Link(n)">@n.ToUpperInvariant()</a></td><td>@m.Ship</td><td>@m.Drive</td>@if (Ticks(p)) {
+            <td class="center">@if (m.Active is bool on) { <input type="checkbox" name="active" data-name="@n" checked="@on" aria-label="Active in the Hauling Planner" title="Off: the Hauling Planner plans no trips for him (he stopped playing); on: he is back. Holds until the logs change their mind."> }</td>
+          }</tr>
         }
         </tbody>
       </table>

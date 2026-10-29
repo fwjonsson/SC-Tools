@@ -253,7 +253,10 @@ admin (done), then going live.
   Hauling Planner has him, his tracker, and his fleet. Only for the admin until it is shown on the Tools page. It is not a card on the landing page and
   not in the row of tools (Frank, 29 Oct 2026; `SiteTools.Cards`): a **Party** button beside the viewer's name in the top bar (`TopBar.PartyButton`, on
   the tools' own pages too) opens a panel under it with the same parties, each a table like the Hauling Planner's old Party table (Frank, 29 Oct 2026:
-  Member, Ship, QT Drive, every member's row in his colour, `Edits.ColorOf`; the names link to the players' pages), and "Everybody" to the Party
+  Member, Ship, QT Drive, every member's row in his colour, `Edits.ColorOf`; the names link to the players' pages; for the admin, and for the leader of
+  a party for his members, an **Active** tick per member of the Hauling Planner's party, `/party/active`, sent in the background: off when somebody
+  stopped playing and the logs still count him, so the planner plans no trips for him, the same as In and Out on the admin's Party page, holding until
+  the logs change their mind), and "Everybody" to the Party
   page. The panel is fetched when it opens (`/party/panel`, a fragment: `_Panel.cshtml`), so a page costs nothing for it until somebody looks; without
   JavaScript the button is a link to the Party page. The button is marked in the tool's colour on the Party pages, like a tool in the row.
 - **The Map tool** (`/map`, `MapService`, `wwwroot/map.js`): Pyro, Stanton and Nyx from above (a tab per system over the map; it opens on the system
