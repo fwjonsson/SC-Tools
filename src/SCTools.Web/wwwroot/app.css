@@ -1,7 +1,9 @@
   /* the colours until data.json brings the theme (ViewPalette.Dark, "Deep space") */
   :root { --bg:#0d1117; --fg:#e6edf3; --header:#1f4b7a; --line:#2f3a48; --cell:#151b23; }
   * { box-sizing: border-box; }
-  body { margin:0; padding:14px 18px 40px; background:var(--bg); color:var(--fg); font:14px "Segoe UI", system-ui, sans-serif; }
+  html { background:var(--bg); }
+  /* no wider than 1,900 px, in the middle: on an ultrawide screen the tables do not stretch over the whole width (Frank, 29 Oct 2026); the other pages of the site are narrower by themselves */
+  body { margin:0 auto; max-width:1900px; padding:14px 18px 40px; background:var(--bg); color:var(--fg); font:14px "Segoe UI", system-ui, sans-serif; }
   h1 { font-size:20px; margin:0 0 2px; }
   h2 { font-size:16px; margin:22px 0 6px; }
   h3 { font-size:14px; margin:14px 0 4px; }
