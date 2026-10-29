@@ -157,7 +157,7 @@ public class MissionLibraryTests
         var row = rows.Single(r => r.Name == "Kill the Outlaw at Bloom").Html;   // being played by him: marked
         Assert.Contains(" running\"", row);   // its class
         Assert.Contains("<span class=\"now\">playing now</span>", row);
-        Assert.True(row.Contains(">0 / 1<", StringComparison.Ordinal), "Actual: " + row.Replace("\r", "").Replace("\n", " "));
+        Assert.Matches(">0 / 1\\s*<span class=\"now\">", row);   // completed of taken, and that he plays it now
         Assert.DoesNotContain("running", rows.Single(r => r.Name == "Old Mission 1").Html);
         Assert.DoesNotContain("<span class=\"now\">", await admin.GetStringAsync("/missions"));   // not the admin's play
         Assert.DoesNotContain("Somebody Else", page);
