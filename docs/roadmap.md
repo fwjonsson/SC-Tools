@@ -37,7 +37,8 @@ All the tools track at the same time, all the time. The tracking runs on the ser
    every visit, so a reward typed in later counts for the past; since #264 the Star Citizen Wiki's reward where none is typed in).
 3. **Mission Library** (`/missions`): every mission the players take, one row per mission name (the game's ContractId is one per offer, so it cannot
    group them); the contracts the Hauling Planner reads are one row per contract line (2 To Ruin ... Direct From Ruin), named as the game names their
-   missions once one is seen (#268). The Session tool, the Gauntlet Tracker (the "Combat Gauntlet - Scenario #n" rows) and the Hauling Planner (the
+   missions once one is seen (#268; since 29 Oct they are kinds by name like every mission, and the planner pays each contract what its kind says,
+   else the Wiki's reward, else the old table by stops: an Experienced contract is not a Senior one). The Session tool, the Gauntlet Tracker (the "Combat Gauntlet - Scenario #n" rows) and the Hauling Planner (the
    aUEC of the Hauling rows, the SCU of the others) all count with it. The old Wiki lookup by ContractId was dropped; since #264 a kind is linked to
    the Wiki API's mission by the log's contract id (see 11).
    - **Read-only for everybody, editable for Frank** (Frank, 29 Oct; #267, #268): `/missions` is a library to look things up in (everybody when the

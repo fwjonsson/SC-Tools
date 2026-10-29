@@ -10,7 +10,7 @@ public class MissionKindsTests
     const string Other = "33333333-3333-3333-3333-333333333333";
 
     [Fact]
-    public void A_hauling_contract_is_its_contract_line_and_any_other_mission_its_name()
+    public void A_hauling_contract_is_its_name_like_any_other_mission_and_its_contract_line_without_one()
     {
         var lines = new GameLogWriter().Login("zzoega").Accepted(M1)
             .Marker(M1, string.Format(GameLogWriter.HaulingContract, 3), "pickup_aaaa_0", "900000000101", GameLogWriter.Gaslight).Lines
@@ -21,7 +21,8 @@ public class MissionKindsTests
 
         var haul = missions.Single(m => m.MissionId == M1.ToLowerInvariant());
         Assert.Equal("3 To Ruin", haul.Hauling);
-        Assert.Equal("hauling:3 to ruin", MissionKinds.KeyOf(haul.Title, haul.Hauling));
+        Assert.Equal("senior | stellar large haul | to ruin station [50/200/250/500/1000/2000/4000 rep]", MissionKinds.KeyOf(haul.Title, haul.Hauling));   // by its name (29 Oct 2026)
+        Assert.Equal("hauling:3 to ruin", MissionKinds.KeyOf(null, haul.Hauling));   // no name in any log: its contract line
         var other = missions.Single(m => m.MissionId == Other);
         Assert.Null(other.Hauling);
         Assert.Equal("stop rival attack at asteroid mining base [200 rep] [bp]*", MissionKinds.KeyOf(other.Title, other.Hauling));

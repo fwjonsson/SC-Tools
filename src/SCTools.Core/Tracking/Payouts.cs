@@ -46,7 +46,7 @@ public sealed class Payouts
         foreach (var t in trips)
         {
             if (!t.End.HasValue || t.Worker == "Unassigned") continue;
-            var v = Earnings.RunValues(t, g, inp);
+            var v = Earnings.RunValues(t, g, inp, _s.Jobs);
             var value = mode == CarryMode.Confirmed ? v.Confirmed : mode == CarryMode.Failed ? v.Failed : v.Total;
             if (value <= 0) continue;
             carried.TryGetValue(t.Worker, out var old);
@@ -80,7 +80,7 @@ public sealed class Payouts
                 {
                     var m = g.Missions.FirstOrDefault(x => x.Id == id);
                     if (m == null || m.Multi == 0 || !m.Completed) continue;
-                    var v = Earnings.RewardOf(m, inp) / m.Multi;
+                    var v = Earnings.RewardOf(m, inp, _s.Jobs) / m.Multi;
                     if (v <= 0) continue;
                     carried.TryGetValue(t.Worker, out var old);
                     carried[t.Worker] = old + v;
@@ -144,7 +144,7 @@ public sealed class Payouts
                     MissionId = m.Id,
                     Time = m.EndedAt.Value,
                     Contract = (string.IsNullOrEmpty(m.Cargo) ? "Cargo" : m.Cargo) + ", " + m.Multi + " stops",
-                    Payout = Data.PayoutOverrides.TryGetValue(m.Id, out var typed) && typed > 0 ? typed : Earnings.RewardOf(m, inp),
+                    Payout = Data.PayoutOverrides.TryGetValue(m.Id, out var typed) && typed > 0 ? typed : Earnings.RewardOf(m, inp, _s.Jobs),
                     Members = new List<string>(members),
                     Each = share,
                 });

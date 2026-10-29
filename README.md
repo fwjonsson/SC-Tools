@@ -345,9 +345,9 @@ admin (done), then going live.
 - **The Mission Library** (`/missions`, `Missions/MissionReader` and `Missions/MissionKinds` in the core, `MissionLibrary`) has every kind of mission
   the players took, by itself: the missions of the live logs and of the old logs are kept for good (`Missions`), grouped by their name as the game shows
   it (`MissionKinds`; the game's ContractId is one per offer, so the same mission at another place has another one). The contracts the Hauling Planner
-  reads are grouped by its contract line instead (2 To Ruin ... Direct From Ruin), which is what they pay by, but named as the game names their
-  missions like every other kind, as soon as one of them is seen ("Hauling: 2 To Ruin" until then; the kinds named so from before get the name most
-  of their missions have when the server starts). With every kind is what the log
+  reads are kinds by their names like every other mission (Frank, 29 Oct 2026; before, by their contract line, 2 To Ruin... Direct From Ruin: those
+  kinds go to the kinds by name when the server starts, with what was typed for them), so an Experienced contract and a Senior one with as many stops
+  are two rows with their own rewards; a contract whose name no log showed is still grouped by its contract line. With every kind is what the log
   does not say: the aUEC, MG scrip and Council scrip it pays, its cargo in SCU (it wins over the suggestion in grey: the last SCU a hauler typed in for
   one of these missions on the Hauling Planner's Other hauling board, or what the game said for one; the board uses it; else the Star Citizen Wiki's in
   grey), another name, the faction (the Giver field, as it was called until 29 Oct 2026). With it is what the **Star Citizen Wiki** says about the
@@ -369,8 +369,9 @@ admin (done), then going live.
   missions with comms, like bounties, do not); one shared with him whose offer never showed is the other account's. The scrip columns are narrow (a
   mission pays two figures at most, their headers on two lines), so the mission and the giver have the room. The other tools count with it: the
   Session tool (all of it; its "no reward yet" line links the player to the kinds he played without rewards, the admin to filling them in), the
-  Gauntlet Tracker (the scenarios) and the Hauling Planner (the aUEC of a Hauling row is what it pays for that line: the session shown and every new
-  one; the admin's Session page shows them). The first time it runs it reads the missions of the old logs already on the server; what was typed in the
+  Gauntlet Tracker (the scenarios) and the Hauling Planner (every contract pays the aUEC of its kind, else the Star Citizen Wiki's reward for the
+  contract, else the built-in table by stops: `Earnings.KindReward` with the tracker's `JobBook`; the Contracts tab lists the session's contracts by
+  name with what they pay). The first time it runs it reads the missions of the old logs already on the server; what was typed in the
   library when it went by ContractId is carried over to the names once.
 - **The Session tool** (`/session`, `Play/PlayStats` in the core, `Playtime`, `SessionController`): your own play. Time played today, this week (from
   Monday), this month and in all, the games and the crashes (a log without the game's quit line, `SystemQuit`, crashed), the missions you completed

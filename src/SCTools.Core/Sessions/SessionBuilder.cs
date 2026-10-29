@@ -270,6 +270,7 @@ public static class SessionBuilder
                 Delivered = delivered.Count,
                 Missing = missing == null ? 0 : kv.Value.Count(i => missing.Contains(i.Mission.Id)),
                 OpenMissions = kv.Value.Where((i, k) => !infos[k].State.StartsWith("loaded")).Select(i => i.Mission).ToList(),
+                StopMissions = kv.Value.Select(i => i.Mission).ToList(),
                 LoadedTime = lasts.Count > 0 ? lasts.Max() : (DateTime?)null,
                 DeliveredTime = delivered.Count == infos.Count && delivered.Count > 0 ? delivered.Max() : (DateTime?)null,
             });

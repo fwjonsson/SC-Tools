@@ -41,10 +41,11 @@ public class AdminPagesTests
         Assert.Contains("Next Stops: Unlocked", page);
         Assert.Contains("Stop Session", page);   // the played session was started by hand and runs
 
-        // the rewards are in the Mission Library (its Hauling kinds), typed on Edit Mission Info: what is typed there counts for the session shown and the next ones
-        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", "hauling:2 to ruin"), ("field", "auec"), ("value", "1 300 000"));
-        Assert.Equal(1_300_000m, Read(f, t => t.State.Inputs!.Reward2));
-        Assert.Equal(1_300_000m, Read(f, t => t.State.Data.DefaultRewards["2 To Ruin"]));   // and the next sessions start with it
+        // the rewards are in the Mission Library, by the contract's own name (the game's), typed on Edit Mission Info: the planner pays it for every such contract
+        var kind = SCTools.Missions.MissionKinds.TitleKey("Senior | Stellar Large Haul | to Ruin Station [50/200/250/500/1000/2000/4000 Rep]")!;
+        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", kind), ("field", "auec"), ("value", "1 300 000"));
+        Assert.Equal(1_300_000m, Read(f, t => t.Earnings.RewardOf(t.State.Current!.Missions[0])));
+        Assert.Equal(Earnings.DefaultReward2, Read(f, t => t.State.Inputs!.Reward2));   // the session's table by stops is only the fallback
 
         Assert.Contains("The session time runs from 07:05.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/start-time", ("startTime", "7:05")), "/admin"));
         Assert.Contains("Type the start time as 19:30.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/start-time", ("startTime", "soon")), "/admin"));
@@ -72,21 +73,17 @@ public class AdminPagesTests
     }
 
     [Fact]
-    public async Task The_rewards_are_set_in_the_library_also_without_a_session_and_a_new_session_starts_with_them()
+    public async Task A_new_session_pays_the_built_in_table_until_the_library_knows_a_contract()
     {
         using var f = new ServerFactory();   // no data, no logs: no session
         var admin = await f.Admin();
         Assert.DoesNotContain("Mission Reward", await admin.GetStringAsync("/admin"));   // the rewards are only in the library now
         var library = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/missions"));
-        Assert.Contains("value=\"Hauling: 2 To Ruin\"", library);   // the library starts with what the planner pays
-        Assert.Contains("value=\"" + Earnings.DefaultReward2.ToString("0") + "\"", library);
-
-        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", "hauling:2 to ruin"), ("field", "auec"), ("value", "1400000"));
-        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", "hauling:3 to ruin"), ("field", "auec"), ("value", ""));
+        Assert.DoesNotContain("Hauling: 2 To Ruin", library);   // the planner's contracts are kinds by their game names, like every mission: none until one is seen
 
         await ServerFactory.Send(admin, "/admin", "/admin/session");   // Start Session
-        Assert.Equal(1_400_000m, Read(f, t => t.State.Inputs!.Reward2));
-        Assert.Equal(Earnings.DefaultReward3, Read(f, t => t.State.Inputs!.Reward3));   // nothing typed: the built-in one
+        Assert.Equal(Earnings.DefaultReward2, Read(f, t => t.State.Inputs!.Reward2));   // the built-in table by stops, for a contract the library knows nothing about
+        Assert.Equal(Earnings.DefaultReward3, Read(f, t => Earnings.RewardOf(new Mission { Multi = 3, Title = "Nobody knows" }, t.State.Inputs!, t.State.Jobs)));
     }
 
     [Fact]
