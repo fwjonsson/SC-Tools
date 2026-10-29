@@ -36,7 +36,7 @@ public class WebAssetsTests
     }
 
     [Fact]
-    public void The_party_table_is_beside_the_tabs_and_there_is_no_party_picker()
+    public void The_party_table_is_beside_the_title_and_only_the_admin_has_a_party_picker()
     {
         var page = WebAssets.Page;
         var top = page.IndexOf("<div class=\"top\">", StringComparison.Ordinal);
@@ -46,9 +46,12 @@ public class WebAssetsTests
         Assert.True(top > 0 && top < nav && nav < side && side < below, "the tabs and the Party table in the same row, the leaderboard and the runs under them");
         Assert.Contains("<div class=\"scroll\" id=\"party\" aria-label=\"Party\"></div>", page[side..below]);
         Assert.Contains("<h2>Session leaderboard</h2>", page[below..]);
-        Assert.DoesNotContain("partyPick", page);   // no picker: the viewer's own party by itself
+        Assert.DoesNotContain("remembered('party')", page[..page.IndexOf("function partyView", StringComparison.Ordinal)]);   // a player has no picker: his own party by itself
         Assert.Contains("<p class=\"note hidden\" id=\"partyNote\"></p>", page);
         Assert.Contains("#party th:nth-child(2) { width:46%; }", page);   // the Ship column has the room
+        Assert.True(page.IndexOf("<h1>Hauling Planner</h1>", StringComparison.Ordinal) > top, "the title is in the left column: the Party table starts level with it");
+        Assert.Contains("<select id=\"partyPick\" class=\"hidden\"", page);   // the admin's: whose session
+        Assert.Contains("const ADMIN = !!document.querySelector('meta[name=\"admin\"]')", page);
         Assert.Contains("getElementById('sideS').classList.toggle('hidden', which !== 'S')", page);
     }
 }

@@ -9,13 +9,13 @@
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<h1>Hauling Planner</h1>
-<div class="bar"><span id="session"></span><span id="live" class="live"></span><span id="updated"></span></div>
-<!-- the tabs and what they show on the left; on the Session tab the Party table beside them, level with the tabs, and the session under it (the leaderboard
-     and the runs under both, over the whole width) -->
+<!-- the title, the tabs and what they show on the left; on the Session tab the Party table beside them, level with the title, and the session under it (the
+     leaderboard and the runs under both, over the whole width). After the tabs, for the admin only, the party whose session the tabs show -->
 <div class="top">
 <div class="main">
-<div class="nav"><button id="tabS" class="on">Session</button><button id="tabC">Contracts</button><button id="tabP">Trip Planner</button><button id="tabD">Debts</button><button id="tabH">History</button></div>
+<h1>Hauling Planner</h1>
+<div class="bar"><span id="session"></span><span id="live" class="live"></span><span id="updated"></span></div>
+<div class="nav"><button id="tabS" class="on">Session</button><button id="tabC">Contracts</button><button id="tabP">Trip Planner</button><button id="tabD">Debts</button><button id="tabH">History</button><select id="partyPick" class="hidden" aria-label="Whose session"></select></div>
 
 <div id="viewS">
   <p class="note hidden" id="partyNote"></p>

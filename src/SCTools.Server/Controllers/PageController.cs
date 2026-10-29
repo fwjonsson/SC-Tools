@@ -1,4 +1,5 @@
 using System.Net;
+using SCTools.Server.Accounts;
 using SCTools.Server.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -87,7 +88,8 @@ public sealed class PageController : Controller
             .Replace("<body>", "<body class=\"tool\">\n" + TopBar.Html(HttpContext, _tools, SiteTools.Hauling));
         // who is looking, so the page can show his party first and his own runs on the Trip Planner (a player logged in by his tracker, or the admin)
         if (User.Identity?.IsAuthenticated == true && !string.IsNullOrEmpty(User.Identity.Name))
-            page = page.Replace("<head>", "<head>\n<meta name=\"me\" content=\"" + WebUtility.HtmlEncode(User.Identity.Name) + "\">");
+            page = page.Replace("<head>", "<head>\n<meta name=\"me\" content=\"" + WebUtility.HtmlEncode(User.Identity.Name) + "\">"
+                + (User.IsInRole(Roles.Admin) ? "\n<meta name=\"admin\" content=\"1\">" : ""));   // the admin picks whose session the tabs show
         return page;
     }
 

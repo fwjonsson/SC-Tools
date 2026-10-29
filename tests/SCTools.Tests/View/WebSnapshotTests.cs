@@ -56,10 +56,10 @@ public class WebSnapshotTests
         Assert.EndsWith("(2 missions)", d.GetProperty("session").GetString());
 
         var stops = d.GetProperty("pickups");
-        Assert.Equal(new[] { "#", "Pickup Location", "From Ruin", "Batches", "Cargo", "Value", "Notes", "Drop-off" }, Headers(stops));
+        Assert.Equal(new[] { "#", "Pickup Location", "Batches", "Cargo", "Value", "Drop-off" }, Headers(stops));   // no From Ruin and Notes (29 Oct 2026)
         var patch = Rows(stops).Select(Cells).Single(c => c[1] == "Patch City");
-        Assert.Equal("1/1", patch[3]);   // the open mission's batch still waiting (the completed mission is gone from the board)
-        Assert.Equal(CargoRuns.WaitingScuText(new LocationRow { Missions = 1, OpenMissions = { new Mission { Multi = 2 } } }), patch[4]);
+        Assert.Equal("1/1", patch[2]);   // the open mission's batch still waiting (the completed mission is gone from the board)
+        Assert.Equal(CargoRuns.WaitingScuText(new LocationRow { Missions = 1, OpenMissions = { new Mission { Multi = 2 } } }), patch[3]);
         Assert.All(Rows(stops).Select(Cells).Select((c, i) => (c, i)), x => Assert.Equal((x.i + 1).ToString(), x.c[0]));   // numbered
 
         Assert.Equal(new[] { "Contract", "Mission Reward", "Active", "Completed", "Total" }, Headers(d.GetProperty("rewards")));
@@ -83,9 +83,9 @@ public class WebSnapshotTests
         var d = Snapshot();
         static string[] Backs(JsonElement row) => row.GetProperty("back").EnumerateArray().Select(c => c.GetString()!).ToArray();
         var stop = Backs(Rows(d.GetProperty("pickups"))[0]);
-        Assert.Equal(stop[2], stop[1]);   // Pickup Location and Notes look like the rest (nothing is typed on the page)
-        Assert.Equal(stop[2], stop[6]);
-        Assert.Equal(Hex(ViewPalette.Dark.Calc), stop[2]);
+        Assert.Equal(stop[3], stop[1]);   // Pickup Location and Drop-off look like the rest (nothing is typed on the page; Batches is green when all is picked up)
+        Assert.Equal(stop[3], stop[5]);
+        Assert.Equal(Hex(ViewPalette.Dark.Calc), stop[3]);
         Assert.Single(Backs(Rows(d.GetProperty("rewards"))[0]).Distinct());   // the Mission Reward too
 
         var live = new LiveTracker(PlayedSession.Data(), null, new LogUploads());   // the session started, nothing uploaded yet
