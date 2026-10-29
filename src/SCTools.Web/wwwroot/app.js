@@ -3,6 +3,8 @@ var shownStatus = -1;   // the last status line text that was faded in
 
 // who is looking (a player logged in by his tracker, or the admin): the server puts his name in the page; empty for everybody else
 const ME = ((document.querySelector('meta[name="me"]') || {}).content || '').toLowerCase();
+// the admin: he picks whose session the tabs show (everybody else sees his own party's)
+const ADMIN = !!document.querySelector('meta[name="admin"]');
 // what was picked last (the party tab, what the Trip Planner shows), kept in this browser only
 function remembered(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
 function remember(key, value) { try { localStorage.setItem(key, value); } catch (e) { } }
@@ -58,8 +60,8 @@ function alignColumns() {
   if (!lead || !lead.tHead || !lead.offsetParent) return;   // not drawn yet, or another tab is shown (nothing can be measured then)
   const cells = Array.prototype.slice.call(lead.tHead.rows[0].cells);
   // the lined-up columns are never narrower than Stops needs them: with nobody on the leaderboard yet its columns are only as wide as their titles,
-  // so Pickup Location wrapped and the rest of Stops moved (#, Pickup Location, From Ruin, Batches, Cargo, Value)
-  const least = [36, 140, 90, 80, 110, 110];
+  // so Pickup Location wrapped and the rest of Stops moved (#, Pickup Location, Batches, Cargo, Value; the last column, Drop-off, takes the rest)
+  const least = [36, 140, 80, 110, 110];
   // every column of the leaderboard as wide as its title (on one line) and its numbers need, then what is left of the width is shared evenly by all
   // but #, so the columns are balanced (before, the first six had a set width and the others got all the room, however short their titles)
   function measure() {
@@ -99,7 +101,7 @@ function alignColumns() {
       else cells[i].style.width = '';   // the last column (or the wide one) takes what is left
     }
   }
-  fix('pickups', 6); fix('finished', 6); fix('runs', 2, 'Pickup Location & Time');
+  fix('pickups', 5); fix('finished', 5); fix('runs', 2, 'Pickup Location & Time');
 }
 
 // Every title on one line: a column of a table with set widths that is too narrow for its title (another font, a smaller window) is made as wide as the
@@ -444,19 +446,43 @@ function show(which) {
 Object.keys(TABS).forEach(function (k) { document.getElementById('tab' + k).onclick = function () { show(k); }; });
 show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || 'S');
 
-// Whose session the Session and Contracts tabs show (no picker since 29 Oct 2026): with one party, the whole session is theirs; with more than one (the
-// ones in the game, then the ones that hauled in this session and are not playing now), the viewer's own party by itself when he is logged in and in one
-// (its stops, contracts, session, leaderboard and runs: the missions its players have by their own logs, and their runs), else all of them together. The
-// line under the tabs says whose it is; the Trip Planner has its own choice (Everyone, a party, Only me).
+// Whose session the Session and Contracts tabs show: with one party, the whole session is theirs; with more than one (the ones in the game, then the ones
+// that hauled in this session and are not playing now), a player sees his own party by itself (its stops, contracts, session, leaderboard and runs: the
+// missions its players have by their own logs, and their runs), and all of them together when he is in none (or not logged in). The admin picks whose
+// session the tabs show in the list after the tabs (Frank, 29 Oct 2026): All parties, or one of them; his own party first. The line under the tabs says
+// whose it is; the Trip Planner has its own choice (Everyone, a party, Only me).
 let partyText = '';   // whose session is shown, for the Session and Contracts tabs
+let partyShown = null;   // the admin's pick: the leader of the party shown, '' for All
 function partyView() {
   const el = document.getElementById('partyNote');
+  const pick = document.getElementById('partyPick');
   const parties = last.parties || [];
-  const mine = parties.length > 1 ? myParty() : null;
-  const shown = mine && mine.view ? mine : null;
-  partyText = parties.length <= 1 ? ''
-    : shown ? 'Your party: ' + shown.title + ' (' + shown.names.join(', ') + ')' + (shown.playing === false ? ', not playing now' : '') + '. The others haul in this session too.'
-    : 'All parties together: ' + parties.map(function (p) { return p.title; }).join(', ') + (ME ? ' (you are in none of them).' : ' (log in to see your own).');
+  const several = parties.length > 1;
+  pick.classList.toggle('hidden', !ADMIN || !several);
+  let shown = null;
+  if (ADMIN && several) {
+    // the admin's list is made again only when the parties change, so a list that is open stays open while the page updates
+    if (partyShown === null) { const kept = remembered('party'); partyShown = kept !== null ? kept : ((myParty() || {}).leader || ''); }
+    if (!parties.some(function (p) { return p.leader === partyShown; })) partyShown = '';
+    const choices = [{ key: '', text: 'All parties' }].concat(parties.map(function (p) { return { key: p.leader, text: p.title + (p.playing === false ? ' (not playing now)' : '') }; }));
+    const key = JSON.stringify(choices);
+    if (pick.dataset.choices !== key) {
+      pick.textContent = '';
+      choices.forEach(function (c) { const o = document.createElement('option'); o.value = c.key; o.textContent = c.text; pick.appendChild(o); });
+      pick.dataset.choices = key;
+      pick.onchange = function () { partyShown = pick.value; remember('party', pick.value); render(); };
+    }
+    if (pick.value !== partyShown) pick.value = partyShown;
+    shown = parties.find(function (p) { return p.leader === partyShown && p.view; }) || null;
+    partyText = shown ? shown.title + ' (' + shown.names.join(', ') + ')' + (shown.playing === false ? ', not playing now' : '') + ': picked after the tabs.'
+      : 'All parties together: ' + parties.map(function (p) { return p.title; }).join(', ') + ' (pick one after the tabs).';
+  } else {
+    const mine = several ? myParty() : null;
+    shown = mine && mine.view ? mine : null;
+    partyText = !several ? ''
+      : shown ? 'Your party: ' + shown.title + ' (' + shown.names.join(', ') + ')' + (shown.playing === false ? ', not playing now' : '') + '. The others haul in this session too.'
+      : 'All parties together: ' + parties.map(function (p) { return p.title; }).join(', ') + (ME ? ' (you are in none of them).' : ' (log in to see your own).');
+  }
   el.textContent = partyText;
   el.classList.toggle('hidden', partyText === '');
   return shown ? shown.view : last;
