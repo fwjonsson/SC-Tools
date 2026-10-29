@@ -22,6 +22,7 @@ public class WebAssetsTests
         var page = WebAssets.Page;
         Assert.Contains(".planworker", page);   // app.css
         Assert.Contains("function renderPlanner", page);   // app.js
+        Assert.Contains("function paymentTicks", page);   // the sender's Payment tick on the Debts tab
     }
 
     [Fact]

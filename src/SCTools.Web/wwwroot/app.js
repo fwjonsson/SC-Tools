@@ -373,7 +373,38 @@ function renderDebts() {
     signColors(el.lastChild, 2, d, el.lastChild.querySelectorAll('tbody tr'));   // the meaning has the colour of its balance
   });
   section(el, 'h2', 'Money transfers', d.transfers);
+  paymentTicks(el.lastChild, d.transfersEdit || [], last.debtsPay);
   section(el, 'h2', 'Mission payouts', d.payouts);
+}
+
+// The Payment column of the money transfers: the player who sent the money ticks whether it pays off a debt (sent at once in the background, as the SCU
+// field); everybody else sees yes or nothing. Watching (not logged in), or the program's own page: text only.
+function paymentTicks(box, edits, url) {
+  if (!url || !ME) return;
+  const rows = box.querySelectorAll('tbody tr');
+  edits.forEach(function (e, i) {
+    const row = rows[i];
+    if (!e || !row || !row.cells[4] || (e.from || '').toLowerCase() !== ME) return;
+    const cell = row.cells[4];
+    cell.textContent = '';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = !!e.payment;
+    input.setAttribute('aria-label', 'Payment');
+    input.title = 'Tick when this transfer pays off a debt';
+    input.addEventListener('change', function () {
+      const token = document.querySelector('input[name="__RequestVerificationToken"]');
+      const body = new FormData();
+      body.append('key', e.key); body.append('payment', input.checked ? 'true' : 'false');
+      if (token) body.append('__RequestVerificationToken', token.value);
+      input.disabled = true;
+      fetch(url, { method: 'POST', body: body, headers: { 'X-Autosave': '1' }, credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (d) { input.disabled = false; if (!d.ok) { input.checked = !input.checked; input.title = d.said || 'Not saved.'; } })
+        .catch(function () { input.disabled = false; input.checked = !input.checked; input.title = 'Not saved: the site could not be reached. Try again.'; });
+    });
+    cell.appendChild(input);
+  });
 }
 
 function renderHistory() {

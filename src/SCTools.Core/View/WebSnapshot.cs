@@ -14,6 +14,9 @@ public sealed class WebSnapshotOptions
     /// shows the SCU without the field.
     /// </summary>
     public string? JobsScu { get; init; }
+
+    /// <summary>Where the Payment tick of a money transfer on the Debts tab goes (the server's address): the one who sent the money ticks it. The program has none.</summary>
+    public string? DebtsPay { get; init; }
 }
 
 /// <summary>
@@ -73,6 +76,7 @@ public sealed partial class WebSnapshot
             runsLive = runs.Live,    // runs on the way: the page counts their Time up
             planner = Planner(),
             debts = Debts(),
+            debtsPay = _o.DebtsPay,
             history = History(),
             parties = Parties(),
         };
