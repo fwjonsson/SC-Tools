@@ -28,7 +28,7 @@
 .hauling #rewards td:nth-child(1) { white-space:normal; }
 .hauling #rewards th:nth-child(3) { width:11%; } .hauling #rewards th:nth-child(4) { width:13%; } .hauling #rewards th:nth-child(5) { width:16%; }
 .hauling #runs td:nth-child(3) { white-space:normal; }   /* Pickup Location & Time of Cargo runs: a long run wraps instead of running over the next columns */
-.hauling #pickups td:nth-child(6) { white-space:normal; }   /* Drop-off of Stops: it wraps on a narrower window */
+.hauling #pickups td:nth-child(4) { white-space:normal; }   /* Cargo of Stops ("Waste 152 SCU: 4×32 + 24"): it wraps on a narrower window; Drop-off Location is a station name */
 .hauling .empty { opacity:.6; padding:6px 0; }
 .hauling #jobs td:nth-child(1), .hauling #jobs td:nth-child(3), .hauling #jobs td:nth-child(4) { white-space:normal; }   /* Other hauling: the mission and its stops wrap */
 .hauling .note { opacity:.75; font-size:12px; margin:4px 0 0; }

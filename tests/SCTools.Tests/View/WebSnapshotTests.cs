@@ -56,9 +56,10 @@ public class WebSnapshotTests
         Assert.EndsWith("(2 missions)", d.GetProperty("session").GetString());
 
         var stops = d.GetProperty("pickups");
-        Assert.Equal(new[] { "#", "Pickup Location", "Batches", "Cargo", "Value", "Drop-off" }, Headers(stops));   // no From Ruin and Notes (29 Oct 2026)
+        Assert.Equal(new[] { "#", "Pickup Location", "Batches", "Cargo", "Value", "Drop-off Location" }, Headers(stops));   // no From Ruin and Notes (29 Oct 2026)
         var patch = Rows(stops).Select(Cells).Single(c => c[1] == "Patch City");
         Assert.Equal("1/1", patch[2]);   // the open mission's batch still waiting (the completed mission is gone from the board)
+        Assert.Equal(PyroDistances.NameOf(PyroDistances.Ruin), patch[5]);   // a pickup goes to Ruin
         Assert.Equal(CargoRuns.WaitingScuText(new LocationRow { Missions = 1, OpenMissions = { new Mission { Multi = 2 } } }), patch[3]);
         Assert.All(Rows(stops).Select(Cells).Select((c, i) => (c, i)), x => Assert.Equal((x.i + 1).ToString(), x.c[0]));   // numbered
 
@@ -75,6 +76,31 @@ public class WebSnapshotTests
         Assert.Equal(7, summary.Count);
         Assert.False(string.IsNullOrEmpty(summary["Start Time"]));
         Assert.Equal(Earnings.DefaultReward2.ToString("N0"), summary["Total aUEC Earned"]);   // the first mission is completed
+    }
+
+    [Fact]
+    public void A_from_Ruin_drop_off_is_a_stop_of_its_own_read_like_the_pickups()
+    {
+        // a waste contract with two drop-offs: Patch City (a pickup stop too) and Rod's Fuel (nothing to pick up there): a row of its own for each
+        // (Frank, 29 Oct 2026): Ruin as the pickup, the count, the cargo with its SCU, its value, the station as the drop-off, in gold
+        var w = GameLogWriter.MissionId(61);
+        var waste = string.Format(GameLogWriter.WasteContract, 2);
+        var (t, _) = PlayedSession.Load(more: x => x.Minutes(1).Accepted(w)
+            .Marker(w, waste, "dropoff_w_0", "900000006101", GameLogWriter.PatchCity)
+            .Marker(w, waste, "dropoff_w_1", "900000006102", GameLogWriter.RodsFuel));
+        var d = JsonDocument.Parse(WebSnapshot.Json(t, new WebSnapshotOptions())).RootElement;
+        var rows = Rows(d.GetProperty("pickups"));
+        var ruin = PyroDistances.NameOf(PyroDistances.Ruin);
+        var drops = rows.Where(r => Cells(r)[1] == ruin).ToList();
+        Assert.Equal(2, drops.Count);
+        Assert.Equal(new[] { "Patch City", "Rod's Fuel" }, drops.Select(r => Cells(r)[5]).OrderBy(x => x));
+        Assert.All(drops, r => Assert.Equal("1", Cells(r)[2]));
+        Assert.All(drops, r => Assert.StartsWith("Waste ", Cells(r)[3]));
+        Assert.All(drops, r => Assert.Equal((Earnings.DefaultReward2 / 2).ToString("N0"), Cells(r)[4]));   // its part of the contract
+        Assert.All(drops, r => Assert.Equal(Hex(ViewPalette.Dark.Gold), r.GetProperty("back")[5].GetString()));
+        var patch = Cells(rows.Single(r => Cells(r)[1] == "Patch City"));   // the pickup stop there is its own row still, worth its pickups alone
+        Assert.Equal(ruin, patch[5]);
+        Assert.Equal(t.Earnings.StopValue(t.State.PickupRows.Single(r => r.Zone == PlayedSession.PatchZone)).ToString("N0"), patch[4]);
     }
 
     [Fact]

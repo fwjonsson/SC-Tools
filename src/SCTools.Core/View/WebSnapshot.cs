@@ -226,27 +226,39 @@ public sealed partial class WebSnapshot
     }
 
     /// <summary>
-    /// The Stops board: the most valuable stop on top, with the waste to bring there (a station with only drop-offs is a row of its own). No From Ruin and
-    /// Notes columns since 29 Oct 2026 (Frank; the program's board still has them).
+    /// The Stops board, the most valuable row on top: every pickup location with its batches, its cargo, its value and Ruin as the drop-off, and every
+    /// station that from-Ruin drop-offs go to as a row of its own, read the same way (Frank, 29 Oct 2026): Ruin as the pickup, how many drop-offs, the
+    /// cargo with its SCU in containers, their value, and the station as the drop-off. No From Ruin and Notes columns since 29 Oct 2026 (Frank; the
+    /// program's board still has them).
     /// </summary>
     ViewTable Stops()
     {
         var table = new ViewTable(_p,
             new ViewColumn("#"), new ViewColumn("Pickup Location", "left"), new ViewColumn("Batches"), new ViewColumn("Cargo", "right"), new ViewColumn("Value", "right"),
-            new ViewColumn("Drop-off"));
+            new ViewColumn("Drop-off Location", "left"));
         if (_s.Current == null || _s.Inputs == null) return table;
+        var ruin = PyroDistances.NameOf(PyroDistances.Ruin);
+        var lines = new List<(decimal Value, string[] Cells, bool AllPicked, bool Waste)>();
         foreach (var stop in _t.Earnings.StopsBoard(_t.DropOffs.OpenDrops()))
         {
-            var r = stop.Row;
-            var row = table.Add(
-                "",
-                _t.Places.LocationName(stop.Zone),
-                r == null ? "" : BoardTexts.MissionsText(r),
-                r == null ? "" : CargoRuns.WaitingScuText(r),
-                ValueText(stop.Value),
-                stop.Drops.Count == 0 ? "" : DropOffs.StationText(stop.Drops));
-            if (r != null && r.Loaded >= r.Missions) row.Color(2, _p.Green);   // everything there is picked up
-            if (stop.Drops.Count > 0) row.Color(5, _p.Gold, 0x000000);
+            if (stop.Row is { } r)
+            {
+                var value = _t.Earnings.StopValue(r);
+                lines.Add((value, new[] { "", _t.Places.LocationName(stop.Zone), BoardTexts.MissionsText(r), CargoRuns.WaitingScuText(r), ValueText(value), ruin }, r.Loaded >= r.Missions, false));
+            }
+            if (stop.Drops.Count > 0)
+            {
+                var value = _t.Earnings.WasteValue(stop.Drops);
+                var scu = stop.Drops.Sum(d => d.Scu);
+                var cargo = string.Join(", ", stop.Drops.Select(d => d.Mission.OutCargo ?? "Cargo").Distinct()) + " " + (scu > 0 ? DropOffs.ScuText(scu) : "? SCU");
+                lines.Add((value, new[] { "", ruin, stop.Drops.Count.ToString(CultureInfo.InvariantCulture), cargo, ValueText(value), _t.Places.LocationName(stop.Zone) }, false, true));
+            }
+        }
+        foreach (var l in lines.OrderByDescending(l => l.Value))
+        {
+            var row = table.Add(l.Cells);
+            if (l.AllPicked) row.Color(2, _p.Green);   // everything there is picked up
+            if (l.Waste) row.Color(5, _p.Gold, 0x000000);   // a drop-off to bring out
         }
         return table.Number();
     }
