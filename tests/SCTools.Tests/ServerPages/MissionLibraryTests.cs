@@ -46,7 +46,7 @@ public class MissionLibraryTests
         Assert.DoesNotContain("data-autosave", page);   // read-only, the admin's too
         Assert.Contains("Hauling: 2 To Ruin", page);   // the Hauling Planner's contract lines are there from the start
         Assert.Contains("href=\"/admin/missions\"", page);   // where he changes it
-        Assert.DoesNotContain("2 / 2", page);   // zzoega's plays are not the admin's
+        Assert.DoesNotContain("0 / 2", page);   // zzoega's plays are not the admin's
 
         var player = await f.Player(f.AddKey("bileh123"));
         var zzoega = await f.Player(f.AddKey("zzoega"));
@@ -55,12 +55,17 @@ public class MissionLibraryTests
         await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "missions"), ("value", "true"));
         var visitor = await f.Browser().GetStringAsync("/missions");   // shown: everybody, as the Hauling Planner's live page
         Assert.Contains(RivalShown, WebUtility.HtmlDecode(visitor));
-        Assert.DoesNotContain("Played<br>by me", visitor);   // nobody's plays for a visitor
+        Assert.DoesNotContain("Failed /<br>Completed", visitor);   // nobody's plays for a visitor
+        Assert.DoesNotContain("Last<br>played", visitor);
         Assert.DoesNotContain("name=\"mine\"", visitor);
         var his = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions"));
-        Assert.Contains("Played<br>by me", his);
-        Assert.Contains(">2 / 2<", his);   // completed of taken, his own
-        Assert.DoesNotContain("2 / 2", WebUtility.HtmlDecode(await player.GetStringAsync("/missions")));   // bileh123 never played it
+        Assert.Contains("Failed /<br>Completed", his);
+        Assert.Contains("Last<br>played", his);
+        Assert.Contains(">0 / 2<", his);   // failed / completed, his own
+        Assert.Contains(">21 Oct 2026<", his);   // when he played it last
+        var bileh = WebUtility.HtmlDecode(await player.GetStringAsync("/missions"));
+        Assert.DoesNotContain("0 / 2", bileh);   // bileh123 never played it
+        Assert.DoesNotContain("21 Oct 2026", bileh);
 
         // a player cannot change it, the admin does on Edit Mission Info
         var denied = await ServerFactory.Send(player, "/missions", "/admin/missions/set", ("id", RivalKey), ("field", "auec"), ("value", "1"));
@@ -102,7 +107,7 @@ public class MissionLibraryTests
         Assert.Contains(RivalShown, WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions?mine=1")));
         Assert.Contains("href=\"/missions?sort=auec&dir=desc\"", seen);   // a header sorts by its column (seen is decoded: no &amp;)
         Assert.Contains("href=\"/missions?sort=auec&amp;dir=asc\"", await player.GetStringAsync("/missions?sort=auec&dir=desc"));   // again: the other way round
-        Assert.DoesNotContain("Last<br>played", seen);
+        Assert.Contains("href=\"/missions?sort=last&dir=desc\"", seen);   // the latest he played first
 
         // a field saved in the background (autosave.js): the answer says what happened, the page is not sent again
         var page2 = await admin.GetStringAsync("/admin/missions");
@@ -157,7 +162,9 @@ public class MissionLibraryTests
         var row = rows.Single(r => r.Name == "Kill the Outlaw at Bloom").Html;   // being played by him: marked
         Assert.Contains(" running\"", row);   // its class
         Assert.Contains("<span class=\"now\">playing now</span>", row);
-        Assert.Matches(">0 / 1\\s*<span class=\"now\">", row);   // completed of taken, and that he plays it now
+        Assert.Contains(">0 / 0<", row);   // failed / completed: nothing yet
+        Assert.Contains(">0 / 1<", rows.Single(r => r.Name == "Old Mission 1").Html);
+        Assert.Contains(">21 Oct 2026<", rows.Single(r => r.Name == "Old Mission 1").Html);
         Assert.DoesNotContain("running", rows.Single(r => r.Name == "Old Mission 1").Html);
         Assert.DoesNotContain("<span class=\"now\">", await admin.GetStringAsync("/missions"));   // not the admin's play
         Assert.DoesNotContain("Somebody Else", page);
@@ -176,6 +183,11 @@ public class MissionLibraryTests
         var last = Rows(WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions?sort=played&dir=desc&page=2"))).Select(r => r.Name).ToList();
         Assert.True(last.IndexOf("Kill the Outlaw at Bloom") < last.IndexOf("Hauling: 2 To Ruin"), string.Join(", ", last));
         Assert.Contains("Nothing here.", await admin.GetStringAsync("/missions?mine=1"));   // the admin played nothing
+        // the latest he played first: the one he plays now, then the ones of 21 Oct, then the kinds he never played
+        var latest = Rows(WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions?sort=last&dir=desc"))).Select(r => r.Name).ToList();
+        Assert.Equal("Kill the Outlaw at Bloom", latest[0]);
+        Assert.StartsWith("Old Mission", latest[1]);
+        Assert.Contains("/missions?sort=last&dir=asc", WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions?sort=last&dir=desc")));
     }
 
     [Fact]

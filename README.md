@@ -324,9 +324,9 @@ admin (done), then going live.
   page, like the Hauling Planner's live page, else only for the admin): a library to look things up in, not a list of what was played last. The viewer
   chooses what to see (a search of the names and givers, one giver, with or without rewards, only the kinds he played) and the order (click a column's
   header: names A to Z, numbers the biggest first, again for the other way round; the kinds without a value in the column last; `LibraryFilter` keeps
-  it all in the address), 20 to a page. What is played is his own: **Played by me** (how often he completed it of how often he took it, hover for
-  failed and abandoned; a mission he is playing now, taken in the last six hours and not ended, has a green row), never anybody else's, and a visitor
-  not logged in sees no plays at all. The admin changes the library on **Edit Mission Info** (`/admin/missions`, `EditMissionsController`, in his row
+  it all in the address), 20 to a page. What is played is his own: **Failed / Completed** (how often he failed and completed it, hover for taken and
+  abandoned) and **Last played** (sort by it for the latest he played; a mission he is playing now, taken in the last six hours and not ended, says so
+  and has a green row), never anybody else's, and a visitor not logged in sees no plays at all. The admin changes the library on **Edit Mission Info** (`/admin/missions`, `EditMissionsController`, in his row
   of pages): the same list, choices and order with a field in every cell (the giver to type, or to pick from every giver typed in so far: a datalist, a
   new one is in it as soon as it is saved; each field saved as soon as it changes, in the background; the Notes column is gone, what was typed in it
   stays in the database). Both pages keep themselves up to date (`missions.js` asks the page's `version` address every few seconds and gets the list
