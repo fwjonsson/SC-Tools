@@ -319,7 +319,7 @@ admin (done), then going live.
   it (`MissionKinds`; the game's ContractId is one per offer, so the same mission at another place has another one). The contracts the Hauling Planner
   reads are grouped by its contract line instead (Hauling: 2 To Ruin ... Direct From Ruin), which is what they pay by. A logged in player types in what
   the log does not say: the aUEC, MG scrip and Council scrip it pays, its cargo in SCU (it wins over the suggestion in grey: the last SCU a hauler
-  typed in for one of these missions on Hauling jobs, or what the game said for one; the Other hauling board uses it), another name, the giver (to type, or to pick from every giver typed in so far:
+  typed in for one of these missions on the Hauling Planner's Other hauling board, or what the game said for one; the board uses it), another name, the giver (to type, or to pick from every giver typed in so far:
   a datalist, a new one is in it as soon as it is saved; each field saved as soon as it changes, in the
   background; the Notes column is gone, what was typed in it stays in the database). 20 kinds to a page, the ones played last first; the page keeps
   itself up to date (`missions.js` asks `/missions/version` every few seconds and gets the list again when it changed, not while you type in it), so
@@ -369,8 +369,9 @@ admin (done), then going live.
     Dunlow Orison; the admin's Map places aliases first). A pickup the game does not name (most "A to B" hauls) is named by its zone when another
     objective named a place in the same zone: exactly when a marker is right in the zone's middle (the place's own zone), else only "near ArcCorp"
     (the zone is the planet's: Baijini Point and Area18 share ArcCorp's).
-  - **SCU, the first that has it:** what the game's "Deliver" popups add up to; the SCU a hauler typed in for that mission on **Hauling jobs**
-    (`/hauling/jobs`, players and the admin; only that mission has it); the Mission Library's for its kind (typed in there, else the suggestion: the
+  - **SCU, the first that has it:** what the game's "Deliver" popups add up to; the SCU a hauler typed in for that mission in the board's SCU
+    field (players and the admin, logged in: a field in every row the game gave no SCU of, sent in the background to `/hauling/jobs/scu`, kept in the
+    field until the board brings it back; only that mission has it; watchers see the SCU as text); the Mission Library's for its kind (typed in there, else the suggestion: the
     last SCU a hauler typed in for one of them, or what the game said for one, every minute, `MissionLibrary.SuggestFromGame`); the Star Citizen
     Wiki's hauling orders for the contract (the middle of their ranges: "~500 (wiki 400–600)" for a Master contract of 4 × 100–150 SCU). It is split
     evenly over the pickups and over the drop-offs the game did not give the SCU of (~ on the board), like the planner's own contracts.
