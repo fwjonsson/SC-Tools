@@ -53,7 +53,9 @@ public static class MissionKinds
         if (log.Missions.Count == 0) return missions;
         var byId = new Dictionary<string, Mission>(StringComparer.OrdinalIgnoreCase);
         foreach (var kv in log.Missions) byId[kv.Key] = kv.Value;
-        return missions.Select(m => byId.TryGetValue(m.MissionId, out var h) && HaulingLine(h) is { } line ? m with { Hauling = line } : m).ToList();
+        // the planner's contract line of a mission it reads, and the contract's id (contractDefinitionId) of every mission with an objective marker
+        return missions.Select(m => byId.TryGetValue(m.MissionId, out var h) ? m with { Hauling = HaulingLine(h) ?? m.Hauling, Definition = h.Definition ?? m.Definition } : m)
+            .ToList();
     }
 
     /// <summary>A name the game had not filled in yet ("Stop Rival Attack at ~mission(Location)").</summary>

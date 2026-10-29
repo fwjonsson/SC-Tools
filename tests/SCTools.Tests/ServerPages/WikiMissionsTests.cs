@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SCTools.Server;
@@ -79,6 +80,7 @@ public class WikiMissionsTests
         // the library's kind of the mission is the API's mission (by its title in the logs, whatever a string mod calls it): its reward and SCU are grey there
         var library = f.Services.GetRequiredService<MissionLibrary>();
         await admin.GetStringAsync("/missions");   // the mission comes into the library
+        Assert.Equal(new[] { Uuid }, library.Contracts());   // what the server asks the API about
         Assert.Equal(1, library.LinkWiki());
         Assert.Equal(0, library.LinkWiki());
         var entry = library.Entries().Single(e => e.Row.Title == "Master Hauler Needed for Large Shipment");
@@ -86,5 +88,31 @@ public class WikiMissionsTests
         var page = await admin.GetStringAsync("/missions");
         Assert.Contains("placeholder=\"2,000,000–2,200,000\" class=\"num\"", System.Net.WebUtility.HtmlDecode(page));
         Assert.Contains("placeholder=\"~500\" class=\"num scu\"", page);
+    }
+
+    [Fact]
+    public async Task The_old_logs_give_their_missions_contract_ids_and_a_server_that_read_them_before_reads_them_once_more()
+    {
+        using var f = new ServerFactory();
+        const string ling = "701271ba-964f-4738-b489-1f38d9c40c4a";
+        var m = GameLogWriter.MissionId(4);
+        var lines = new GameLogWriter().At(new DateTime(2026, 9, 1, 7, 0, 0, DateTimeKind.Utc)).Login("zzoega").AcceptedAs(m, "RSI Disc. Month: Ling Small Haul")
+            .Marker(m, "Iasi_HaulCargo_AtoB_Small_PartySupplies", "dropoff_a_0", "862738706222", (12, -16, -7.75), ling).Lines.ToArray();
+        var tracker = f.Tracker(f.AddKey("zzoega"));
+        (await tracker.PostAsJsonAsync("/api/history", new { file = "2026-09-01T07:00:00.000Z", from = 0, lines, done = true })).EnsureSuccessStatusCode();
+        var library = f.Services.GetRequiredService<MissionLibrary>();
+        Assert.Equal(new[] { ling }, library.Contracts());   // an old log's mission: its contract id too
+
+        // a server that read the old logs before they gave the contract ids: it reads them once more
+        using (var db = f.Store.Open())
+        {
+            foreach (var row in db.Missions) row.Definition = null;
+            db.SaveChanges();
+        }
+        File.WriteAllText(Path.Combine(f.Services.GetRequiredService<ServerPaths>().HistoryDir, MissionLibrary.HistoryMarker), "1");
+        Assert.Empty(library.Contracts());
+        Assert.Equal(1, library.ReadKeptHistory());
+        Assert.Equal(new[] { ling }, library.Contracts());
+        Assert.Equal(0, library.ReadKeptHistory());   // once
     }
 }

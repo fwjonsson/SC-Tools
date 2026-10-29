@@ -9,10 +9,11 @@ public enum MissionOutcome { Complete, Fail, Abandon }
 /// <summary>
 /// One mission of one player, as far as his log shows it: the game's ContractId (the offer it came from), its title as the game showed it (with Frank's
 /// string mod, his names), whether it was shared to him, when it started and how it ended. Hauling: the Hauling Planner's contract line of a mission it reads
-/// ("2 To Ruin", MissionKinds.WithHauling). The Mission Library groups them by their kind (MissionKinds).
+/// ("2 To Ruin", MissionKinds.WithHauling). Definition: the contract's id as its objective markers say (contractDefinitionId: the Star Citizen Wiki API's
+/// uuid of the mission). The Mission Library groups them by their kind (MissionKinds).
 /// </summary>
 public sealed record MissionSeen(string MissionId, string? ContractId, string? Title, bool Shared, DateTime? StartedUtc, DateTime? EndedUtc, MissionOutcome? Outcome,
-    string? Hauling = null);
+    string? Hauling = null, string? Definition = null);
 
 /// <summary>
 /// Reads every mission of a player's Game.log (any kind, not only hauling): "ContractId: [c]. MissionId: m" says which offer it is, the notifications
