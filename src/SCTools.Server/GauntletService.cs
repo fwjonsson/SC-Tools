@@ -95,6 +95,21 @@ public sealed class GauntletService
         }
     }
 
+    /// <summary>
+    /// All the runs of these players (an in-game party: the pages show the party's together), oldest first, each with whose it is. A mission shared in the
+    /// party is in every member's log, so it is here once per member, as the leaderboard counts it (the game pays each of them); only the one who accepted
+    /// it has its start, so it is timed once.
+    /// </summary>
+    public List<(string Player, GauntletRun Run)> RunsOf(IReadOnlyCollection<string> players)
+    {
+        var wanted = new HashSet<string>(players, StringComparer.OrdinalIgnoreCase);
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            return db.GauntletRuns.AsNoTracking().ToList().Where(r => wanted.Contains(r.Player)).OrderBy(r => r.EndedUtc).Select(r => (r.Player, Run(r))).ToList();
+        }
+    }
+
     /// <summary>The settings are kept under this name: they are everybody's.</summary>
     public const string Everyone = "";
 
@@ -159,10 +174,14 @@ public sealed class GauntletService
     /// he accepts, completes or abandons them; after an hour with nothing it ended 5 minutes after the last one. Worked out from his runs (kept for good) and
     /// the scenario he is in now, so the earlier ones are there too.
     /// </summary>
-    public List<SCTools.Sessions.AutoSessions.Window> GrindSessions(string player, DateTime nowUtc)
+    public List<SCTools.Sessions.AutoSessions.Window> GrindSessions(string player, DateTime nowUtc) => GrindSessions(new[] { player }, nowUtc);
+
+    /// <summary>The grind sessions of these players together (an in-game party: what any of them did with a scenario keeps the session going), newest first.</summary>
+    public List<SCTools.Sessions.AutoSessions.Window> GrindSessions(IReadOnlyCollection<string> players, DateTime nowUtc)
     {
-        var runs = Runs(player);
-        var going = _uploads.GauntletAccepted().GetValueOrDefault(player) ?? Array.Empty<DateTime>();
+        var runs = RunsOf(players).Select(r => r.Run).ToList();
+        var accepted = _uploads.GauntletAccepted();
+        var going = players.SelectMany(p => accepted.GetValueOrDefault(p) ?? Array.Empty<DateTime>()).ToList();
         var starts = runs.Select(r => r.AcceptedUtc ?? r.EndedUtc).Concat(going).ToList();
         var activity = runs.Select(r => r.EndedUtc).Concat(starts);
         var found = SCTools.Sessions.AutoSessions.Find(starts, activity, nowUtc);

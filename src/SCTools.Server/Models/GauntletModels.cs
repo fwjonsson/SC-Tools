@@ -3,11 +3,20 @@ namespace SCTools.Server.Models;
 /// <summary>A grind session in the list: when it was, and what it earned.</summary>
 public sealed record GrindLine(GauntletSessionStats Stats, bool Running);
 
-/// <summary>Everything the Gauntlet Tracker pages show for one player.</summary>
+/// <summary>Everything the Gauntlet Tracker pages show for one player: his in-game party's runs (Party: everybody in it; alone: himself), and the leaderboard.</summary>
 public sealed class GauntletPage
 {
     public string Tab { get; init; } = "session";
     public string Player { get; init; } = "";
+
+    /// <summary>Whose runs the Session, Stats and History tabs show: the viewer's in-game party now, or himself alone.</summary>
+    public IReadOnlyList<string> Party { get; init; } = Array.Empty<string>();
+
+    /// <summary>Whose run each mission is (by its id), for the top 10 of a party.</summary>
+    public IReadOnlyDictionary<string, string> RunBy { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>The tabs show a party of more than one.</summary>
+    public bool InParty => Party.Count > 1;
     public bool IsAdmin { get; init; }
     public double ScripValue { get; init; }
     public IReadOnlyDictionary<int, GauntletReward> Rewards { get; init; } = new Dictionary<int, GauntletReward>();

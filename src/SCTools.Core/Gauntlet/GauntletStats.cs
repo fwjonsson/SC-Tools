@@ -18,7 +18,12 @@ public sealed record GauntletSessionStats(DateTime Start, DateTime End, Gauntlet
 /// <summary>One scenario: its counts, timings, top ten and what it earns per hour.</summary>
 public sealed record GauntletScenarioStats(
     int Scenario, GauntletReward Reward, int Completed, int Cancelled, double? Average, double? Fastest, double? Slowest,
-    IReadOnlyList<GauntletRun> Top, double? TotalPerHourAtAverage, double? TotalPerHourAtFastest, double LifetimeAuec, double LifetimeTotal);
+    IReadOnlyList<GauntletRun> Top, double? TotalPerHourAtAverage, double? TotalPerHourAtFastest, double LifetimeAuec, double LifetimeTotal)
+{
+    /// <summary>What it earns per hour at its average time, apart: the aUEC alone, and the MG scrip alone (null without a timed run).</summary>
+    public double? AuecPerHourAtAverage => Average > 0 ? Reward.Auec / Average * 3600 : null;
+    public double? ScripPerHourAtAverage => Average > 0 ? Reward.Scrip / Average * 3600 : null;
+}
 
 /// <summary>Works out the numbers of the Gauntlet Tracker from the runs, the rewards and what a MG scrip is worth in aUEC.</summary>
 public static class GauntletStats

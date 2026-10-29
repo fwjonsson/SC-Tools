@@ -329,7 +329,12 @@ admin (done), then going live.
   not end, and it never gets shorter (`SCTools:FollowSessions` = false gives the Start / Stop Session button back). The Gauntlet Tracker: a grind
   session per player from his runs (`GauntletService.GrindSessions`), the earlier ones too. The Windows program still has its buttons.
 - **The Gauntlet Tracker** (`/gauntlet`, `Gauntlet/` in the core, `GauntletService`) reads Gilly's Combat Gauntlet from the uploaded logs and keeps
-  every run in the database. Everybody sees only his own runs (Session, Stats, Earnings ranking) and the **Leaderboard** of everybody: total earned, aUEC,
+  every run in the database. **Session**, **Stats** and **History** are the viewer's in-game party's (everybody in it now, from the logs, `PartyService`;
+  alone or not playing: his own runs; Frank, 29 Oct 2026): the game session from the first of the party's games, one grind session for the party
+  (`GauntletService.GrindSessions` of several players), the times by scenario with a top 10 that says whose run it is, and on History the lifetime
+  totals and the **Earnings ranking** (total aUEC per hour at the average time, the MG scrip per hour alone, at the fastest time, lifetime earned). A
+  mission shared in the party is in every member's log and counts for each (the game pays each), as on the leaderboard; only the one who accepted it
+  has its start, so it is timed once. The old address `/gauntlet/ranking` goes to History. The **Leaderboard** is everybody's: total earned, aUEC,
   MG scrip, total aUEC per hour over the timed runs, completed and completion rate, fastest run, favourite and best scenario, last played. The rewards
   are the same for everybody: the Mission Library's "Combat Gauntlet - Scenario #n" (the admin's **Gauntlet** page, `/admin/gauntlet`, shows them).
 - **What scrip is worth** is the admin's **Scrip** page (`/admin/scrip`, `ScripValues`, the table `SiteValues`): aUEC for one MG scrip and for one Council
