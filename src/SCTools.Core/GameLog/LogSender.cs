@@ -35,7 +35,9 @@ public sealed class LogSender
 
     readonly ILogServer _server;
     readonly Dictionary<string, FileState> _files = new(StringComparer.Ordinal);
-    readonly HashSet<string> _finished = new(StringComparer.Ordinal);   // backup logs sent completely (they do not grow any more)
+    readonly HashSet<string> _finished = new(StringComparer.Ordinal);   // backup logs sent completely (they do not grow any more), by their name for the server
+    readonly HashSet<string> _finishedPaths = new(StringComparer.OrdinalIgnoreCase);   // the same by path: not opened again, not even for their name
+    readonly Dictionary<string, string> _ids = new(StringComparer.OrdinalIgnoreCase);   // path -> its name for the server, remembered: the first line never changes
 
     public LogSender(ILogServer server) => _server = server;
 
@@ -56,7 +58,19 @@ public sealed class LogSender
     public static string? FileId(string path) =>
         HaulingLog.FirstTimestamp(path)?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
 
-    /// <summary>Sends what is new: the backup logs of the last day first (in the order they were written), then the Game.log.</summary>
+    /// <summary>The name of a backup log for the server (FileId), remembered once it has one: a backup log never changes, so it is not opened for its name twice.</summary>
+    string? IdOf(string path)
+    {
+        if (_ids.TryGetValue(path, out var id)) return id;
+        id = FileId(path);
+        if (id != null) _ids[path] = id;
+        return id;
+    }
+
+    /// <summary>
+    /// Sends what is new: the backup logs of the last day first (in the order they were written), then the Game.log. A tick with nothing new opens one file,
+    /// the Game.log: a backup log sent to its end is never opened again, and one with nothing new is not opened at all (its size says so).
+    /// </summary>
     public async Task TickAsync(CancellationToken ct)
     {
         LiveFile = LogSources.ResolveLog(Path, Channel);
@@ -65,8 +79,8 @@ public sealed class LogSender
         await SendAsync(LiveFile, true, ct);
     }
 
-    /// <summary>The logs in the logbackups folder next to the Game.log that were written in the last day, oldest first.</summary>
-    static IEnumerable<string> Backups(string liveFile)
+    /// <summary>The logs in the logbackups folder next to the Game.log that were written in the last day, oldest first (their names are the times of their first lines).</summary>
+    IEnumerable<string> Backups(string liveFile)
     {
         try
         {
@@ -75,27 +89,50 @@ public sealed class LogSender
             var since = DateTime.UtcNow - LogSources.BackupAge;
             return Directory.GetFiles(dir, "*.log")
                 .Where(f => File.GetLastWriteTimeUtc(f) >= since)
-                .OrderBy(f => HaulingLog.FirstTimestamp(f) ?? DateTime.MaxValue)
+                .OrderBy(f => IdOf(f) ?? "~", StringComparer.Ordinal)   // a log with no line yet last
                 .ToList();
         }
         catch (IOException) { return Array.Empty<string>(); }
         catch (UnauthorizedAccessException) { return Array.Empty<string>(); }
     }
 
+    static FileStream Open(string path) => new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+    /// <summary>The name of a log for the server (FileId), from a log that is open already.</summary>
+    static string? FileId(Stream log) => HaulingLog.FirstTimestamp(log)?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
+
     async Task SendAsync(string path, bool live, CancellationToken ct)
     {
-        var id = FileId(path);
-        if (id == null || (!live && _finished.Contains(id))) return;
-        if (!_files.TryGetValue(id, out var state))
+        if (!live && _finishedPaths.Contains(path)) return;
+        // the Game.log is opened once a tick, for its name and then its tail: it is a new file when the game starts again, so its name is never remembered
+        var fs = live ? Open(path) : null;
+        try
         {
-            state = new FileState { At = await _server.CursorAsync(id, ct) };
-            _files[id] = state;
-        }
-
-        long length;
-        using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-        {
-            length = fs.Length;
+            var id = fs != null ? FileId(fs) : IdOf(path);
+            if (id == null) return;
+            if (!live && _finished.Contains(id))
+            {
+                _finishedPaths.Add(path);   // the Game.log of a game that ended, now in logbackups: sent while it was the Game.log
+                return;
+            }
+            if (!_files.TryGetValue(id, out var state))
+            {
+                state = new FileState { At = await _server.CursorAsync(id, ct) };
+                _files[id] = state;
+            }
+            if (fs == null)
+            {
+                if (state.At >= new FileInfo(path).Length)
+                {
+                    // a backup log is never written again: what the server has is all of it, and it is not opened (the Game.log is always opened: Windows
+                    // can say an old size for a file the game is writing)
+                    _finished.Add(id);
+                    _finishedPaths.Add(path);
+                    return;
+                }
+                fs = Open(path);
+            }
+            var length = fs.Length;
             var buffer = new byte[PieceBytes];
             while (state.At < length)
             {
@@ -130,7 +167,15 @@ public sealed class LogSender
                 }
                 state.At = result.At;
             }
+            if (!live && state.At >= length)
+            {
+                _finished.Add(id);
+                _finishedPaths.Add(path);
+            }
         }
-        if (!live && state.At >= length) _finished.Add(id);
+        finally
+        {
+            fs?.Dispose();
+        }
     }
 }

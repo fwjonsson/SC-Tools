@@ -71,6 +71,32 @@ public sealed class LogSenderTests : IDisposable
     }
 
     [Fact]
+    public void A_backup_log_sent_to_its_end_is_never_opened_again()
+    {
+        var older = GameLogWriter.MissionId(82);
+        var backup = new GameLogWriter().At(GameLogWriter.Start.AddHours(-2)).Login("Pilot_A").Accepted(older);
+        var backupFile = Path.Combine(_live, "logbackups", "Game Build(1) 21 Oct 26 (06 00 00).log");
+        File.WriteAllText(backupFile, Text(backup.Lines));
+        var first = PlayedSession.Writer();
+        File.WriteAllText(GameLog, Text(first.Lines));
+        var sender = Sender();
+        sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();
+        Assert.True(_server.Log.Missions.ContainsKey(older));
+
+        // nobody can open the backup log now: a tick that tried would fail
+        using (new FileStream(backupFile, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var pieces = _server.Pieces;
+            sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();
+            Assert.Equal(pieces, _server.Pieces);   // nothing new anywhere
+
+            File.AppendAllText(GameLog, Text(new GameLogWriter().At(first.Now.AddMinutes(1)).Unstow().Lines));
+            sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();   // the Game.log is still followed
+            Assert.Equal(SessionUnstows + 1, _server.Log.Unstows.Count);
+        }
+    }
+
+    [Fact]
     public void A_line_the_game_is_still_writing_waits_for_the_rest()
     {
         var lines = PlayedSession.Writer().Lines;

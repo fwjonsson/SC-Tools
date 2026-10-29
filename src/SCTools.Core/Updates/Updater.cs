@@ -58,10 +58,16 @@ public static class Updater
         return doc.RootElement.TryGetProperty("status", out var s) && s.GetString() == "ahead";
     }
 
-    /// <summary>Downloads the newest exe (zipName of the latest release, with exeName in it) into a temporary folder and returns its path.</summary>
+    /// <summary>The folders the downloads go into, in Temp: SCToolsUpdate-&lt;random&gt;. Removed once the exe is in place (ReplaceAndStart), or later (RemoveOldDownloads).</summary>
+    const string DownloadPrefix = "SCToolsUpdate-";
+
+    /// <summary>
+    /// Downloads the newest exe (zipName of the latest release, with exeName in it) into a temporary folder and returns its path. The zip (45 MB) goes as soon
+    /// as the exe is out of it.
+    /// </summary>
     public static async Task<string> DownloadAsync(string zipName, string exeName)
     {
-        var dir = Path.Combine(Path.GetTempPath(), "SCToolsUpdate-" + Guid.NewGuid().ToString("N"));
+        var dir = Path.Combine(Path.GetTempPath(), DownloadPrefix + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         var zip = Path.Combine(dir, zipName);
         using (var resp = await Http.GetAsync("https://github.com/" + Repo + "/releases/download/latest/" + zipName, HttpCompletionOption.ResponseHeadersRead))
@@ -71,9 +77,55 @@ public static class Updater
             await resp.Content.CopyToAsync(file);
         }
         ZipFile.ExtractToDirectory(zip, dir);
+        File.Delete(zip);
         var exe = Path.Combine(dir, exeName);
         if (!File.Exists(exe)) throw new FileNotFoundException("The download does not contain " + exeName + ".");
         return exe;
+    }
+
+    /// <summary>Removes the folder a download came in (DownloadAsync) once the exe was moved out of it; any other folder is left alone.</summary>
+    static void RemoveDownload(string exe)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(exe);
+            if (dir != null && Path.GetFileName(dir).StartsWith(DownloadPrefix, StringComparison.Ordinal)) Directory.Delete(dir, true);
+        }
+        catch (Exception)
+        {
+            // still in use: RemoveOldDownloads gets it next time the program starts
+        }
+    }
+
+    /// <summary>
+    /// Removes the downloads of earlier updates still in Temp: every folder of DownloadAsync older than a day (an update that did not get as far as removing
+    /// its own, and the ones from before this was done, 45 MB each). Returns how many went.
+    /// </summary>
+    public static int RemoveOldDownloads(string? tempDir = null, TimeSpan? olderThan = null)
+    {
+        var removed = 0;
+        try
+        {
+            var before = DateTime.UtcNow - (olderThan ?? TimeSpan.FromDays(1));
+            foreach (var dir in Directory.GetDirectories(tempDir ?? Path.GetTempPath(), DownloadPrefix + "*"))
+            {
+                try
+                {
+                    if (Directory.GetLastWriteTimeUtc(dir) > before) continue;   // an update going on right now
+                    Directory.Delete(dir, true);
+                    removed++;
+                }
+                catch (Exception)
+                {
+                    // in use: next time
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // no Temp to look in: nothing to remove
+        }
+        return removed;
     }
 
     /// <summary>
@@ -95,6 +147,7 @@ public static class Updater
             File.Move(old, me);   // put the program back, nothing has changed
             throw;
         }
+        RemoveDownload(newExe);
         Process.Start(new ProcessStartInfo(me) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(me) ?? "", Arguments = arguments ?? "" });
     }
 }
