@@ -31,6 +31,10 @@
   .empty { opacity:.6; padding:6px 0; }
   #jobs td:nth-child(1), #jobs td:nth-child(3), #jobs td:nth-child(4) { white-space:normal; }   /* Other hauling: the mission and its stops wrap */
   .note { opacity:.75; font-size:12px; margin:4px 0 0; }
+  /* the SCU field of the Other hauling board (a hauler logged in): saved in the background, green when it was, red when not (why: on the mouse) */
+  .scuin { width:6em; text-align:right; background:var(--cell); color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:2px 5px; font:inherit; }
+  .scuin.saving { opacity:.6; } .scuin.saved { border-color:#5fd35f; } .scuin.unsaved { border-color:#ff6b6b; }
+  .src { opacity:.7; font-size:12px; margin-left:6px; white-space:nowrap; }
   .note a { color:inherit; }
   .nav, .sub { display:flex; gap:8px; margin:8px 0 4px; flex-wrap:wrap; }
   .nav button, .sub button { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 16px; font:inherit; font-weight:600; cursor:pointer; border-radius:4px; }

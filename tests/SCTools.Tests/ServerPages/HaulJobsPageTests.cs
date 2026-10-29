@@ -7,7 +7,7 @@ using SCTools.Tests.Support;
 namespace SCTools.Tests.ServerPages;
 
 /// <summary>
-/// The hauling jobs of every system on the Hauling Planner (the Other hauling board of data.json) and on Hauling jobs (/hauling/jobs), where a hauler types
+/// The hauling jobs of every system on the Hauling Planner (the Other hauling board of data.json), where a logged in hauler types
 /// in the SCU of a mission the game did not give: the mission has it, and the Mission Library gets it as its suggestion; what is typed in the library wins
 /// over the suggestion, and the game's SCU becomes the suggestion too.
 /// </summary>
@@ -24,14 +24,24 @@ public class HaulJobsPageTests
             .ObjectivePopup(m, "pickup_f1_0", "Collect Medical Supplies From Shallow Fields Station at Crusader's L4 Lagrange point")
             .ObjectivePopup(m, "dropoff_d1_0", "Deliver Medical Supplies To RSI Event Platform");
 
-    static async Task<List<string?[]>> Board(ServerFactory f, HttpClient c)
+    static async Task<List<string?[]>> Board(ServerFactory f, HttpClient c) => (await BoardAndFields(f, c)).Rows;
+
+    /// <summary>The Other hauling board of data.json: its rows, and what the SCU field of every row needs.</summary>
+    static async Task<(List<string?[]> Rows, List<JsonElement> Fields)> BoardAndFields(ServerFactory f, HttpClient c)
     {
         f.Live.Refresh(DateTime.UtcNow);
         var data = JsonDocument.Parse(await c.GetStringAsync("/data.json")).RootElement;
-        Assert.Equal("/hauling/jobs", data.GetProperty("jobsPage").GetString());
-        return data.GetProperty("jobs").GetProperty("rows").EnumerateArray()
+        Assert.Equal("/hauling/jobs/scu", data.GetProperty("jobsScu").GetString());   // where the field sends what is typed in
+        var rows = data.GetProperty("jobs").GetProperty("rows").EnumerateArray()
             .Select(r => r.GetProperty("cells").EnumerateArray().Select(c => c.GetString()).ToArray()).ToList();
+        var fields = data.GetProperty("jobsEdit").EnumerateArray().ToList();
+        Assert.Equal(rows.Count, fields.Count);
+        return (rows, fields);
     }
+
+    static (string? Id, bool Game, long? Value, string? Hint, string? From) Field(JsonElement e) =>
+        (e.GetProperty("id").GetString(), e.GetProperty("game").GetBoolean(), e.GetProperty("value").ValueKind == JsonValueKind.Null ? null : e.GetProperty("value").GetInt64(),
+            e.GetProperty("hint").GetString(), e.GetProperty("from").GetString());
 
     [Fact]
     public async Task A_job_of_any_system_is_on_the_board_and_a_hauler_s_SCU_counts_for_it_and_is_the_library_s_suggestion()
@@ -47,18 +57,23 @@ public class HaulJobsPageTests
         f.Upload("zzoega", w.Lines.ToList());
         var admin = await f.Admin();
 
-        var rows = await Board(f, admin);
+        var (rows, fields) = await BoardAndFields(f, admin);
         Assert.Equal(new[] { "RSI Disc. Month: Ling Small Haul", "zzoega", "a place the game does not name 8 SCU", "Port Tressler 8 SCU", "8", "" }, rows[0]);
         Assert.Equal(new[] { CourierTitle, "zzoega", "CRU-L4 Shallow Fields Station", "RSI Event Platform", "?", "" }, rows[1]);
+        Assert.True(Field(fields[0]).Game);   // the game said its SCU: no field
+        Assert.Equal((courier, false, (long?)null, "", ""), Field(fields[1]));
 
-        // zzoega types in the SCU of his courier run on Hauling jobs
+        // zzoega types in the SCU of his courier run in the board (the Hauling Planner's page has the form token, in its top bar)
         var player = await f.Player(f.AddKey("zzoega"));
-        var page = WebUtility.HtmlDecode(await player.GetStringAsync("/hauling/jobs"));
-        Assert.Contains("8 SCU: the game said", page);
-        Assert.Contains("Not known: type it in", page);
-        var saved = await ServerFactory.Send(player, "/hauling/jobs", "/hauling/jobs/scu", ("id", courier), ("title", CourierTitle), ("value", "6"));
+        Assert.Contains("__RequestVerificationToken", await player.GetStringAsync("/hauling"));
+        var saved = await ServerFactory.Send(player, "/hauling", "/hauling/jobs/scu", ("id", courier), ("title", CourierTitle), ("value", "6"));
         Assert.Equal(HttpStatusCode.Redirect, saved.StatusCode);
-        Assert.Equal(new[] { CourierTitle, "zzoega", "CRU-L4 Shallow Fields Station ~6 SCU", "RSI Event Platform ~6 SCU", "6 (hauler)", "" }, (await Board(f, admin))[1]);
+        Assert.Equal("/hauling", saved.Headers.Location?.OriginalString);
+        (rows, fields) = await BoardAndFields(f, admin);
+        Assert.Equal(new[] { CourierTitle, "zzoega", "CRU-L4 Shallow Fields Station ~6 SCU", "RSI Event Platform ~6 SCU", "6 (hauler)", "" }, rows[1]);
+        Assert.Equal((courier, false, (long?)6, "6", "suggested by zzoega"), Field(fields[1]));   // his number, and the library's suggestion is his too
+        var old = await player.GetAsync("/hauling/jobs");   // the page it was once: the Hauling Planner now
+        Assert.Equal((HttpStatusCode.Redirect, "/hauling"), (old.StatusCode, old.Headers.Location?.OriginalString));
         var library = f.Services.GetRequiredService<MissionLibrary>();
         var kind = library.Entries().Single(e => e.Row.Title == CourierTitle).Row;
         Assert.Equal((6L, "zzoega", (long?)null), (kind.ScuSuggested!.Value, kind.ScuSuggestedBy, kind.Scu));
@@ -68,9 +83,10 @@ public class HaulJobsPageTests
         f.Upload("zzoega", CourierRun(new GameLogWriter().At(w.Now.AddMinutes(1)).Login("zzoega"), second).Lines.ToList(), "second.log");
         Assert.Equal("6 (library)", (await Board(f, admin))[2][4]);
         await ServerFactory.Send(admin, "/missions", "/missions/set", ("id", kind.Key), ("field", "scu"), ("value", "10"));
-        rows = await Board(f, admin);
+        (rows, fields) = await BoardAndFields(f, admin);
         Assert.Equal(("6 (hauler)", "10 (library)"), (rows[1][4], rows[2][4]));
-        await ServerFactory.Send(player, "/hauling/jobs", "/hauling/jobs/scu", ("id", courier), ("title", CourierTitle), ("value", ""));   // his number taken back
+        Assert.Equal(((long?)null, "10", "library"), (Field(fields[2]).Value, Field(fields[2]).Hint, Field(fields[2]).From));
+        await ServerFactory.Send(player, "/hauling", "/hauling/jobs/scu", ("id", courier), ("title", CourierTitle), ("value", ""));   // his number taken back
         Assert.Equal("10 (library)", (await Board(f, admin))[1][4]);
         Assert.False(JsonDocument.Parse(await (await QuietSave(player, courier, "lots")).Content.ReadAsStringAsync()).RootElement.GetProperty("ok").GetBoolean());
 
@@ -83,7 +99,7 @@ public class HaulJobsPageTests
 
     static async Task<HttpResponseMessage> QuietSave(HttpClient c, string id, string value)
     {
-        var page = await c.GetStringAsync("/hauling/jobs");
+        var page = await c.GetStringAsync("/hauling");
         using var req = new HttpRequestMessage(HttpMethod.Post, "/hauling/jobs/scu")
         {
             Content = new FormUrlEncodedContent(new[] { KeyValuePair.Create("id", id), KeyValuePair.Create("value", value),

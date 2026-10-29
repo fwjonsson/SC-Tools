@@ -434,6 +434,61 @@ function partyView() {
   return shown && shown.view ? shown.view : last;
 }
 
+// ------------------------------------------------------------------ the SCU field of the Other hauling board
+// A hauler logged in types the SCU of a mission the game gave none of (its row's field): sent at once in the background (as on the Mission Library), it
+// counts for that mission only, and the library gets it as the suggestion for its kind. Until the board brings it back, the field keeps what he typed.
+const scuSent = {};   // mission id -> { value, at }: typed in and sent, not on the board yet
+
+function typingIn(box) {
+  const a = document.activeElement;
+  return document.hasFocus() && a && box.contains(a) && a.tagName === 'INPUT';
+}
+
+function scuFields(box, edits, url) {
+  if (!url || !ME) return;   // watching (not logged in), or the program's own page: the SCU as text
+  const rows = box.querySelectorAll('tbody tr');
+  edits.forEach(function (e, i) {
+    const row = rows[i];
+    if (!e || e.game || !row || !row.cells[4]) return;   // the game said the SCU: nothing to type
+    const sent = scuSent[e.id];
+    const shown = String(e.value == null ? '' : e.value);
+    if (sent && (sent.value === shown || Date.now() - sent.at > 20000)) delete scuSent[e.id];
+    const cell = row.cells[4];
+    cell.textContent = '';
+    const input = document.createElement('input');
+    input.className = 'scuin';
+    input.inputMode = 'numeric';
+    input.autocomplete = 'off';
+    input.value = scuSent[e.id] ? scuSent[e.id].value : shown;
+    input.placeholder = e.hint || '';
+    input.setAttribute('aria-label', 'SCU of ' + (e.title || 'the mission'));
+    const from = document.createElement('span'); from.className = 'src';
+    from.textContent = input.value !== '' ? 'this mission' : e.from || 'type it in';
+    input.addEventListener('change', function () { sendScu(e, input, from, url); });
+    cell.appendChild(input); cell.appendChild(from);
+  });
+}
+
+function sendScu(e, input, from, url) {
+  const token = document.querySelector('input[name="__RequestVerificationToken"]');   // the top bar's (Log out) has it
+  const body = new FormData();
+  body.append('id', e.id); body.append('title', e.title || ''); body.append('value', input.value.trim());
+  if (token) body.append('__RequestVerificationToken', token.value);
+  input.classList.remove('saved', 'unsaved'); input.classList.add('saving');
+  function done(ok, said) {
+    input.classList.remove('saving'); input.classList.add(ok ? 'saved' : 'unsaved');
+    input.title = ok ? '' : said;
+    if (ok) {
+      scuSent[e.id] = { value: input.value.trim().replace(/[ ,.]/g, ''), at: Date.now() };
+      from.textContent = input.value.trim() !== '' ? 'this mission' : e.from || 'type it in';
+    }
+  }
+  fetch(url, { method: 'POST', body: body, headers: { 'X-Autosave': '1' }, credentials: 'same-origin' })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function (d) { done(d.ok, d.said || ''); })
+    .catch(function () { done(false, 'Not saved: the site could not be reached. Try again.'); });
+}
+
 // Everything on the page from the data fetched last (again when a tab of a party or a choice on the Trip Planner is clicked).
 function render() {
   const d = last;
@@ -443,16 +498,19 @@ function render() {
   table(document.getElementById('pickups'), v.pickups);
   document.getElementById('finishedBox').classList.toggle('hidden', !v.finished || !v.finished.rows || v.finished.rows.length === 0);
   table(document.getElementById('finished'), v.finished);
-  // the hauling jobs of every system (not the planner's own contracts), and where a hauler sets the SCU the game did not say
+  // the hauling jobs of every system (not the planner's own contracts); a hauler logged in types the SCU the game did not say right in the board
   const jobs = v.jobs || d.jobs;
+  const jobsBox = document.getElementById('jobs');
   document.getElementById('jobsBox').classList.toggle('hidden', !jobs || !jobs.rows || jobs.rows.length === 0);
-  table(document.getElementById('jobs'), jobs);
-  const note = document.getElementById('jobsNote');
-  note.textContent = '';
-  if (d.jobsPage && jobs && jobs.rows && jobs.rows.length) {
-    note.appendChild(document.createTextNode('SCU: what the game said, else a hauler\'s number for the mission, else the Mission Library\'s, split evenly over the stops (~). '));
-    const a = document.createElement('a'); a.href = d.jobsPage; a.textContent = 'Set the SCU of a mission'; note.appendChild(a);
+  if (!typingIn(jobsBox)) {   // not while he types in it (the page comes again every few seconds)
+    table(jobsBox, jobs);
+    scuFields(jobsBox, v.jobsEdit || d.jobsEdit || [], d.jobsScu);
   }
+  const note = document.getElementById('jobsNote');
+  note.textContent = jobs && jobs.rows && jobs.rows.length
+    ? 'SCU: what the game said; else ' + (d.jobsScu && ME ? 'the number you type in here for the mission (only that one; the Mission Library gets it as the suggestion for its kind)' : 'a hauler\'s number for the mission')
+      + '; else the Mission Library\'s; else the Star Citizen Wiki\'s. Split evenly over the stops (~).'
+    : '';
   table(document.getElementById('rewards'), v.rewards);
   summary(document.getElementById('summary'), v.summary || []);
   table(document.getElementById('party'), d.party);

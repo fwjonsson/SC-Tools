@@ -75,7 +75,8 @@ public class WikiMissionsTests
         var row = Assert.Single(data.GetProperty("jobs").GetProperty("rows").EnumerateArray()).GetProperty("cells").EnumerateArray().Select(c => c.GetString()).ToArray();
         Assert.Equal(("~500 (wiki 400–600)", "~2,000,000–2,200,000 (wiki)"), (row[4], row[5]));
         Assert.Contains("~125 SCU", row[2]);
-        Assert.Contains("the Star Citizen Wiki", System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/hauling/jobs")));
+        var field = Assert.Single(data.GetProperty("jobsEdit").EnumerateArray());   // its SCU field: grey, the Wiki's
+        Assert.Equal(("~500", "wiki 400–600"), (field.GetProperty("hint").GetString(), field.GetProperty("from").GetString()));
 
         // the library's kind of the mission is the API's mission (by its title in the logs, whatever a string mod calls it): its reward and SCU are grey there
         var library = f.Services.GetRequiredService<MissionLibrary>();
