@@ -36,6 +36,9 @@ public sealed class DataStore
     {
         using var db = Open();
         db.Database.Migrate();
+        // write-ahead logging: a write no longer makes every read wait for it (the pages read while the refresh writes), and it costs the disk one sync instead
+        // of two. SQLite keeps the setting in the file, so saying it at every start is enough; the daily copy (VACUUM INTO) is one whole file as before.
+        db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
     }
 
     /// <summary>The data is in the database (it was imported, or started empty, once).</summary>

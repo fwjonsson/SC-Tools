@@ -319,7 +319,6 @@ public sealed class HaulingLog
                             list.Add(new ObjEvent { Time = e.Time, State = e.State });
                     }
                 }
-                t.Notes.AddRange(m.Notes);
             }
         }
 
@@ -376,21 +375,30 @@ public sealed class HaulingLog
         return m;
     }
 
+    /// <summary>The time of the first line of this log (in its first twenty lines), or null: a log the game has not written to yet, or one that cannot be opened.</summary>
     public static DateTime? FirstTimestamp(string path)
     {
         try
         {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var sr = new StreamReader(fs);
-            for (var i = 0; i < 20; i++)
-            {
-                var line = sr.ReadLine();
-                if (line == null) break;
-                var tm = Ts.Match(line);
-                if (tm.Success) return ParseTime(tm.Groups[1].Value);
-            }
+            return FirstTimestamp(fs);
         }
         catch (IOException) { }
+        return null;
+    }
+
+    /// <summary>The same from a log that is open already (the tracker opens the Game.log once a tick: its name from the start, then its tail). The stream stays open; where it is afterwards is anyone's guess.</summary>
+    public static DateTime? FirstTimestamp(Stream log)
+    {
+        log.Seek(0, SeekOrigin.Begin);
+        using var sr = new StreamReader(log, leaveOpen: true);
+        for (var i = 0; i < 20; i++)
+        {
+            var line = sr.ReadLine();
+            if (line == null) break;
+            var tm = Ts.Match(line);
+            if (tm.Success) return ParseTime(tm.Groups[1].Value);
+        }
         return null;
     }
 
@@ -713,13 +721,7 @@ public sealed class HaulingLog
         x = Deliver.Match(line);
         if (x.Success)
         {
-            var m = Get(x.Groups["m"].Value);
-            m.Notes.Add(new DeliverNote
-            {
-                Time = t,
-                Delivered = int.Parse(x.Groups["x"].Value, CultureInfo.InvariantCulture),
-                Total = int.Parse(x.Groups["n"].Value, CultureInfo.InvariantCulture),
-            });
+            var m = Get(x.Groups["m"].Value);   // the "Deliver x/n SCU" popup: only the n of an objective is used (its SCU); the x was once noted and never read
             if (x.Groups["o"].Success) m.ObjScu[x.Groups["o"].Value] = int.Parse(x.Groups["n"].Value, CultureInfo.InvariantCulture);
             Touch(t);
         }

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace SCTools.Tracking;
 
 /// <summary>
@@ -8,15 +10,30 @@ namespace SCTools.Tracking;
 public sealed class LiveTracker
 {
     readonly WebSnapshotOptions _view;
+    readonly string _run = Guid.NewGuid().ToString("N")[..8];   // this run of the server: an ETag from the run before never matches by chance
     int _version = -1;
-    volatile string _json = "{}";
+    int _saves;   // how many times the tracker's data was saved (a change on a page, the plan crediting a pickup, a payout...)
+    int _builtSaves = -1;
+    int _builtStatusSeq = -1;
+    string _builtStatusText = "";
+    JobBook? _builtJobs;
+    DateTime _builtAt = DateTime.MinValue;
+    long _builds;
+    volatile LiveSnapshot _snapshot = LiveSnapshot.Empty;
+
+    /// <summary>
+    /// data.json is made again at least this often, so the few things in it that follow the clock alone (an aUEC/h, a payout that settles) do not fall behind;
+    /// the clocks on the page count up by themselves between two makings.
+    /// </summary>
+    public static readonly TimeSpan MaxAge = TimeSpan.FromSeconds(30);
 
     /// <param name="followParty">the logs decide who of the party is active (AutoParty), instead of the Active ticks</param>
     /// <param name="followSessions">the logs start and stop the sessions (AutoSessions), instead of the Start / Stop Session button</param>
     public LiveTracker(AppData data, Action<AppData>? save, LogUploads uploads, WebSnapshotOptions? view = null, bool followParty = false, bool followSessions = false)
     {
         Uploads = uploads;
-        Tracker = new Tracker(data, save);
+        var inner = save ?? SCTools.Persistence.Storage.Save;
+        Tracker = new Tracker(data, d => { _saves++; inner(d); });   // every save is counted: data.json is made again after one
         Tracker.State.Live = true;   // the logs are followed while the games write them: the clocks run
         _view = view ?? new WebSnapshotOptions();
         FollowParty = followParty;
@@ -33,24 +50,66 @@ public sealed class LiveTracker
     public bool FollowSessions { get; }
 
     /// <summary>data.json as it was made last (see Refresh).</summary>
-    public string Json => _json;
+    public string Json => _snapshot.Json;
 
-    /// <summary>Works everything out again when something new was uploaded, moves the status line on, and makes data.json.</summary>
+    /// <summary>data.json as it was made last, with its bytes and its ETag (see Refresh).</summary>
+    public LiveSnapshot Snapshot => _snapshot;
+
+    /// <summary>How many times data.json was made (for the server's log: a tick that makes it is the work, a tick that does not is nearly free).</summary>
+    public long Builds => _builds;
+
+    /// <summary>
+    /// Works everything out again when something new was uploaded, moves the status line on, and makes data.json anew when anything in it can have changed: a
+    /// new piece of log, somebody coming or going, a session starting or stopping, a save (a change on a page, the plan), the status line, the book of hauling
+    /// jobs, or half a minute gone by (MaxAge). Most ticks change nothing: then data.json stays as it is, and the page, which sends its ETag back, gets 304.
+    /// </summary>
     public void Refresh(DateTime nowUtc)
     {
         lock (Uploads.Sync)
         {
+            var changed = false;
             var version = Uploads.Version;
             if (version != _version)
             {
                 _version = version;
                 Show();
+                changed = true;
             }
-            if (FollowParty && Party(nowUtc)) Show();   // somebody came or went: the payouts and the runs are worked out again
-            if (FollowSessions && Sessions(nowUtc)) Show();   // a session started or stopped: the newest is shown
+            if (FollowParty && Party(nowUtc))   // somebody came or went: the payouts and the runs are worked out again
+            {
+                Show();
+                changed = true;
+            }
+            if (FollowSessions && Sessions(nowUtc))   // a session started or stopped: the newest is shown
+            {
+                Show();
+                changed = true;
+            }
             Tracker.Status.Advance(nowUtc);
-            _json = WebSnapshot.Json(Tracker, _view);
+            var status = Tracker.Status;
+            if (!changed)
+            {
+                changed = _saves != _builtSaves || status.Seq != _builtStatusSeq || status.Text != _builtStatusText
+                    || !ReferenceEquals(Tracker.State.Jobs, _builtJobs) || nowUtc - _builtAt >= MaxAge;
+            }
+            if (changed) Build(nowUtc);
         }
+    }
+
+    /// <summary>
+    /// Makes data.json (under the lock). Making it can save too (the plan credits a pickup, a location is worked out): that is in the data.json just made, so the
+    /// saves are counted after it and are no reason to make it again.
+    /// </summary>
+    void Build(DateTime nowUtc)
+    {
+        var json = WebSnapshot.Json(Tracker, _view);
+        _builds++;
+        _builtSaves = _saves;
+        _builtStatusSeq = Tracker.Status.Seq;
+        _builtStatusText = Tracker.Status.Text;
+        _builtJobs = Tracker.State.Jobs;
+        _builtAt = nowUtc;
+        _snapshot = new LiveSnapshot(json, "\"" + _run + "-" + _builds.ToString(CultureInfo.InvariantCulture) + "\"");
     }
 
     /// <summary>Reads something of the tracker for a page, under the lock (so nothing changes it meanwhile).</summary>

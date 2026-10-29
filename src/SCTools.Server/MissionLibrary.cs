@@ -330,8 +330,20 @@ public sealed class MissionLibrary
         new(r.MissionId, r.ContractId.Length == 0 ? null : r.ContractId, r.Title, r.Shared, r.StartedUtc, r.EndedUtc, Enum.TryParse<MissionOutcome>(r.Outcome, out var o) ? o : null,
             r.Kind != null && MissionKinds.IsHauling(r.Kind) ? r.Kind[MissionKinds.HaulingPrefix.Length..] : null, r.Definition);
 
-    /// <summary>Writes the missions of the live logs that are new or went on. Returns how many were written.</summary>
-    public int Collect() => Add(_uploads.MissionsSeen());
+    long _collected = -1;   // Uploads.Pieces when the live logs were last looked at
+
+    /// <summary>
+    /// Writes the missions of the live logs that are new or went on, when anything came in since the last time (this runs every two seconds, and for every
+    /// page that shows missions: with nothing new, the library has it all and the database is left alone). Returns how many were written.
+    /// </summary>
+    public int Collect()
+    {
+        var pieces = _uploads.Pieces;
+        if (pieces == _collected) return 0;
+        var written = Add(_uploads.MissionsSeen());
+        _collected = pieces;
+        return written;
+    }
 
     /// <summary>Writes these missions where they are new or went on (an old log a tracker sent, or the live logs). Returns how many were written.</summary>
     public int Add(IReadOnlyDictionary<string, IReadOnlyList<MissionSeen>> found)

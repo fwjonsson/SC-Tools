@@ -35,6 +35,20 @@ public sealed class LogUploadsTests : IDisposable
     }
 
     [Fact]
+    public void Every_piece_that_comes_in_counts_also_one_the_planner_reads_nothing_of()
+    {
+        var u = new LogUploads();
+        Assert.Equal(0, u.Pieces);
+        Assert.True(u.Add("Pilot_A", "f1", 0, 100, Lines.Take(6).ToList()).Ok);
+        Assert.Equal(1, u.Pieces);
+        Assert.True(u.Add("Pilot_A", "f1", 100, 200, new[] { "<2026-10-21T09:00:00.000Z> [Notice] <Contract Accepted> Something the Hauling Planner does not read" }).Ok);
+        Assert.Equal(2, u.Pieces);   // the Mission Library and the Gauntlet Tracker look again when this moved, whether or not Version did
+        Assert.False(u.Add("Pilot_A", "f1", 0, 100, Lines.Take(6).ToList()).Ok);   // refused: not a piece that came in
+        Assert.True(u.Add("Pilot_A", "f1", 200, 200, Array.Empty<string>()).Ok);   // nothing in it
+        Assert.Equal(2, u.Pieces);
+    }
+
+    [Fact]
     public void How_long_each_game_ran_is_kept_with_the_cursor()
     {
         const string file = "2026-10-21T08:00:00.000Z";   // named by the time of its first line: when the game started

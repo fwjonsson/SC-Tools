@@ -55,7 +55,9 @@ To make a single exe: `dotnet publish src/SCTools.HaulingPlanner -c Release -r w
     tools/PlanTest/            prints the plans the trip planner makes for situations from real sessions
 
 Every area has its own namespace (`SCTools.Planning`, `SCTools.UI`, ...), one class per file.
-GitHub builds the program on every change (Build, Windows) and runs the tests and the planner scenarios (Tests, Linux).
+GitHub builds the programs for every pull request and every merge to main (Build, Windows), runs the tests and the planner scenarios (Tests, Linux),
+and puts the site on the server after a green Tests run on main (Deploy). A push to a branch in a pull request runs Build and Tests once, as the pull
+request; the NuGet packages are kept between runs.
 
 ## Updates
 
@@ -203,9 +205,13 @@ admin (done), then going live.
   itself `SCToolsTracker.exe` when it starts (and moves Start with Windows along; `AppName`, the same for HaulingTracker.exe, now HaulingPlanner.exe). Its settings are the
   server (`https://sc-tools.fwjonsson.dev`; a tracker with an old address, haulingtracker or sct, saved moves to it by itself, `SiteAddress`; the settings are in `%AppData%\SCTools\tracker.json`), your **key** (Frank gives every player his own; **Test** asks the server whose key it is), the Star Citizen folder and the log channel. Every
   3 seconds it uploads what is new in the Game.log, and the backup logs of the last day, from where the server is, so nothing is sent twice (also after a
-  restart of the tracker or the game). It only sends the lines the tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money
-  transfers, the freight elevator and the loading platform); the rest of the game's log stays on the PC. It can start with Windows, and it updates itself
-  (it looks when it starts and every half hour, so a new kind of line the site reads comes from every tracker soon after it is merged).
+  restart of the tracker or the game). When the server cannot be reached it waits longer between tries, twice as long after every failure in a row (6, 12,
+  24 seconds... up to two minutes), and a minute when the server does not know the key, until a try works or the settings change (`RetryDelay`; the menu
+  says how long). A tick with nothing new opens one file, the Game.log: a backup log sent to its end is never opened again. It only sends the lines the
+  tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money transfers, the freight elevator and the loading platform); the rest
+  of the game's log stays on the PC. It can start with Windows, and it updates itself (it looks when it starts and every half hour, so a new kind of line
+  the site reads comes from every tracker soon after it is merged); the download of an update is removed once the new exe is in place, and the downloads
+  of earlier updates still in Temp go when the tracker starts (`Updater.RemoveOldDownloads`, the same for the Hauling Planner).
   Every request says its version (`X-Tracker-Version`: the commit it was built from), so the site knows whether it updated: the `/tracker` page shows a
   logged in player his own tracker's version (the newest or not, and when it was last in touch), the admin's Keys page everybody's (`TrackerVersions`;
   the newest build is the "latest" release on GitHub, asked at most every 10 minutes).
@@ -217,7 +223,13 @@ admin (done), then going live.
   `HistorySender.Version` goes up and the server asks for every log again. The tracker's menu says how far it is ("Old logs: sending 3 of 140"), its
   version (up to date, or updating), and **Check for an update now**; after an update it says "Updated to version ...".
 - **SCTools.Server** keeps the uploads (one log per player, also on disk, so a restart reads them again), works the session out every two seconds
-  with the same logic as the program, and serves the live page to everybody. An upload without a known key is refused. The admin makes the keys on the
+  with the same logic as the program, and serves the live page to everybody. The two-second refresh makes `data.json` anew only when something in it can
+  have changed (a piece of log, a save, the status line, half a minute gone by: `LiveTracker.Refresh`), and the page polls it every 3 seconds with the
+  ETag it got last (`If-None-Match`): the same data again is a 304 with no body, so an idle server and an idle page do next to nothing. The page draws
+  only the tab shown, and in it only the tables whose data changed; a browser tab nobody looks at does not poll until it is shown again. The Mission
+  Library and the Gauntlet Tracker look at the logs again only when a piece came in (`LogUploads.Pieces`), and the database runs in write-ahead mode
+  (WAL), so a write does not make the readers wait. The server's log says how the refresh goes: a tick over a second at once, and once an hour how
+  many ticks there were, how long they took and how often `data.json` was made. An upload without a known key is refused. The admin makes the keys on the
   **Tracker keys** page (`/admin/keys`): a new key is shown once (the database keeps only a hash of it), and a key can be taken back (that tracker stops,
   and its player's browser is logged out within a minute). Keys in the settings (`SCTools:Trackers`: key to player) are still added when the server
   starts.
@@ -438,7 +450,8 @@ open ports but SSH). GitHub puts every new version of main on it (the **Deploy**
 8. **The trackers.** On the **Tracker keys** page make a key for zzoega, zzatvo and bileh123, and put each in the SC Tools Tracker on his PC
    (Server `https://sc-tools.fwjonsson.dev`, the default).
 
-After that every merge to main that changes the server is deployed by itself; a version that does not start is replaced by the one before it. The
+After that every merge to main that changes the server is deployed by itself, once its Tests run came out green (a red run deploys nothing); a version
+that does not start is replaced by the one before it. The
 settings are in `/etc/sctools/sctools.env` (`sudo systemctl restart sctools` after a change), the data in `/var/lib/sctools`
 (the database, the uploaded logs, the daily copies, the keys of the login cookies), the versions in `/opt/sctools/releases`.
 
