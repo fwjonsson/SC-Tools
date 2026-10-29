@@ -64,7 +64,6 @@ public sealed partial class WebSnapshot
             },
             summary = Summary(),
             rewards = Rewards(),
-            party = Party(),
             pickups = Stops(),
             jobs = jobs.Table,
             jobsEdit = jobs.Edits,
@@ -219,24 +218,6 @@ public sealed partial class WebSnapshot
             edits.Add(new { id = j.Mission.Id, title = j.Mission.Title ?? "", game = j.ScuFrom == ScuFrom.Game, value = _s.Jobs.HaulerScu(j.Mission), hint, from });
         }
         return (table, edits.ToArray());
-    }
-
-    /// <summary>The party: no colour column, the whole row of a member has his colour (a member who is not active, a faded one).</summary>
-    ViewTable Party()
-    {
-        // who is active comes from the logs now (a member who is not is faded): the column shows his ship instead
-        var table = new ViewTable(_p, new ViewColumn("Member", "left"), new ViewColumn("Ship", "left"), new ViewColumn("QT Drive", "left"));
-        foreach (var n in _s.Data.Party)
-        {
-            var active = _t.Crew.IsActiveAt(n, DateTime.UtcNow);
-            var color = WorkerColor(n);
-            var back = active ? color : _p.Faded(color);
-            table.Add(
-                n.ToUpperInvariant(),
-                _t.Crew.ShipOf(n)?.Name ?? "",
-                _t.Crew.DriveTextOf(n)).RowColor(back, ViewPalette.TextOn(back));
-        }
-        return table;
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 @model PartyToolPage
 @{
-    // the panel of the Party button in the top bar (TopBar.PartyButton, fetched when it opens): the parties now as the Party page shows them, and a link to it
+    // the panel of the Party button in the top bar (TopBar.PartyButton, fetched when it opens): the parties now, each a table like the Hauling Planner's
+    // old Party table (Frank, 29 Oct 2026: Member, Ship, QT Drive, every member's row in his colour), and a link to the Party page
     Layout = null;
     string Link(string name) => "/party/" + Uri.EscapeDataString(name);
     var playing = Model.Parties.Sum(p => p.Names.Count);
@@ -12,17 +13,16 @@
   {
     <div class="group">
       <b>@p.Title</b>
-      <ul>
-      @foreach (var n in p.Names)
-      {
-        <li><a href="@Link(n)">@n</a>@(string.Equals(n, p.Leader, StringComparison.OrdinalIgnoreCase) && p.Names.Count > 1 ? " (leader)" : "")
-          @if (Model.Ships.TryGetValue(n, out var ship) && ship.Length > 0)
-          {
-            <span class="muted"> · @ship</span>
-          }
-        </li>
-      }
-      </ul>
+      <table class="members">
+        <thead><tr><th>Member</th><th>Ship</th><th>QT Drive</th></tr></thead>
+        <tbody>
+        @foreach (var n in p.Names)
+        {
+          var m = Model.Ships.TryGetValue(n, out var line) ? line : new PartyMemberLine("", "", "#888888", "#ffffff");
+          <tr style="background:@m.Color;color:@m.Text"><td><a href="@Link(n)">@n.ToUpperInvariant()</a></td><td>@m.Ship</td><td>@m.Drive</td></tr>
+        }
+        </tbody>
+      </table>
     </div>
   }
   @if (Model.Others.Count > 0)

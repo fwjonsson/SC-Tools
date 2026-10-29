@@ -44,8 +44,12 @@ public class PartyToolTests
         Assert.StartsWith("<div class=\"partypanel\">", panel.TrimStart());   // a fragment, no page around it
         Assert.Contains("3 playing in 2 parties", panel);
         Assert.Contains("zzoega's party", panel);
-        Assert.Contains("href=\"/party/zzatvo\"", panel);
-        Assert.Contains("Crusader C2 Hercules Starlifter", panel);
+        // every party a table like the Hauling Planner's old Party table: member, ship, drive, the row in his colour (zzoega orange with black text)
+        Assert.Contains("<table class=\"members\">", panel);
+        Assert.Contains("<tr><th>Member</th><th>Ship</th><th>QT Drive</th></tr>", panel);
+        Assert.Contains("<tr style=\"background:#ff9628;color:#000000\"><td><a href=\"/party/zzoega\">ZZOEGA</a></td><td>", panel);
+        Assert.Contains("href=\"/party/zzatvo\">ZZATVO</a></td><td>", panel);
+        Assert.Contains("<td>Crusader C2 Hercules Starlifter</td><td></td></tr>", panel);   // the class of his last quantum jump; no fleet: no drive
         Assert.Contains("Not playing: ", panel);   // everybody else the site knows (pilot_x has a key and has not played)
         Assert.Contains("pilot_x", panel[panel.IndexOf("Not playing: ", StringComparison.Ordinal)..]);
         Assert.Contains("href=\"/party\"", panel);

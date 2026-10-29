@@ -252,7 +252,8 @@ admin (done), then going live.
   A player's page (`/party/{name}`): playing or last seen, his party, the ship he flies and its drive (picked, or his last quantum jump), where the
   Hauling Planner has him, his tracker, and his fleet. Only for the admin until it is shown on the Tools page. It is not a card on the landing page and
   not in the row of tools (Frank, 29 Oct 2026; `SiteTools.Cards`): a **Party** button beside the viewer's name in the top bar (`TopBar.PartyButton`, on
-  the tools' own pages too) opens a panel under it with the same parties, the ships and the links to the players' pages, and "Everybody" to the Party
+  the tools' own pages too) opens a panel under it with the same parties, each a table like the Hauling Planner's old Party table (Frank, 29 Oct 2026:
+  Member, Ship, QT Drive, every member's row in his colour, `Edits.ColorOf`; the names link to the players' pages), and "Everybody" to the Party
   page. The panel is fetched when it opens (`/party/panel`, a fragment: `_Panel.cshtml`), so a page costs nothing for it until somebody looks; without
   JavaScript the button is a link to the Party page. The button is marked in the tool's colour on the Party pages, like a tool in the row.
 - **The Map tool** (`/map`, `MapService`, `wwwroot/map.js`): Pyro, Stanton and Nyx from above (a tab per system over the map; it opens on the system
@@ -320,8 +321,8 @@ admin (done), then going live.
   ship's navigation; not "Local Route Guard - Server Rerouted", which the game writes for every ship that comes near him), the ship of his fleet that is that class's ship (`ShipModels.OfClass`), else the one whose
   name fits the class best; a class that is not in his fleet shows by the game's name ("Crusader C2 Hercules Starlifter"). The Hauling Planner flies the active ship: its name (when it is a hauler the planner knows: a name like "Crusader C2
   Hercules Starlifter" is the C2), its drive and how much faster the drive is (`AppData.DriveSpeedBonus`, `Crew.QtOf`) go to the planner every few
-  seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Party table of the live page shows every member's ship
-  and drive ("TS-2 S3 +20 %") instead of Active, which comes from the logs now (a member who is not active is faded).
+  seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Party button's panel in the top bar shows every member's
+  ship and drive ("TS-2 S3 +20 %"); the Hauling Planner's page has no Party table of its own since 29 Oct 2026 (Frank).
 - **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the Hauling Planner's page is at
   `/hauling`, every tab at an address of its own (`/hauling/session`, `/hauling/contracts`, `/hauling/planner`, `/hauling/debts`, `/hauling/history`; the program's own page
   keeps them after a #, and the old `#plan` links still work; the live page's tables keep to 1,900 px in the middle of an ultrawide screen, with the bar at the top

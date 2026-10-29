@@ -22,7 +22,7 @@ public class HaulingPageTests
         Assert.True(page.IndexOf("systemmap.js?v=", StringComparison.Ordinal) < page.IndexOf("src=\"/hauling.js?v=", StringComparison.Ordinal));
         Assert.Contains("<div class=\"hauling\" data-me=\"\">", page);   // a watcher: nobody
         Assert.Contains("<button id=\"tabS\" class=\"on\">Session</button>", page);
-        Assert.Contains("<div class=\"scroll\" id=\"party\" aria-label=\"Party\"></div>", page);
+        Assert.DoesNotContain("id=\"party\"", page);   // no Party table of its own: the Party button in the top bar shows it (29 Oct 2026)
         Assert.Contains("<select id=\"partyPick\" class=\"hidden\"", page);
         Assert.DoesNotContain("<style>", page);   // nothing inline any more
         Assert.Equal(page, await visitor.GetStringAsync("/hauling/planner"));   // a tab's address: the same page, the script shows the tab
@@ -49,7 +49,6 @@ public class HaulingPageTests
         Assert.Contains("getElementById('sideS').classList.toggle('hidden', which !== 'S')", script);
         var style = await visitor.GetStringAsync("/hauling.css");
         Assert.Contains(".hauling .planworker", style);   // every rule under .hauling: nothing reaches the other pages
-        Assert.Contains(".hauling #party th:nth-child(2) { width:46%; }", style);
         Assert.DoesNotContain("\nbody", style);
         Assert.Contains(".hauling .planleft { flex:0 0 820px; max-width:100%; }", style);   // the Trip Planner's map is the Map tool's size
         Assert.Contains(".mapbox { flex:1 1 560px; max-width:820px;", await visitor.GetStringAsync("/site.css"));

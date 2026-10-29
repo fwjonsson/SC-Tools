@@ -59,7 +59,8 @@ All the tools track at the same time, all the time. The tracking runs on the ser
    Session and a Scrip/h column in the ranking.
 5. **Party tool** (`/party`, PR #241): who is playing in which in-game party with the ship each one flies, everybody else with when they were last
    seen, and a page per player. `PartyService` keeps the site's party in one place for every tool. Since 29 Oct not a card on the landing page: a
-   **Party** button beside the name in the top bar, with a panel (fetched when it opens) of the parties, the ships and the links to the pages.
+   **Party** button beside the name in the top bar, with a panel (fetched when it opens) of the parties as tables like the Hauling Planner's old
+   Party table (member, ship, drive, the rows in the members' colours; Frank, 29 Oct), which the Hauling Planner's page lost that day.
 6. **Map tool** (`/map`, PR #242; all three systems in PR #243): Pyro, Stanton and Nyx from above, one tab per system (it opens on the system where
    most players are). The places (stars, planets, moons, cities, gateways, stations: 26 + 52 + 19) come from the Star Citizen Wiki API positions in
    Frank's ScApiTool download of 20 Oct 2026 (`StarMap` in the core; Pyro's match the Trip Planner's distances). Everybody playing is placed where
@@ -147,7 +148,7 @@ should know before that happens.
    tracker version on /tracker and /admin/keys (#236), Hauling Planner top bar fix (#237).
 2. Done: **automatic sessions** (#238) and the Party dropdown on the Hauling Planner's Session tab with debts kept apart per party (#239; the dropdown
    went on 29 Oct, Frank: the Session and Contracts tabs show the viewer's own party by themselves, everything together to a viewer in none, and the
-   Party table sits beside the tabs with room for the ship names). Decided
+   Party table sat beside the tabs with room for the ship names, until the Party button's panel took it over later that day). Decided
    28 Oct, replacing the earlier plan of 3 h / 30 min with buttons as overrides:
    - **Hauling Planner**: one session for the party (a player alone is a party of one; who joins the party joins its session). It starts when
      someone accepts a contract the planner reads (2–4 to Ruin, 2–4 from Ruin, Direct from Ruin). Two separate groups hauling at the same time would

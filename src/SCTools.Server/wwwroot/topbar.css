@@ -23,19 +23,23 @@
 .topbar details.party > summary::after { content:" \25BE"; font-size:11px; }
 .topbar details.party > summary:hover, .topbar details.party[open] > summary { background:#151b23; }
 .topbar details.party > summary.on { background:color-mix(in srgb, var(--tool, #b77fdb) 30%, transparent); color:#fff; box-shadow:inset 0 -2px 0 var(--tool, #b77fdb); }
-.topbar details.party > .panel { position:absolute; right:0; top:calc(100% + 6px); z-index:20; min-width:280px; max-width:380px; background:#151b23; border:1px solid #2f3a48;
+.topbar details.party > .panel { position:absolute; right:0; top:calc(100% + 6px); z-index:20; min-width:280px; max-width:640px; background:#151b23; border:1px solid #2f3a48;
   border-top:2px solid var(--tool, #b77fdb); border-radius:4px; padding:10px 14px 12px; font-weight:400; color:#e6edf3; box-shadow:0 8px 24px rgba(0, 0, 0, .45); }
 .topbar .panel p { margin:0 0 8px; }
 .topbar .panel .muted { color:#8b949e; }
 .topbar .partypanel .head { font-weight:600; display:flex; justify-content:space-between; gap:14px; white-space:nowrap; }
 .topbar .partypanel .head a { font-weight:400; color:#8b949e; text-decoration:none; }
 .topbar .partypanel .head a:hover { color:#e6edf3; text-decoration:underline; }
-.topbar .partypanel .group { margin:6px 0 8px; }
+.topbar .partypanel .group { margin:6px 0 10px; overflow-x:auto; }
 .topbar .partypanel .group b { color:var(--tool, #b77fdb); }
-.topbar .partypanel ul { list-style:none; margin:2px 0 0; padding:0 0 0 10px; }
-.topbar .partypanel li { padding:2px 0; white-space:nowrap; }
-.topbar .partypanel li a { text-decoration:none; }
-.topbar .partypanel li a:hover { text-decoration:underline; }
+/* a party: a table like the Hauling Planner's old Party table (Member, Ship, QT Drive), every member's row in his colour (Frank, 29 Oct 2026) */
+.topbar .partypanel table.members { border-collapse:collapse; width:100%; min-width:560px; max-width:none; margin-top:4px; table-layout:fixed; }
+.topbar .partypanel table.members th, .topbar .partypanel table.members td { border:1px solid #2f3a48; padding:4px 10px; white-space:nowrap; text-align:left; overflow:hidden; text-overflow:ellipsis; }
+.topbar .partypanel table.members td { background:inherit; }   /* the row's colour (site.css gives every cell the table shade) */
+.topbar .partypanel table.members th { background:#1f4b7a; color:#fff; font-weight:600; text-align:center; }
+.topbar .partypanel table.members th:nth-child(1) { width:26%; } .topbar .partypanel table.members th:nth-child(2) { width:46%; }
+.topbar .partypanel table.members td a { color:inherit; text-decoration:none; font-weight:600; }
+.topbar .partypanel table.members td a:hover { text-decoration:underline; }
 .topbar .partypanel .small { font-size:12px; white-space:normal; margin-top:6px; }
 /* the menu button and its panel: on a computer the panel's parts sit in the bar as they are, on a phone they open under it */
 .topbar .menu-panel { display:contents; }

@@ -610,7 +610,6 @@ function renderTab(k) {
         + '; else the Mission Library\'s; else the Star Citizen Wiki\'s. Split evenly over the stops (~).'
       : '';
     if (changed('summary', v.summary || [])) summary(document.getElementById('summary'), v.summary || []);
-    if (changed('party', d.party)) table(document.getElementById('party'), d.party);
     if (changed('leaders', v.leaders)) { table(document.getElementById('leaders'), v.leaders); measure = true; }
     if (changed('runs', [v.runs, v.runsLive])) {
       table(document.getElementById('runs'), v.runs);

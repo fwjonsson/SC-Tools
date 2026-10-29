@@ -9,8 +9,8 @@
 <link rel="stylesheet" href="~/hauling.css" asp-append-version="true">
 @* the admin gets data-admin (Razor writes a data- attribute even when its value is null, so it is written by hand) *@
 <div class="hauling" data-me="@me"@(admin ? Html.Raw(" data-admin=\"1\"") : null)>
-<!-- the title, the tabs and what they show on the left; on the Session tab the Party table beside them, level with the title, and the session under it (the
-     leaderboard and the runs under both, over the whole width). After the tabs, for the admin only, the party whose session the tabs show -->
+<!-- the title, the tabs and what they show on the left; on the Session tab the session beside them (the leaderboard and the runs under both, over the whole
+     width). No Party table since 29 Oct 2026 (Frank): the Party button in the top bar shows it. After the tabs, for the admin only, the party whose session the tabs show -->
 <div class="top">
 <div class="main">
 <h1>Hauling Planner</h1>
@@ -39,7 +39,6 @@
 </div>
 
 <div class="side" id="sideS">
-  <div class="scroll" id="party" aria-label="Party"></div>
   <h2>Session</h2><div class="scroll" id="summary"></div>
 </div>
 </div>

@@ -59,8 +59,8 @@ public class LiveTrackerTests
 
         live.Edit(t => t.Crew.SetColor(PlayedSession.Player, unchecked((int)0xFF112233)), DateTime.UtcNow);
         Assert.True(saves > before);
-        var party = JsonDocument.Parse(live.Json).RootElement.GetProperty("party").GetProperty("rows")[0];
-        Assert.Equal("#112233", party.GetProperty("back")[0].GetString());   // data.json has the new colour already
+        var worker = JsonDocument.Parse(live.Json).RootElement.GetProperty("planner").GetProperty("workers")[0];
+        Assert.Equal("#112233", worker.GetProperty("color").GetString());   // data.json has the new colour already (the planner's worker; no Party table since 29 Oct 2026)
         Assert.Equal(unchecked((int)0xFF112233), live.Read(t => t.Crew.PickedColor(PlayedSession.Player)));
     }
 
