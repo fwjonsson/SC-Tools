@@ -17,6 +17,9 @@ public sealed class WebSnapshotOptions
 
     /// <summary>Where the Payment tick of a money transfer on the Debts tab goes (the server's address): the one who sent the money ticks it. The program has none.</summary>
     public string? DebtsPay { get; init; }
+
+    /// <summary>Where the admin's Lost Cargo pick in the Cargo runs table goes (the server's address; Frank, 29 Oct 2026). The program has none.</summary>
+    public string? RunsLost { get; init; }
 }
 
 /// <summary>
@@ -64,7 +67,6 @@ public sealed partial class WebSnapshot
             },
             summary = Summary(),
             rewards = Rewards(),
-            party = Party(),
             pickups = Stops(),
             jobs = jobs.Table,
             jobsEdit = jobs.Edits,
@@ -74,6 +76,8 @@ public sealed partial class WebSnapshot
             runs = runs.Full,
             planRuns = runs.Short,   // the short copy under the map of the Trip Planner (#, Worker, Value, Started, Completed, Time, In flight, aUEC/h)
             runsLive = runs.Live,    // runs on the way: the page counts their Time up
+            runKeys = runs.Keys,     // the runs' keys, for the admin's Lost Cargo pick (RunsLost)
+            runsLost = _o.RunsLost,
             planner = Planner(),
             debts = Debts(),
             debtsPay = _o.DebtsPay,
@@ -221,24 +225,6 @@ public sealed partial class WebSnapshot
         return (table, edits.ToArray());
     }
 
-    /// <summary>The party: no colour column, the whole row of a member has his colour (a member who is not active, a faded one).</summary>
-    ViewTable Party()
-    {
-        // who is active comes from the logs now (a member who is not is faded): the column shows his ship instead
-        var table = new ViewTable(_p, new ViewColumn("Member", "left"), new ViewColumn("Ship", "left"), new ViewColumn("QT Drive", "left"));
-        foreach (var n in _s.Data.Party)
-        {
-            var active = _t.Crew.IsActiveAt(n, DateTime.UtcNow);
-            var color = WorkerColor(n);
-            var back = active ? color : _p.Faded(color);
-            table.Add(
-                n.ToUpperInvariant(),
-                _t.Crew.ShipOf(n)?.Name ?? "",
-                _t.Crew.DriveTextOf(n)).RowColor(back, ViewPalette.TextOn(back));
-        }
-        return table;
-    }
-
     /// <summary>
     /// The Stops board: the most valuable stop on top, with the waste to bring there (a station with only drop-offs is a row of its own). No From Ruin and
     /// Notes columns since 29 Oct 2026 (Frank; the program's board still has them).
@@ -326,7 +312,7 @@ public sealed partial class WebSnapshot
     }
 
     /// <summary>Cargo Runs (latest activity on top), the short copy of it under the map of the Trip Planner, and which runs are on the way.</summary>
-    (ViewTable Full, ViewTable Short, bool[] Live) RunsTables()
+    (ViewTable Full, ViewTable Short, bool[] Live, string[] Keys) RunsTables()
     {
         var full = new ViewTable(_p,
             new ViewColumn("#"), new ViewColumn("Worker"), new ViewColumn("Pickup Location & Time", "left"), new ViewColumn("Batches"), new ViewColumn("Value", "right"),
@@ -336,7 +322,8 @@ public sealed partial class WebSnapshot
             new ViewColumn("#"), new ViewColumn("Worker"), new ViewColumn("Value", "right"), new ViewColumn("Started"), new ViewColumn("Completed"), new ViewColumn("Time"),
             new ViewColumn("In flight"), new ViewColumn("aUEC/h", "right"));
         var live = new List<bool>();
-        if (_s.Current == null || _s.Inputs == null || _s.Log == null) return (full, brief, live.ToArray());
+        var keys = new List<string>();
+        if (_s.Current == null || _s.Inputs == null || _s.Log == null) return (full, brief, live.ToArray(), keys.ToArray());
         var runs = _t.Runs;
         foreach (var t in _s.Trips)
         {
@@ -352,7 +339,8 @@ public sealed partial class WebSnapshot
             full.Add(number, t.Worker, runs.RunStepsText(t), runs.BatchesText(t), value, started, completed, duration, flight, perHour, level).RowColor(color);
             brief.Add(number, t.Worker, value, started, completed, duration, flight, perHour).RowColor(color);
             live.Add(!t.End.HasValue && duration.Length > 0);
+            keys.Add(t.Key);
         }
-        return (full, brief, live.ToArray());
+        return (full, brief, live.ToArray(), keys.ToArray());
     }
 }

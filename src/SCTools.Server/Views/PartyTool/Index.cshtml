@@ -22,9 +22,9 @@ else
       @foreach (var n in p.Names)
       {
         <li><a href="@Link(n)">@n</a>@(string.Equals(n, p.Leader, StringComparison.OrdinalIgnoreCase) && p.Names.Count > 1 ? " (leader)" : "")
-          @if (Model.Ships.TryGetValue(n, out var ship) && ship.Length > 0)
+          @if (Model.Ships.TryGetValue(n, out var line) && line.Ship.Length > 0)
           {
-            <span class="muted small"> · @ship</span>
+            <span class="muted small"> · @line.Ship</span>
           }
         </li>
       }

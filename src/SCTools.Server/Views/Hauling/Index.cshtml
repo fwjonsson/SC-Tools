@@ -9,15 +9,16 @@
 <link rel="stylesheet" href="~/hauling.css" asp-append-version="true">
 @* the admin gets data-admin (Razor writes a data- attribute even when its value is null, so it is written by hand) *@
 <div class="hauling" data-me="@me"@(admin ? Html.Raw(" data-admin=\"1\"") : null)>
-<!-- the title, the tabs and what they show on the left; on the Session tab the Party table beside them, level with the title, and the session under it (the
-     leaderboard and the runs under both, over the whole width). After the tabs, for the admin only, the party whose session the tabs show -->
+<!-- the title, the tabs and what they show on the left; on the Session tab the session beside them (the leaderboard and the runs under both, over the whole
+     width). No Party table since 29 Oct 2026 (Frank): the Party button in the top bar shows it. After the tabs, for the admin only, the party whose session the tabs show -->
 <div class="top">
 <div class="main">
 <h1>Hauling Planner</h1>
 <div class="bar"><span id="session"></span><span id="live" class="live"></span><span id="updated"></span></div>
-<div class="nav"><button id="tabS" class="on">Session</button><button id="tabC">Contracts</button><button id="tabP">Trip Planner</button><button id="tabD">Debts</button><button id="tabH">History</button><select id="partyPick" class="hidden" aria-label="Whose session"></select></div>
+@* the Trip Planner first (Frank, 29 Oct 2026): it is the tab that is looked at while hauling *@
+<div class="nav"><button id="tabP" class="on">Trip Planner</button><button id="tabS">Session</button><button id="tabC">Contracts</button><button id="tabD">Debts</button><button id="tabH">History</button><select id="partyPick" class="hidden" aria-label="Whose session"></select></div>
 
-<div id="viewS">
+<div id="viewS" class="hidden">
   <p class="note hidden" id="partyNote"></p>
   <h2>Stops</h2><div class="scroll" id="pickups"></div>
   <div id="finishedBox"><h2>Finished stops</h2><div class="scroll" id="finished"></div></div>
@@ -29,7 +30,7 @@
   <p class="note">What every contract line pays (set in the Mission Library), how many of them are active and completed, and what they earned.</p>
 </div>
 
-<div id="viewP" class="hidden">
+<div id="viewP">
   <div id="planNote" class="empty"></div>
   <div id="planBody"></div>
 </div>
@@ -38,13 +39,12 @@
 <div id="viewH" class="hidden"></div>
 </div>
 
-<div class="side" id="sideS">
-  <div class="scroll" id="party" aria-label="Party"></div>
+<div class="side hidden" id="sideS">
   <h2>Session</h2><div class="scroll" id="summary"></div>
 </div>
 </div>
 
-<div id="belowS">
+<div id="belowS" class="hidden">
 <h2>Session leaderboard</h2><div class="scroll" id="leaders"></div>
 <h2>Cargo runs</h2><div class="scroll" id="runs"></div>
 </div>

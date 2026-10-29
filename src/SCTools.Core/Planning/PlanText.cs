@@ -86,7 +86,7 @@ public static class PlanText
         return cells;
     }
 
-    /// <summary>The Total line of the Current Route table: the number of stops, the batches that are collected, the value, the distance and the flight time.</summary>
+    /// <summary>The Σ line of the Current Route table (as the Queued routes have it, Frank 29 Oct 2026): the stops, the batches collected, the value, the distance and the flight time.</summary>
     public static string[] LineTotals(List<StopLine> lines)
     {
         var stops = lines.Count(l => l.Stop);
@@ -101,8 +101,8 @@ public static class PlanText
         if (carried.Length > 0 && all >= 1) carried += " (" + (scu > 0 ? "~" : "") + Math.Round(all).ToString(CultureInfo.InvariantCulture) + " SCU)";
         return new[]
         {
-            "",
-            "Total: " + stops + (stops == 1 ? " stop" : " stops"),
+            "\u03a3",
+            stops + (stops == 1 ? " stop" : " stops"),
             batches > 0 ? "Collect" : "",
             carried,
             ValueText(lines.Sum(l => l.Value)),

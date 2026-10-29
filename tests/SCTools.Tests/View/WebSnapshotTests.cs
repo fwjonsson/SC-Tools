@@ -21,7 +21,7 @@ public class WebSnapshotTests
     public void Every_tab_is_in_it_and_every_row_has_a_cell_and_colours_for_every_column()
     {
         var d = Snapshot();
-        foreach (var key in new[] { "updated", "session", "theme", "summary", "rewards", "party", "pickups", "finished", "leaders", "runs", "planRuns", "runsLive", "planner", "debts", "history" })
+        foreach (var key in new[] { "updated", "session", "theme", "summary", "rewards", "pickups", "finished", "leaders", "runs", "planRuns", "runsLive", "planner", "debts", "history" })
             Assert.True(d.TryGetProperty(key, out _), key + " is missing");
 
         var tables = 0;
@@ -156,14 +156,10 @@ public class WebSnapshotTests
     }
 
     [Fact]
-    public void The_party_rows_have_the_member_colour_and_the_planner_his_tables()
+    public void The_planner_has_the_workers_tables()
     {
         var d = Snapshot();
-        var member = Rows(d.GetProperty("party")).Single();
-        Assert.Equal("PILOT_A", Cells(member)[0]);
-        var colour = Hex(ViewPalette.MapPalette[0]);   // not zzoega or zzatvo: the first colour of the map palette
-        Assert.All(member.GetProperty("back").EnumerateArray(), c => Assert.Equal(colour, c.GetString()));
-
+        Assert.False(d.TryGetProperty("party", out _));   // no Party table since 29 Oct 2026: the Party button of the top bar shows it
         var worker = d.GetProperty("planner").GetProperty("workers").EnumerateArray().Single();
         Assert.Equal(PlayedSession.Player, worker.GetProperty("name").GetString());
         Assert.Equal("PILOT_A", worker.GetProperty("heading").GetString());

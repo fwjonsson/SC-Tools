@@ -9,8 +9,8 @@
 .hauling .ok { color:#5fd35f; } .hauling .bad { color:#ff6b6b; }
 .hauling .top { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
 .hauling .top > .main { min-width:0; flex:1 1 560px; }   /* the tabs and the stops take the width ... */
-.hauling .top > .side { flex:0 0 560px; max-width:100%; }   /* ... the Party table beside the title, level with it, and the session under it */
-.hauling .side h2 { margin-top:18px; }
+.hauling .top > .side { flex:0 0 560px; max-width:100%; }   /* ... the session beside the title, level with it */
+.hauling .side h2 { margin-top:12px; }
 .hauling #viewC .scroll { max-width:960px; }   /* the Contracts tab: room for the contracts' names ("Senior | Stellar Large Haul | to Ruin Station [...]") */
 .hauling .scroll { overflow-x:auto; }
 .hauling .bal table { table-layout:fixed; }
@@ -22,13 +22,10 @@
 .hauling th { background:var(--header); color:#fff; font-weight:600; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hauling table.tight th { white-space:normal; }
 .hauling .kv td:first-child { font-weight:600; width:50%; }
-/* party, contracts (its own tab) and session: set widths (the contracts' first two columns and the session's two are halves) */
-.hauling #party table, .hauling #rewards table, .hauling #summary table { table-layout:fixed; }
+/* contracts (its own tab) and session: set widths (the contracts' first two columns and the session's two are halves) */
+.hauling #rewards table, .hauling #summary table { table-layout:fixed; }
 .hauling #rewards th:nth-child(1) { width:44%; } .hauling #rewards th:nth-child(2) { width:16%; }   /* Contract: the room; its name wraps when there is still not enough */
 .hauling #rewards td:nth-child(1) { white-space:normal; }
-/* the Party table: Member, Ship (the room: "Crusader C2 Hercules Starlifter"), QT Drive; a ship name that is still too long wraps instead of running into the drive */
-.hauling #party th:nth-child(1) { width:24%; } .hauling #party th:nth-child(2) { width:46%; } .hauling #party th:nth-child(3) { width:30%; }
-.hauling #party td:nth-child(2) { white-space:normal; }
 .hauling #rewards th:nth-child(3) { width:11%; } .hauling #rewards th:nth-child(4) { width:13%; } .hauling #rewards th:nth-child(5) { width:16%; }
 .hauling #runs td:nth-child(3) { white-space:normal; }   /* Pickup Location & Time of Cargo runs: a long run wraps instead of running over the next columns */
 .hauling #pickups td:nth-child(6) { white-space:normal; }   /* Drop-off of Stops: it wraps on a narrower window */
@@ -45,6 +42,7 @@
 .hauling .nav button.on, .hauling .sub button.on { background:var(--header); color:#fff; }
 .hauling .nav select { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 10px; font:inherit; font-weight:600; border-radius:4px; margin-left:auto; }   /* the admin: whose session */
 .hauling .hidden { display:none; }
+.hauling .lostpick { background:var(--cell); color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:2px 4px; font:inherit; }   /* the admin's Lost Cargo pick */
 .hauling .plantables { flex:1 1 520px; min-width:0; }
 .hauling .plantables h2:first-child { margin-top:0; }
 .hauling .plantables table { table-layout:fixed; }
