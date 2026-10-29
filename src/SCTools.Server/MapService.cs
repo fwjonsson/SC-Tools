@@ -44,10 +44,11 @@ public sealed class MapService
 
     /// <summary>
     /// Where a player's quantum jumps put him: his system, the place he is at (or null), since when; and the jump he is on, if any. At or to a mission's
-    /// objective (AtMission, ToMission; its place, when its text names one). Jumped: the last jump took him somewhere the map does not know.
+    /// objective (AtMission, ToMission; its place, when its text names one). Jumped: the last jump took him somewhere the map does not know ("off the
+    /// grid"); LastPing: the last place the map knew him at before that, if any.
     /// </summary>
     public sealed record Whereabouts(string? System, Place? At, DateTime? Since, QtEvent? Picked, Place? From, Place? To,
-        MissionPoint? AtMission = null, MissionPoint? ToMission = null, bool Jumped = false);
+        MissionPoint? AtMission = null, MissionPoint? ToMission = null, bool Jumped = false, Place? LastPing = null);
 
     /// <summary>
     /// An objective of a mission he can quantum jump to: its beacon (MissionBeacon: the destination's id, and its marker's entity id), the mission's title,
@@ -90,6 +91,7 @@ public sealed class MapService
         Place? from = null, to = null;
         MissionPoint? atMission = null, toMission = null;
         var jumped = false;
+        Place? lastPing = null;
         var steps = qt.Select(e => (e.Time, Qt: (QtEvent?)e, Seen: (LocationSeen?)null))
             .Concat((seen ?? Array.Empty<LocationSeen>()).Select(s => (s.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)s)))
             .OrderBy(s => s.Time);
@@ -107,6 +109,7 @@ public sealed class MapService
                 from = to = null;
                 atMission = toMission = null;
                 jumped = false;
+                lastPing = null;
                 continue;
             }
             var e = step.Qt!;
@@ -122,6 +125,7 @@ public sealed class MapService
                         (at, since) = (place, e.Time);
                         atMission = null;
                         jumped = false;
+                        lastPing = null;
                     }
                     else if (place == null && sys != null) at = null;   // "Pyro System": in space somewhere
                 }
@@ -141,9 +145,11 @@ public sealed class MapService
                     toMission = missions?.Where(p => p.On(e.Time)).OrderBy(p => p.From).LastOrDefault();
                     to = toMission?.Place;
                 }
+                var left = at;
                 (at, since) = (to, e.Time);   // null: somewhere the map does not know (a party member, an asteroid), or a mission's objective
                 atMission = toMission;
                 jumped = to == null && toMission == null;
+                lastPing = jumped ? left ?? lastPing : null;   // off the grid: where he was before (or before that, jump after jump)
                 if (to != null) system = to.System;
                 else if (toMission?.System != null) system = toMission.System;
                 picked = null;
@@ -151,7 +157,7 @@ public sealed class MapService
                 toMission = null;
             }
         }
-        return new Whereabouts(system, at, since, picked, from, to, atMission, toMission, jumped);
+        return new Whereabouts(system, at, since, picked, from, to, atMission, toMission, jumped, lastPing);
     }
 
     /// <summary>
@@ -350,7 +356,8 @@ public sealed class MapService
         if (w.At is { } at) return At(at, w.Since, w.AtMission);
         if (w.AtMission is { } am)
             return new { name, color, ship, drive = shown, system = am.System ?? w.System, state = "mission", atName = AtMission(am), mission = am.Title, since = w.Since };
-        return new { name, color, ship, drive = shown, system = w.System, state = "unknown", note = w.Jumped ? "Jumped somewhere the map does not know" : null,
-            since = w.Jumped ? w.Since : null };
+        // not known: off the grid after a jump the map cannot follow (with the last place it had him at), or no signal yet
+        return new { name, color, ship, drive = shown, system = w.System, state = "unknown", off = w.Jumped, since = w.Jumped ? w.Since : null,
+            lastPing = w.Jumped ? w.LastPing?.Name : null };
     }
 }

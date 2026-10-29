@@ -252,7 +252,8 @@ admin (done), then going live.
   map does not know; a location the map does not know is on Map places. A jump with no destination picked (he jumped at a marker he looked at, or
   he is crew) is a jump too, not nothing: a crew's arrival gets the destination the pilot picked (another player of the site with the arrival of the
   same ship, by its entity id, within 10 seconds: `MapService.WithPilots`); else it is to the objective of a mission going on then (below); else he
-  is "somewhere the map does not know". The objectives he can jump to are the ones the game paired with a quantum beacon (`<PairWithMissionNavpoint>
+  is "Off the grid: out of comm-array range" since then, with the last place the map had him at ("last ping at Levski"). A player the map has not
+  placed yet has "No signal yet". The objectives he can jump to are the ones the game paired with a quantum beacon (`<PairWithMissionNavpoint>
   MissionObjectiveMarker_21517[21517] - Paired with NavPoint: MISSION_QT_Quantum_Beacon_LongRange_…`, `HaulingLog.Beacons`, with the objective's
   text from its popup, "New Objective: Go to Asteroid Cluster", and the contract's system from its name, `…_DrawOutBoss_Nyx_Super`): a destination
   that is a beacon, or an arrival with no destination while one is going on (the latest; until a minute after it was done), puts him "at the
