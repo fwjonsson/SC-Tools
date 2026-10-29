@@ -86,9 +86,12 @@ public class WikiMissionsTests
         Assert.Equal(0, library.LinkWiki());
         var entry = library.Entries().Single(e => e.Row.Title == "Master Hauler Needed for Large Shipment");
         Assert.Equal((Uuid, "2,000,000–2,200,000"), (entry.Row.WikiUuid, entry.Wiki?.AuecText));
-        var page = await admin.GetStringAsync("/missions");
+        var page = await admin.GetStringAsync("/admin/missions");
         Assert.Contains("placeholder=\"2,000,000–2,200,000\" class=\"num\"", System.Net.WebUtility.HtmlDecode(page));
         Assert.Contains("placeholder=\"~500\" class=\"num scu\"", page);
+        var shown = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));   // read-only: the Wiki's in grey
+        Assert.Contains("<span class=\"muted\" title=\"the Star Citizen Wiki's reward\">2,000,000–2,200,000</span>", shown);
+        Assert.Contains("<span class=\"muted\" title=\"the Star Citizen Wiki's hauling orders\">~500</span>", shown);
     }
 
     [Fact]

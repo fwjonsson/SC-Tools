@@ -7,12 +7,27 @@ using SCTools.Server.Data;
 
 namespace SCTools.Server;
 
-/// <summary>A kind of mission in the library, with how it was played; Running: one of its missions was taken in the last hours and did not end yet.</summary>
+/// <summary>How one player played a kind of mission; Running: one of his missions of it was taken in the last hours and did not end yet.</summary>
+public sealed record PlayCount(int Taken, int Completed, int Failed, int Abandoned, DateTime? LastPlayed, bool Running);
+
+/// <summary>
+/// A kind of mission in the library, with how it was played by everybody (Taken... Running) and by each player (Plays, by his name in small letters: the
+/// library's page shows the viewer his own).
+/// </summary>
 public sealed record LibraryEntry(MissionKindRow Row, int Taken, int Completed, int Failed, int Abandoned, DateTime? LastPlayed, bool Running = false,
-    WikiContract? Wiki = null)
+    WikiContract? Wiki = null, IReadOnlyDictionary<string, PlayCount>? Plays = null)
 {
     /// <summary>The name shown: the one typed in, else the one the game shows.</summary>
     public string Shown => Row.Name ?? Row.Title;
+
+    /// <summary>How this player played it (capitals do not matter), or null when he never did (or nobody is asking).</summary>
+    public PlayCount? PlaysOf(string? player) => player != null && Plays != null && Plays.TryGetValue(player.ToLowerInvariant(), out var p) ? p : null;
+
+    /// <summary>The SCU the page shows: the one typed in, else the one suggested last, else the middle of the Star Citizen Wiki's hauling orders.</summary>
+    public long? ScuShown => Row.Scu ?? Row.ScuSuggested ?? (Wiki != null && Wiki.Orders.Count > 0 ? (long)Math.Round(Wiki.Total.Middle) : null);
+
+    /// <summary>The aUEC the page shows: the one typed in, else the Star Citizen Wiki's reward (the middle of its range).</summary>
+    public long? AuecShown => Row.Auec ?? Wiki?.Auec;
 
     /// <summary>Nothing typed in about its rewards yet.</summary>
     public bool NeedsInfo => Row.Auec == null && Row.MgScrip == null && Row.CouncilScrip == null;
@@ -421,7 +436,7 @@ public sealed class MissionLibrary
         return read;
     }
 
-    /// <summary>Every kind of mission in the library with how it was played, the one played last first (the ones never played after them, by name).</summary>
+    /// <summary>Every kind of mission in the library with how it was played, by name (the pages sort them as the viewer asks).</summary>
     public List<LibraryEntry> Entries()
     {
         lock (_lock)
@@ -433,16 +448,20 @@ public sealed class MissionLibrary
             var played = db.Missions.AsNoTracking().Where(m => m.Kind != null).ToList().GroupBy(m => m.Kind!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
             var wiki = WikiMissions.Known(db);
+            var now = DateTime.UtcNow;
+            static PlayCount Counted(IReadOnlyList<MissionRow> rows, DateTime now) =>
+                new(rows.Count, rows.Count(m => m.Outcome == nameof(MissionOutcome.Complete)), rows.Count(m => m.Outcome == nameof(MissionOutcome.Fail)),
+                    rows.Count(m => m.Outcome == nameof(MissionOutcome.Abandon)), rows.Select(m => m.EndedUtc ?? m.StartedUtc).Max(),
+                    rows.Any(m => m.Outcome == null && m.EndedUtc == null && m.StartedUtc > now - RunningFor));
             return _entries = kinds.Select(k =>
                 {
-                    var mine = played.GetValueOrDefault(k.Key) ?? new List<MissionRow>();
-                    return new LibraryEntry(k, mine.Count, mine.Count(m => m.Outcome == nameof(MissionOutcome.Complete)),
-                        mine.Count(m => m.Outcome == nameof(MissionOutcome.Fail)), mine.Count(m => m.Outcome == nameof(MissionOutcome.Abandon)),
-                        mine.Select(m => m.EndedUtc ?? m.StartedUtc).Max(),
-                        mine.Any(m => m.Outcome == null && m.EndedUtc == null && m.StartedUtc > DateTime.UtcNow - RunningFor),
-                        k.WikiUuid != null ? wiki.GetValueOrDefault(k.WikiUuid) : null);
+                    var rows = played.GetValueOrDefault(k.Key) ?? new List<MissionRow>();
+                    var all = Counted(rows, now);
+                    var each = rows.GroupBy(m => m.Player.ToLowerInvariant()).ToDictionary(g => g.Key, g => Counted(g.ToList(), now));
+                    return new LibraryEntry(k, all.Taken, all.Completed, all.Failed, all.Abandoned, all.LastPlayed, all.Running,
+                        k.WikiUuid != null ? wiki.GetValueOrDefault(k.WikiUuid) : null, each);
                 })
-                .OrderByDescending(e => e.LastPlayed ?? DateTime.MinValue).ThenBy(e => e.Shown, StringComparer.OrdinalIgnoreCase).ToList();
+                .OrderBy(e => e.Shown, StringComparer.OrdinalIgnoreCase).ToList();
         }
     }
 

@@ -22,7 +22,7 @@ public static class SiteTools
         "#8b949e", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13\" r=\"8\"/><path d=\"M12 9v4l3 2M9 2h6\"/></svg>");
 
     public static readonly SiteTool Missions = new("missions", "Mission Library",
-        "Every mission you take, one row per mission, with what the log does not say (reward, MG and Council scrip, mission giver), filled in by you.", "/missions", false,
+        "Every mission we take, one row per mission, with what the log does not say (reward, MG and Council scrip, SCU, mission giver), to look up and sort.", "/missions", false,
         "#3fb8a4", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><rect x=\"5\" y=\"3\" width=\"14\" height=\"18\" rx=\"2\"/><path d=\"M9 8h6M9 12h6M9 16h4\"/></svg>");
 
     public static readonly SiteTool Gauntlet = new("gauntlet", "Gauntlet Tracker",

@@ -13,8 +13,9 @@ namespace SCTools.Tests.ServerPages;
 
 /// <summary>
 /// The Mission Library: every mission the players took is there by itself (live logs and old ones), one row per name (the same mission at another place
-/// has another ContractId); a logged in player types in the rewards, the giver and notes, saved one field at a time. The Gauntlet Tracker counts with its
-/// scenarios' rewards.
+/// has another ContractId). Everybody looks it up read-only (/missions: a search, a giver, with or without rewards, the ones he played, sorted by a
+/// column, with his own plays only); the admin types in the rewards, the SCU, the giver and the name on Edit Mission Info (/admin/missions), saved one
+/// field at a time. The Gauntlet Tracker counts with its scenarios' rewards.
 /// </summary>
 public class MissionLibraryTests
 {
@@ -28,11 +29,8 @@ public class MissionLibraryTests
     {
         $"<{day}T08:00:00.000Z> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Accepted: {title}: \" [84] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [] [Missions][Comms]",
         $"<{day}T08:00:00.500Z> [Notice] <CSCPlayerMissionLog::MissionStartCommsNotification> MissionStart comms notification will not be sent - This mission has no MissionStart comms setup. ContractId: [{contract}]. MissionId: {mission} [Missions][Comms]",
-        $"<{day}T08:30:00.000Z> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Complete: {title}: \" [84] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [] [Missions][Comms]",
-    };
-
-    [Fact]
-    public async Task The_missions_with_the_same_name_are_one_row_and_a_player_fills_in_the_rest()
+        $"<{day}T08:30    [Fact]
+    public async Task The_missions_with_the_same_name_are_one_row_the_admin_fills_in_the_rest_and_everybody_looks_it_up()
     {
         using var f = new ServerFactory();
         var admin = await f.Admin();
@@ -41,56 +39,99 @@ public class MissionLibraryTests
             .Concat(Mission("22222222-2222-2222-2222-222222222222", C2, Rival)).ToArray());
 
         var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));   // only the admin until the tool is shown
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(page, System.Text.RegularExpressions.Regex.Escape("value=\"" + RivalShown + "\"")));
-        Assert.Contains(">2 / 2<", page);   // completed of taken
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(page, System.Text.RegularExpressions.Regex.Escape(RivalShown)));
+        Assert.DoesNotContain("data-autosave", page);   // read-only, the admin's too
         Assert.Contains("Hauling: 2 To Ruin", page);   // the Hauling Planner's contract lines are there from the start
+        Assert.Contains("href=\"/admin/missions\"", page);   // where he changes it
+        Assert.DoesNotContain("2 / 2", page);   // zzoega's plays are not the admin's
 
         var player = await f.Player(f.AddKey("bileh123"));
+        var zzoega = await f.Player(f.AddKey("zzoega"));
         Assert.Equal(HttpStatusCode.Redirect, (await player.GetAsync("/missions")).StatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, (await f.Browser().GetAsync("/missions")).StatusCode);   // a visitor: the login
         await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "missions"), ("value", "true"));
+        var visitor = await f.Browser().GetStringAsync("/missions");   // shown: everybody, as the Hauling Planner's live page
+        Assert.Contains(RivalShown, WebUtility.HtmlDecode(visitor));
+        Assert.DoesNotContain("Played<br>by me", visitor);   // nobody's plays for a visitor
+        Assert.DoesNotContain("name=\"mine\"", visitor);
+        var his = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions"));
+        Assert.Contains("Played<br>by me", his);
+        Assert.Contains(">2 / 2<", his);   // completed of taken, his own
+        Assert.DoesNotContain("2 / 2", WebUtility.HtmlDecode(await player.GetStringAsync("/missions")));   // bileh123 never played it
 
-        var saved = await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "auec"), ("value", "25,000"), ("back", "/missions?show=todo"));
-        Assert.Equal("/missions?show=todo#" + MissionLibrary.Anchor(RivalKey), saved.Headers.Location?.OriginalString);
-        await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "council"), ("value", "12"));
-        await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "giver"), ("value", "Red Wind"));
-        await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "scu"), ("value", "1,536"));
-        await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "mg"), ("value", "lots"));   // not a number: not saved
-        var entry = f.Services.GetRequiredService<MissionLibrary>().Entries().Single(e => e.Row.Key == RivalKey);
-        Assert.Equal((25_000L, 12L, (long?)null, "Red Wind", "bileh123"), (entry.Row.Auec!.Value, entry.Row.CouncilScrip!.Value, entry.Row.MgScrip, entry.Row.Giver, entry.Row.EditedBy));
+        // a player cannot change it, the admin does on Edit Mission Info
+        var denied = await ServerFactory.Send(player, "/missions", "/admin/missions/set", ("id", RivalKey), ("field", "auec"), ("value", "1"));
+        Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, (await player.GetAsync("/admin/missions")).StatusCode);
+        var library = f.Services.GetRequiredService<MissionLibrary>();
+        Assert.Null(library.Entries().Single(e => e.Row.Key == RivalKey).Row.Auec);
+        var editPage = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/missions"));
+        Assert.Contains("Edit Mission Info", editPage);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(editPage, System.Text.RegularExpressions.Regex.Escape("value=\"" + RivalShown + "\"")));
+        Assert.Contains("action=\"/admin/missions/set\"", editPage);
+        var saved = await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", RivalKey), ("field", "auec"), ("value", "25,000"), ("back", "/admin/missions?rewards=todo"));
+        Assert.Equal("/admin/missions?rewards=todo#" + MissionLibrary.Anchor(RivalKey), saved.Headers.Location?.OriginalString);
+        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", RivalKey), ("field", "council"), ("value", "12"));
+        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", RivalKey), ("field", "giver"), ("value", "Red Wind"));
+        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", RivalKey), ("field", "scu"), ("value", "1,536"));
+        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", RivalKey), ("field", "mg"), ("value", "lots"));   // not a number: not saved
+        var entry = library.Entries().Single(e => e.Row.Key == RivalKey);
+        Assert.Equal((25_000L, 12L, (long?)null, "Red Wind", ServerFactory.AdminName), (entry.Row.Auec!.Value, entry.Row.CouncilScrip!.Value, entry.Row.MgScrip, entry.Row.Giver, entry.Row.EditedBy));
         Assert.Equal(1536L, entry.Row.Scu);   // its cargo
-        var withGiver = await player.GetStringAsync("/missions");
+        var withGiver = await admin.GetStringAsync("/admin/missions");
         Assert.Contains("Not saved", withGiver);
         Assert.Contains("<option value=\"Red Wind\"></option>", withGiver);   // to pick in the other Giver fields
         Assert.Contains("list=\"givers\"", withGiver);
         Assert.Contains("name=\"value\" value=\"1536\" placeholder=\"\" class=\"num scu\"", withGiver);   // in the SCU column
-        Assert.DoesNotContain(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?show=todo")));   // it has rewards now
+        Assert.DoesNotContain(RivalShown, WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/missions?rewards=todo")));   // it has rewards now
+
+        // everybody sees what he typed, as text, and chooses what to see
+        var seen = WebUtility.HtmlDecode(await player.GetStringAsync("/missions"));
+        Assert.Contains("<td>Red Wind</td>", seen);
+        Assert.Contains(">25,000<", seen);
+        Assert.Contains(">1,536<", seen);
+        Assert.Contains("<option value=\"Red Wind\" selected=\"selected\">Red Wind</option>", WebUtility.HtmlDecode(await player.GetStringAsync("/missions?giver=Red%20Wind")));
+        Assert.DoesNotContain("Hauling: 2 To Ruin", WebUtility.HtmlDecode(await player.GetStringAsync("/missions?giver=Red%20Wind")));   // another giver
+        Assert.DoesNotContain(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?rewards=todo")));
+        Assert.Contains(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?rewards=known")));
+        Assert.Contains(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?q=rival")));
+        Assert.Contains("Nothing here.", await player.GetStringAsync("/missions?mine=1"));   // bileh123 played nothing
+        Assert.Contains(RivalShown, WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions?mine=1")));
+        Assert.Contains("href=\"/missions?sort=auec&amp;dir=desc\"", seen);   // a header sorts by its column
+        Assert.Contains("href=\"/missions?sort=auec&amp;dir=asc\"", await player.GetStringAsync("/missions?sort=auec&dir=desc"));   // again: the other way round
+        Assert.DoesNotContain("Last<br>played", seen);
 
         // a field saved in the background (autosave.js): the answer says what happened, the page is not sent again
-        var page2 = await player.GetStringAsync("/missions");
+        var page2 = await admin.GetStringAsync("/admin/missions");
         Assert.Contains("data-autosave=\"quiet\"", page2);
         async Task<JsonElement> Quiet(string field, string value)
         {
-            using var req = new HttpRequestMessage(HttpMethod.Post, "/missions/set")
+            using var req = new HttpRequestMessage(HttpMethod.Post, "/admin/missions/set")
             {
                 Content = new FormUrlEncodedContent(new[] { KeyValuePair.Create("id", RivalKey), KeyValuePair.Create("field", field), KeyValuePair.Create("value", value),
                     KeyValuePair.Create("__RequestVerificationToken", ServerFactory.Token(page2)) }),
             };
-            req.Headers.Add(MissionsController.AutosaveHeader, "1");
-            var res = await player.SendAsync(req);
+            req.Headers.Add(EditMissionsController.AutosaveHeader, "1");
+            var res = await admin.SendAsync(req);
             Assert.Equal(HttpStatusCode.OK, res.StatusCode);
             return JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement;
         }
         var ok = await Quiet("mg", "7");
         Assert.Equal((true, "Saved."), (ok.GetProperty("ok").GetBoolean(), ok.GetProperty("said").GetString()));
-        Assert.Equal(7L, f.Services.GetRequiredService<MissionLibrary>().Entries().Single(e => e.Row.Key == RivalKey).Row.MgScrip);   // the list is made again
+        Assert.Equal(7L, library.Entries().Single(e => e.Row.Key == RivalKey).Row.MgScrip);   // the list is made again
+        Assert.False((await Quiet("mg", "lots")).GetProperty("ok").GetBoolean());
+    }
+
+rvice<MissionLibrary>().Entries().Single(e => e.Row.Key == RivalKey).Row.MgScrip);   // the list is made again
         Assert.False((await Quiet("mg", "lots")).GetProperty("ok").GetBoolean());
     }
 
     [Fact]
-    public async Task A_mission_just_taken_is_on_top_while_it_is_played_also_without_its_offer_and_the_list_has_pages()
+    public async Task A_mission_being_played_is_marked_for_its_player_also_without_its_offer_and_the_list_has_pages()
     {
         using var f = new ServerFactory();
         var admin = await f.Admin();
+        var zzoega = await f.Player(f.AddKey("zzoega"));
         var library = f.Services.GetRequiredService<MissionLibrary>();
         // 25 kinds played on 21 Oct, then a bounty taken a minute ago: the log never says which offer it is (most missions with comms do not), and one
         // shared with him by the other account (its offer never showed in this log)
@@ -104,22 +145,37 @@ public class MissionLibraryTests
         Assert.True(library.Version > before);
         Assert.Equal(library.Version, JsonDocument.Parse(await admin.GetStringAsync("/missions/version")).RootElement.GetProperty("version").GetInt32());
 
-        static int Rows(string html) => System.Text.RegularExpressions.Regex.Matches(html, "<tr id=").Count;
-        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));
-        Assert.Equal(MissionsController.PageSize, Rows(page));   // 20 to a page
-        var top = page[page.IndexOf("<tr id=", StringComparison.Ordinal)..];
-        top = top[..top.IndexOf("</tr>", StringComparison.Ordinal)];
-        Assert.Contains("value=\"Kill the Outlaw at Bloom\"", top);   // on top, being played
-        Assert.Contains("running", top);
-        Assert.Contains("Playing now", top);
+        // the rows of a page: the name of each and its html
+        static List<(string Name, string Html)> Rows(string html) => System.Text.RegularExpressions.Regex.Matches(html, "<tr id=.*?</tr>", System.Text.RegularExpressions.RegexOptions.Singleline)
+            .Select(m => (System.Text.RegularExpressions.Regex.Match(m.Value, "<td class=\"name\"[^>]*>([^<]+)").Groups[1].Value.Trim(), m.Value)).ToList();
+        var page = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions"));
+        var rows = Rows(page);
+        Assert.Equal(MissionsController.PageSize, rows.Count);   // 20 to a page, by name: the Hauling rows, then Kill..., Old Mission 1, 10, 11...
+        var names = rows.Select(r => r.Name).ToList();
+        Assert.Equal(names.OrderBy(n => n, StringComparer.OrdinalIgnoreCase), names);
+        Assert.True(names.IndexOf("Kill the Outlaw at Bloom") < names.IndexOf("Old Mission 1"));
+        var row = rows.Single(r => r.Name == "Kill the Outlaw at Bloom").Html;   // being played by him: marked
+        Assert.Contains(" running\"", row);   // its class
+        Assert.Contains("<span class=\"now\">playing now</span>", row);
+        Assert.Contains(">0 / 1<", row);
+        Assert.DoesNotContain("running", rows.Single(r => r.Name == "Old Mission 1").Html);
+        Assert.DoesNotContain("<span class=\"now\">", await admin.GetStringAsync("/missions"));   // not the admin's play
         Assert.DoesNotContain("Somebody Else", page);
         Assert.Contains("Page 1 of ", page);
         Assert.Contains("href=\"/missions?page=2\"", page);
+        Assert.Contains("Next »", page);
         Assert.Contains("missions.js", page);
+        Assert.Contains("data-version-url=\"/missions/version\"", page);
+        Assert.Contains("data-version-url=\"/admin/missions/version\"", await admin.GetStringAsync("/admin/missions"));
+        Assert.Equal(library.Version, JsonDocument.Parse(await admin.GetStringAsync("/admin/missions/version")).RootElement.GetProperty("version").GetInt32());
         var second = WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?page=2"));
         Assert.Contains("Page 2 of ", second);
-        Assert.InRange(Rows(second), 1, MissionsController.PageSize);
+        Assert.InRange(Rows(second).Count, 1, MissionsController.PageSize);
         Assert.Contains("Page 1 of ", WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?page=0")));   // out of range: the nearest one
+        // sorted by what he completed: the completed ones first, the one he is playing (0 completed) after them, and the kinds he never played last
+        var last = Rows(WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions?sort=played&dir=desc&page=2"))).Select(r => r.Name).ToList();
+        Assert.True(last.IndexOf("Kill the Outlaw at Bloom") < last.IndexOf("Hauling: 2 To Ruin"), string.Join(", ", last));
+        Assert.Contains("Nothing here.", await admin.GetStringAsync("/missions?mine=1"));   // the admin played nothing
     }
 
     [Fact]
@@ -207,14 +263,15 @@ public class MissionLibraryTests
         Assert.Equal((300_000L, 16L), (gauntlet.Rewards()[7].Auec, gauntlet.Rewards()[7].Scrip));
         Assert.Equal(GauntletRewards.Defaults[1].Auec, gauntlet.Rewards()[1].Auec);
         var key = GauntletService.LibraryKey(7);
-        await ServerFactory.Send(admin, "/missions", "/missions/set", ("id", key), ("field", "auec"), ("value", "310000"));
+        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", key), ("field", "auec"), ("value", "310000"));
         Assert.Equal(310_000, gauntlet.Rewards()[7].Auec);
         var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/gauntlet"));
         Assert.Contains("310,000", page);
-        Assert.Contains("/missions#" + MissionLibrary.Anchor(key), page);
+        Assert.Contains("/admin/missions#" + MissionLibrary.Anchor(key), page);
         Assert.Contains("the Gauntlet Tracker counts with it", await admin.GetStringAsync("/missions"));
+        Assert.Contains("the Gauntlet Tracker counts with it", await admin.GetStringAsync("/admin/missions"));
 
-        await ServerFactory.Send(admin, "/missions", "/missions/set", ("id", key), ("field", "auec"), ("value", ""));
+        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", key), ("field", "auec"), ("value", ""));
         Assert.Equal(0, gauntlet.Rewards()[7].Auec);   // emptied by somebody: not known, and the old value does not come back
     }
 }

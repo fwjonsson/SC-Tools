@@ -118,8 +118,15 @@ a.button { display:inline-block; font-weight:600; color:#fff; background:var(--h
 a.button:hover { filter:brightness(1.2); }
 ol.steps li { margin:6px 0; line-height:1.45; }
 tr.me td { font-weight:700; }   /* your own row on a leaderboard */
-/* the Mission Library: a row per kind of mission, its fields typed in place */
+/* the Mission Library: a row per kind of mission; on Edit Mission Info its fields typed in place, on the read-only library its texts */
 table.missions td { padding:3px 6px; }
+table.missions.view td { padding:5px 8px; }
+table.missions.view td.name { min-width:320px; }
+table.missions th a { color:inherit; text-decoration:none; display:inline-block; }   /* a header sorts by its column */
+table.missions th a:hover, table.missions th a.on { text-decoration:underline; }
+table.missions .now { color:var(--good); font-weight:600; font-size:12px; margin-left:8px; }   /* the viewer is playing it now */
+form.filters select { max-width:260px; }
+form.filters label.check { margin:0; }
 table.missions input.name { width:600px; }   /* the names are long: "Senior | Stellar Large Haul | to Ruin Station [50/200/... Rep]" */
 table.missions input.giver { width:260px; }
 table.missions th { line-height:1.15; }
@@ -189,8 +196,7 @@ input.saving { opacity:.6; }
 input.saved { border-color:var(--good); transition:border-color 2s ease-out; }
 input.unsaved { border-color:var(--bad); }
 .autosave-state { min-height:1.3em; margin:4px 0; }
-/* the Mission Library: a mission being played now (taken, not ended), and the pages */
+/* the Mission Library: a mission the viewer is playing now (taken, not ended), and the pages */
 table.missions tr.running td { background:color-mix(in srgb, var(--good) 10%, var(--cell)); }
-table.missions tr.running td:last-child { color:var(--good); font-weight:600; }
 .pager { display:flex; gap:18px; align-items:center; margin:10px 0; }
 
