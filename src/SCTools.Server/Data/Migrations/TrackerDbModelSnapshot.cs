@@ -1060,6 +1060,32 @@ namespace SCTools.Server.Data.Migrations
                     b.ToTable("TypedScu", (string)null);
                 });
 
+            modelBuilder.Entity("SCTools.Server.Data.WikiMissionRow", b =>
+                {
+                    b.Property<string>("Uuid")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AskedUtc")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DebugName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Found")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Orders")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Uuid");
+
+                    b.ToTable("WikiMissions", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
