@@ -91,7 +91,11 @@ public sealed class DropOffs
         return (m.OutCargo ?? "Cargo") + " for " + place;
     }
 
-    /// <summary>The drop-offs still to do: every drop-off objective of a from-Ruin mission that is running and not completed yet.</summary>
+    /// <summary>
+    /// The drop-offs still to do: every drop-off objective of a from-Ruin mission that is running and not completed yet. Its SCU: the game's popup (or what was
+    /// typed), else the Mission Library's for the mission's kind (typed in there, else the suggestion, else the Star Citizen Wiki's hauling orders; the
+    /// tracker's JobBook), split over the mission's drop-offs (Frank, 29 Oct 2026: a direct contract's SCU was in the library and the planner did not find it).
+    /// </summary>
     public List<DropBatch> OpenDrops()
     {
         var res = new List<DropBatch>();
@@ -101,10 +105,14 @@ public sealed class DropOffs
         {
             var seen = m.Accepted ?? m.FirstSeen;
             if (seen.HasValue && log.LastTime - seen.Value > TimeSpan.FromHours(12)) continue;   // an old one that never ended
-            foreach (var kv in m.ObjZone.Where(o => o.Key.StartsWith("dropoff_")))
+            var drops = m.ObjZone.Where(o => o.Key.StartsWith("dropoff_")).ToList();
+            var library = _s.Jobs.KindOf(m)?.ScuToUse ?? (_s.Jobs.WikiOf(m) is { Orders.Count: > 0 } wiki ? (long?)Math.Round(wiki.Total.Middle) : null);
+            var each = library is > 0 && drops.Count > 0 ? (int)(library.Value / drops.Count) : 0;
+            foreach (var kv in drops)
             {
                 if (m.Events.TryGetValue(kv.Key, out var ev) && ev.Any(e => e.State == "COMPLETED")) continue;
-                res.Add(new DropBatch { Mission = m, Objective = kv.Key, Zone = kv.Value, Station = _places.StationOf(kv.Value), Scu = m.ObjScu.GetValueOrDefault(kv.Key) });
+                var scu = m.ObjScu.GetValueOrDefault(kv.Key);
+                res.Add(new DropBatch { Mission = m, Objective = kv.Key, Zone = kv.Value, Station = _places.StationOf(kv.Value), Scu = scu > 0 ? scu : each });
             }
         }
         return res;

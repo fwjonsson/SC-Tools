@@ -78,6 +78,20 @@ public class DropOffsTests
     }
 
     [Fact]
+    public void A_drop_off_the_game_gave_no_SCU_of_has_the_librarys_for_its_kind()
+    {
+        var w = WasteLog().Minutes(1).Accepted(D)
+            .Marker(D, GameLogWriter.DirectContract, "pickup_d_0", "900000004204", GameLogWriter.RuinStation)
+            .Marker(D, GameLogWriter.DirectContract, "dropoff_d_0", "900000004203", GameLogWriter.Gaslight);   // no "Deliver 0/N SCU" popup
+        var t = new Tracker(new AppData { Party = new List<string> { "Pilot_A" } }, _ => { });
+        t.Load(new[] { w.Read() });
+        Assert.Equal(0, t.DropOffs.OpenDrops().Single(d => d.Mission.Id == D).Scu);   // nothing to go by
+        var key = SCTools.Missions.MissionKinds.TitleKey(t.State.Log!.Missions[D].Title)!;
+        t.State.Jobs = new JobBook(new Dictionary<string, long>(), new Dictionary<string, JobKind> { [key] = new JobKind(null, 400, "zzoega", null) }, () => Atlas.Default);
+        Assert.Equal(400, t.DropOffs.OpenDrops().Single(d => d.Mission.Id == D).Scu);   // the library's suggestion for the kind (one drop-off: all of it)
+    }
+
+    [Fact]
     public void A_direct_contract_is_a_drop_off_to_do_like_the_waste()
     {
         var t = WithDirect();
