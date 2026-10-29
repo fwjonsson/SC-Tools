@@ -37,6 +37,7 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
     public DbSet<LibraryRow> Library => Set<LibraryRow>();
     public DbSet<MissionKindRow> MissionKinds => Set<MissionKindRow>();
     public DbSet<HaulScuRow> HaulScu => Set<HaulScuRow>();
+    public DbSet<WikiMissionRow> WikiMissions => Set<WikiMissionRow>();
     public DbSet<FleetShipRow> FleetShips => Set<FleetShipRow>();
     public DbSet<ActiveShipRow> ActiveShips => Set<ActiveShipRow>();
     public DbSet<MapPlaceRow> MapPlaces => Set<MapPlaceRow>();
@@ -204,6 +205,12 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
         {
             e.ToTable("HaulScu");
             e.HasKey(x => x.MissionId);
+        });
+
+        b.Entity<WikiMissionRow>(e =>
+        {
+            e.ToTable("WikiMissions");
+            e.HasKey(x => x.Uuid);
         });
 
         b.Entity<FleetShipRow>(e =>

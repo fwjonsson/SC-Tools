@@ -43,6 +43,13 @@ public sealed class Mission
     /// <summary>What every objective says, from its popup ("New Objective: Go to Asteroid Cluster": objective id to "Go to Asteroid Cluster").</summary>
     public Dictionary<string, string> ObjText = new();
 
+    /// <summary>
+    /// The contract's own name and id as the objective markers say ("RedWind_Pyro_..._Multi4ToSingle", contractDefinitionId): the Star Citizen Wiki API's
+    /// debug_name and uuid of the mission (whatever names a string mod shows in the game).
+    /// </summary>
+    public string? Contract;
+    public string? Definition;
+
     /// <summary>The title of the contract, as the game shows it ("RSI Disc. Month: Ling Small Haul"), when the log has it.</summary>
     public string? Title;
 

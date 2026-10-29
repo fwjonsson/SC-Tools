@@ -97,3 +97,17 @@ public sealed class HaulScuRow
     public string By { get; set; } = "";
     public DateTime Utc { get; set; }
 }
+
+/// <summary>
+/// What the Star Citizen Wiki API said about a contract (WikiMissions): its uuid (the log's contractDefinitionId), whether the API knows it, when it was
+/// asked, its debug name, title and hauling orders ("100-150;100-150": the SCU of every order).
+/// </summary>
+public sealed class WikiMissionRow
+{
+    public string Uuid { get; set; } = "";
+    public bool Found { get; set; }
+    public DateTime AskedUtc { get; set; }
+    public string? DebugName { get; set; }
+    public string? Title { get; set; }
+    public string? Orders { get; set; }
+}

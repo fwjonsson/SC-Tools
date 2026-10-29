@@ -11,6 +11,7 @@
         ScuFrom.Hauler => N(j.HaulerScu ?? 0) + " SCU: typed in for this mission",
         ScuFrom.Library => j.LibraryScu != null ? N(j.LibraryScu.Value) + " SCU: the Mission Library"
             : N(j.Suggested ?? 0) + " SCU: suggested by " + (j.SuggestedBy ?? "somebody"),
+        ScuFrom.Wiki => j.ScuShown + ": the Star Citizen Wiki's hauling orders for the contract",
         _ => "Not known: type it in",
     };
 }

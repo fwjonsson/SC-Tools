@@ -39,7 +39,7 @@ public sealed class HaulJobsController : Controller
             var kind = t.State.Jobs.KindOf(j.Mission);
             return new HaulJobLine(j.Mission.Id, j.Title, string.Join(", ", j.Mission.Holders.OrderBy(h => h, StringComparer.OrdinalIgnoreCase)),
                 HaulJobs.StopsText(j.Pickups), HaulJobs.StopsText(j.Drops), j.ScuFrom, j.ScuFrom == ScuFrom.Game ? (long)Math.Round(j.Scu) : null,
-                t.State.Jobs.HaulerScu(j.Mission), kind?.Scu, kind?.Suggested, kind?.SuggestedBy);
+                t.State.Jobs.HaulerScu(j.Mission), kind?.Scu, kind?.Suggested, kind?.SuggestedBy, HaulJobs.ScuText(j));
         }).ToList());
         return View(new HaulJobsPage(jobs));
     }

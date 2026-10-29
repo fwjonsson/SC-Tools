@@ -58,8 +58,9 @@ sealed class GameLogWriter
     public GameLogWriter SharedAs(string mission, string title) =>
         Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Shared:  {title}: \" [9] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [] [Team_CoreGameplayFeatures][Missions][Comms]");
 
-    public GameLogWriter Marker(string mission, string contract, string objective, string zone, (double X, double Y, double Z) at) =>
-        Add($"{Ts} [Notice] <CLocalMissionPhaseMarker::CreateMarker> Creating objective marker: missionId [{mission}], generator name [RedWind_Hauling], contract [{contract}], contractDefinitionId[d8c129e3-b995-4a44-82ea-c21694da0260], objectiveId [{objective}], markerEntityId [1474], zoneHostId [{zone}], position [x: {F(at.X)}, y: {F(at.Y)}, z: {F(at.Z)}] [Team_MissionFeatures][Missions]");
+    public GameLogWriter Marker(string mission, string contract, string objective, string zone, (double X, double Y, double Z) at,
+        string definition = "d8c129e3-b995-4a44-82ea-c21694da0260") =>
+        Add($"{Ts} [Notice] <CLocalMissionPhaseMarker::CreateMarker> Creating objective marker: missionId [{mission}], generator name [RedWind_Hauling], contract [{contract}], contractDefinitionId[{definition}], objectiveId [{objective}], markerEntityId [1474], zoneHostId [{zone}], position [x: {F(at.X)}, y: {F(at.Y)}, z: {F(at.Z)}] [Team_MissionFeatures][Missions]");
 
     /// <summary>The marker of an objective the game gives no position (a bounty's: 0, 0, 0), with the marker's entity id.</summary>
     public GameLogWriter MissionMarker(string mission, string contract, string objective, string marker) =>

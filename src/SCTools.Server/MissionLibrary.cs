@@ -83,7 +83,7 @@ public sealed class MissionLibrary
             var kinds = db.MissionKinds.AsNoTracking().ToList()
                 .ToDictionary(k => k.Key, k => new JobKind(k.Scu, k.ScuSuggested, k.ScuSuggestedBy, k.Auec), StringComparer.OrdinalIgnoreCase);
             var places = _places;
-            _live.Tracker.State.Jobs = new JobBook(missions, kinds, () => places?.Current ?? Atlas.Default);
+            _live.Tracker.State.Jobs = new JobBook(missions, kinds, () => places?.Current ?? Atlas.Default, WikiMissions.Known(db));
         }
     }
 
@@ -472,16 +472,21 @@ public sealed class MissionLibrary
 
 /// <summary>
 /// Reads the old logs into the Mission Library once when the server starts (when it has none of them yet) and gives the tracker the library's SCU; then
-/// every minute the SCU the game said for a hauling job becomes the library's suggestion for its kind.
+/// every minute the SCU the game said for a hauling job becomes the library's suggestion for its kind, and the Star Citizen Wiki API is asked about the
+/// contracts of the logs it was not asked about yet (WikiMissions).
 /// </summary>
 public sealed class MissionLibraryService : BackgroundService
 {
     readonly MissionLibrary _library;
+    readonly WikiMissions _wiki;
+    readonly LiveTracker _live;
     readonly ILogger<MissionLibraryService> _log;
 
-    public MissionLibraryService(MissionLibrary library, ILogger<MissionLibraryService> log)
+    public MissionLibraryService(MissionLibrary library, WikiMissions wiki, LiveTracker live, ILogger<MissionLibraryService> log)
     {
         _library = library;
+        _wiki = wiki;
+        _live = live;
         _log = log;
     }
 
@@ -504,6 +509,10 @@ public sealed class MissionLibraryService : BackgroundService
             {
                 await Task.Delay(TimeSpan.FromMinutes(1), stop);
                 _library.SuggestFromGame(DateTime.UtcNow);
+                // the contracts of the logs the Wiki API was not asked about yet (the newest first): their hauling orders
+                var contracts = _live.Read(t => t.State.Log?.Missions.Values.Where(m => m.Definition != null)
+                    .OrderByDescending(m => m.Accepted ?? m.FirstSeen ?? DateTime.MinValue).Select(m => m.Definition!).Distinct().ToList()) ?? new List<string>();
+                if (await _wiki.Learn(contracts, DateTime.UtcNow, stop) > 0) _library.PushBook();
             }
             catch (OperationCanceledException) { break; }
             catch (Exception ex)
