@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <!-- The web app (plan: claude/webapp-plan.md in the project): the trackers upload their Game.log lines here, the server works out the sessions with the core
-       (the same logic as the program), and everybody watches the live page. The data is in a SQLite database (EF Core, Data/); the admin and the players log in
+       (the same logic as the program), and everybody watches the Hauling Planner's page. The data is in a SQLite database (EF Core, Data/); the admin and the players log in
        with ASP.NET Core Identity (Accounts/), and the pages are MVC (Controllers/, Models/, Views/). -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -27,7 +27,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../SCTools.Core/SCTools.Core.csproj" />
-    <ProjectReference Include="../SCTools.Web/SCTools.Web.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,96 @@
+/* The Hauling Planner page (Views/Hauling/Index.cshtml, hauling.js): an ordinary page of the site since 29 Oct 2026 (Frank), with the site's look (site.css: the
+   colours, the fonts, the bar) and these rules for its own tables and tabs. Everything is under .hauling, so nothing here reaches the other pages. */
+.hauling h1 { font-size:20px; margin:10px 0 2px; }
+.hauling h2 { font-size:16px; margin:22px 0 6px; }
+.hauling h3 { font-size:14px; margin:14px 0 4px; }
+.hauling table { max-width:none; }   /* the site caps its tables; these take the width they are given */
+.hauling .bar { display:flex; gap:14px; align-items:baseline; flex-wrap:wrap; margin-bottom:6px; opacity:.85; }
+.hauling .live { font-weight:600; }
+.hauling .ok { color:#5fd35f; } .hauling .bad { color:#ff6b6b; }
+.hauling .top { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+.hauling .top > .main { min-width:0; flex:1 1 560px; }   /* the tabs and the stops take the width ... */
+.hauling .top > .side { flex:0 0 560px; max-width:100%; }   /* ... the Party table beside the title, level with it, and the session under it */
+.hauling .side h2 { margin-top:18px; }
+.hauling #viewC .scroll { max-width:960px; }   /* the Contracts tab: room for the contracts' names ("Senior | Stellar Large Haul | to Ruin Station [...]") */
+.hauling .scroll { overflow-x:auto; }
+.hauling .bal table { table-layout:fixed; }
+.hauling .bal th:nth-child(1) { width:24%; }
+.hauling .bal th:nth-child(2) { width:18%; }
+.hauling table { border-collapse:collapse; width:100%; }
+.hauling th, .hauling td { border:1px solid var(--line); padding:4px 8px; white-space:nowrap; }
+/* every title on one line (a column is at least as wide as its title); only the leaderboard on a narrow window may take two (.tight, see alignColumns) */
+.hauling th { background:var(--header); color:#fff; font-weight:600; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hauling table.tight th { white-space:normal; }
+.hauling .kv td:first-child { font-weight:600; width:50%; }
+/* party, contracts (its own tab) and session: set widths (the contracts' first two columns and the session's two are halves) */
+.hauling #party table, .hauling #rewards table, .hauling #summary table { table-layout:fixed; }
+.hauling #rewards th:nth-child(1) { width:44%; } .hauling #rewards th:nth-child(2) { width:16%; }   /* Contract: the room; its name wraps when there is still not enough */
+.hauling #rewards td:nth-child(1) { white-space:normal; }
+/* the Party table: Member, Ship (the room: "Crusader C2 Hercules Starlifter"), QT Drive; a ship name that is still too long wraps instead of running into the drive */
+.hauling #party th:nth-child(1) { width:24%; } .hauling #party th:nth-child(2) { width:46%; } .hauling #party th:nth-child(3) { width:30%; }
+.hauling #party td:nth-child(2) { white-space:normal; }
+.hauling #rewards th:nth-child(3) { width:11%; } .hauling #rewards th:nth-child(4) { width:13%; } .hauling #rewards th:nth-child(5) { width:16%; }
+.hauling #runs td:nth-child(3) { white-space:normal; }   /* Pickup Location & Time of Cargo runs: a long run wraps instead of running over the next columns */
+.hauling #pickups td:nth-child(6) { white-space:normal; }   /* Drop-off of Stops: it wraps on a narrower window */
+.hauling .empty { opacity:.6; padding:6px 0; }
+.hauling #jobs td:nth-child(1), .hauling #jobs td:nth-child(3), .hauling #jobs td:nth-child(4) { white-space:normal; }   /* Other hauling: the mission and its stops wrap */
+.hauling .note { opacity:.75; font-size:12px; margin:4px 0 0; }
+/* the SCU field of the Other hauling board (a hauler logged in): saved in the background, green when it was, red when not (why: on the mouse) */
+.hauling .scuin { width:6em; text-align:right; background:var(--cell); color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:2px 5px; font:inherit; }
+.hauling .scuin.saving { opacity:.6; } .hauling .scuin.saved { border-color:#5fd35f; } .hauling .scuin.unsaved { border-color:#ff6b6b; }
+.hauling .src { opacity:.7; font-size:12px; margin-left:6px; white-space:nowrap; }
+.hauling .note a { color:inherit; }
+.hauling .nav, .hauling .sub { display:flex; gap:8px; margin:8px 0 4px; flex-wrap:wrap; }
+.hauling .nav button, .hauling .sub button { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 16px; font:inherit; font-weight:600; cursor:pointer; border-radius:4px; }
+.hauling .nav button.on, .hauling .sub button.on { background:var(--header); color:#fff; }
+.hauling .nav select { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 10px; font:inherit; font-weight:600; border-radius:4px; margin-left:auto; }   /* the admin: whose session */
+.hauling .hidden { display:none; }
+.hauling .plantables { flex:1 1 520px; min-width:0; }
+.hauling .plantables h2:first-child { margin-top:0; }
+.hauling .plantables table { table-layout:fixed; }
+/* Current Route: #, Stops, Drop/Collect, Cargo (takes the rest), Value, Distance, In flight */
+.hauling .plancur th:nth-child(1) { width:36px; } .hauling .plancur th:nth-child(2) { width:120px; } .hauling .plancur th:nth-child(3) { width:200px; } .hauling .plancur th:nth-child(5) { width:80px; }
+.hauling .plancur th:nth-child(6) { width:80px; } .hauling .plancur th:nth-child(7) { width:70px; }
+.hauling .plancur td:nth-child(3), .hauling .plancur td:nth-child(4) { white-space:normal; }
+/* Queued routes: #, Route (takes the rest), Stops (how many), Batches, Value, Distance, In flight */
+.hauling .planque th:nth-child(1) { width:36px; } .hauling .planque th:nth-child(3) { width:64px; } .hauling .planque th:nth-child(4) { width:84px; } .hauling .planque th:nth-child(5) { width:80px; }
+.hauling .planque th:nth-child(6) { width:80px; } .hauling .planque th:nth-child(7) { width:70px; }
+.hauling .planque td:nth-child(2) { white-space:normal; }
+/* every worker in his own frame: the Current Route, and the Queued routes under it */
+.hauling .planworker { background:var(--cell); border:1px solid var(--line); padding:4px 10px 10px; margin-bottom:12px; }
+.hauling .planworker h2 { margin-top:6px; }
+.hauling .planpair { display:flex; flex-direction:column; gap:4px; }
+.hauling .plancur, .hauling .planque { min-width:0; }
+.hauling .plancur table, .hauling .planque table { min-width:640px; }
+.hauling .planpair h3 { margin:6px 0 4px; }
+.hauling .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
+.hauling .planleft { flex:0 0 520px; max-width:100%; }
+.hauling .planleft h2 { margin-top:14px; }
+/* a tablet or a smaller window: a smaller map, so the tables of the workers keep all their columns in view */
+@media (max-width:1600px) {
+  .hauling .planleft { flex:0 0 340px; }
+  .hauling .plancur table, .hauling .planque table { min-width:0; }
+  .hauling .plancur th:nth-child(2) { width:96px; } .hauling .plancur th:nth-child(3) { width:150px; } .hauling .plancur th:nth-child(5) { width:84px; }
+  .hauling .plancur th:nth-child(6), .hauling .planque th:nth-child(6) { width:72px; } .hauling .plancur th:nth-child(7), .hauling .planque th:nth-child(7) { width:62px; }
+  .hauling .planque th:nth-child(3) { width:52px; } .hauling .planque th:nth-child(4) { width:66px; } .hauling .planque th:nth-child(5) { width:84px; }
+  .hauling .plantables th, .hauling .plantables td { padding:4px 5px; }
+}
+/* a phone, or a tablet held upright: the map on top, the tables under it, full width */
+@media (max-width:900px) {
+  .hauling .planleft { flex:1 1 100%; }
+}
+.hauling .mapbox { background:var(--cell); border:1px solid var(--line); }
+/* the map of the Trip Planner: the legend (who flies which route) above the Map tool's Pyro, and under every worker's name the map's line for him with his speed meter */
+.hauling .maplegend { display:flex; flex-wrap:wrap; gap:2px 14px; padding:6px 8px 4px; font-size:11px; }
+.hauling .maplegend span { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
+.hauling .mapsvg svg { display:block; }
+.hauling .mapmeter { margin:-2px 0 6px; }
+.hauling .mapmeter .what { opacity:.75; font-size:13px; }
+.hauling .speed { margin-top:4px; max-width:520px; }
+.hauling .speed .bar { height:8px; background:rgba(128,128,128,.2); border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+.hauling .speed .bar span { display:block; height:100%; background:linear-gradient(90deg, #2f7dd1, #7fd3ff); }
+.hauling .speed .num { font-variant-numeric:tabular-nums; font-size:20px; font-weight:700; }
+.hauling .speed .unit { opacity:.75; font-size:12px; margin-left:4px; }
+.hauling .status { padding:4px 10px 8px; font-size:14px; font-style:italic; opacity:.7; min-height:1.3em; }
+.hauling .status.fade { animation:statusfade .6s ease-out; }
+@keyframes statusfade { from { opacity:0; } to { opacity:.7; } }

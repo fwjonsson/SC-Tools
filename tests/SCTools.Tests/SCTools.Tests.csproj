@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The tests of the core, the web view and the server's database. They run on any machine: dotnet test (GitHub runs them on every change). -->
+  <!-- The tests of the core, the server's pages and its database. They run on any machine: dotnet test (GitHub runs them on every change). -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -19,7 +19,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/SCTools.Core/SCTools.Core.csproj" />
-    <ProjectReference Include="../../src/SCTools.Web/SCTools.Web.csproj" />
     <ProjectReference Include="../../src/SCTools.Server/SCTools.Server.csproj" />
   </ItemGroup>
 

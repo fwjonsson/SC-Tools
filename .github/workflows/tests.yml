@@ -10,7 +10,6 @@ on:
       - main
     paths:
       - 'src/SCTools.Core/**'
-      - 'src/SCTools.Web/**'
       - 'src/SCTools.Server/**'
       - 'tests/**'
       - 'tools/PlanTest/**'
