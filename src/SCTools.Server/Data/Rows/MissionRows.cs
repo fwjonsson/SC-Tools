@@ -43,8 +43,13 @@ public sealed class MissionKindRow
     public long? MgScrip { get; set; }
     public long? CouncilScrip { get; set; }
 
-    /// <summary>The cargo of the mission in SCU, typed in (null: not known).</summary>
+    /// <summary>The cargo of the mission in SCU, typed in (null: not known). It wins over the suggestion.</summary>
     public long? Scu { get; set; }
+
+    /// <summary>The SCU suggested last for a mission of this kind: what a hauler typed in for one (Hauling jobs), or what the game said for one; by whom, when.</summary>
+    public long? ScuSuggested { get; set; }
+    public string? ScuSuggestedBy { get; set; }
+    public DateTime? ScuSuggestedUtc { get; set; }
 
     public string? Notes { get; set; }
 
@@ -82,4 +87,13 @@ public sealed class LibraryRow
     public long? WikiRewardMin { get; set; }
     public long? WikiRewardMax { get; set; }
     public string? WikiCurrency { get; set; }
+}
+
+/// <summary>The SCU a hauler typed in for one mission (Hauling jobs): only that mission has it; the game's SCU, when it comes, wins.</summary>
+public sealed class HaulScuRow
+{
+    public string MissionId { get; set; } = "";
+    public long Scu { get; set; }
+    public string By { get; set; } = "";
+    public DateTime Utc { get; set; }
 }

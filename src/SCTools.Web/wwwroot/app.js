@@ -443,6 +443,16 @@ function render() {
   table(document.getElementById('pickups'), v.pickups);
   document.getElementById('finishedBox').classList.toggle('hidden', !v.finished || !v.finished.rows || v.finished.rows.length === 0);
   table(document.getElementById('finished'), v.finished);
+  // the hauling jobs of every system (not the planner's own contracts), and where a hauler sets the SCU the game did not say
+  const jobs = v.jobs || d.jobs;
+  document.getElementById('jobsBox').classList.toggle('hidden', !jobs || !jobs.rows || jobs.rows.length === 0);
+  table(document.getElementById('jobs'), jobs);
+  const note = document.getElementById('jobsNote');
+  note.textContent = '';
+  if (d.jobsPage && jobs && jobs.rows && jobs.rows.length) {
+    note.appendChild(document.createTextNode('SCU: what the game said, else a hauler\'s number for the mission, else the Mission Library\'s, split evenly over the stops (~). '));
+    const a = document.createElement('a'); a.href = d.jobsPage; a.textContent = 'Set the SCU of a mission'; note.appendChild(a);
+  }
   table(document.getElementById('rewards'), v.rewards);
   summary(document.getElementById('summary'), v.summary || []);
   table(document.getElementById('party'), d.party);

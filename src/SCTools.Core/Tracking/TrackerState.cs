@@ -29,6 +29,9 @@ public sealed class TrackerState
     /// <summary>On the server: who is playing and with whom, as the logs said last (see AutoParty). Null where the logs do not decide (the program).</summary>
     public AutoParty.Result? Parties { get; set; }
 
+    /// <summary>What the site knows about the hauling jobs besides the logs (a hauler's SCU, the Mission Library, the map's places); the program has none.</summary>
+    public JobBook Jobs { get; set; } = JobBook.Empty;
+
     /// <summary>While the session is worked out for one party only (Tracker.Focus): the missions that are theirs. Null: everybody's.</summary>
     public Func<Mission, bool>? Focus { get; set; }
 

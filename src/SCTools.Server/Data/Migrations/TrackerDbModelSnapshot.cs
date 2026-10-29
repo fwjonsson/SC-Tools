@@ -337,6 +337,27 @@ namespace SCTools.Server.Data.Migrations
                     b.ToTable("GauntletSettings", (string)null);
                 });
 
+            modelBuilder.Entity("SCTools.Server.Data.HaulScuRow", b =>
+                {
+                    b.Property<string>("MissionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("By")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Scu")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Utc")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("MissionId");
+
+                    b.ToTable("HaulScu", (string)null);
+                });
+
             modelBuilder.Entity("SCTools.Server.Data.LibraryRow", b =>
                 {
                     b.Property<string>("ContractId")
@@ -616,6 +637,15 @@ namespace SCTools.Server.Data.Migrations
 
                     b.Property<long?>("Scu")
                         .HasColumnType("INTEGER");
+
+                    b.Property<long?>("ScuSuggested")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ScuSuggestedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ScuSuggestedUtc")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
                         .IsRequired()

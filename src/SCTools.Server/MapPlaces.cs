@@ -46,7 +46,7 @@ public sealed class MapPlaces
     readonly object _lock = new();
     List<MapPlaceRow>? _places;
     List<MapAliasRow>? _aliases;
-    Atlas? _atlas;
+    volatile Atlas? _atlas;
 
     public MapPlaces(DataStore store, LogUploads uploads)
     {
@@ -73,6 +73,9 @@ public sealed class MapPlaces
             .Concat(_places!.Where(r => r.Added).Select(ToPlace));
         _atlas = new Atlas(places, _aliases!.Select(a => new PlaceAlias(a.Text, a.PlaceKey)));
     }
+
+    /// <summary>The places as the site has them now, without waiting for them to be read (null before the first time): for the tracker, which must not wait here.</summary>
+    public Atlas? Current => _atlas;
 
     /// <summary>The places as the site has them now.</summary>
     public Atlas Atlas

@@ -1,0 +1,62 @@
+@model HaulJobsPage
+@using System.Globalization
+@using SCTools.Tracking
+@{
+    var inv = CultureInfo.InvariantCulture;
+    string N(long v) => v.ToString("N0", inv);
+    // what the mission's SCU is now, and where it comes from
+    string Now(HaulJobLine j) => j.From switch
+    {
+        ScuFrom.Game => N(j.GameScu ?? 0) + " SCU: the game said",
+        ScuFrom.Hauler => N(j.HaulerScu ?? 0) + " SCU: typed in for this mission",
+        ScuFrom.Library => j.LibraryScu != null ? N(j.LibraryScu.Value) + " SCU: the Mission Library"
+            : N(j.Suggested ?? 0) + " SCU: suggested by " + (j.SuggestedBy ?? "somebody"),
+        _ => "Not known: type it in",
+    };
+}
+<h1>Hauling jobs</h1>
+<p class="muted">The hauling missions of every system the party has going (not the Hauling Planner's own contracts: 2–4 To Ruin and From Ruin), as on the
+  Hauling Planner's Other hauling board. Its SCU is what the game said for the mission; when the game did not say, type in what it is: the mission has it
+  (only this one), and the Mission Library gets it as the suggestion for this kind of mission. Without either, the mission has the library's SCU. It is
+  split evenly over the stops. Saved as soon as you leave the field.</p>
+<p class="hint autosave-state" id="autosaveState" aria-live="polite"></p>
+
+@if (Model.Jobs.Count == 0)
+{
+  <p class="card">No hauling jobs going on: they come from the trackers as soon as somebody of the party takes one.</p>
+}
+else
+{
+  <div class="scroll">
+  <table class="wide jobs">
+    <thead><tr><th>Mission</th><th>Who</th><th>Pick up</th><th>Deliver to</th><th class="right">SCU of the mission</th><th>Now</th></tr></thead>
+    <tbody>
+    @foreach (var j in Model.Jobs)
+    {
+      <tr>
+        <td>@j.Title</td>
+        <td>@j.Who</td>
+        <td>@j.Pickups</td>
+        <td>@j.Drops</td>
+        <td class="right">
+          @if (j.From == ScuFrom.Game)
+          {
+            <span>@N(j.GameScu ?? 0)</span>
+          }
+          else
+          {
+            <form method="post" action="/hauling/jobs/scu" asp-antiforgery="true" data-autosave="quiet">
+              <input type="hidden" name="id" value="@j.MissionId"><input type="hidden" name="title" value="@j.Title">
+              <input name="value" value="@(j.HaulerScu?.ToString(inv))" placeholder="@((j.LibraryScu ?? j.Suggested)?.ToString(inv))" class="num scu" aria-label="SCU of @j.Title" autocomplete="off">
+            </form>
+          }
+        </td>
+        <td class="small">@Now(j)</td>
+      </tr>
+    }
+    </tbody>
+  </table>
+  </div>
+}
+<p class="hint"><a href="/hauling">Hauling Planner</a> · <a href="/missions">Mission Library</a> (the SCU typed in there for a kind of mission wins over the suggestion)</p>
+<script src="~/autosave.js" asp-append-version="true" defer></script>

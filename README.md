@@ -318,7 +318,8 @@ admin (done), then going live.
   the players took, by itself: the missions of the live logs and of the old logs are kept for good (`Missions`), grouped by their name as the game shows
   it (`MissionKinds`; the game's ContractId is one per offer, so the same mission at another place has another one). The contracts the Hauling Planner
   reads are grouped by its contract line instead (Hauling: 2 To Ruin ... Direct From Ruin), which is what they pay by. A logged in player types in what
-  the log does not say: the aUEC, MG scrip and Council scrip it pays, its cargo in SCU, another name, the giver (to type, or to pick from every giver typed in so far:
+  the log does not say: the aUEC, MG scrip and Council scrip it pays, its cargo in SCU (it wins over the suggestion in grey: the last SCU a hauler
+  typed in for one of these missions on Hauling jobs, or what the game said for one; the Other hauling board uses it), another name, the giver (to type, or to pick from every giver typed in so far:
   a datalist, a new one is in it as soon as it is saved; each field saved as soon as it changes, in the
   background; the Notes column is gone, what was typed in it stays in the database). 20 kinds to a page, the ones played last first; the page keeps
   itself up to date (`missions.js` asks `/missions/version` every few seconds and gets the list again when it changed, not while you type in it), so
@@ -359,6 +360,22 @@ admin (done), then going live.
   contracts, session, leaderboard and runs of that party only (the missions its players have by their own logs, and their runs; `Tracker.Focus`). The
   viewer's own party comes first (the page knows who is logged in), and the one picked last is remembered in the browser. The Trip Planner can show
   Everyone, one party in the game, or Only me (the plan is the same; only whose routes are drawn and listed changes).
+- **Hauling of every system** (`Tracking/HaulJobs`, `JobBook` in the core; `HaulJobsController`). Besides its own contracts, the Session tab has an
+  **Other hauling** board: every mission with drop-offs (`dropoff_…` objectives) that a member of the party has going, taken in the last 12 hours
+  of the logs and not ended (with a party picked, only theirs): *RSI Disc. Month: Ling Small Haul*, courier runs, the cargo of a salvage order.
+  - **Stops:** one per objective group (`pickup_<guid>_0.._2` is one stop with three commodities), ✓ when every objective of it is completed.
+  - **Names:** from the objectives' texts ("Deliver 0/4 SCU of Distilled Spirits to Port Tressler", "Collect … From Shallow Fields Station at
+    Crusader's L4 Lagrange point" is CRU-L4, "… on microTech", the spaceports: NB Int. is New Babbage, Teasa Lorville, Riker Memorial Area18, August
+    Dunlow Orison; the admin's Map places aliases first). A pickup the game does not name (most "A to B" hauls) is named by its zone when another
+    objective named a place in the same zone: exactly when a marker is right in the zone's middle (the place's own zone), else only "near ArcCorp"
+    (the zone is the planet's: Baijini Point and Area18 share ArcCorp's).
+  - **SCU, the first that has it:** what the game's "Deliver" popups add up to; the SCU a hauler typed in for that mission on **Hauling jobs**
+    (`/hauling/jobs`, players and the admin; only that mission has it); the Mission Library's for its kind (typed in there, else the suggestion: the
+    last SCU a hauler typed in for one of them, or what the game said for one, every minute, `MissionLibrary.SuggestFromGame`). It is split evenly
+    over the pickups and over the drop-offs the game did not give the SCU of (~ on the board), like the planner's own contracts.
+  - **Value:** the Mission Library's aUEC for the kind.
+  - The server gives the tracker what it knows besides the logs as a `JobBook` (the haulers' SCU, the library's kinds, the map's places), made new
+    whenever the library changes, so the tracker never waits for the library.
 - **Parties never owe each other.** Who carried a mission and who shared its payout are one party (`SessionInputs.Groups`, worked out with the payouts),
   so two parties that hauled in the same session are two groups, and the Debts tab works out who owes whom inside each of them only (`DebtCalc.Pairs`). A
   session from before has no groups and stays as it was.

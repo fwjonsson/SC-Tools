@@ -39,6 +39,7 @@ public sealed class MissionLibrary
     readonly LogUploads _uploads;
     readonly ServerPaths _paths;
     readonly LiveTracker _live;
+    readonly MapPlaces? _places;
     readonly object _lock = new();
     Dictionary<(string, string), MissionSeen>? _known;   // what is in the database, so an unchanged mission is not written again
     List<LibraryEntry>? _entries;   // the page's list, until a mission or a kind changes (made from every mission in the database)
@@ -53,17 +54,103 @@ public sealed class MissionLibrary
     {
         _entries = null;
         Version++;
+        PushBook();
     }
     bool _ready;
     bool _readHistoryAgain;
 
-    public MissionLibrary(DataStore store, LogUploads uploads, ServerPaths paths, LiveTracker live)
+    public MissionLibrary(DataStore store, LogUploads uploads, ServerPaths paths, LiveTracker live, MapPlaces? places = null)
     {
         _store = store;
         _uploads = uploads;
         _paths = paths;
         _live = live;
+        _places = places;
     }
+
+    // ------------------------------------------------------------------ the SCU of the hauling jobs (see HaulJobs)
+
+    /// <summary>
+    /// Gives the tracker what the site knows about the hauling jobs (a JobBook: the haulers' SCU of single missions, the kinds' SCU and aUEC, the map's
+    /// places), made new from the database: when the library changed, and when the server starts.
+    /// </summary>
+    public void PushBook()
+    {
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            var missions = db.HaulScu.AsNoTracking().ToDictionary(r => r.MissionId.ToLowerInvariant(), r => r.Scu, StringComparer.Ordinal);
+            var kinds = db.MissionKinds.AsNoTracking().ToList()
+                .ToDictionary(k => k.Key, k => new JobKind(k.Scu, k.ScuSuggested, k.ScuSuggestedBy, k.Auec), StringComparer.OrdinalIgnoreCase);
+            var places = _places;
+            _live.Tracker.State.Jobs = new JobBook(missions, kinds, () => places?.Current ?? Atlas.Default);
+        }
+    }
+
+    /// <summary>The SCU a hauler set for a mission as a sentence for the page, or null when it is not a whole number.</summary>
+    public string? SetMissionScu(string missionId, string? title, string? value, string who, DateTime nowUtc)
+    {
+        value = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        long? scu = null;
+        if (value != null)
+        {
+            if (!long.TryParse(value.Replace(" ", "").Replace(",", "").Replace(".", ""), out var n) || n <= 0) return null;
+            scu = n;
+        }
+        if (string.IsNullOrWhiteSpace(missionId)) return null;
+        var id = missionId.Trim().ToLowerInvariant();
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            Prepare(db);
+            var row = db.HaulScu.Find(id);
+            if (scu == null)
+            {
+                if (row != null) db.HaulScu.Remove(row);
+            }
+            else
+            {
+                if (row == null) db.HaulScu.Add(row = new HaulScuRow { MissionId = id });
+                (row.Scu, row.By, row.Utc) = (scu.Value, who, nowUtc);
+                Suggest(db, title, scu.Value, who, nowUtc);   // his number helps the next one: the library's suggestion for the kind
+            }
+            db.SaveChanges();
+            Changed();
+        }
+        return scu == null ? "Saved: the mission has the game's or the library's SCU again." : "Saved: " + scu.Value.ToString("N0") + " SCU for this mission, and suggested in the Mission Library.";
+    }
+
+    /// <summary>The SCU suggested last for the kind of a mission with this title (made when it is not there yet). True when it changed.</summary>
+    static bool Suggest(TrackerDb db, string? title, long scu, string by, DateTime nowUtc)
+    {
+        if (MissionKinds.TitleKey(title) is not { } key) return false;
+        var kind = db.MissionKinds.Find(key);
+        if (kind == null) db.MissionKinds.Add(kind = new MissionKindRow { Key = key, Title = MissionKinds.KindTitle(title)! });
+        if (kind.ScuSuggested == scu && kind.ScuSuggestedBy == by) return false;
+        (kind.ScuSuggested, kind.ScuSuggestedBy, kind.ScuSuggestedUtc) = (scu, by, nowUtc);
+        return true;
+    }
+
+    /// <summary>What the game said the SCU of the hauling jobs going on is: the library's suggestion for their kinds (the latest one). Returns how many changed.</summary>
+    public int SuggestFromGame(DateTime nowUtc)
+    {
+        var said = _live.Read(t => HaulJobs.Open(t.State).Where(j => j.ScuFrom == ScuFrom.Game && j.Mission.Title != null)
+            .Select(j => (Title: j.Mission.Title!, Scu: (long)Math.Round(j.Scu))).ToList());
+        if (said.Count == 0) return 0;
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            Prepare(db);
+            var changed = said.Count(s => Suggest(db, s.Title, s.Scu, GameSaid, nowUtc));
+            if (changed == 0) return 0;
+            db.SaveChanges();
+            Changed();
+            return changed;
+        }
+    }
+
+    /// <summary>Who suggested an SCU the game said.</summary>
+    public const string GameSaid = "the game";
 
     /// <summary>The id of a kind's row on the page (a key has spaces, # and the like).</summary>
     public static string Anchor(string key) => "m-" + Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(key)))[..12].ToLowerInvariant();
@@ -140,6 +227,7 @@ public sealed class MissionLibrary
                 to.CouncilScrip ??= was.CouncilScrip;
                 to.Giver ??= was.Giver;
                 to.Scu ??= was.Scu;
+                if (to.ScuSuggested == null) (to.ScuSuggested, to.ScuSuggestedBy, to.ScuSuggestedUtc) = (was.ScuSuggested, was.ScuSuggestedBy, was.ScuSuggestedUtc);
                 to.Notes ??= was.Notes;
                 if (was.EditedUtc != null && (to.EditedUtc == null || was.EditedUtc > to.EditedUtc)) (to.EditedBy, to.EditedUtc) = (was.EditedBy, was.EditedUtc);
             }
@@ -382,7 +470,10 @@ public sealed class MissionLibrary
     }
 }
 
-/// <summary>Reads the old logs into the Mission Library once when the server starts (when it has none of them yet).</summary>
+/// <summary>
+/// Reads the old logs into the Mission Library once when the server starts (when it has none of them yet) and gives the tracker the library's SCU; then
+/// every minute the SCU the game said for a hauling job becomes the library's suggestion for its kind.
+/// </summary>
 public sealed class MissionLibraryService : BackgroundService
 {
     readonly MissionLibrary _library;
@@ -400,10 +491,25 @@ public sealed class MissionLibraryService : BackgroundService
         {
             var read = await Task.Run(_library.ReadKeptHistory, stop);
             if (read > 0) _log.LogInformation("The Mission Library read {Count} old logs", read);
+            _library.PushBook();   // the tracker gets the library's SCU of the hauling jobs
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _log.LogError(ex, "Reading the old logs into the Mission Library failed");
+        }
+        // every minute: what the game said the SCU of the hauling jobs is becomes the library's suggestion for their kinds
+        while (!stop.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromMinutes(1), stop);
+                _library.SuggestFromGame(DateTime.UtcNow);
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "Suggesting the SCU the game said failed");
+            }
         }
     }
 }
