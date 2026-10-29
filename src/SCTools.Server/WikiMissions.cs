@@ -8,7 +8,7 @@ namespace SCTools.Server;
 
 /// <summary>
 /// The Star Citizen Wiki API's missions for the contracts the logs had (api.star-citizen.wiki/api/missions/{uuid}: the uuid is the log's
-/// contractDefinitionId, the same whatever names a string mod shows): their debug name, title and hauling orders (the SCU of every stop), kept in the
+/// contractDefinitionId, the same whatever names a string mod shows): their debug name, title, hauling orders (the SCU of every stop) and reward, kept in the
 /// database (WikiMissions). A contract is asked for once (one the API does not know, again after a week), a few at a time; when the API cannot be reached,
 /// the next time.
 /// </summary>
@@ -79,7 +79,11 @@ public sealed class WikiMissions
                 if (row == null) db.WikiMissions.Add(row = new WikiMissionRow { Uuid = uuid });
                 row.AskedUtc = nowUtc;
                 row.Found = found != null;
-                if (found != null) (row.DebugName, row.Title, row.Orders) = (found.DebugName, found.Title, found.Orders);
+                if (found != null)
+                {
+                    (row.DebugName, row.Title, row.Orders) = (found.DebugName, found.Title, found.Orders);
+                    (row.RewardMin, row.RewardMax, row.RewardCurrency) = (found.RewardMin, found.RewardMax, found.RewardCurrency);
+                }
                 db.SaveChanges();
             }
             if (found != null) learned++;
@@ -99,6 +103,7 @@ public sealed class WikiMissions
             if (!doc.RootElement.TryGetProperty("data", out var d) || d.ValueKind != JsonValueKind.Object) return null;
             static string? Text(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
             static int? Number(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var n) ? n : null;
+            static long? Long(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetDecimal(out var n) ? (long)Math.Round(n) : null;
             var orders = new List<string>();
             if (d.TryGetProperty("hauling_orders", out var list) && list.ValueKind == JsonValueKind.Array)
             {
@@ -109,7 +114,11 @@ public sealed class WikiMissions
                     orders.Add((min ?? max)!.Value.ToString(CultureInfo.InvariantCulture) + "-" + (max ?? min)!.Value.ToString(CultureInfo.InvariantCulture));
                 }
             }
-            return new WikiMissionRow { Uuid = uuid, DebugName = Text(d, "debug_name"), Title = Text(d, "title"), Orders = orders.Count > 0 ? string.Join(";", orders) : null, Found = true };
+            return new WikiMissionRow
+            {
+                Uuid = uuid, DebugName = Text(d, "debug_name"), Title = Text(d, "title"), Orders = orders.Count > 0 ? string.Join(";", orders) : null, Found = true,
+                RewardMin = Long(d, "reward_min"), RewardMax = Long(d, "reward_max"), RewardCurrency = Text(d, "reward_currency"),
+            };
         }
         catch (JsonException)
         {
@@ -118,7 +127,7 @@ public sealed class WikiMissions
     }
 
     /// <summary>A row as what the tracker knows about the contract.</summary>
-    public static WikiContract ToContract(WikiMissionRow r) => new(r.Uuid, r.DebugName, r.Title, Orders(r.Orders));
+    public static WikiContract ToContract(WikiMissionRow r) => new(r.Uuid, r.DebugName, r.Title, Orders(r.Orders), r.RewardMin, r.RewardMax, r.RewardCurrency);
 
     /// <summary>"100-150;100-150" as the ranges.</summary>
     public static List<ScuRange> Orders(string? text) =>

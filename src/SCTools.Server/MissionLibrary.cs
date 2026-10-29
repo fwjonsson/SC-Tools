@@ -8,7 +8,8 @@ using SCTools.Server.Data;
 namespace SCTools.Server;
 
 /// <summary>A kind of mission in the library, with how it was played; Running: one of its missions was taken in the last hours and did not end yet.</summary>
-public sealed record LibraryEntry(MissionKindRow Row, int Taken, int Completed, int Failed, int Abandoned, DateTime? LastPlayed, bool Running = false)
+public sealed record LibraryEntry(MissionKindRow Row, int Taken, int Completed, int Failed, int Abandoned, DateTime? LastPlayed, bool Running = false,
+    WikiContract? Wiki = null)
 {
     /// <summary>The name shown: the one typed in, else the one the game shows.</summary>
     public string Shown => Row.Name ?? Row.Title;
@@ -151,6 +152,40 @@ public sealed class MissionLibrary
 
     /// <summary>Who suggested an SCU the game said.</summary>
     public const string GameSaid = "the game";
+
+    /// <summary>The Star Citizen Wiki API told something new: the list and the tracker's book are made again.</summary>
+    public void WikiLearned()
+    {
+        lock (_lock) Changed();
+    }
+
+    /// <summary>
+    /// Which mission of the Star Citizen Wiki API every kind is: the contract id (contractDefinitionId) of a mission of the kind in the logs (by its title,
+    /// whatever names a string mod shows). A kind that has one keeps it. Returns how many kinds got one.
+    /// </summary>
+    public int LinkWiki()
+    {
+        var pairs = _live.Read(t => t.State.Log?.Missions.Values.Where(m => m.Title != null && m.Definition != null && !m.IsHauling && !m.IsOut)
+            .Select(m => (Key: MissionKinds.TitleKey(m.Title), Uuid: m.Definition!)).Where(p => p.Key != null).ToList()) ?? new();
+        if (pairs.Count == 0) return 0;
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            Prepare(db);
+            var kinds = db.MissionKinds.Where(k => k.WikiUuid == null).ToDictionary(k => k.Key, StringComparer.OrdinalIgnoreCase);
+            var linked = 0;
+            foreach (var (key, uuid) in pairs)
+            {
+                if (!kinds.TryGetValue(key!, out var kind) || kind.WikiUuid != null) continue;
+                kind.WikiUuid = uuid;
+                linked++;
+            }
+            if (linked == 0) return 0;
+            db.SaveChanges();
+            Changed();
+            return linked;
+        }
+    }
 
     /// <summary>The id of a kind's row on the page (a key has spaces, # and the like).</summary>
     public static string Anchor(string key) => "m-" + Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(key)))[..12].ToLowerInvariant();
@@ -356,13 +391,15 @@ public sealed class MissionLibrary
             var kinds = db.MissionKinds.AsNoTracking().ToList();
             var played = db.Missions.AsNoTracking().Where(m => m.Kind != null).ToList().GroupBy(m => m.Kind!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+            var wiki = WikiMissions.Known(db);
             return _entries = kinds.Select(k =>
                 {
                     var mine = played.GetValueOrDefault(k.Key) ?? new List<MissionRow>();
                     return new LibraryEntry(k, mine.Count, mine.Count(m => m.Outcome == nameof(MissionOutcome.Complete)),
                         mine.Count(m => m.Outcome == nameof(MissionOutcome.Fail)), mine.Count(m => m.Outcome == nameof(MissionOutcome.Abandon)),
                         mine.Select(m => m.EndedUtc ?? m.StartedUtc).Max(),
-                        mine.Any(m => m.Outcome == null && m.EndedUtc == null && m.StartedUtc > DateTime.UtcNow - RunningFor));
+                        mine.Any(m => m.Outcome == null && m.EndedUtc == null && m.StartedUtc > DateTime.UtcNow - RunningFor),
+                        k.WikiUuid != null ? wiki.GetValueOrDefault(k.WikiUuid) : null);
                 })
                 .OrderByDescending(e => e.LastPlayed ?? DateTime.MinValue).ThenBy(e => e.Shown, StringComparer.OrdinalIgnoreCase).ToList();
         }
@@ -413,11 +450,13 @@ public sealed class MissionLibrary
             using var db = _store.Open();
             Prepare(db);
             var rewards = db.MissionKinds.AsNoTracking().ToDictionary(k => k.Key, StringComparer.OrdinalIgnoreCase);
+            var wiki = WikiMissions.Known(db);
             return db.Missions.AsNoTracking().Where(m => m.Player == player && m.Outcome == nameof(MissionOutcome.Complete) && m.EndedUtc != null).ToList()
                 .Select(m =>
                 {
                     var r = m.Kind == null ? null : rewards.GetValueOrDefault(m.Kind);
-                    return new SCTools.Play.EarnedMission(m.EndedUtc!.Value, m.Kind ?? m.ContractId, m.Shared, r?.Auec, r?.MgScrip, r?.CouncilScrip);
+                    var auec = r?.Auec ?? (r?.WikiUuid != null ? wiki.GetValueOrDefault(r.WikiUuid)?.Auec : null);   // nothing typed in: the Wiki's reward
+                    return new SCTools.Play.EarnedMission(m.EndedUtc!.Value, m.Kind ?? m.ContractId, m.Shared, auec, r?.MgScrip, r?.CouncilScrip);
                 })
                 .OrderBy(m => m.EndedUtc).ToList();
         }
@@ -512,7 +551,8 @@ public sealed class MissionLibraryService : BackgroundService
                 // the contracts of the logs the Wiki API was not asked about yet (the newest first): their hauling orders
                 var contracts = _live.Read(t => t.State.Log?.Missions.Values.Where(m => m.Definition != null)
                     .OrderByDescending(m => m.Accepted ?? m.FirstSeen ?? DateTime.MinValue).Select(m => m.Definition!).Distinct().ToList()) ?? new List<string>();
-                if (await _wiki.Learn(contracts, DateTime.UtcNow, stop) > 0) _library.PushBook();
+                var learned = await _wiki.Learn(contracts, DateTime.UtcNow, stop);
+                if (_library.LinkWiki() == 0 && learned > 0) _library.WikiLearned();   // (a new link made the book and the list again already)
             }
             catch (OperationCanceledException) { break; }
             catch (Exception ex)

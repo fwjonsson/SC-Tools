@@ -30,12 +30,23 @@ public sealed record ScuRange(int Min, int Max)
 
 /// <summary>
 /// What the Star Citizen Wiki API says about a contract (/api/missions/{uuid}, the uuid is the log's contractDefinitionId): its debug name (the log's
-/// contract name), its title, and its hauling orders' SCU (one per stop: a "Master" Red Wind contract has 4 of 100 - 150 SCU).
+/// contract name), its title, its hauling orders' SCU (one per stop: a "Master" Red Wind contract has 4 of 100 - 150 SCU), and its reward (a range, in
+/// its currency; many missions have none there).
 /// </summary>
-public sealed record WikiContract(string Uuid, string? DebugName, string? Title, IReadOnlyList<ScuRange> Orders)
+public sealed record WikiContract(string Uuid, string? DebugName, string? Title, IReadOnlyList<ScuRange> Orders, long? RewardMin = null, long? RewardMax = null,
+    string? Currency = null)
 {
     /// <summary>The SCU of the whole contract: the orders' ranges added up.</summary>
     public ScuRange Total => new(Orders.Sum(o => o.Min), Orders.Sum(o => o.Max));
+
+    /// <summary>The aUEC it pays (the middle of the range), or null: no reward there, or not in aUEC.</summary>
+    public long? Auec => (RewardMin ?? RewardMax) is > 0 && (Currency == null || Currency.Contains("UEC", StringComparison.OrdinalIgnoreCase))
+        ? ((RewardMin ?? RewardMax)!.Value + (RewardMax ?? RewardMin)!.Value) / 2 : null;
+
+    /// <summary>The reward as a text: "25,000" or "20,000–30,000" (aUEC), or null.</summary>
+    public string? AuecText => Auec == null ? null : RewardMin == RewardMax || RewardMin == null || RewardMax == null
+        ? Auec.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)
+        : RewardMin.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + "–" + RewardMax.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
 }
 
 /// <summary>

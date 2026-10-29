@@ -51,6 +51,9 @@ public sealed class MissionKindRow
     public string? ScuSuggestedBy { get; set; }
     public DateTime? ScuSuggestedUtc { get; set; }
 
+    /// <summary>The Star Citizen Wiki API's mission of this kind (its uuid: the contractDefinitionId of a mission of the kind in the logs), or null.</summary>
+    public string? WikiUuid { get; set; }
+
     public string? Notes { get; set; }
 
     /// <summary>Who changed it last, and when (null: nobody yet).</summary>
@@ -110,4 +113,9 @@ public sealed class WikiMissionRow
     public string? DebugName { get; set; }
     public string? Title { get; set; }
     public string? Orders { get; set; }
+
+    /// <summary>Its reward: the range and the currency, as the API has them (often none).</summary>
+    public long? RewardMin { get; set; }
+    public long? RewardMax { get; set; }
+    public string? RewardCurrency { get; set; }
 }
