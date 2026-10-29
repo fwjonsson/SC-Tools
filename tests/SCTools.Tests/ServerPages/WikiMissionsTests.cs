@@ -39,6 +39,9 @@ public class WikiMissionsTests
         Assert.Equal(new ScuRange(400, 600), WikiMissions.ToContract(row).Total);
         Assert.Equal((2_100_000L, "2,000,000–2,200,000"), (WikiMissions.ToContract(row).Auec!.Value, WikiMissions.ToContract(row).AuecText));
         Assert.Null(new WikiContract(Uuid, null, null, Array.Empty<ScuRange>(), 5, 5, "MG Scrip").Auec);   // not aUEC
+        var onlyMin = new WikiContract(Uuid, null, null, Array.Empty<ScuRange>(), 394_250, 0, "aUEC");   // "reward_max": 0 there: only the one end is given
+        Assert.Equal((394_250L, "394,250"), (onlyMin.Auec!.Value, onlyMin.AuecText));
+        Assert.Null(new WikiContract(Uuid, null, null, Array.Empty<ScuRange>(), 0, 0, "aUEC").Auec);
         Assert.Null(WikiMissions.Parse(Uuid, "<html>not found</html>"));
         Assert.Equal(new[] { new ScuRange(2, 2) }, WikiMissions.Orders("2-2;x-3"));
     }

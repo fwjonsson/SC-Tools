@@ -37,10 +37,6 @@ public sealed record LibraryEntry(MissionKindRow Row, int Taken, int Completed, 
 
     /// <summary>The id of its row on the page.</summary>
     public string Anchor => MissionLibrary.Anchor(Row.Key);
-
-    /// <summary>The tool that counts with its rewards besides the Session tool (which counts with all of them), or null.</summary>
-    public string? UsedBy => Hauling ? "the Hauling Planner pays its aUEC"
-        : Row.Key.StartsWith("combat gauntlet - scenario #", StringComparison.Ordinal) ? "the Gauntlet Tracker counts with it" : null;
 }
 
 /// <summary>
@@ -241,6 +237,7 @@ public sealed class MissionLibrary
             var pays = _live.Read(t => Earnings.StartReward(line, t.State.Data));
             KindOf(db, kinds, key, MissionKinds.HaulingTitle(line.Contract)).Auec = (long)Math.Round(pays);
         }
+        NameHaulingKinds(db, kinds);
         db.SaveChanges();
 
         // what was typed in the library by ContractId: to the kind most of its missions have
@@ -304,6 +301,21 @@ public sealed class MissionLibrary
         }
     }
 
+    /// <summary>
+    /// The kinds of the Hauling Planner that are still named by their contract line ("Hauling: 4 To Ruin", from before they were named like every other
+    /// kind) get the name the game shows for their missions: the one most of them have (a string mod names them differently on another PC).
+    /// </summary>
+    static void NameHaulingKinds(TrackerDb db, Dictionary<string, MissionKindRow> kinds)
+    {
+        var placeholders = kinds.Values.Where(k => MissionKinds.IsHauling(k.Key) && MissionKinds.IsPlaceholder(k.Title)).ToList();
+        if (placeholders.Count == 0) return;
+        var titles = db.Missions.Where(m => m.Kind != null && m.Title != null).Select(m => new { m.Kind, m.Title }).ToList()
+            .Where(m => !MissionKinds.Unfilled(m.Title)).GroupBy(m => m.Kind!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Select(m => MissionKinds.KindTitle(m.Title)!).GroupBy(t => t).OrderByDescending(t => t.Count()).First().Key, StringComparer.OrdinalIgnoreCase);
+        foreach (var k in placeholders)
+            if (titles.TryGetValue(k.Key, out var named)) k.Title = named;
+    }
+
     /// <summary>The kind with this key, made when it is not there yet.</summary>
     static MissionKindRow KindOf(TrackerDb db, Dictionary<string, MissionKindRow> kinds, string key, string title)
     {
@@ -354,7 +366,13 @@ public sealed class MissionLibrary
                     row.Outcome = merged.Outcome?.ToString();
                     row.Definition = merged.Definition;
                     row.Kind = MissionKinds.KeyOf(merged.Title, merged.Hauling);
-                    if (row.Kind != null) KindOf(db, kinds, row.Kind, merged.Hauling != null ? MissionKinds.HaulingTitle(merged.Hauling) : MissionKinds.KindTitle(merged.Title)!);
+                    if (row.Kind != null)
+                    {
+                        var kind = KindOf(db, kinds, row.Kind, merged.Hauling != null ? MissionKinds.HaulingTitle(merged.Hauling) : MissionKinds.KindTitle(merged.Title)!);
+                        // a kind of the Hauling Planner is named as the game names its missions, like every other kind, as soon as one of them is seen
+                        if (merged.Hauling != null && MissionKinds.IsPlaceholder(kind.Title) && MissionKinds.KindTitle(merged.Title) is { } named && !MissionKinds.Unfilled(named))
+                            kind.Title = named;
+                    }
                     _known[key] = merged;
                     written++;
                 }

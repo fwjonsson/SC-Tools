@@ -317,16 +317,18 @@ admin (done), then going live.
 - **The Mission Library** (`/missions`, `Missions/MissionReader` and `Missions/MissionKinds` in the core, `MissionLibrary`) has every kind of mission
   the players took, by itself: the missions of the live logs and of the old logs are kept for good (`Missions`), grouped by their name as the game shows
   it (`MissionKinds`; the game's ContractId is one per offer, so the same mission at another place has another one). The contracts the Hauling Planner
-  reads are grouped by its contract line instead (Hauling: 2 To Ruin ... Direct From Ruin), which is what they pay by. With every kind is what the log
+  reads are grouped by its contract line instead (2 To Ruin ... Direct From Ruin), which is what they pay by, but named as the game names their
+  missions like every other kind, as soon as one of them is seen ("Hauling: 2 To Ruin" until then; the kinds named so from before get the name most
+  of their missions have when the server starts). With every kind is what the log
   does not say: the aUEC, MG scrip and Council scrip it pays, its cargo in SCU (it wins over the suggestion in grey: the last SCU a hauler typed in for
   one of these missions on the Hauling Planner's Other hauling board, or what the game said for one; the board uses it; else the Star Citizen Wiki's in
   grey), another name, the giver. The page everybody sees is **read-only** (`MissionsController`; for everybody when the tool is shown on the Tools
   page, like the Hauling Planner's live page, else only for the admin): a library to look things up in, not a list of what was played last. The viewer
   chooses what to see (a search of the names and givers, one giver, with or without rewards, only the kinds he played) and the order (click a column's
   header: names A to Z, numbers the biggest first, again for the other way round; the kinds without a value in the column last; `LibraryFilter` keeps
-  it all in the address), 20 to a page. What is played is his own: **Played by me** (how often he completed it of how often he took it, hover for
-  failed and abandoned; a mission he is playing now, taken in the last six hours and not ended, has a green row), never anybody else's, and a visitor
-  not logged in sees no plays at all. The admin changes the library on **Edit Mission Info** (`/admin/missions`, `EditMissionsController`, in his row
+  it all in the address), 20 to a page. What is played is his own: **Failed / Completed** (how often he failed and completed it, hover for taken and
+  abandoned) and **Last played** (sort by it for the latest he played; a mission he is playing now, taken in the last six hours and not ended, says so
+  and has a green row), never anybody else's, and a visitor not logged in sees no plays at all. The admin changes the library on **Edit Mission Info** (`/admin/missions`, `EditMissionsController`, in his row
   of pages): the same list, choices and order with a field in every cell (the giver to type, or to pick from every giver typed in so far: a datalist, a
   new one is in it as soon as it is saved; each field saved as soon as it changes, in the background; the Notes column is gone, what was typed in it
   stays in the database). Both pages keep themselves up to date (`missions.js` asks the page's `version` address every few seconds and gets the list

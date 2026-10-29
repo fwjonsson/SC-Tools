@@ -13,24 +13,24 @@ public class LibraryFilterTests
 {
     static readonly DateTime T = new(2026, 10, 29, 12, 0, 0, DateTimeKind.Utc);
 
-    /// <param name="plays">who played it and how often he completed it (he took it once more)</param>
+    /// <param name="plays">who played it, how often he completed it (he took it once more) and how many days ago he played it last</param>
     static LibraryEntry Kind(string title, string? giver = null, long? auec = null, long? scu = null, long? suggested = null, WikiContract? wiki = null,
-        (string Player, int Completed)[]? plays = null)
+        (string Player, int Completed, int DaysAgo)[]? plays = null)
     {
-        plays ??= Array.Empty<(string, int)>();
+        plays ??= Array.Empty<(string, int, int)>();
         return new(new MissionKindRow { Key = title.ToLowerInvariant(), Title = title, Giver = giver, Auec = auec, Scu = scu, ScuSuggested = suggested },
             plays.Sum(p => p.Completed + 1), plays.Sum(p => p.Completed), 0, 0, plays.Length > 0 ? T : null, false, wiki,
-            plays.ToDictionary(p => p.Player, p => new PlayCount(p.Completed + 1, p.Completed, 0, 0, T, false)));
+            plays.ToDictionary(p => p.Player, p => new PlayCount(p.Completed + 1, p.Completed, 0, 0, T.AddDays(-p.DaysAgo), false)));
     }
 
     static readonly WikiContract Master = new("26e80306-6190-447f-a214-634d8ed8ca7d", "Master", "Master Hauler", new[] { new ScuRange(400, 600) }, 2_000_000, 2_200_000, "aUEC");
 
     static readonly LibraryEntry[] All =
     {
-        Kind("Stop Rival Attack", "Red Wind", 25_000, 1_536, plays: new[] { ("zzoega", 2) }),
-        Kind("Kill the Outlaw", "Bounty Hunters Guild", 40_000, plays: new[] { ("zzoega", 0), ("bileh123", 5) }),
+        Kind("Stop Rival Attack", "Red Wind", 25_000, 1_536, plays: new[] { ("zzoega", 2, 1) }),
+        Kind("Kill the Outlaw", "Bounty Hunters Guild", 40_000, plays: new[] { ("zzoega", 0, 0), ("bileh123", 5, 3) }),
         Kind("Master Hauler Needed", "Covalex", wiki: Master),
-        Kind("Hauling: 2 To Ruin", null, 1_300_000, plays: new[] { ("bileh123", 1) }),
+        Kind("Hauling: 2 To Ruin", null, 1_300_000, plays: new[] { ("bileh123", 1, 0) }),
         Kind("Deliver Supplies", "red wind", suggested: 8),
     };
 
@@ -58,6 +58,12 @@ public class LibraryFilterTests
         Assert.Equal(new[] { "Stop Rival Attack", "Kill the Outlaw", "Deliver Supplies", "Hauling: 2 To Ruin", "Master Hauler Needed" }, Names(LibraryFilter.From(null, null, null, null, "played", null, true), "zzoega"));
         Assert.Equal(new[] { "Kill the Outlaw", "Hauling: 2 To Ruin", "Deliver Supplies", "Master Hauler Needed", "Stop Rival Attack" }, Names(LibraryFilter.From(null, null, null, null, "played", null, true), "Bileh123"));
         Assert.Equal("name", LibraryFilter.From(null, null, null, null, "played", null, false).Sort);
+
+        // when he played it last: the latest first, the kinds he never played last
+        Assert.Equal(new[] { "Kill the Outlaw", "Stop Rival Attack", "Deliver Supplies", "Hauling: 2 To Ruin", "Master Hauler Needed" }, Names(LibraryFilter.From(null, null, null, null, "last", null, true), "zzoega"));
+        Assert.Equal(new[] { "Hauling: 2 To Ruin", "Kill the Outlaw", "Deliver Supplies", "Master Hauler Needed", "Stop Rival Attack" }, Names(LibraryFilter.From(null, null, null, null, "last", null, true), "bileh123"));
+        Assert.Equal(new[] { "Stop Rival Attack", "Kill the Outlaw", "Deliver Supplies", "Hauling: 2 To Ruin", "Master Hauler Needed" }, Names(LibraryFilter.From(null, null, null, null, "last", "asc", true), "zzoega"));
+        Assert.Equal("name", LibraryFilter.From(null, null, null, null, "last", null, false).Sort);
         Assert.Equal("name", LibraryFilter.From(null, null, null, null, "nonsense", "desc", true).Sort);
     }
 

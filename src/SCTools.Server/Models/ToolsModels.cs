@@ -5,23 +5,26 @@ public sealed record ToolLine(SiteTool Tool, bool Public);
 
 /// <summary>
 /// What a viewer asked the Mission Library for (the address of the page): a part of a name or a giver (Q), one giver, the kinds with or without rewards,
-/// only the ones he played (Mine: a logged in viewer), and the column it is sorted by and which way. The same on the read-only library (/missions) and
-/// the admin's Edit Mission Info (/admin/missions).
+/// only the ones he played (Mine: a logged in viewer), and the column it is sorted by and which way (played and last: his own plays, so only for a
+/// logged in viewer). The same on the read-only library (/missions) and the admin's Edit Mission Info (/admin/missions).
 /// </summary>
 public sealed record LibraryFilter(string Q = "", string Giver = "", string Rewards = "all", bool Mine = false, string Sort = "name", bool Desc = false)
 {
     public const string DefaultSort = "name";
 
-    /// <summary>The columns to sort by: the names, the givers, the numbers, and how often the viewer completed it (Played by me).</summary>
-    public static readonly string[] Sorts = { "name", "giver", "scu", "auec", "mg", "council", "played" };
+    /// <summary>The columns to sort by: the names, the givers, the numbers, how often the viewer completed it (Failed / Completed) and when he played it last.</summary>
+    public static readonly string[] Sorts = { "name", "giver", "scu", "auec", "mg", "council", "played", "last" };
 
-    /// <summary>A column of numbers: sorted the biggest first when it is clicked (the names A to Z).</summary>
-    public static bool Numeric(string sort) => sort is "scu" or "auec" or "mg" or "council" or "played";
+    /// <summary>A column of numbers (or dates): sorted the biggest (the newest) first when it is clicked (the names A to Z).</summary>
+    public static bool Numeric(string sort) => sort is "scu" or "auec" or "mg" or "council" or "played" or "last";
+
+    /// <summary>A column of the viewer's own plays: only for somebody logged in.</summary>
+    public static bool Own(string sort) => sort is "played" or "last";
 
     /// <summary>The filter of a page's address; what is not a choice is the default. loggedIn: Mine and Played by me are only for a viewer with a name.</summary>
     public static LibraryFilter From(string? q, string? giver, string? rewards, string? mine, string? sort, string? dir, bool loggedIn)
     {
-        var s = sort != null && Sorts.Contains(sort) && (sort != "played" || loggedIn) ? sort : DefaultSort;
+        var s = sort != null && Sorts.Contains(sort) && (!Own(sort) || loggedIn) ? sort : DefaultSort;
         return new(q?.Trim() ?? "", giver?.Trim() ?? "", rewards is "known" or "todo" ? rewards : "all", loggedIn && mine is "1" or "true" or "on", s,
             dir == null ? Numeric(s) : dir == "desc");
     }
@@ -54,6 +57,7 @@ public sealed record LibraryFilter(string Q = "", string Giver = "", string Rewa
             "mg" => e => e.Row.MgScrip,
             "council" => e => e.Row.CouncilScrip,
             "played" => e => e.PlaysOf(viewer)?.Completed,
+            "last" => e => e.PlaysOf(viewer)?.LastPlayed?.Ticks,
             _ => null,
         };
         if (number != null)

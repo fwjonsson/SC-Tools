@@ -19,7 +19,12 @@
     // the columns, with the key they sort by (a header is a link: again for the other way round)
     var columns = new List<(string Key, string Text, string? Cls)> { ("name", "Mission", null), ("giver", "Giver", null), ("scu", "SCU", "right"), ("auec", "aUEC", "right"),
         ("mg", "MG<br>scrip", "right"), ("council", "Council<br>scrip", "right") };
-    if (me != null) columns.Add(("played", "Played<br>by me", "right"));
+    if (me != null)
+    {
+        columns.Add(("played", "Failed /<br>Completed", "right"));
+        columns.Add(("last", "Last<br>played", null));
+    }
+    string When(DateTime? utc) => utc == null ? "" : utc.Value.ToLocalTime().ToString("d MMM yyyy", inv);
     string Arrow(string key) => f.Sort == key ? (f.Desc ? " ▾" : " ▴") : "";
 }
 <h1>@(edit ? "Edit Mission Info" : "Mission Library")</h1>
@@ -122,18 +127,12 @@ else
                 <input type="hidden" name="id" value="@r.Key"><input type="hidden" name="field" value="@field"><input type="hidden" name="back" value="@back">
                 <input name="value" value="@value" placeholder="@hint" class="@cls" aria-label="@field" autocomplete="off" list="@(field == "giver" ? "givers" : null)">
               </form>
-              @if (field == "name" && e.UsedBy != null)
-              {
-                <span class="used muted small">@e.UsedBy</span>
-              }
             </td>
           }
         }
         else
         {
-          <td class="name" title="@(r.Name != null && r.Name != r.Title ? "The game calls it " + r.Title : null)">@e.Shown
-            @if (e.UsedBy != null) { <span class="used muted small">@e.UsedBy</span> }
-          </td>
+          <td class="name" title="@(r.Name != null && r.Name != r.Title ? "The game calls it " + r.Title : null)">@e.Shown</td>
           <td>@(r.Giver ?? "")</td>
           <td class="right nowrap">@if (r.Scu != null) { @G(r.Scu) }
             else if (r.ScuSuggested != null) { <span class="muted" title="suggested by @r.ScuSuggestedBy">@G(r.ScuSuggested)</span> }
@@ -144,7 +143,9 @@ else
         }
         @if (me != null)
         {
-          <td class="right nowrap" title="@(mine == null ? "never" : $"taken {mine.Taken}, completed {mine.Completed}, failed {mine.Failed}, abandoned {mine.Abandoned}")">@if (mine != null) { <text>@mine.Completed / @mine.Taken</text> }@if (running) { <span class="now">playing now</span> }</td>
+          @* his own: how often he failed and completed it, and when he played it last (never: nothing) *@
+          <td class="right nowrap" title="@(mine == null ? "never played" : $"taken {mine.Taken}, completed {mine.Completed}, failed {mine.Failed}, abandoned {mine.Abandoned}")">@if (mine != null) { <text>@mine.Failed / @mine.Completed</text> }</td>
+          <td class="nowrap">@if (running) { <span class="now">playing now</span> } else { @When(mine?.LastPlayed) }</td>
         }
       </tr>
     }
@@ -159,7 +160,7 @@ else
       @if (Model.Page < Model.Pages) { <a href="@Model.Link(Model.Page + 1)">Next »</a> } else { <span class="muted">Next »</span> }
     </nav>
   }
-  <p class="hint">@if (me != null) { <text>Played by me: how often you completed it of how often you took it (hover for failed and abandoned); a green row is one
+  <p class="hint">@if (me != null) { <text>Failed / Completed and Last played are your own (hover the numbers for taken and abandoned); a green row is one
     you are playing now. </text> }A grey aUEC is the Star Citizen Wiki's reward for the mission (it counts until one is typed in); a grey SCU is the one suggested last
     (what a hauler typed in for one of these missions on the <a href="/hauling">Hauling Planner</a>'s Other hauling board, or what the game said) or the
     Wiki's, and one typed in here wins over it; an empty cell means not known (an empty Hauling aUEC: the Hauling Planner's built-in reward).
