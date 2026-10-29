@@ -682,12 +682,12 @@ public sealed class HaulingLog
         if (x.Success)
         {
             var title = SCTools.Missions.MissionReader.CleanTitle(x.Groups["t"].Value);
-            var known = Missions.TryGetValue(x.Groups["m"].Value, out var tm);
-            if (x.Groups["k"].Value == "Accepted" && !known) tm = Get(x.Groups["m"].Value);
-            if (tm != null && title.Length > 0 && !title.StartsWith("~mission(", StringComparison.Ordinal)) tm.Title = SCTools.Missions.MissionKinds.Better(tm.Title, title);
+            var known = Missions.TryGetValue(x.Groups["m"].Value, out var titled);
+            if (x.Groups["k"].Value == "Accepted" && !known) titled = Get(x.Groups["m"].Value);
+            if (titled != null && title.Length > 0 && !title.StartsWith("~mission(", StringComparison.Ordinal)) titled.Title = SCTools.Missions.MissionKinds.Better(titled.Title, title);
             if (x.Groups["k"].Value == "Shared")
             {
-                if (tm != null) Touch(t);
+                if (titled != null) Touch(t);
                 return;
             }
         }
