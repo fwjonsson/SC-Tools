@@ -1,7 +1,12 @@
 name: Build
 
+# The programs (the Hauling Planner, the SC Tools Tracker, the API tool), once per change: for every pull request, and for every merge to main, which also
+# puts them on the Releases page. A push to a branch that is in a pull request runs it once, as the pull request (not a second time as the push); the
+# Migration workflow starts it by hand for the migration commit it makes. The NuGet packages are kept between runs.
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
@@ -16,6 +21,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - name: Keep the NuGet packages between runs
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
 
       - name: Build and publish the Hauling Planner (the Windows program, a single exe)
         run: dotnet publish src/SCTools.HaulingPlanner/SCTools.HaulingPlanner.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:InformationalVersion=release-${{ github.sha }} -o publish
@@ -40,6 +51,7 @@ jobs:
           Compress-Archive -Path old-name/HaulingTrackerSender.exe -DestinationPath HaulingTrackerSender.zip
           Compress-Archive -Path publish-api/ScApiTool.exe -DestinationPath ScApiTool.zip
 
+      # the two programs as they are named now (the copies under the old names and the API tool go to the release only: 45 MB each, kept for 90 days per run)
       - name: Keep the exe of this run
         uses: actions/upload-artifact@v4
         with:
@@ -47,9 +59,6 @@ jobs:
           path: |
             HaulingPlanner.zip
             SCToolsTracker.zip
-            HaulingTracker.zip
-            HaulingTrackerSender.zip
-            ScApiTool.zip
 
       # On main the newest exe is also put on the Releases page under one fixed link
       - name: Update the "latest" release

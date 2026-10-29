@@ -1,18 +1,20 @@
 name: Deploy
 
-# Puts the web app on the server (Hetzner, Arm64) when main changes, or by hand (Run workflow). It builds the server for linux-arm64 with .NET inside
-# (nothing to install on the server), copies it there as the user "deploy" and runs sctools-install, which switches to it, restarts the service and
-# puts the version before back when the new one does not answer. Nothing happens until the three secrets exist (see "Going live" in the README):
-# DEPLOY_HOST (the server's IP), DEPLOY_KEY (the private key setup.sh made) and DEPLOY_KNOWN_HOSTS (the server's key, so nobody can pose as it).
+# Puts the web app on the server (Hetzner, Arm64) after the Tests of a change to main came out green (a red run deploys nothing: before, the two ran side by
+# side), or by hand (Run workflow). It builds the server for linux-arm64 with .NET inside (nothing to install on the server), copies it there as the user
+# "deploy" and runs sctools-install, which switches to it, restarts the service and puts the version before back when the new one does not answer.
+# Nothing happens until the three secrets exist (see "Going live" in the README): DEPLOY_HOST (the server's IP), DEPLOY_KEY (the private key setup.sh
+# made) and DEPLOY_KNOWN_HOSTS (the server's key, so nobody can pose as it).
+# The Tests run on main for every change to the core, the web view, the server, the tests and the planner scenarios: everything the site is made of, and a
+# little more (a change to the tests alone puts the same site on the server again, which does no harm). A change to this file alone: Run workflow.
 on:
-  push:
+  workflow_run:
+    workflows:
+      - Tests
+    types:
+      - completed
     branches:
       - main
-    paths:
-      - 'src/SCTools.Server/**'
-      - 'src/SCTools.Core/**'
-      - 'src/SCTools.Web/**'
-      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 concurrency:
@@ -21,11 +23,15 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}   # the commit the tests passed on (by hand: the branch picked)
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -33,7 +39,7 @@ jobs:
 
       - name: Build the server for the Arm server
         run: |
-          dotnet publish src/SCTools.Server -c Release -r linux-arm64 --self-contained true -p:InformationalVersion=release-${{ github.sha }} -o publish
+          dotnet publish src/SCTools.Server -c Release -r linux-arm64 --self-contained true -p:InformationalVersion=release-$SHA -o publish
           rm -f publish/appsettings.Development.json
           tar -czf app.tgz -C publish .
           ls -la app.tgz
@@ -54,4 +60,4 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           scp -i ~/.ssh/deploy -o BatchMode=yes app.tgz "deploy@$DEPLOY_HOST:/opt/sctools/incoming/app.tgz"
           ssh -i ~/.ssh/deploy -o BatchMode=yes "deploy@$DEPLOY_HOST" sctools-install /opt/sctools/incoming/app.tgz
-          echo "::notice title=Deployed::The web app of ${GITHUB_SHA::7} runs on the server."
+          echo "::notice title=Deployed::The web app of ${SHA::7} runs on the server."

@@ -55,7 +55,9 @@ To make a single exe: `dotnet publish src/SCTools.HaulingPlanner -c Release -r w
     tools/PlanTest/            prints the plans the trip planner makes for situations from real sessions
 
 Every area has its own namespace (`SCTools.Planning`, `SCTools.UI`, ...), one class per file.
-GitHub builds the program on every change (Build, Windows) and runs the tests and the planner scenarios (Tests, Linux).
+GitHub builds the programs for every pull request and every merge to main (Build, Windows), runs the tests and the planner scenarios (Tests, Linux),
+and puts the site on the server after a green Tests run on main (Deploy). A push to a branch in a pull request runs Build and Tests once, as the pull
+request; the NuGet packages are kept between runs.
 
 ## Updates
 
@@ -438,7 +440,8 @@ open ports but SSH). GitHub puts every new version of main on it (the **Deploy**
 8. **The trackers.** On the **Tracker keys** page make a key for zzoega, zzatvo and bileh123, and put each in the SC Tools Tracker on his PC
    (Server `https://sc-tools.fwjonsson.dev`, the default).
 
-After that every merge to main that changes the server is deployed by itself; a version that does not start is replaced by the one before it. The
+After that every merge to main that changes the server is deployed by itself, once its Tests run came out green (a red run deploys nothing); a version
+that does not start is replaced by the one before it. The
 settings are in `/etc/sctools/sctools.env` (`sudo systemctl restart sctools` after a change), the data in `/var/lib/sctools`
 (the database, the uploaded logs, the daily copies, the keys of the login cookies), the versions in `/opt/sctools/releases`.
 
