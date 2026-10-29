@@ -44,7 +44,7 @@ else
   @* every field is a little form of its own (data-autosave: autosave.js sends it when it changes) *@
   <div class="scroll">
   <table class="wide missions">
-    <thead><tr><th>Mission</th><th>Giver</th><th class="right">aUEC</th><th class="right">MG<br>scrip</th><th class="right">Council<br>scrip</th><th>Played</th><th>Last<br>played</th></tr></thead>
+    <thead><tr><th>Mission</th><th>Giver</th><th class="right">SCU</th><th class="right">aUEC</th><th class="right">MG<br>scrip</th><th class="right">Council<br>scrip</th><th>Played</th><th>Last<br>played</th></tr></thead>
     <tbody>
     @foreach (var e in Model.Entries)
     {
@@ -54,6 +54,7 @@ else
         {
             ("name", r.Name ?? r.Title, "name", r.Title),
             ("giver", r.Giver ?? "", "giver", "Type or pick"),
+            ("scu", N(r.Scu), "num scu", ""),
             ("auec", N(r.Auec), "num", ""),
             ("mg", N(r.MgScrip), "num scrip", ""),
             ("council", N(r.CouncilScrip), "num scrip", ""),
@@ -85,7 +86,7 @@ else
       @if (Model.Page < Model.Pages) { <a href="@Model.Link(Model.Page + 1)">Played earlier »</a> } else { <span class="muted">Played earlier »</span> }
     </nav>
   }
-  <p class="hint">Played: completed of taken (hover for failed and abandoned). Rewards are whole numbers; an empty field means not known (an empty Hauling
+  <p class="hint">Played: completed of taken (hover for failed and abandoned). Rewards and SCU are whole numbers; an empty field means not known (an empty Hauling
     aUEC: the Hauling Planner's built-in reward). A grey name is the one the game shows. @MissionsController.PageSize to a page, the ones played last first.</p>
 }
 </div>

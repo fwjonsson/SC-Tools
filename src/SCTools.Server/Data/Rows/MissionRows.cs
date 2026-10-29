@@ -42,6 +42,10 @@ public sealed class MissionKindRow
     public long? Auec { get; set; }
     public long? MgScrip { get; set; }
     public long? CouncilScrip { get; set; }
+
+    /// <summary>The cargo of the mission in SCU, typed in (null: not known).</summary>
+    public long? Scu { get; set; }
+
     public string? Notes { get; set; }
 
     /// <summary>Who changed it last, and when (null: nobody yet).</summary>

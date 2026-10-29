@@ -53,13 +53,16 @@ public class MissionLibraryTests
         Assert.Equal("/missions?show=todo#" + MissionLibrary.Anchor(RivalKey), saved.Headers.Location?.OriginalString);
         await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "council"), ("value", "12"));
         await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "giver"), ("value", "Red Wind"));
+        await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "scu"), ("value", "1,536"));
         await ServerFactory.Send(player, "/missions", "/missions/set", ("id", RivalKey), ("field", "mg"), ("value", "lots"));   // not a number: not saved
         var entry = f.Services.GetRequiredService<MissionLibrary>().Entries().Single(e => e.Row.Key == RivalKey);
         Assert.Equal((25_000L, 12L, (long?)null, "Red Wind", "bileh123"), (entry.Row.Auec!.Value, entry.Row.CouncilScrip!.Value, entry.Row.MgScrip, entry.Row.Giver, entry.Row.EditedBy));
+        Assert.Equal(1536L, entry.Row.Scu);   // its cargo
         var withGiver = await player.GetStringAsync("/missions");
         Assert.Contains("Not saved", withGiver);
         Assert.Contains("<option value=\"Red Wind\"></option>", withGiver);   // to pick in the other Giver fields
         Assert.Contains("list=\"givers\"", withGiver);
+        Assert.Contains("name=\"value\" value=\"1536\" placeholder=\"\" class=\"num scu\"", withGiver);   // in the SCU column
         Assert.DoesNotContain(RivalShown, WebUtility.HtmlDecode(await player.GetStringAsync("/missions?show=todo")));   // it has rewards now
 
         // a field saved in the background (autosave.js): the answer says what happened, the page is not sent again
