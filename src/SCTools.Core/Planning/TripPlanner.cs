@@ -105,11 +105,14 @@ public static class TripPlanner
     /// <param name="starts">what is decided already: a worker's locked next stop (his first trip goes there first, the rest of the trip is planned) and a run he is flying (his first trip continues it)</param>
     /// <param name="limits">batches only some of the crew can take, by station id: the workers who have that mission running and how many batches (the rest of the batches of the station is for everybody)</param>
     /// <param name="drops">cargo that goes out from Ruin (from-Ruin contracts), one load per mission and station: a trip takes at most one load, for its FIRST stop, and unloads it there before it picks anything up.
-    /// The pickups come first: the trips are planned for the pickups alone, then the loads ride along on them. Only a worker with nothing to pick up and no run in progress gets a trip just
-    /// for a load; a load that no trip can take along is left out (it waits).</param>
+    /// The pickups come first: the trips are planned for the pickups alone, then the loads ride along on them. A load only some workers can take, at a station none of them was planned to
+    /// pick up at, takes those pickups over to a free trip of one of them. Only a worker with nothing to pick up and no run in progress gets a trip just for a load; a load that no trip can
+    /// take along is left out (it waits).</param>
+    /// <param name="shipFullScu">what every ship holds in full (shipScu is the plan's 90 %): a load is unloaded at the first stop before anything is picked up, so a load the ship holds in full
+    /// rides along (a direct contract of 650 SCU in a C2; the game loaded it already)</param>
     public static List<PlannedTrip> Plan(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity, QtDrive Drive)> crew, IReadOnlyList<WorkerStart>? starts = null,
         IReadOnlyDictionary<string, List<(string[] Workers, int Batches)>>? limits = null, IReadOnlyList<DropChunk>? drops = null,
-        IReadOnlyDictionary<string, int>? batchScu = null, IReadOnlyDictionary<string, int>? shipScu = null)
+        IReadOnlyDictionary<string, int>? batchScu = null, IReadOnlyDictionary<string, int>? shipScu = null, IReadOnlyDictionary<string, int>? shipFullScu = null)
     {
         // With the SCU of a batch at every station and the SCU of every ship, the ships are filled by SCU (a batch of a 4 stop mission is smaller than one of a
         // 2 stop mission); without them every batch counts as one and a ship holds its number of batches.
@@ -271,8 +274,11 @@ public static class TripPlanner
             if (chunkStation[c] < 0) continue;
             (chunksAt[chunkStation[c]] ??= new List<int>()).Add(c);
         }
+        // a load is unloaded at the first stop before the pickups: a trip from Ruin takes one the ship holds in full (a direct contract fills most of a C2)
+        var fullCap = workers.Select(c => shipFullScu != null && shipFullScu.TryGetValue(c.Name, out var f) ? f : 0).ToArray();
         bool CanDrop(int chunk, int slot) =>
-            ((chunkMask[chunk] >> slotWorker[slot]) & 1) != 0 && (scuMode ? chunks[chunk].Scu : chunks[chunk].Batches) <= slotCapacity[slot]
+            ((chunkMask[chunk] >> slotWorker[slot]) & 1) != 0
+            && (scuMode ? chunks[chunk].Scu <= Math.Max(slotCapacity[slot], special[slot] ? 0 : fullCap[slotWorker[slot]]) : chunks[chunk].Batches <= slotCapacity[slot])
             && (!special[slot] || (startOf[slot]!.From == null && startOf[slot]!.Loaded <= 0 && reservedIdx[slot] == chunkStation[chunk]));
 
         // is this division of a station over the workers possible with the batches they have (every set of workers can only take what at least one of them can)
@@ -853,6 +859,25 @@ public static class TripPlanner
         // at all to pick up and no run in progress may get a trip just for a load (the last resort). A load that no trip can take along waits.
         var picks = bestPlan!;
         Consolidate(picks);
+        // a load only some workers can take, at a station none of them picks up at (the pickups there were planned for somebody else): the pickups move to a
+        // free trip of one who can take it, so the load rides along with him, dropped there before he picks up, instead of waiting (Frank, 29 Oct 2026: a
+        // direct contract to Orbituary, where his trip was going anyway, sent him to Rod's Fuel instead)
+        for (var c = 0; c < chunks.Count; c++)
+        {
+            var st = chunkStation[c];
+            if (st < 0) continue;
+            bool May(int k) => ((chunkMask[c] >> k) & 1) != 0;
+            if (Enumerable.Range(0, slots).Any(t => May(slotWorker[t]) && picks[t][st] > 0)) continue;
+            var from = Enumerable.Range(0, slots).Where(t => picks[t][st] > 0).OrderByDescending(t => picks[t][st]).DefaultIfEmpty(-1).First();
+            if (from < 0) continue;
+            var batches = picks[from][st];
+            var to = Enumerable.Range(0, slots).Where(t => May(slotWorker[t]) && !special[t] && !picks[t].Any(x => x > 0) && batches * wt[st] <= slotCapacity[t] && CanDrop(c, t))
+                .DefaultIfEmpty(-1).First();
+            if (to < 0) continue;
+            picks[to][st] = batches;
+            picks[from][st] = 0;
+            if (!Allowed(picks, st)) { picks[from][st] = batches; picks[to][st] = 0; }   // batches only the other one may take: they stay
+        }
         var picksUp = new bool[w];
         for (var t = 0; t < slots; t++)
         {

@@ -506,7 +506,7 @@ public sealed class PlanService
     /// is handed in, the first stop of his next planned trip is locked. Only worked out again when the batches, the crew or the locks change.
     /// </summary>
     PlanCore CoreFor(List<(string Name, int Capacity, QtDrive Drive)> crew, Dictionary<string, int> open, List<string> unknown, Dictionary<string, List<(string[] Workers, int Batches)>> limits, IReadOnlyList<DropChunk> chunks,
-        Dictionary<string, int> batchScu, Dictionary<string, int> shipScu, Func<PlannedTrip, decimal> value)
+        Dictionary<string, int> batchScu, Dictionary<string, int> shipScu, Dictionary<string, int> shipFullScu, Func<PlannedTrip, decimal> value)
     {
         bool WasteAboard(string name) => WasteTakenOut(name) != null;
         // how many batches of this station still fit in his ship, with what he carries already (by SCU)
@@ -622,7 +622,7 @@ public sealed class PlanService
             var core = new PlanCore
             {
                 Key = key,
-                Trips = Queue(TripPlanner.Plan(remaining, crew, starts, limits, chunks, batchScu, shipScu), value, WasteAboard),
+                Trips = Queue(TripPlanner.Plan(remaining, crew, starts, limits, chunks, batchScu, shipScu, shipFullScu), value, WasteAboard),
                 Batches = remaining.Where(kv => kv.Value > 0).Sum(kv => kv.Value) + starts.Sum(t => t.FirstBatches),
                 Note = note,
                 Settled = settled,
@@ -713,9 +713,10 @@ public sealed class PlanService
         // what every ship holds, less some headroom: the SCU of a batch is an estimate (missions are 500 SCU give or take, and not split evenly over their stations),
         // so the plan fills a ship to 90%, not to the last SCU (a C2: 742 of 824). No ship set: his batches times a third of a C2.
         var shipScu = crew.Where(c => c.Capacity > 0).ToDictionary(c => c.Name, c => (int)((_crew.ShipOf(c.Name)?.Total ?? c.Capacity * 232) * PlanFill));
+        var shipFullScu = crew.Where(c => c.Capacity > 0).ToDictionary(c => c.Name, c => _crew.ShipOf(c.Name)?.Total ?? c.Capacity * 232);   // a load from Ruin may fill the ship in full
         decimal PerBatch(string id) => worth.TryGetValue(id, out var x) && x.Batches > 0 ? x.Value / x.Batches : 0;   // the average batch at that station
         decimal TripValue(PlannedTrip t) => t.Stops.Sum(s => s.Batches * PerBatch(s.Id)) + _earnings.WasteValue(t.DropKeys);   // its pickups and the waste it takes out
-        var core = CoreFor(crew, remaining, unknown, limits, chunks, batchScu, shipScu, TripValue);
+        var core = CoreFor(crew, remaining, unknown, limits, chunks, batchScu, shipScu, shipFullScu, TripValue);
         var dropTrips = core.Trips;
         // the waste only rides along on the pickup trips: a load that none of them can take along waits (the note says so)
         var carried = dropTrips.SelectMany(pt => pt.Drops.Select(dd => dd.Id)).ToList();
