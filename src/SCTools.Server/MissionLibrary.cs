@@ -253,14 +253,6 @@ public sealed class MissionLibrary
             if (m.Kind != null) KindOf(db, kinds, m.Kind, MissionKinds.KindTitle(m.Title)!);
         }
         Regroup(db, kinds);
-        foreach (var line in Earnings.RewardLines)
-        {
-            var key = MissionKinds.HaulingKey(line.Contract);
-            if (kinds.ContainsKey(key)) continue;
-            var pays = _live.Read(t => Earnings.StartReward(line, t.State.Data));
-            KindOf(db, kinds, key, MissionKinds.HaulingTitle(line.Contract)).Auec = (long)Math.Round(pays);
-        }
-        NameHaulingKinds(db, kinds);
         db.SaveChanges();
 
         // what was typed in the library by ContractId: to the kind most of its missions have
@@ -290,9 +282,9 @@ public sealed class MissionLibrary
     }
 
     /// <summary>
-    /// The missions whose kind is another one now (the bounties go by their kind and risk since 28 Oct, not by their target) go to the kind they are now; what
-    /// was typed in for the old kind goes with them where the new one has nothing yet (not another name: that was the target's), and an old kind with no
-    /// mission left goes.
+    /// The missions whose kind is another one now (the bounties go by their kind and risk since 28 Oct, not by their target; the Hauling Planner's contracts by
+    /// their names since 29 Oct, not by their contract line) go to the kind they are now; what was typed in for the old kind goes with them where the new
+    /// one has nothing yet (not another name: that was the target's), and an old kind with no mission left goes.
     /// </summary>
     static void Regroup(TrackerDb db, Dictionary<string, MissionKindRow> kinds)
     {
@@ -300,7 +292,7 @@ public sealed class MissionLibrary
         var left = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var m in missions)
         {
-            if (MissionKinds.IsHauling(m.Kind!) || MissionKinds.TitleKey(m.Title) is not { } now || string.Equals(now, m.Kind, StringComparison.OrdinalIgnoreCase)) continue;
+            if (MissionKinds.TitleKey(m.Title) is not { } now || string.Equals(now, m.Kind, StringComparison.OrdinalIgnoreCase)) continue;
             var to = KindOf(db, kinds, now, MissionKinds.KindTitle(m.Title)!);
             if (kinds.TryGetValue(m.Kind!, out var was))
             {
@@ -322,21 +314,6 @@ public sealed class MissionLibrary
             db.MissionKinds.Remove(k);
             kinds.Remove(old);
         }
-    }
-
-    /// <summary>
-    /// The kinds of the Hauling Planner that are still named by their contract line ("Hauling: 4 To Ruin", from before they were named like every other
-    /// kind) get the name the game shows for their missions: the one most of them have (a string mod names them differently on another PC).
-    /// </summary>
-    static void NameHaulingKinds(TrackerDb db, Dictionary<string, MissionKindRow> kinds)
-    {
-        var placeholders = kinds.Values.Where(k => MissionKinds.IsHauling(k.Key) && MissionKinds.IsPlaceholder(k.Title)).ToList();
-        if (placeholders.Count == 0) return;
-        var titles = db.Missions.Where(m => m.Kind != null && m.Title != null).Select(m => new { m.Kind, m.Title }).ToList()
-            .Where(m => !MissionKinds.Unfilled(m.Title)).GroupBy(m => m.Kind!, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.Select(m => MissionKinds.KindTitle(m.Title)!).GroupBy(t => t).OrderByDescending(t => t.Count()).First().Key, StringComparer.OrdinalIgnoreCase);
-        foreach (var k in placeholders)
-            if (titles.TryGetValue(k.Key, out var named)) k.Title = named;
     }
 
     /// <summary>The kind with this key, made when it is not there yet.</summary>
@@ -403,10 +380,7 @@ public sealed class MissionLibrary
                     row.Kind = MissionKinds.KeyOf(merged.Title, merged.Hauling);
                     if (row.Kind != null)
                     {
-                        var kind = KindOf(db, kinds, row.Kind, merged.Hauling != null ? MissionKinds.HaulingTitle(merged.Hauling) : MissionKinds.KindTitle(merged.Title)!);
-                        // a kind of the Hauling Planner is named as the game names its missions, like every other kind, as soon as one of them is seen
-                        if (merged.Hauling != null && MissionKinds.IsPlaceholder(kind.Title) && MissionKinds.KindTitle(merged.Title) is { } named && !MissionKinds.Unfilled(named))
-                            kind.Title = named;
+                        KindOf(db, kinds, row.Kind, MissionKinds.IsHauling(row.Kind) ? MissionKinds.HaulingTitle(merged.Hauling!) : MissionKinds.KindTitle(merged.Title)!);
                     }
                     _known[key] = merged;
                     written++;
@@ -579,8 +553,8 @@ public sealed class MissionLibrary
     public static readonly string[] Fields = { "name", "giver", "scu", "auec", "mg", "council", "notes" };
 
     /// <summary>
-    /// Changes one field of a kind of mission (empty: not known). The aUEC of a Hauling Planner kind is what the planner pays for that contract line: the
-    /// session it shows gets it, and every new session (empty: its built-in reward). The sentence for the page, or null when that is not a field or a number.
+    /// Changes one field of a kind of mission (empty: not known). The aUEC of a kind the Hauling Planner reads is what the planner pays for every such
+    /// contract (empty: the Star Citizen Wiki's reward, else its built-in one). The sentence for the page, or null when that is not a field or a number.
     /// </summary>
     public string? Set(string key, string field, string? value, string who, DateTime nowUtc)
     {
@@ -613,12 +587,7 @@ public sealed class MissionLibrary
             db.SaveChanges();
             Changed();
         }
-        if (field == "auec" && Earnings.RewardLines.FirstOrDefault(l => MissionKinds.HaulingKey(l.Contract) == key) is { } line)
-        {
-            _live.Edit(t => Earnings.SetReward(t.State.Data, t.State.Inputs, line, number ?? 0), nowUtc);
-            return "Saved: the Hauling Planner pays this for " + line.Contract + " now.";
-        }
-        return "Saved.";
+        return "Saved.";   // (the Hauling Planner reads the kinds as its JobBook: a contract of this kind pays this from now on)
     }
 }
 

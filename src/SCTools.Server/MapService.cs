@@ -254,7 +254,7 @@ public sealed class MapService
         {
             var (log, name) = (p.Log, p.Name);
             var seen = (titles.GetValueOrDefault(log.Uploader ?? name) ?? Array.Empty<MissionSeen>()).ToDictionary(s => s.MissionId, StringComparer.OrdinalIgnoreCase);
-            string Title(Mission m) => m.IsHauling || m.IsOut ? "Hauling: " + Contracts.ContractName(m)   // hauling by its contract line, as the planner says
+            string Title(Mission m) => m.IsHauling || m.IsOut ? m.Title ?? "Hauling: " + Contracts.ContractName(m)   // hauling by its contract line, as the planner says
                 : seen.TryGetValue(m.Id, out var s) && s.Title != null ? s.Title : "A mission";
 
             // a crew's jumps go where the pilot picked (another player of the site in the same ship); a jump to a mission's beacon is to that objective

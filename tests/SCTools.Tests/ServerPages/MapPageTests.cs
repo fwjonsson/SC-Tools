@@ -106,7 +106,7 @@ public class MapPageTests
         Assert.Equal(("at", "pyro/gaslight"), (b.GetProperty("state").GetString(), b.GetProperty("at").GetString()));
 
         var objective = Assert.Single(map.GetProperty("objectives").EnumerateArray());
-        Assert.Equal(("pyro", "pyro/patch-city", "Hauling: 2 To Ruin"),
+        Assert.Equal(("pyro", "pyro/patch-city", "Senior | Stellar Large Haul | to Ruin Station [50/200/250/500/1000/2000/4000 Rep]"),   // by its name, as the library
             (objective.GetProperty("system").GetString(), objective.GetProperty("place").GetString(), objective.GetProperty("title").GetString()));
 
         // the systems the page draws, with their places

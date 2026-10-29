@@ -1,9 +1,11 @@
 namespace SCTools.Tracking;
 
 /// <summary>
-/// What the contracts pay and what the stops, runs and loads are worth. The log never says what a contract pays, so the payouts are the ones typed in the
-/// rewards table of the session (or the built-in ones). A stop is worth the reward of its mission split over its stops, a drop-off of a from-Ruin load the
-/// reward split over its drop-offs.
+/// What the contracts pay and what the stops, runs and loads are worth. The log never says what a contract pays: on the site every contract pays what the
+/// Mission Library says for its own kind (its name as the game shows it: an Experienced contract is not a Senior one; the aUEC typed in there, else the
+/// Star Citizen Wiki's reward; the tracker has the library as its JobBook), and where the library knows nothing (and in the program, which has none) the
+/// rewards table of the session by the number of stops (the built-in ones, or what was typed). A stop is worth the reward of its mission split over its
+/// stops, a drop-off of a from-Ruin load the reward split over its drop-offs.
 /// </summary>
 public sealed class Earnings
 {
@@ -72,19 +74,40 @@ public sealed class Earnings
         if (inp != null) line.Set(inp, reward > 0 ? reward : DefaultReward(line.Stops));
     }
 
-    /// <summary>What a hauling contract pays: the To Ruin rows of the rewards table, by its number of stops.</summary>
-    public static decimal RewardOf(Mission m, SessionInputs inp) =>
-        m.Multi == 2 ? Or(inp.Reward2, DefaultReward2)
-        : m.Multi == 3 ? Or(inp.Reward3, DefaultReward3)
-        : m.Multi == 4 ? Or(inp.Reward4, DefaultReward4) : 0;
+    /// <summary>
+    /// What the Mission Library says a contract pays, by the contract's own kind (its name as the game shows it, MissionKinds.TitleKey): the aUEC typed in
+    /// there, else the Star Citizen Wiki's reward for the contract (by its id, whatever a string mod calls it); null when neither is known, or without a
+    /// library (the program). The site gives the tracker the library as its JobBook (Frank, 29 Oct 2026: an Experienced 3-stop contract is not a Senior one).
+    /// </summary>
+    public static decimal? KindReward(Mission m, JobBook? book)
+    {
+        if (book == null) return null;
+        if (book.KindOf(m)?.Auec is > 0 and long typed) return typed;
+        return book.WikiOf(m)?.Auec is > 0 and long wiki ? wiki : null;
+    }
 
-    /// <summary>What a from-Ruin contract pays: the From Ruin rows of the rewards table, by its number of drop-offs (nothing typed = the built-in payout).</summary>
-    public static decimal WasteRewardOf(Mission m, SessionInputs? inp) =>
-        inp == null ? 0
+    /// <summary>What a hauling contract pays: the Mission Library's reward for its kind (KindReward), else the To Ruin rows of the rewards table, by its number of stops.</summary>
+    public static decimal RewardOf(Mission m, SessionInputs inp, JobBook? book = null) =>
+        KindReward(m, book) ?? (m.Multi == 2 ? Or(inp.Reward2, DefaultReward2)
+        : m.Multi == 3 ? Or(inp.Reward3, DefaultReward3)
+        : m.Multi == 4 ? Or(inp.Reward4, DefaultReward4) : 0);
+
+    /// <summary>What a hauling contract pays in the session shown (the library's reward for its kind, else the session's table by stops); without a session, the library's or 0.</summary>
+    public decimal RewardOf(Mission m) => _s.Inputs == null ? KindReward(m, _s.Jobs) ?? 0 : RewardOf(m, _s.Inputs, _s.Jobs);
+
+    /// <summary>
+    /// What a from-Ruin contract pays: the Mission Library's reward for its kind (KindReward), else the From Ruin rows of the rewards table, by its number of
+    /// drop-offs (nothing typed = the built-in payout).
+    /// </summary>
+    public static decimal WasteRewardOf(Mission m, SessionInputs? inp, JobBook? book = null) =>
+        KindReward(m, book) ?? (inp == null ? 0
         : m.OutDrops == 1 ? Or(inp.DirectReward, DefaultDirectReward)   // a direct one: one drop-off
         : m.OutDrops == 2 ? Or(inp.WasteReward2, DefaultReward2)   // the same payouts as the to-Ruin contracts with as many stops
         : m.OutDrops == 3 ? Or(inp.WasteReward3, DefaultReward3)
-        : m.OutDrops == 4 ? Or(inp.WasteReward4, DefaultReward4) : 0;
+        : m.OutDrops == 4 ? Or(inp.WasteReward4, DefaultReward4) : 0);
+
+    /// <summary>What a from-Ruin contract pays in the session shown.</summary>
+    public decimal WasteRewardOf(Mission m) => WasteRewardOf(m, _s.Inputs, _s.Jobs);
 
     /// <summary>
     /// Value of a pickup location: every mission pays its reward split over its stops,
@@ -94,6 +117,8 @@ public sealed class Earnings
     {
         var inp = _s.Inputs;
         if (inp == null) return 0;
+        // every mission with a stop here pays its own reward (a row made from the session has the missions; one made by hand says how many of each size)
+        if (r.StopMissions.Count > 0) return r.StopMissions.Where(m => m.Multi > 0).Sum(m => RewardOf(m, inp, _s.Jobs) / m.Multi);
         return r.Stops2 * Or(inp.Reward2, DefaultReward2) / 2m + r.Stops3 * Or(inp.Reward3, DefaultReward3) / 3m + r.Stops4 * Or(inp.Reward4, DefaultReward4) / 4m;
     }
 
@@ -134,7 +159,7 @@ public sealed class Earnings
     }
 
     /// <summary>The value of the batches of a run (reward / stops of each mission), and the part whose mission is completed, and the part that is lost.</summary>
-    public static (decimal Total, decimal Confirmed, decimal Failed) RunValues(WorkerTrip t, SessionGroup g, SessionInputs inp)
+    public static (decimal Total, decimal Confirmed, decimal Failed) RunValues(WorkerTrip t, SessionGroup g, SessionInputs inp, JobBook? book = null)
     {
         decimal total = 0, confirmed = 0, failed = 0;
         foreach (var p in t.Pickups)
@@ -149,7 +174,7 @@ public sealed class Earnings
                     dead = true;
                 }
                 if (m == null || m.Multi == 0) continue;
-                var v = RewardOf(m, inp) / m.Multi;
+                var v = RewardOf(m, inp, book) / m.Multi;
                 total += v;
                 if (t.Manual || dead || CargoRuns.LostLevelOf(inp, t.Key) == "All") failed += v;   // a failed run lost all its cargo
                 else if (m.Completed) confirmed += v;
@@ -159,7 +184,7 @@ public sealed class Earnings
     }
 
     /// <summary>The value of a run: its pickups (reward / stops of each mission) and the waste it delivered (reward / drop-offs). The Debts tab only counts the pickups.</summary>
-    public decimal RunValue(WorkerTrip t) => _s.Current == null || _s.Inputs == null ? 0 : RunValues(t, _s.Current, _s.Inputs).Total + WasteValue(t);
+    public decimal RunValue(WorkerTrip t) => _s.Current == null || _s.Inputs == null ? 0 : RunValues(t, _s.Current, _s.Inputs, _s.Jobs).Total + WasteValue(t);
 
     /// <summary>The value of a run for its Value cell, or nothing.</summary>
     public string RunValueText(WorkerTrip t)
@@ -177,7 +202,7 @@ public sealed class Earnings
         {
             var m = _s.Current.Missions.FirstOrDefault(x => x.Id == id) ?? _s.Current.Failed.FirstOrDefault(x => x.Id == id);
             if (m == null || m.Multi == 0) continue;
-            total += RewardOf(m, _s.Inputs) / m.Multi;
+            total += RewardOf(m, _s.Inputs, _s.Jobs) / m.Multi;
         }
         return total;
     }
@@ -194,7 +219,7 @@ public sealed class Earnings
         {
             var bar = key.IndexOf('|');
             if (bar <= 0 || !_s.Log.Missions.TryGetValue(key[..bar], out var m) || m.OutDrops <= 0) continue;
-            total += WasteRewardOf(m, _s.Inputs) / m.OutDrops;
+            total += WasteRewardOf(m, _s.Inputs, _s.Jobs) / m.OutDrops;
         }
         return total;
     }
@@ -204,7 +229,7 @@ public sealed class Earnings
 
     /// <summary>What drop-offs still to do are worth: every drop-off is the reward of its contract split over its drop-offs.</summary>
     public decimal WasteValue(IEnumerable<DropBatch> drops) =>
-        drops.Where(d => d.Mission.OutDrops > 0).Sum(d => WasteRewardOf(d.Mission, _s.Inputs) / d.Mission.OutDrops);
+        drops.Where(d => d.Mission.OutDrops > 0).Sum(d => WasteRewardOf(d.Mission, _s.Inputs, _s.Jobs) / d.Mission.OutDrops);
 
     /// <summary>
     /// The from-Ruin contracts of a session, like the hauling missions: one that is still going belongs to the latest session, one that is done to the session it was
@@ -229,16 +254,19 @@ public sealed class Earnings
     {
         if (_s.Current == null || _s.Inputs == null) return 0;
         var inp = _s.Inputs;
-        return _s.Current.Missions.Where(m => m.Completed).Sum(m => RewardOf(m, inp))
-            + SessionWaste(_s.Current).Where(m => m.Completed).Sum(m => WasteRewardOf(m, inp));   // and the waste contracts that are done
+        return _s.Current.Missions.Where(m => m.Completed).Sum(m => RewardOf(m, inp, _s.Jobs))
+            + SessionWaste(_s.Current).Where(m => m.Completed).Sum(m => WasteRewardOf(m, inp, _s.Jobs));   // and the waste contracts that are done
     }
 
     /// <summary>What every contract of a session pays together, the from-Ruin (waste) contracts by what was typed for them.</summary>
     public decimal Revenue(SessionGroup g, SessionInputs inp) =>
-        g.Missions.Sum(m => RewardOf(m, inp)) + SessionWaste(g).Sum(m => WasteRewardOf(m, inp));
+        g.Missions.Sum(m => RewardOf(m, inp, _s.Jobs)) + SessionWaste(g).Sum(m => WasteRewardOf(m, inp, _s.Jobs));
 }
 
-/// <summary>A row of the rewards table: a kind of contract (2, 3 or 4 stops, to or from Ruin) and where its payout is kept in the session.</summary>
+/// <summary>
+/// A row of the rewards table: a kind of contract (2, 3 or 4 stops, to or from Ruin) and where its payout is kept in the session. The program's Contracts tab
+/// still goes by these; on the site they are the fallback behind the Mission Library (KindReward).
+/// </summary>
 public sealed record RewardLine(int Stops, bool FromRuin, Func<SessionInputs, decimal> Get, Action<SessionInputs, decimal> Set)
 {
     /// <summary>"2 To Ruin", "4 From Ruin", "Direct From Ruin".</summary>
