@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace SCTools.Tracking;
@@ -21,14 +22,18 @@ public enum ScuFrom
 /// <summary>
 /// A stop of a hauling job: the stop's key (its objectives without their number: "pickup_1f934d6b-…"), the zone the game gives it, where it is in words
 /// (what its text says, or "near ArcCorp" when only the zone tells), the place of the map (null: not known; Near: only roughly, the planet it is at), its
-/// share of the job's SCU, and when it was done (null: not yet).
+/// share of the job's SCU (Exact: the game said it for this stop, else it is a share of the whole), and when it was done (null: not yet).
 /// </summary>
-public sealed record HaulStop(string Key, string? Zone, string? Name, Place? Place, bool Near, double Scu, DateTime? DoneUtc)
+public sealed record HaulStop(string Key, string? Zone, string? Name, Place? Place, bool Near, double Scu, DateTime? DoneUtc, bool Exact = false)
 {
     public bool Done => DoneUtc != null;
 
-    /// <summary>What a board says for it.</summary>
-    public string Shown => Name ?? Place?.Name ?? "a place the game does not name";
+    /// <summary>
+    /// What a board says for it: the game's words ("Port Tressler", "NB Int. Spaceport", "near ArcCorp"), but the map's name for a station the game names by its
+    /// Lagrange point ("Shallow Fields Station at Crusader's L4 Lagrange point" is "CRU-L4 Shallow Fields Station").
+    /// </summary>
+    public string Shown => Name != null && Place != null && !Near && Name.Contains("Lagrange point", StringComparison.OrdinalIgnoreCase) ? Place.Name
+        : Name ?? Place?.Name ?? "a place the game does not name";
 }
 
 /// <summary>
@@ -201,6 +206,45 @@ public static class HaulJobs
         return missions.Where(IsJob).Select(m => Of(m, zones, atlas, title?.Invoke(m), haulerScu?.Invoke(m), libraryScu?.Invoke(m))).ToList();
     }
 
+    /// <summary>How long after it was taken a job that never ended is still shown.</summary>
+    public static readonly TimeSpan Age = TimeSpan.FromHours(12);
+
+    /// <summary>
+    /// The hauling jobs of the party going on: the merged log's jobs that a member of the party table (or of names) has, not ended, taken in the last 12
+    /// hours of the logs, the first taken first, with the SCU of the site's book (State.Jobs: a hauler's, the library's) and its places. The zones are named
+    /// by the missions of the last day.
+    /// </summary>
+    public static List<HaulJob> Open(TrackerState s, IReadOnlyCollection<string>? names = null)
+    {
+        var log = s.Log;
+        if (log == null) return new List<HaulJob>();
+        var book = s.Jobs;
+        var atlas = book.Atlas;
+        var party = names ?? s.Data.Party;
+        var now = log.LastTime;
+        static DateTime? Seen(Mission m) => m.Accepted ?? m.FirstSeen;
+        var recent = log.Missions.Values.Where(m => Seen(m) is { } t && now - t < TimeSpan.FromDays(1)).ToList();
+        var zones = ZoneNames(recent, atlas);
+        return recent.Where(m => IsJob(m) && m.EndState == null && !m.Dropped && now - Seen(m)!.Value < Age && m.Holders.Any(h => party.Any(p => SameName(p, h))))
+            .OrderBy(m => Seen(m)).ThenBy(m => m.Id, StringComparer.Ordinal)
+            .Select(m => Of(m, zones, atlas, null, book.HaulerScu(m), book.KindOf(m)?.ScuToUse)).ToList();
+    }
+
+    static string Scu(double scu) => ((long)Math.Round(scu)).ToString("N0", CultureInfo.InvariantCulture);
+
+    /// <summary>A job's stops for a board: "Port Tressler 8 SCU ✓,  near ArcCorp ~4 SCU" (~: a share of the whole), or "—".</summary>
+    public static string StopsText(IReadOnlyList<HaulStop> stops) =>
+        stops.Count == 0 ? "—" : string.Join(",  ", stops.Select(s => s.Shown + (s.Scu >= 0.5 ? " " + (s.Exact ? "" : "~") + Scu(s.Scu) + " SCU" : "") + (s.Done ? " ✓" : "")));
+
+    /// <summary>A job's SCU for a board: "8" (the game's), "6 (hauler)", "10 (library)", or "?" (nobody knows yet).</summary>
+    public static string ScuText(HaulJob j) => j.ScuFrom switch
+    {
+        ScuFrom.Game => Scu(j.Scu),
+        ScuFrom.Hauler => Scu(j.Scu) + " (hauler)",
+        ScuFrom.Library => Scu(j.Scu) + " (library)",
+        _ => "?",
+    };
+
     /// <summary>One hauling job: its stops, named and placed, and its SCU split over them.</summary>
     public static HaulJob Of(Mission m, IReadOnlyDictionary<string, ZoneName> zones, Atlas atlas, string? title, long? haulerScu, long? libraryScu)
     {
@@ -236,8 +280,8 @@ public static class HaulJobs
         // a drop-off the game gave the SCU of has it; the rest of the SCU goes evenly over the others, and over the pickups
         var unknownDrops = drops.Count(d => d.GameScu == 0);
         var rest = Math.Max(0, scu - drops.Sum(d => d.GameScu));
-        var dropStops = drops.Select(d => d.Stop with { Scu = d.GameScu > 0 ? d.GameScu : unknownDrops > 0 ? rest / (double)unknownDrops : 0 }).ToList();
-        var pickupStops = pickups.Select(p => p.Stop with { Scu = pickups.Count > 0 ? scu / (double)pickups.Count : 0 }).ToList();
+        var dropStops = drops.Select(d => d.Stop with { Scu = d.GameScu > 0 ? d.GameScu : unknownDrops > 0 ? rest / (double)unknownDrops : 0, Exact = d.GameScu > 0 }).ToList();
+        var pickupStops = pickups.Select(p => p.Stop with { Scu = pickups.Count > 0 ? scu / (double)pickups.Count : 0, Exact = from == ScuFrom.Game && pickups.Count == 1 }).ToList();
         var system = m.System ?? dropStops.Concat(pickupStops).Select(s => s.Place?.System).FirstOrDefault(s => s != null);
         return new HaulJob(m, title ?? m.Title ?? "A hauling mission", system, pickupStops, dropStops, scu, from);
     }

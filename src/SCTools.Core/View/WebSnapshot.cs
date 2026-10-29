@@ -8,6 +8,9 @@ public sealed class WebSnapshotOptions
 {
     public bool Dark { get; init; } = true;
     public Func<string, int>? MeasureBold { get; init; }
+
+    /// <summary>The page where a hauler sets the SCU of a job (the server's); the program has none.</summary>
+    public string? JobsPage { get; init; }
 }
 
 /// <summary>
@@ -56,6 +59,8 @@ public sealed partial class WebSnapshot
             rewards = Rewards(),
             party = Party(),
             pickups = Stops(),
+            jobs = Jobs(),
+            jobsPage = _o.JobsPage,
             finished = Finished(),
             leaders = SessionLeaders(),
             runs = runs.Full,
@@ -104,6 +109,7 @@ public sealed partial class WebSnapshot
                     summary = Summary(),
                     rewards = Rewards(),
                     pickups = Stops(),
+                    jobs = Jobs(),
                     finished = Finished(),
                     leaders = SessionLeaders(),
                     runs = runs.Full,
@@ -168,6 +174,25 @@ public sealed partial class WebSnapshot
             table.Add(line.Contract, reward.ToString("N0", CultureInfo.CurrentCulture), N(missions.Count - done), N(done), total.ToString("N0", CultureInfo.CurrentCulture));
         }
         if (table.Rows.Count > 0) table.Add("Total", "", N(active), N(completed), revenue == 0 ? "" : revenue.ToString("N0", CultureInfo.CurrentCulture)).Bold = true;   // nothing: no Total of zeros
+        return table;
+    }
+
+    /// <summary>
+    /// The Other hauling board: the hauling jobs of every system the party has going (not the planner's own contracts; see HaulJobs), with who has each, its
+    /// pickups and drop-offs (✓ = done), its SCU and where that comes from, and what the Mission Library says it pays. With a party picked, only theirs.
+    /// </summary>
+    ViewTable Jobs()
+    {
+        var table = new ViewTable(_p,
+            new ViewColumn("Mission", "left"), new ViewColumn("Who", "left"), new ViewColumn("Pick up", "left"), new ViewColumn("Deliver to", "left"),
+            new ViewColumn("SCU", "right"), new ViewColumn("Value", "right"));
+        foreach (var j in HaulJobs.Open(_s).Where(j => _s.Focus == null || _s.Focus(j.Mission)))
+        {
+            var who = string.Join(", ", j.Mission.Holders.Where(h => _s.Data.Party.Any(p => SameName(p, h))).OrderBy(h => h, StringComparer.OrdinalIgnoreCase));
+            var auec = _s.Jobs.KindOf(j.Mission)?.Auec;
+            table.Add(j.Title, who, HaulJobs.StopsText(j.Pickups), HaulJobs.StopsText(j.Drops), HaulJobs.ScuText(j),
+                auec is > 0 ? auec.Value.ToString("N0", CultureInfo.CurrentCulture) : "");
+        }
         return table;
     }
 
