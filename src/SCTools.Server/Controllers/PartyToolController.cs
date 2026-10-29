@@ -7,7 +7,8 @@ namespace SCTools.Server.Controllers;
 
 /// <summary>
 /// The Party tool: who is playing and in which in-game party, and everybody else the site knows with when he was last seen; a player's own page has what
-/// there is to know about him (PartyService). For a logged in player or the admin, and only for the admin until it is shown (the Tools page).
+/// there is to know about him (PartyService). For a logged in player or the admin, and only for the admin until it is shown (the Tools page). Not a card
+/// on the landing page: the Party button beside the name in the top bar (TopBar.PartyButton) opens the panel (Panel) with the same parties, and links here.
 /// </summary>
 [Authorize(Roles = $"{Roles.Admin},{Roles.Player}")]
 [Route("/party")]
@@ -30,14 +31,28 @@ public sealed class PartyToolController : Controller
     public IActionResult Index()
     {
         if (!_tools.Sees(User, SiteTools.Party)) return Hidden();
-        var now = DateTime.UtcNow;
+        ViewData["Title"] = "Party";
+        return View("~/Views/PartyTool/Index.cshtml", Page(DateTime.UtcNow));
+    }
+
+    /// <summary>The panel of the Party button in the top bar: the parties now with the ships, and who is not playing (an HTML fragment, fetched when it opens).</summary>
+    [HttpGet("panel")]
+    public IActionResult Panel()
+    {
+        if (!_tools.Sees(User, SiteTools.Party)) return Hidden();
+        Response.Headers.CacheControl = "no-store";
+        return PartialView("~/Views/PartyTool/_Panel.cshtml", Page(DateTime.UtcNow));
+    }
+
+    /// <summary>The parties now with the ship each one flies, and everybody else: the Party page and the panel show the same.</summary>
+    PartyToolPage Page(DateTime now)
+    {
         var parties = _party.Parties(now);
         var roster = _party.Roster(now);
         var inParty = new HashSet<string>(parties.SelectMany(p => p.Names), StringComparer.OrdinalIgnoreCase);
-        ViewData["Title"] = "Party";
         var ships = parties.SelectMany(p => p.Names).Distinct(StringComparer.OrdinalIgnoreCase)
             .ToDictionary(n => n, n => _fleet.Active(n).Text, StringComparer.OrdinalIgnoreCase);   // the ship each one flies
-        return View("~/Views/PartyTool/Index.cshtml", new PartyToolPage(parties, roster.Where(r => !inParty.Contains(r.Name)).ToList(), ships, now));
+        return new PartyToolPage(parties, roster.Where(r => !inParty.Contains(r.Name)).ToList(), ships, now);
     }
 
     [HttpGet("{name}")]

@@ -14,6 +14,28 @@
 .topbar .who { display:flex; gap:14px; align-items:center; color:#c9d1d9; }
 .topbar .who .dl { display:inline-flex; gap:6px; align-items:center; text-decoration:none; font-weight:600; color:#e6edf3; }
 .topbar .who .dl svg { width:15px; height:15px; }
+/* the Party button beside the name (TopBar.PartyButton): a panel opens under it with who is playing and with whom (fetched when it opens); marked like the
+   other parts of the site when you are on the Party pages */
+.topbar details.party { position:relative; }
+.topbar details.party > summary { list-style:none; cursor:pointer; padding:5px 12px; border-radius:4px; font-weight:600; user-select:none; }
+.topbar details.party > summary::-webkit-details-marker { display:none; }
+.topbar details.party > summary::after { content:" \25BE"; font-size:11px; }
+.topbar details.party > summary:hover, .topbar details.party[open] > summary { background:#151b23; }
+.topbar details.party > summary.on { background:color-mix(in srgb, var(--tool, #b77fdb) 30%, transparent); color:#fff; box-shadow:inset 0 -2px 0 var(--tool, #b77fdb); }
+.topbar details.party > .panel { position:absolute; right:0; top:calc(100% + 6px); z-index:20; min-width:280px; max-width:380px; background:#151b23; border:1px solid #2f3a48;
+  border-top:2px solid var(--tool, #b77fdb); border-radius:4px; padding:10px 14px 12px; font-weight:400; color:#e6edf3; box-shadow:0 8px 24px rgba(0, 0, 0, .45); }
+.topbar .panel p { margin:0 0 8px; }
+.topbar .panel .muted { color:#8b949e; }
+.topbar .partypanel .head { font-weight:600; display:flex; justify-content:space-between; gap:14px; white-space:nowrap; }
+.topbar .partypanel .head a { font-weight:400; color:#8b949e; text-decoration:none; }
+.topbar .partypanel .head a:hover { color:#e6edf3; text-decoration:underline; }
+.topbar .partypanel .group { margin:6px 0 8px; }
+.topbar .partypanel .group b { color:var(--tool, #b77fdb); }
+.topbar .partypanel ul { list-style:none; margin:2px 0 0; padding:0 0 0 10px; }
+.topbar .partypanel li { padding:2px 0; white-space:nowrap; }
+.topbar .partypanel li a { text-decoration:none; }
+.topbar .partypanel li a:hover { text-decoration:underline; }
+.topbar .partypanel .small { font-size:12px; white-space:normal; margin-top:6px; }
 /* the menu button and its panel: on a computer the panel's parts sit in the bar as they are, on a phone they open under it */
 .topbar .menu-panel { display:contents; }
 .topbar .menu-toggle { display:none; margin:0 0 0 auto; align-self:center; background:none; border:1px solid #2f3a48; border-radius:4px; color:inherit; padding:6px 8px; cursor:pointer; line-height:0; }
@@ -28,6 +50,8 @@
   .topbar .toolnav a { padding:10px 12px; font-size:16px; }
   .topbar .who { flex-direction:column; align-items:flex-start; gap:12px; margin-top:6px; padding:12px 12px 6px; border-top:1px solid #2f3a48; font-size:15px; }
   .topbar .who a.area { padding:8px 12px; margin-left:-12px; }
+  .topbar details.party > summary { padding:8px 12px; margin-left:-12px; }
+  .topbar details.party > .panel { position:static; margin-top:6px; max-width:none; box-shadow:none; }   /* in the menu, not over it */
 }
 .topbar form.inline { display:inline; margin:0; }
 .topbar button.link { font:inherit; font-weight:400; background:none; border:none; padding:0; margin:0; color:inherit; text-decoration:underline; cursor:pointer; }

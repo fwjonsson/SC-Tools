@@ -31,7 +31,8 @@ public sealed class ToolsController : Controller
             return LocalRedirect("/admin/tools");
         }
         _tools.SetPublic(tool, value);
-        TempData["Message"] = value ? tool.Name + " is on the front page for everybody now." : tool.Name + " is only for you now.";
+        TempData["Message"] = value ? tool.Name + (tool == SiteTools.Party ? " is in the top bar for everybody now." : " is on the front page for everybody now.")
+            : tool.Name + " is only for you now.";
         return LocalRedirect("/admin/tools");
     }
 }

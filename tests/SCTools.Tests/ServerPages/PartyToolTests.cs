@@ -4,7 +4,10 @@ using SCTools.Tests.Support;
 
 namespace SCTools.Tests.ServerPages;
 
-/// <summary>The Party tool: who is playing with whom (the game's own party, from everybody's log), everybody else, and a player's own page.</summary>
+/// <summary>
+/// The Party tool: who is playing with whom (the game's own party, from everybody's log), everybody else, and a player's own page; the Party button in the top
+/// bar with its panel, instead of a card on the landing page.
+/// </summary>
 public class PartyToolTests
 {
     static string Id(DateTime t) => t.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
@@ -30,7 +33,23 @@ public class PartyToolTests
         Assert.Contains("href=\"/party/bileh123\"", page);
         Assert.Contains("Not playing", page);
         Assert.Contains("href=\"/party/pilot_x\"", page);
-        Assert.Contains("3 playing in 2 parties", WebUtility.HtmlDecode(await admin.GetStringAsync("/")));   // its card
+        // not a card on the landing page: the Party button beside the name in the top bar, on the tools' own pages too, and its panel (fetched when it opens)
+        var home = await admin.GetStringAsync("/");
+        Assert.DoesNotContain("<span class=\"tool-name\">Party</span>", home);
+        Assert.Contains("<span>admin</span><details class=\"party\" style=\"--tool:#b77fdb\" ontoggle=\"partyPanel(this)\"><summary class=\"area\">Party</summary>", home);
+        Assert.Contains("function partyPanel(d)", home);
+        Assert.Contains("<details class=\"party\"", await admin.GetStringAsync("/hauling"));
+        Assert.Contains("<summary class=\"area on\" aria-current=\"page\">Party</summary>", await admin.GetStringAsync("/party/zzoega"));   // on the Party pages: marked
+        var panel = WebUtility.HtmlDecode(await admin.GetStringAsync("/party/panel"));
+        Assert.StartsWith("<div class=\"partypanel\">", panel.TrimStart());   // a fragment, no page around it
+        Assert.Contains("3 playing in 2 parties", panel);
+        Assert.Contains("zzoega's party", panel);
+        Assert.Contains("href=\"/party/zzatvo\"", panel);
+        Assert.Contains("Crusader C2 Hercules Starlifter", panel);
+        Assert.Contains("Not playing: ", panel);   // everybody else the site knows (pilot_x has a key and has not played)
+        Assert.Contains("pilot_x", panel[panel.IndexOf("Not playing: ", StringComparison.Ordinal)..]);
+        Assert.Contains("href=\"/party\"", panel);
+        Assert.StartsWith("/login", (await f.Browser().GetAsync("/party/panel")).Headers.Location!.PathOf());
 
         var zzoega = WebUtility.HtmlDecode(await admin.GetStringAsync("/party/zzoega"));
         Assert.Contains("<td>Playing</td>", zzoega);
@@ -41,7 +60,12 @@ public class PartyToolTests
 
         var player = await f.Player(f.AddKey("bileh123"));
         Assert.StartsWith("/login/denied", (await player.GetAsync("/party")).Headers.Location!.PathOf());
+        Assert.StartsWith("/login/denied", (await player.GetAsync("/party/panel")).Headers.Location!.PathOf());
+        Assert.DoesNotContain("<details class=\"party\"", await player.GetStringAsync("/"));   // no button until the tool is shown
         await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "party"), ("value", "true"));
+        Assert.Contains("Party is in the top bar for everybody now.", await admin.GetStringAsync("/admin/tools"));
         Assert.Equal(HttpStatusCode.OK, (await player.GetAsync("/party/zzoega")).StatusCode);
+        Assert.Contains("<details class=\"party\"", await player.GetStringAsync("/"));
+        Assert.Contains("bileh123", WebUtility.HtmlDecode(await player.GetStringAsync("/party/panel")));
     }
 }

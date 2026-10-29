@@ -17,13 +17,10 @@ public sealed class PageController : Controller
     readonly MissionLibrary _missions;
     readonly Playtime _playtime;
     readonly IFileVersionProvider _files;
-    readonly PartyService _party;
 
-    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions, Playtime playtime, IFileVersionProvider files,
-        PartyService party)
+    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions, Playtime playtime, IFileVersionProvider files)
     {
         _files = files;
-        _party = party;
         _live = live;
         _tools = tools;
         _gauntlet = gauntlet;
@@ -38,7 +35,7 @@ public sealed class PageController : Controller
     [HttpGet("/")]
     public IActionResult Home()
     {
-        var cards = SiteTools.All.Where(t => _tools.Sees(User, t)).Select(t => new HomeCard(t, !_tools.IsPublic(t), State(t))).ToList();
+        var cards = SiteTools.Cards.Where(t => _tools.Sees(User, t)).Select(t => new HomeCard(t, !_tools.IsPublic(t), State(t))).ToList();
         return View("~/Views/Home/Index.cshtml", new HomeModel(cards));
     }
 
@@ -65,13 +62,6 @@ public sealed class PageController : Controller
             var week = SCTools.Play.PlayStats.Periods(now, TimeZoneInfo.Local)[1];
             var played = SCTools.Play.PlayStats.For(week, games, Array.Empty<SCTools.Play.EarnedMission>(), 0, 0).Played;
             return played.TotalMinutes < 1 ? "Nothing played this week" : played.TotalHours.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " h played this week";
-        }
-        if (tool == SiteTools.Party)
-        {
-            if (User.Identity?.IsAuthenticated != true) return "Log in to see who is playing";
-            var parties = _party.Parties(DateTime.UtcNow);
-            var playing = parties.Sum(p => p.Names.Count);
-            return playing == 0 ? "Nobody playing now" : playing + " playing" + (parties.Count > 1 ? " in " + parties.Count + " parties" : "");
         }
         if (tool == SiteTools.Missions)
         {

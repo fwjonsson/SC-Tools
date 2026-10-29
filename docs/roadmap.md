@@ -12,8 +12,9 @@ became a site with several Star Citizen tools (one server, one tracker on every 
   `sed -i '/^HaulingTracker__/d' /etc/sctools/sctools.env && systemctl restart sctools`.
 - **Landing page** (PR #229): orbit rings and centred tool cards; the tracker download in the top bar and the footer; the disclaimer in the footer
   (data from the Star Citizen Wiki, our own logs, and what we fill in ourselves). Hamburger menu on mobile.
-- **Top bar**: the same on every page, the tools' own pages too: SC Tools (the only way back to the cards), the tools, and on the right the user, My
-  page, Admin, Log out. The admin pages are a second row under it.
+- **Top bar**: the same on every page, the tools' own pages too: SC Tools (the only way back to the cards), the tools, and on the right the user, his
+  Party button (Frank, 29 Oct: the Party is not a card on the landing page but a button beside the name with a panel under it), My page, Admin, Log
+  out. The admin pages are a second row under it.
 - **Tools page** (`/admin/tools`): Frank ticks which tools everybody sees; an unticked tool is admin-only (its card and its page). Default: Hauling
   Planner shown, the others only for Frank.
 - **Scrip page** (`/admin/scrip`, PR #230): what one MG scrip and one Council scrip are worth in aUEC, the price Frank thinks they sell for now; every
@@ -50,7 +51,8 @@ All the tools track at the same time, all the time. The tracking runs on the ser
    runs, completion rate, fastest run, favourite and best scenario, last played). Rewards from the Mission Library; the admin's `/admin/gauntlet`
    shows them. Top 10 fastest: picking a scenario shows it at once (no Show button).
 5. **Party tool** (`/party`, PR #241): who is playing in which in-game party with the ship each one flies, everybody else with when they were last
-   seen, and a page per player. `PartyService` keeps the site's party in one place for every tool.
+   seen, and a page per player. `PartyService` keeps the site's party in one place for every tool. Since 29 Oct not a card on the landing page: a
+   **Party** button beside the name in the top bar, with a panel (fetched when it opens) of the parties, the ships and the links to the pages.
 6. **Map tool** (`/map`, PR #242; all three systems in PR #243): Pyro, Stanton and Nyx from above, one tab per system (it opens on the system where
    most players are). The places (stars, planets, moons, cities, gateways, stations: 26 + 52 + 19) come from the Star Citizen Wiki API positions in
    Frank's ScApiTool download of 20 Oct 2026 (`StarMap` in the core; Pyro's match the Trip Planner's distances). Everybody playing is placed where

@@ -39,6 +39,12 @@ public static class SiteTools
 
     public static readonly IReadOnlyList<SiteTool> All = new[] { Hauling, Missions, Gauntlet, Session, Party, Map };   // the ones that work first
 
+    /// <summary>
+    /// The tools with a card on the landing page and a link in the top bar: every tool but the Party, which is a button beside the viewer's name in the bar
+    /// (TopBar.PartyButton) with its pages behind it (Frank, 29 Oct 2026). The Tools page still says who sees it.
+    /// </summary>
+    public static readonly IReadOnlyList<SiteTool> Cards = All.Where(t => t != Party).ToList();
+
     public static SiteTool? Find(string? id) => All.FirstOrDefault(t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
 }
 
