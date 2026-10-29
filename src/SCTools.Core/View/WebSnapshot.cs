@@ -190,8 +190,9 @@ public sealed partial class WebSnapshot
         {
             var who = string.Join(", ", j.Mission.Holders.Where(h => _s.Data.Party.Any(p => SameName(p, h))).OrderBy(h => h, StringComparer.OrdinalIgnoreCase));
             var auec = _s.Jobs.KindOf(j.Mission)?.Auec;
+            var wiki = _s.Jobs.WikiOf(j.Mission)?.AuecText;   // nothing typed in the library: the Star Citizen Wiki's reward
             table.Add(j.Title, who, HaulJobs.StopsText(j.Pickups), HaulJobs.StopsText(j.Drops), HaulJobs.ScuText(j),
-                auec is > 0 ? auec.Value.ToString("N0", CultureInfo.CurrentCulture) : "");
+                auec is > 0 ? auec.Value.ToString("N0", CultureInfo.CurrentCulture) : wiki != null ? "~" + wiki + " (wiki)" : "");
         }
         return table;
     }

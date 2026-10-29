@@ -17,6 +17,36 @@ public enum ScuFrom
 
     /// <summary>The Mission Library: what was typed in there for this kind of mission, else the last SCU a hauler or the game gave one of them.</summary>
     Library,
+
+    /// <summary>The Star Citizen Wiki API's hauling orders for the contract (by its id): the middle of their SCU ranges.</summary>
+    Wiki,
+}
+
+/// <summary>A range of SCU (a hauling order of the Star Citizen Wiki API: "100 - 150 SCU").</summary>
+public sealed record ScuRange(int Min, int Max)
+{
+    public double Middle => (Min + Max) / 2.0;
+}
+
+/// <summary>
+/// What the Star Citizen Wiki API says about a contract (/api/missions/{uuid}, the uuid is the log's contractDefinitionId): its debug name (the log's
+/// contract name), its title, its hauling orders' SCU (one per stop: a "Master" Red Wind contract has 4 of 100 - 150 SCU), and its reward (a range, in
+/// its currency; many missions have none there).
+/// </summary>
+public sealed record WikiContract(string Uuid, string? DebugName, string? Title, IReadOnlyList<ScuRange> Orders, long? RewardMin = null, long? RewardMax = null,
+    string? Currency = null)
+{
+    /// <summary>The SCU of the whole contract: the orders' ranges added up.</summary>
+    public ScuRange Total => new(Orders.Sum(o => o.Min), Orders.Sum(o => o.Max));
+
+    /// <summary>The aUEC it pays (the middle of the range), or null: no reward there, or not in aUEC.</summary>
+    public long? Auec => (RewardMin ?? RewardMax) is > 0 && (Currency == null || Currency.Contains("UEC", StringComparison.OrdinalIgnoreCase))
+        ? ((RewardMin ?? RewardMax)!.Value + (RewardMax ?? RewardMin)!.Value) / 2 : null;
+
+    /// <summary>The reward as a text: "25,000" or "20,000–30,000" (aUEC), or null.</summary>
+    public string? AuecText => Auec == null ? null : RewardMin == RewardMax || RewardMin == null || RewardMax == null
+        ? Auec.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)
+        : RewardMin.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + "–" + RewardMax.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
 }
 
 /// <summary>
@@ -41,7 +71,8 @@ public sealed record HaulStop(string Key, string? Zone, string? Name, Place? Pla
 /// Haul" (pick up at one place, deliver to another), a courier run, the cargo of a salvage order. Its title, system, pickups and drop-offs, and its SCU
 /// with where that comes from.
 /// </summary>
-public sealed record HaulJob(Mission Mission, string Title, string? System, IReadOnlyList<HaulStop> Pickups, IReadOnlyList<HaulStop> Drops, double Scu, ScuFrom ScuFrom)
+public sealed record HaulJob(Mission Mission, string Title, string? System, IReadOnlyList<HaulStop> Pickups, IReadOnlyList<HaulStop> Drops, double Scu, ScuFrom ScuFrom,
+    ScuRange? WikiRange = null)
 {
     /// <summary>Every drop-off is done.</summary>
     public bool Delivered => Drops.Count > 0 && Drops.All(d => d.Done);
@@ -197,13 +228,13 @@ public static class HaulJobs
 
     /// <summary>
     /// The hauling jobs of these missions (the merged log's, or a player's), with what the game says. title: a mission's title (null: "A hauling mission");
-    /// haulerScu: the SCU a hauler typed in for this mission; libraryScu: the Mission Library's for its kind.
+    /// haulerScu: the SCU a hauler typed in for this mission; libraryScu: the Mission Library's for its kind; wiki: what the Wiki API says of its contract.
     /// </summary>
     public static List<HaulJob> Of(IReadOnlyCollection<Mission> missions, Atlas atlas, Func<Mission, string?>? title = null,
-        Func<Mission, long?>? haulerScu = null, Func<Mission, long?>? libraryScu = null)
+        Func<Mission, long?>? haulerScu = null, Func<Mission, long?>? libraryScu = null, Func<Mission, WikiContract?>? wiki = null)
     {
         var zones = ZoneNames(missions, atlas);
-        return missions.Where(IsJob).Select(m => Of(m, zones, atlas, title?.Invoke(m), haulerScu?.Invoke(m), libraryScu?.Invoke(m))).ToList();
+        return missions.Where(IsJob).Select(m => Of(m, zones, atlas, title?.Invoke(m), haulerScu?.Invoke(m), libraryScu?.Invoke(m), wiki?.Invoke(m))).ToList();
     }
 
     /// <summary>How long after it was taken a job that never ended is still shown.</summary>
@@ -227,7 +258,7 @@ public static class HaulJobs
         var zones = ZoneNames(recent, atlas);
         return recent.Where(m => IsJob(m) && m.EndState == null && !m.Dropped && now - Seen(m)!.Value < Age && m.Holders.Any(h => party.Any(p => SameName(p, h))))
             .OrderBy(m => Seen(m)).ThenBy(m => m.Id, StringComparer.Ordinal)
-            .Select(m => Of(m, zones, atlas, null, book.HaulerScu(m), book.KindOf(m)?.ScuToUse)).ToList();
+            .Select(m => Of(m, zones, atlas, null, book.HaulerScu(m), book.KindOf(m)?.ScuToUse, book.WikiOf(m))).ToList();
     }
 
     static string Scu(double scu) => ((long)Math.Round(scu)).ToString("N0", CultureInfo.InvariantCulture);
@@ -236,17 +267,19 @@ public static class HaulJobs
     public static string StopsText(IReadOnlyList<HaulStop> stops) =>
         stops.Count == 0 ? "—" : string.Join(",  ", stops.Select(s => s.Shown + (s.Scu >= 0.5 ? " " + (s.Exact ? "" : "~") + Scu(s.Scu) + " SCU" : "") + (s.Done ? " ✓" : "")));
 
-    /// <summary>A job's SCU for a board: "8" (the game's), "6 (hauler)", "10 (library)", or "?" (nobody knows yet).</summary>
+    /// <summary>A job's SCU for a board: "8" (the game's), "6 (hauler)", "10 (library)", "~500 (wiki 400–600)", or "?" (nobody knows yet).</summary>
     public static string ScuText(HaulJob j) => j.ScuFrom switch
     {
         ScuFrom.Game => Scu(j.Scu),
         ScuFrom.Hauler => Scu(j.Scu) + " (hauler)",
         ScuFrom.Library => Scu(j.Scu) + " (library)",
+        ScuFrom.Wiki => "~" + Scu(j.Scu) + (j.WikiRange is { } r && r.Min != r.Max ? " (wiki " + Scu(r.Min) + "–" + Scu(r.Max) + ")" : " (wiki)"),
         _ => "?",
     };
 
     /// <summary>One hauling job: its stops, named and placed, and its SCU split over them.</summary>
-    public static HaulJob Of(Mission m, IReadOnlyDictionary<string, ZoneName> zones, Atlas atlas, string? title, long? haulerScu, long? libraryScu)
+    public static HaulJob Of(Mission m, IReadOnlyDictionary<string, ZoneName> zones, Atlas atlas, string? title, long? haulerScu, long? libraryScu,
+        WikiContract? wiki = null)
     {
         var objectives = Objectives(m).ToList();
         List<(HaulStop Stop, int GameScu)> Stops(string prefix) =>
@@ -273,9 +306,11 @@ public static class HaulJobs
         var pickups = Stops("pickup_");
         var drops = Stops("dropoff_");
         var game = drops.Sum(d => d.GameScu);
+        var range = wiki is { Orders.Count: > 0 } ? wiki.Total : null;
         var (scu, from) = game > 0 ? ((long)game, ScuFrom.Game)
             : haulerScu > 0 ? (haulerScu.Value, ScuFrom.Hauler)
             : libraryScu > 0 ? (libraryScu.Value, ScuFrom.Library)
+            : range is { Max: > 0 } ? ((long)Math.Round(range.Middle), ScuFrom.Wiki)
             : (0L, ScuFrom.NotKnown);
         // a drop-off the game gave the SCU of has it; the rest of the SCU goes evenly over the others, and over the pickups
         var unknownDrops = drops.Count(d => d.GameScu == 0);
@@ -283,6 +318,6 @@ public static class HaulJobs
         var dropStops = drops.Select(d => d.Stop with { Scu = d.GameScu > 0 ? d.GameScu : unknownDrops > 0 ? rest / (double)unknownDrops : 0, Exact = d.GameScu > 0 }).ToList();
         var pickupStops = pickups.Select(p => p.Stop with { Scu = pickups.Count > 0 ? scu / (double)pickups.Count : 0, Exact = from == ScuFrom.Game && pickups.Count == 1 }).ToList();
         var system = m.System ?? dropStops.Concat(pickupStops).Select(s => s.Place?.System).FirstOrDefault(s => s != null);
-        return new HaulJob(m, title ?? m.Title ?? "A hauling mission", system, pickupStops, dropStops, scu, from);
+        return new HaulJob(m, title ?? m.Title ?? "A hauling mission", system, pickupStops, dropStops, scu, from, range);
     }
 }

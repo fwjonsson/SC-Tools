@@ -371,8 +371,15 @@ admin (done), then going live.
     (the zone is the planet's: Baijini Point and Area18 share ArcCorp's).
   - **SCU, the first that has it:** what the game's "Deliver" popups add up to; the SCU a hauler typed in for that mission on **Hauling jobs**
     (`/hauling/jobs`, players and the admin; only that mission has it); the Mission Library's for its kind (typed in there, else the suggestion: the
-    last SCU a hauler typed in for one of them, or what the game said for one, every minute, `MissionLibrary.SuggestFromGame`). It is split evenly
-    over the pickups and over the drop-offs the game did not give the SCU of (~ on the board), like the planner's own contracts.
+    last SCU a hauler typed in for one of them, or what the game said for one, every minute, `MissionLibrary.SuggestFromGame`); the Star Citizen
+    Wiki's hauling orders for the contract (the middle of their ranges: "~500 (wiki 400–600)" for a Master contract of 4 × 100–150 SCU). It is split
+    evenly over the pickups and over the drop-offs the game did not give the SCU of (~ on the board), like the planner's own contracts.
+  - **The Star Citizen Wiki API** (`WikiMissions`, table `WikiMissions`): every objective marker of the log has the contract's own name and id
+    (`contract [RedWind_Pyro_…_Multi4ToSingle], contractDefinitionId[26e80306-…]`, `Mission.Contract` and `Definition`), which are the API's
+    `debug_name` and `uuid` of the mission, whatever names a string mod shows in the game. Every minute the server asks
+    `api.star-citizen.wiki/api/missions/{uuid}` about up to 10 contracts of the logs it did not ask about yet (the newest first; one the API does not
+    know again after a week; when the API cannot be reached, the next minute) and keeps their debug name, title and hauling orders (`min_scu`–`max_scu`
+    of every order, one per stop).
   - **Value:** the Mission Library's aUEC for the kind.
   - The server gives the tracker what it knows besides the logs as a `JobBook` (the haulers' SCU, the library's kinds, the map's places), made new
     whenever the library changes, so the tracker never waits for the library.

@@ -48,10 +48,11 @@ public sealed record MapPlacesPage(IReadOnlyList<UnknownPlace> Unknown, IReadOnl
 
 /// <summary>
 /// A hauling job on the Hauling jobs page: the mission, who has it, its pickups and drop-offs, where its SCU comes from now, the game's SCU (null: it did not
-/// say), the hauler's for this mission, and the library's for the kind (typed in there; the suggestion and who made it).
+/// say), the hauler's for this mission, the library's for the kind (typed in there; the suggestion and who made it), and the SCU as the board says it
+/// ("~500 (wiki 400–600)").
 /// </summary>
 public sealed record HaulJobLine(string MissionId, string Title, string Who, string Pickups, string Drops, ScuFrom From, long? GameScu, long? HaulerScu,
-    long? LibraryScu, long? Suggested, string? SuggestedBy);
+    long? LibraryScu, long? Suggested, string? SuggestedBy, string ScuShown = "");
 
 /// <summary>The Hauling jobs page: the party's hauling jobs going on.</summary>
 public sealed record HaulJobsPage(IReadOnlyList<HaulJobLine> Jobs);

@@ -1,10 +1,13 @@
 @model MissionLibraryPage
 @using System.Globalization
 @using SCTools.Server.Controllers
+@using SCTools.Tracking
 @{
     var inv = CultureInfo.InvariantCulture;
     string N(long? v) => v?.ToString(inv) ?? "";
     string When(DateTime? utc) => utc == null ? "" : utc.Value.ToLocalTime().ToString("d MMM yyyy", inv);
+    // the Star Citizen Wiki's SCU for the kind's contract (the middle of its hauling orders), when no SCU is suggested
+    string WikiScu(WikiContract? w) => w != null && w.Orders.Count > 0 ? "~" + N((long)Math.Round(w.Total.Middle)) : "";
     var back = Model.Link(Model.Page);
 }
 <h1>Mission Library</h1>
@@ -54,8 +57,8 @@ else
         {
             ("name", r.Name ?? r.Title, "name", r.Title),
             ("giver", r.Giver ?? "", "giver", "Type or pick"),
-            ("scu", N(r.Scu), "num scu", N(r.ScuSuggested)),
-            ("auec", N(r.Auec), "num", ""),
+            ("scu", N(r.Scu), "num scu", r.ScuSuggested != null ? N(r.ScuSuggested) : WikiScu(e.Wiki)),
+            ("auec", N(r.Auec), "num", e.Wiki?.AuecText ?? ""),
             ("mg", N(r.MgScrip), "num scrip", ""),
             ("council", N(r.CouncilScrip), "num scrip", ""),
         })
@@ -86,7 +89,8 @@ else
       @if (Model.Page < Model.Pages) { <a href="@Model.Link(Model.Page + 1)">Played earlier »</a> } else { <span class="muted">Played earlier »</span> }
     </nav>
   }
-  <p class="hint">Played: completed of taken (hover for failed and abandoned). Rewards and SCU are whole numbers; a grey SCU is the one suggested last (what a hauler typed in for one of these missions on
+  <p class="hint">Played: completed of taken (hover for failed and abandoned). Rewards and SCU are whole numbers; a grey aUEC is the Star Citizen Wiki's reward for the mission (it counts until one is typed in); a grey SCU is
+    the one suggested last (what a hauler typed in for one of these missions on
     <a href="/hauling/jobs">Hauling jobs</a>, or what the game said), and one typed in here wins over it; an empty field means not known (an empty Hauling
     aUEC: the Hauling Planner's built-in reward). A grey name is the one the game shows. @MissionsController.PageSize to a page, the ones played last first.</p>
 }

@@ -13,7 +13,7 @@ public sealed class HaulingLog
     static readonly Regex Ts = new(@"^<(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+)Z> ", RegexOptions.Compiled);
 
     static readonly Regex Marker = new(
-        @"Creating objective marker: missionId \[(?<m>[0-9a-f-]{36})\], generator name \[[^\]]*\], contract \[(?<c>[^\]]*)\], contractDefinitionId\[[^\]]*\], objectiveId \[(?<o>[^\]]*)\], markerEntityId \[(?<e>\d+)\], zoneHostId \[(?<z>\d+)\](?:, position \[x: (?<px>-?[\d.]+), y: (?<py>-?[\d.]+), z: (?<pz>-?[\d.]+)\])?",
+        @"Creating objective marker: missionId \[(?<m>[0-9a-f-]{36})\], generator name \[[^\]]*\], contract \[(?<c>[^\]]*)\], contractDefinitionId\[(?<d>[^\]]*)\], objectiveId \[(?<o>[^\]]*)\], markerEntityId \[(?<e>\d+)\], zoneHostId \[(?<z>\d+)\](?:, position \[x: (?<px>-?[\d.]+), y: (?<py>-?[\d.]+), z: (?<pz>-?[\d.]+)\])?",
         RegexOptions.Compiled);
 
     // the objective's text, from its popup: "New Objective: Go to Asteroid Cluster: " (MissionId and ObjectiveId go with it)
@@ -280,6 +280,8 @@ public sealed class HaulingLog
                 foreach (var kv in m.ObjPos) t.ObjPos.TryAdd(kv.Key, kv.Value);
                 t.Title = SCTools.Missions.MissionKinds.Better(t.Title, m.Title);
                 t.System ??= m.System;
+                t.Contract ??= m.Contract;
+                t.Definition ??= m.Definition;
                 if (t.Multi == 0) t.Multi = m.Multi;
                 if (m.Accepted.HasValue && (!t.Accepted.HasValue || m.Accepted < t.Accepted)) t.Accepted = m.Accepted;
                 if (m.FirstSeen.HasValue && (!t.FirstSeen.HasValue || m.FirstSeen < t.FirstSeen)) t.FirstSeen = m.FirstSeen;
@@ -606,6 +608,8 @@ public sealed class HaulingLog
                 }
             }
             m.ObjZone[x.Groups["o"].Value] = x.Groups["z"].Value;
+            if (x.Groups["c"].Value.Length > 0) m.Contract ??= x.Groups["c"].Value;
+            if (x.Groups["d"].Value.Length > 0) m.Definition ??= x.Groups["d"].Value.ToLowerInvariant();
             _markers[x.Groups["e"].Value] = (m.Id, x.Groups["o"].Value);
             var cs = ContractSystem.Match(x.Groups["c"].Value);
             if (cs.Success) m.System = cs.Groups["s"].Value.ToLowerInvariant();

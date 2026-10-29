@@ -57,6 +57,7 @@ builder.Services.AddSingleton<MapPlaces>();
 builder.Services.AddSingleton<MapService>();
 builder.Services.AddSingleton<HistoryStore>();
 builder.Services.AddSingleton<MissionLibrary>();
+builder.Services.AddSingleton<WikiMissions>();
 builder.Services.AddHostedService<MissionLibraryService>();
 builder.Services.AddHostedService<RefreshService>();
 

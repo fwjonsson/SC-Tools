@@ -14,8 +14,8 @@ public sealed record JobKind(long? Scu, long? Suggested, string? SuggestedBy, lo
 
 /// <summary>
 /// What the site knows about the hauling jobs besides the logs: the SCU a hauler typed in for a mission (only that one, by mission id), the Mission Library's
-/// kinds (by key, see MissionKinds.TitleKey), and the places of the map as the admin has them. The server makes a new one whenever one of them changes (it
-/// is never changed itself, so the tracker can read it without a lock); the program has none.
+/// kinds (by key, see MissionKinds.TitleKey), the places of the map as the admin has them, and the Wiki API's contracts. The server makes a new one
+/// whenever one of them changes (it is never changed itself, so the tracker can read it without a lock); the program has none.
 /// </summary>
 public sealed class JobBook
 {
@@ -23,12 +23,20 @@ public sealed class JobBook
 
     public static readonly JobBook Empty = new(new Dictionary<string, long>(), new Dictionary<string, JobKind>(), () => Atlas.Default);
 
-    public JobBook(IReadOnlyDictionary<string, long> missionScu, IReadOnlyDictionary<string, JobKind> kinds, Func<Atlas> atlas)
+    public JobBook(IReadOnlyDictionary<string, long> missionScu, IReadOnlyDictionary<string, JobKind> kinds, Func<Atlas> atlas,
+        IReadOnlyDictionary<string, WikiContract>? wiki = null)
     {
         MissionScu = missionScu;
         Kinds = kinds;
         _atlas = atlas;
+        Wiki = wiki ?? new Dictionary<string, WikiContract>();
     }
+
+    /// <summary>What the Star Citizen Wiki API says about the contracts the logs had, by their uuid (the log's contractDefinitionId, small letters).</summary>
+    public IReadOnlyDictionary<string, WikiContract> Wiki { get; }
+
+    /// <summary>What the Wiki API says about this mission's contract, or null (not asked yet, or not known there).</summary>
+    public WikiContract? WikiOf(Mission m) => m.Definition != null && Wiki.TryGetValue(m.Definition, out var w) ? w : null;
 
     /// <summary>The SCU a hauler typed in for a mission, by mission id (small letters).</summary>
     public IReadOnlyDictionary<string, long> MissionScu { get; }

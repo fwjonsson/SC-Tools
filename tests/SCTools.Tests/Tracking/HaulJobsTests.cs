@@ -93,6 +93,25 @@ public class HaulJobsTests
     }
 
     [Fact]
+    public void Without_anybody_s_SCU_a_job_has_the_middle_of_the_Wiki_s_hauling_orders_for_its_contract()
+    {
+        const string master = "RedWind_Pyro_BulkGrade_Solar_CFP_StationToStation_Potassium_CargoHauling_Multi4ToSingle";
+        const string uuid = "26e80306-6190-447f-a214-634d8ed8ca7d";   // the Star Citizen Wiki API's mission (the log's contractDefinitionId)
+        var m = GameLogWriter.MissionId(1);
+        var w = new GameLogWriter().Login("zzoega").AcceptedAs(m, "Master Hauler Needed for Large Shipment");
+        foreach (var stop in new[] { "a", "b", "c", "d" }) w.Marker(m, master, "pickup_" + stop + "_0", "86000000000" + stop.Length, OnPlanet, uuid.ToUpperInvariant());
+        var log = w.Marker(m, master, "dropoff_x_0", "862738706222", InStation, uuid).Read();
+        Assert.Equal((master, uuid), (log.Missions[m].Contract, log.Missions[m].Definition));   // whatever names a string mod shows
+
+        var wiki = new WikiContract(uuid, master, "Master Hauler Needed for Large Shipment", Enumerable.Repeat(new ScuRange(100, 150), 4).ToList());
+        var job = Assert.Single(HaulJobs.Of(log.Missions.Values, Atlas.Default, wiki: x => x.Definition == uuid ? wiki : null));
+        Assert.Equal((500.0, ScuFrom.Wiki, new ScuRange(400, 600), "~500 (wiki 400–600)"), (job.Scu, job.ScuFrom, job.WikiRange, HaulJobs.ScuText(job)));
+        Assert.All(job.Pickups, p => Assert.Equal(125, p.Scu));
+        // the library (and a hauler, and the game) come first
+        Assert.Equal(ScuFrom.Library, HaulJobs.Of(log.Missions.Values, Atlas.Default, libraryScu: _ => 480, wiki: _ => wiki).Single().ScuFrom);
+    }
+
+    [Fact]
     public void The_title_comes_from_the_accept_or_the_share_and_the_merged_log_keeps_texts_and_titles()
     {
         var m = GameLogWriter.MissionId(1);
