@@ -39,7 +39,8 @@ public class PlanTextTests
         };
         var total = PlanText.LineTotals(lines);
         Assert.Equal(PlanText.CurrentColumns.Count, total.Length);
-        Assert.Equal("Total: 2 stops", total[1]);
+        Assert.Equal("\u03a3", total[0]);   // the same Σ as the Queued routes' total
+        Assert.Equal("2 stops", total[1]);
         Assert.Equal("Collect", total[2]);
         Assert.Equal("6 Batches + Waste (~839 SCU)", total[3]);
         Assert.Equal("70.0 Gm", total[5]);

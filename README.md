@@ -321,7 +321,10 @@ admin (done), then going live.
   ship's navigation; not "Local Route Guard - Server Rerouted", which the game writes for every ship that comes near him), the ship of his fleet that is that class's ship (`ShipModels.OfClass`), else the one whose
   name fits the class best; a class that is not in his fleet shows by the game's name ("Crusader C2 Hercules Starlifter"). The Hauling Planner flies the active ship: its name (when it is a hauler the planner knows: a name like "Crusader C2
   Hercules Starlifter" is the C2), its drive and how much faster the drive is (`AppData.DriveSpeedBonus`, `Crew.QtOf`) go to the planner every few
-  seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Party button's panel in the top bar shows every member's
+  seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Trip Planner is the first tab of the page (Frank, 29 Oct
+  2026: `/hauling` opens it), the Σ line of its Current Route table is like the Queued routes' total, and the Time of a run on the way counts up under
+  the map too. On the Session tab the admin picks the Lost Cargo of a run in the Cargo runs table (`/hauling/runs/lost`, sent in the background, the
+  same edit as his Session page's). The Party button's panel in the top bar shows every member's
   ship and drive ("TS-2 S3 +20 %"); the Hauling Planner's page has no Party table of its own since 29 Oct 2026 (Frank).
 - **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the Hauling Planner's page is at
   `/hauling`, every tab at an address of its own (`/hauling/session`, `/hauling/contracts`, `/hauling/planner`, `/hauling/debts`, `/hauling/history`; the program's own page
