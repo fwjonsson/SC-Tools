@@ -21,6 +21,9 @@ public sealed class MissionRow
 
     /// <summary>Complete, Fail or Abandon (MissionOutcome), or null while it is going.</summary>
     public string? Outcome { get; set; }
+
+    /// <summary>The contract's id as its objective markers say (contractDefinitionId): the Star Citizen Wiki API's uuid of the mission; null: no marker seen.</summary>
+    public string? Definition { get; set; }
 }
 
 /// <summary>

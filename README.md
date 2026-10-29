@@ -376,10 +376,12 @@ admin (done), then going live.
     evenly over the pickups and over the drop-offs the game did not give the SCU of (~ on the board), like the planner's own contracts.
   - **The Star Citizen Wiki API** (`WikiMissions`, table `WikiMissions`): every objective marker of the log has the contract's own name and id
     (`contract [RedWind_Pyro_…_Multi4ToSingle], contractDefinitionId[26e80306-…]`, `Mission.Contract` and `Definition`), which are the API's
-    `debug_name` and `uuid` of the mission, whatever names a string mod shows in the game. Every minute the server asks
-    `api.star-citizen.wiki/api/missions/{uuid}` about up to 10 contracts of the logs it did not ask about yet (the newest first; one the API does not
-    know again after a week; when the API cannot be reached, the next minute) and keeps their debug name, title and hauling orders (`min_scu`–`max_scu`
-    of every order, one per stop).
+    `debug_name` and `uuid` of the mission, whatever names a string mod shows in the game. The library keeps every mission's contract id
+    (`Missions.Definition`, from the live logs and the old ones; a server that read the old logs before reads them once more, `missions-read.txt` in the
+    history folder). Every minute the server asks `api.star-citizen.wiki/api/missions/{uuid}` about up to 10 contracts of the library's missions it did
+    not ask about yet, the newest first, until it asked about every one; after that only about a contract it has not seen (a new kind of mission taken).
+    One the API does not know is asked again after a week; when the API cannot be reached, the next minute. It keeps their debug name, title, hauling
+    orders (`min_scu`–`max_scu` of every order, one per stop) and reward.
   - **Value:** the Mission Library's aUEC for the kind.
   - The server gives the tracker what it knows besides the logs as a `JobBook` (the haulers' SCU, the library's kinds, the map's places), made new
     whenever the library changes, so the tracker never waits for the library.

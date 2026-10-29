@@ -160,23 +160,22 @@ public sealed class MissionLibrary
     }
 
     /// <summary>
-    /// Which mission of the Star Citizen Wiki API every kind is: the contract id (contractDefinitionId) of a mission of the kind in the logs (by its title,
-    /// whatever names a string mod shows). A kind that has one keeps it. Returns how many kinds got one.
+    /// Which mission of the Star Citizen Wiki API every kind is: the contract id (contractDefinitionId) of its newest mission that has one, the live logs' and
+    /// the old ones' (whatever names a string mod shows). A kind that has one keeps it. Returns how many kinds got one.
     /// </summary>
     public int LinkWiki()
     {
-        var pairs = _live.Read(t => t.State.Log?.Missions.Values.Where(m => m.Title != null && m.Definition != null && !m.IsHauling && !m.IsOut)
-            .Select(m => (Key: MissionKinds.TitleKey(m.Title), Uuid: m.Definition!)).Where(p => p.Key != null).ToList()) ?? new();
-        if (pairs.Count == 0) return 0;
         lock (_lock)
         {
             using var db = _store.Open();
             Prepare(db);
-            var kinds = db.MissionKinds.Where(k => k.WikiUuid == null).ToDictionary(k => k.Key, StringComparer.OrdinalIgnoreCase);
+            var newest = db.Missions.AsNoTracking().Where(m => m.Kind != null && m.Definition != null).ToList()
+                .GroupBy(m => m.Kind!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(m => m.StartedUtc ?? DateTime.MinValue).First().Definition!, StringComparer.OrdinalIgnoreCase);
             var linked = 0;
-            foreach (var (key, uuid) in pairs)
+            foreach (var kind in db.MissionKinds.Where(k => k.WikiUuid == null).ToList())
             {
-                if (!kinds.TryGetValue(key!, out var kind) || kind.WikiUuid != null) continue;
+                if (!newest.TryGetValue(kind.Key, out var uuid)) continue;
                 kind.WikiUuid = uuid;
                 linked++;
             }
@@ -184,6 +183,19 @@ public sealed class MissionLibrary
             db.SaveChanges();
             Changed();
             return linked;
+        }
+    }
+
+    /// <summary>The contract ids of every mission in the library (the live logs' and the old ones'), the newest first: what to ask the Wiki API about.</summary>
+    public List<string> Contracts()
+    {
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            return db.Missions.AsNoTracking().Where(m => m.Definition != null).ToList()
+                .GroupBy(m => m.Definition!, StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(g => g.Max(m => m.StartedUtc ?? DateTime.MinValue))
+                .Select(g => g.Key).ToList();
         }
     }
 
@@ -289,7 +301,7 @@ public sealed class MissionLibrary
 
     static MissionSeen Seen(MissionRow r) =>
         new(r.MissionId, r.ContractId.Length == 0 ? null : r.ContractId, r.Title, r.Shared, r.StartedUtc, r.EndedUtc, Enum.TryParse<MissionOutcome>(r.Outcome, out var o) ? o : null,
-            r.Kind != null && MissionKinds.IsHauling(r.Kind) ? r.Kind[MissionKinds.HaulingPrefix.Length..] : null);
+            r.Kind != null && MissionKinds.IsHauling(r.Kind) ? r.Kind[MissionKinds.HaulingPrefix.Length..] : null, r.Definition);
 
     /// <summary>Writes the missions of the live logs that are new or went on. Returns how many were written.</summary>
     public int Collect() => Add(_uploads.MissionsSeen());
@@ -315,7 +327,7 @@ public sealed class MissionLibrary
                     var key = (player.ToLowerInvariant(), m.MissionId.ToLowerInvariant());
                     _known.TryGetValue(key, out var had);
                     var merged = had == null ? m : new MissionSeen(had.MissionId, had.ContractId ?? m.ContractId, MissionKinds.Better(had.Title, m.Title), had.Shared,
-                        had.StartedUtc ?? m.StartedUtc, had.EndedUtc ?? m.EndedUtc, had.Outcome ?? m.Outcome, had.Hauling ?? m.Hauling);
+                        had.StartedUtc ?? m.StartedUtc, had.EndedUtc ?? m.EndedUtc, had.Outcome ?? m.Outcome, had.Hauling ?? m.Hauling, had.Definition ?? m.Definition);
                     if (merged == had) continue;
                     var row = had == null ? null : db.Missions.Find(player, had.MissionId) ?? db.Missions.FirstOrDefault(r => r.Player == player && r.MissionId == had.MissionId);
                     if (row == null) db.Missions.Add(row = new MissionRow { Player = player, MissionId = m.MissionId, ContractId = m.ContractId ?? "" });
@@ -325,6 +337,7 @@ public sealed class MissionLibrary
                     row.StartedUtc = merged.StartedUtc;
                     row.EndedUtc = merged.EndedUtc;
                     row.Outcome = merged.Outcome?.ToString();
+                    row.Definition = merged.Definition;
                     row.Kind = MissionKinds.KeyOf(merged.Title, merged.Hauling);
                     if (row.Kind != null) KindOf(db, kinds, row.Kind, merged.Hauling != null ? MissionKinds.HaulingTitle(merged.Hauling) : MissionKinds.KindTitle(merged.Title)!);
                     _known[key] = merged;
@@ -341,8 +354,31 @@ public sealed class MissionLibrary
     }
 
     /// <summary>
-    /// The first time (no mission in the database yet, or the library went by ContractId before): the missions of the old logs already on the server (the
-    /// history folder), so the library starts with everything played before it existed. Returns how many logs were read.
+    /// What the old logs are read for (in the history folder, missions-read.txt, when they were read last): 2, the contract ids of their missions (for the Star
+    /// Citizen Wiki API). A server that read them for less reads them again once.
+    /// </summary>
+    public const int HistoryReadVersion = 2;
+
+    /// <summary>The file in the history folder that says what the old logs were read for last (HistoryReadVersion).</summary>
+    public const string HistoryMarker = "missions-read.txt";
+
+    int HistoryReadFor()
+    {
+        var path = Path.Combine(_paths.HistoryDir, HistoryMarker);
+        try
+        {
+            return File.Exists(path) && int.TryParse(File.ReadAllText(path).Trim(), out var v) ? v : 0;
+        }
+        catch (IOException)
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// The first time (no mission in the database yet, or the library went by ContractId before), and once more when there is more to read in them
+    /// (HistoryReadVersion): the missions of the old logs already on the server (the history folder), so the library starts with everything played before it
+    /// existed. Returns how many logs were read.
     /// </summary>
     public int ReadKeptHistory()
     {
@@ -350,7 +386,7 @@ public sealed class MissionLibrary
         {
             using var db = _store.Open();
             Prepare(db);
-            var again = _readHistoryAgain;
+            var again = _readHistoryAgain || (Directory.Exists(_paths.HistoryDir) && HistoryReadFor() < HistoryReadVersion);
             _readHistoryAgain = false;
             if ((db.Missions.Any() && !again) || !Directory.Exists(_paths.HistoryDir)) return 0;
             _known = null;   // read from the database again
@@ -377,6 +413,11 @@ public sealed class MissionLibrary
                 catch (InvalidDataException) { }
             }
         }
+        try
+        {
+            File.WriteAllText(Path.Combine(_paths.HistoryDir, HistoryMarker), HistoryReadVersion.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        catch (IOException) { }   // read again the next time
         return read;
     }
 
@@ -511,21 +552,20 @@ public sealed class MissionLibrary
 
 /// <summary>
 /// Reads the old logs into the Mission Library once when the server starts (when it has none of them yet) and gives the tracker the library's SCU; then
-/// every minute the SCU the game said for a hauling job becomes the library's suggestion for its kind, and the Star Citizen Wiki API is asked about the
-/// contracts of the logs it was not asked about yet (WikiMissions).
+/// every minute the SCU the game said for a hauling job becomes the library's suggestion for its kind, and the Star Citizen Wiki API is asked about up to
+/// 10 contracts of the library's missions (the live logs' and the old ones') it was not asked about yet (WikiMissions): until it was asked about every one,
+/// then only about a new one.
 /// </summary>
 public sealed class MissionLibraryService : BackgroundService
 {
     readonly MissionLibrary _library;
     readonly WikiMissions _wiki;
-    readonly LiveTracker _live;
     readonly ILogger<MissionLibraryService> _log;
 
-    public MissionLibraryService(MissionLibrary library, WikiMissions wiki, LiveTracker live, ILogger<MissionLibraryService> log)
+    public MissionLibraryService(MissionLibrary library, WikiMissions wiki, ILogger<MissionLibraryService> log)
     {
         _library = library;
         _wiki = wiki;
-        _live = live;
         _log = log;
     }
 
@@ -548,10 +588,9 @@ public sealed class MissionLibraryService : BackgroundService
             {
                 await Task.Delay(TimeSpan.FromMinutes(1), stop);
                 _library.SuggestFromGame(DateTime.UtcNow);
-                // the contracts of the logs the Wiki API was not asked about yet (the newest first): their hauling orders
-                var contracts = _live.Read(t => t.State.Log?.Missions.Values.Where(m => m.Definition != null)
-                    .OrderByDescending(m => m.Accepted ?? m.FirstSeen ?? DateTime.MinValue).Select(m => m.Definition!).Distinct().ToList()) ?? new List<string>();
-                var learned = await _wiki.Learn(contracts, DateTime.UtcNow, stop);
+                // the contracts of every mission in the library (the live logs' too) the Wiki API was not asked about yet, the newest first: up to 10 a minute
+                _library.Collect();
+                var learned = await _wiki.Learn(_library.Contracts(), DateTime.UtcNow, stop);
                 if (_library.LinkWiki() == 0 && learned > 0) _library.WikiLearned();   // (a new link made the book and the list again already)
             }
             catch (OperationCanceledException) { break; }
