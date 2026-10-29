@@ -130,7 +130,9 @@ should know before that happens.
 1. Done (merged 28 Oct): landing page, rename, Tools page, top bar, SC Tools Tracker with old logs, Gauntlet Tracker, Mission Library (by name, with
    the Gauntlet and hauling rewards in it, #235), Scrip page, Session tool (#233), `.old.exe` cleanup (#232), Gauntlet Top 10 dropdown (#234),
    tracker version on /tracker and /admin/keys (#236), Hauling Planner top bar fix (#237).
-2. Done: **automatic sessions** (#238) and the Party dropdown on the Hauling Planner's Session tab with debts kept apart per party (#239). Decided
+2. Done: **automatic sessions** (#238) and the Party dropdown on the Hauling Planner's Session tab with debts kept apart per party (#239; the dropdown
+   went on 29 Oct, Frank: the Session and Contracts tabs show the viewer's own party by themselves, everything together to a viewer in none, and the
+   Party table sits beside the tabs with room for the ship names). Decided
    28 Oct, replacing the earlier plan of 3 h / 30 min with buttons as overrides:
    - **Hauling Planner**: one session for the party (a player alone is a party of one; who joins the party joins its session). It starts when
      someone accepts a contract the planner reads (2–4 to Ruin, 2–4 from Ruin, Direct from Ruin). Two separate groups hauling at the same time would

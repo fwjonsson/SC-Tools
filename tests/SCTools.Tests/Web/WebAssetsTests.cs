@@ -33,4 +33,21 @@ public class WebAssetsTests
         Assert.Contains("<div class=\"scroll\" id=\"rewards\">", page[page.IndexOf("<div id=\"viewC\"", StringComparison.Ordinal)..]);
         Assert.Contains("'/hauling/' + TABS[which]", page);
     }
+
+    [Fact]
+    public void The_party_table_is_beside_the_tabs_and_there_is_no_party_picker()
+    {
+        var page = WebAssets.Page;
+        var top = page.IndexOf("<div class=\"top\">", StringComparison.Ordinal);
+        var nav = page.IndexOf("<div class=\"nav\">", StringComparison.Ordinal);
+        var side = page.IndexOf("<div class=\"side\" id=\"sideS\">", StringComparison.Ordinal);
+        var below = page.IndexOf("<div id=\"belowS\">", StringComparison.Ordinal);
+        Assert.True(top > 0 && top < nav && nav < side && side < below, "the tabs and the Party table in the same row, the leaderboard and the runs under them");
+        Assert.Contains("<div class=\"scroll\" id=\"party\" aria-label=\"Party\"></div>", page[side..below]);
+        Assert.Contains("<h2>Session leaderboard</h2>", page[below..]);
+        Assert.DoesNotContain("partyPick", page);   // no picker: the viewer's own party by itself
+        Assert.Contains("<p class=\"note hidden\" id=\"partyNote\"></p>", page);
+        Assert.Contains("#party th:nth-child(2) { width:46%; }", page);   // the Ship column has the room
+        Assert.Contains("getElementById('sideS').classList.toggle('hidden', which !== 'S')", page);
+    }
 }

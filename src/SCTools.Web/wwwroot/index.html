@@ -11,21 +11,17 @@
 <body>
 <h1>Hauling Planner</h1>
 <div class="bar"><span id="session"></span><span id="live" class="live"></span><span id="updated"></span></div>
+<!-- the tabs and what they show on the left; on the Session tab the Party table beside them, level with the tabs, and the session under it (the leaderboard
+     and the runs under both, over the whole width) -->
+<div class="top">
+<div class="main">
 <div class="nav"><button id="tabS" class="on">Session</button><button id="tabC">Contracts</button><button id="tabP">Trip Planner</button><button id="tabD">Debts</button><button id="tabH">History</button></div>
 
 <div id="viewS">
-<div id="partyTabs" class="sub hidden"></div>
-<div class="top">
-  <div><h2>Stops</h2><div class="scroll" id="pickups"></div>
-    <div id="finishedBox"><h2>Finished stops</h2><div class="scroll" id="finished"></div></div>
-    <div id="jobsBox" class="hidden"><h2>Other hauling</h2><div class="scroll" id="jobs"></div><p class="note" id="jobsNote"></p></div></div>
-  <div>
-    <h2>Party</h2><div class="scroll" id="party"></div>
-    <h2>Session</h2><div class="scroll" id="summary"></div>
-  </div>
-</div>
-<h2>Session leaderboard</h2><div class="scroll" id="leaders"></div>
-<h2>Cargo runs</h2><div class="scroll" id="runs"></div>
+  <p class="note hidden" id="partyNote"></p>
+  <h2>Stops</h2><div class="scroll" id="pickups"></div>
+  <div id="finishedBox"><h2>Finished stops</h2><div class="scroll" id="finished"></div></div>
+  <div id="jobsBox" class="hidden"><h2>Other hauling</h2><div class="scroll" id="jobs"></div><p class="note" id="jobsNote"></p></div>
 </div>
 
 <div id="viewC" class="hidden">
@@ -40,6 +36,18 @@
 
 <div id="viewD" class="hidden"></div>
 <div id="viewH" class="hidden"></div>
+</div>
+
+<div class="side" id="sideS">
+  <div class="scroll" id="party" aria-label="Party"></div>
+  <h2>Session</h2><div class="scroll" id="summary"></div>
+</div>
+</div>
+
+<div id="belowS">
+<h2>Session leaderboard</h2><div class="scroll" id="leaders"></div>
+<h2>Cargo runs</h2><div class="scroll" id="runs"></div>
+</div>
 
 <script src="app.js"></script>
 </body>
