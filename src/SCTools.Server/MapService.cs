@@ -1,6 +1,8 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using SCTools.Missions;
+using SCTools.Sessions;
 using SCTools.Server.Editing;
 
 namespace SCTools.Server;
@@ -73,6 +75,21 @@ public sealed class MapService
 
     /// <summary>What a text of the log the map does not know is.</summary>
     public enum UnknownKind { Destination, Start, Location }
+
+    /// <summary>
+    /// An objective on the map: the player whose log placed it, the mission's title, the system, and either the place it is at (Place: a key of the map) or
+    /// where it is in the system's own frame (X, Y in Gm), or neither (only in the list); Where: the place's name or what the objective says. Who: everybody
+    /// who has the mission (a shared mission is placed once), so the Trip Planner can show one party's objectives.
+    /// </summary>
+    public sealed record MapObjective(string Player, string Title,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? System,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Place,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? X,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? Y,
+        string Where)
+    {
+        public List<string> Who { get; } = new();
+    }
 
     /// <summary>Follows a player's quantum jumps with the places of the game data alone.</summary>
     public static Whereabouts Follow(IReadOnlyList<QtEvent> qt, IReadOnlyList<LocationSeen>? seen = null, IReadOnlyList<MissionPoint>? missions = null) =>
@@ -222,6 +239,13 @@ public sealed class MapService
 
     static bool IsOver(string state) => state is "COMPLETED" or "FAILED" or "WITHDRAWN";
 
+    /// <summary>
+    /// Is an objective done in this log, so it is off the map: its last state is over, or it is a pickup of one of the Hauling Planner's contracts that the
+    /// planner counts as picked up (SessionBuilder.PickedUp: a COMPLETED or an INPROGRESS event). So the diamond goes when the planner credits the pickup, not later.
+    /// </summary>
+    static bool Done(Mission m, string objective) =>
+        (m.Events.TryGetValue(objective, out var events) && events.Count > 0 && IsOver(events[^1].State)) || (m.IsHauling && SessionBuilder.PickedUp(m, objective));
+
     // "Go to a debris field above Daymar", "Go to the asteroids surrounding Yela": the place at the end
     static readonly Regex Near = new(@"\b(?:above|surrounding|near|around|orbiting|over)\s+(?<p>[A-Z][\w'.-]*(?:\s+[A-Z0-9][\w'.-]*)*)\s*$", RegexOptions.Compiled);
 
@@ -234,15 +258,15 @@ public sealed class MapService
         return place != null && (system == null || place.System == system) ? place : null;
     }
 
-    /// <summary>Everything the page draws, now.</summary>
-    public object Snapshot(DateTime nowUtc)
+    /// <summary>Everything the page draws, now: the systems (one of them when system is given: the Trip Planner's Pyro), the players, the objectives, the missions.</summary>
+    public object Snapshot(DateTime nowUtc, string? system = null)
     {
         var games = _uploads.Games();
         var titles = _uploads.MissionsSeen();
         var atlas = _places.Atlas;
         var players = new List<object>();
-        var objectives = new List<object>();
-        var placed = new HashSet<(string, string)>();
+        var objectives = new List<MapObjective>();
+        var placed = new Dictionary<(string, string), MapObjective>();
         var unplaced = 0;
         var going = new Dictionary<string, GoingMission>(StringComparer.OrdinalIgnoreCase);   // the missions going on, by id (shared: once), for the table under the map
         List<HaulingLog> logs;
@@ -257,6 +281,14 @@ public sealed class MapService
             if (!(games.TryGetValue(log.Uploader ?? name, out var runs) && runs.Any(r => !r.Quit && nowUtc - r.Run.Last < AutoParty.Quiet))) continue;
             lock (_uploads.Sync) playing.Add((log, name, log.Qt.ToList(), log.Locations.ToList(), log.Beacons.ToList(), new Dictionary<string, Mission>(log.Missions)));
         }
+
+        // an objective one holder's log says is done is done for everybody with the mission (a shared contract's pickup is credited once; the Hauling Planner
+        // reads the logs merged the same way), whichever log the map happens to place it from
+        var done = new HashSet<(string, string)>();
+        foreach (var p in playing)
+            foreach (var m in p.Missions.Values)
+                foreach (var objective in m.ObjZone.Keys)
+                    if (Done(m, objective)) done.Add((m.Id.ToLowerInvariant(), objective));
 
         foreach (var p in playing)
         {
@@ -283,7 +315,7 @@ public sealed class MapService
             {
                 if (m.EndState != null || m.Dropped || (m.FirstSeen ?? m.Accepted ?? DateTime.MinValue) < nowUtc - MissionAge) continue;
                 if (seen.TryGetValue(m.Id, out var s2) && s2.Outcome != null) continue;
-                var open = m.ObjZone.Keys.Count(o => !(m.Events.TryGetValue(o, out var ev) && ev.Count > 0 && IsOver(ev[^1].State)));
+                var open = m.ObjZone.Keys.Count(o => !done.Contains((m.Id.ToLowerInvariant(), o)));
                 if (!going.TryGetValue(m.Id, out var row)) going[m.Id] = row = new GoingMission(Title(m), new List<string>(), open);
                 if (!row.Who.Contains(name)) row.Who.Add(name);
             }
@@ -296,40 +328,37 @@ public sealed class MapService
                 var title = Title(m);
                 foreach (var (objective, zone) in m.ObjZone)
                 {
-                    if (m.Events.TryGetValue(objective, out var events) && events.Count > 0 && IsOver(events[^1].State)) continue;
-                    if (!placed.Add((m.Id.ToLowerInvariant(), objective))) continue;   // shared: once
+                    var id = (m.Id.ToLowerInvariant(), objective);
+                    if (done.Contains(id)) continue;
+                    if (placed.TryGetValue(id, out var shared))   // shared: once, with everybody who has it
+                    {
+                        if (!shared.Who.Contains(name)) shared.Who.Add(name);
+                        continue;
+                    }
                     var text = m.ObjText.GetValueOrDefault(objective);
+                    MapObjective o;
                     if (atlas.OfPyroStation(StationIds.Of(zone)) is { } station)   // at one of the Pyro stations the Hauling Planner knows
+                        o = new MapObjective(name, title, station.System, station.Key, null, null, station.Name);
+                    else if (where.System != null && m.ObjPos.TryGetValue(objective, out var pos) && (Math.Abs(pos.X) > 1e9 || Math.Abs(pos.Y) > 1e9))
+                        o = new MapObjective(name, title, where.System, null, pos.X / 1e9, pos.Y / 1e9, text ?? "in space");   // in the system's own frame (metres): where it is in the system he is in
+                    else if (text != null && NamedIn(text, m.System, atlas) is { } named)   // "Go to a debris field above Daymar": at Daymar
+                        o = new MapObjective(name, title, named.System, named.Key, null, null, text);
+                    else
                     {
-                        objectives.Add(new { player = name, title, system = station.System, place = station.Key, where = station.Name });
-                        continue;
+                        // the game does not say where (a bounty's marker is at 0, 0, 0): in the list, by what it says and the contract's system
+                        o = new MapObjective(name, title, m.System, null, null, null, text ?? "the game does not say where");
+                        unplaced++;
                     }
-                    if (where.System != null && m.ObjPos.TryGetValue(objective, out var pos) && (Math.Abs(pos.X) > 1e9 || Math.Abs(pos.Y) > 1e9))
-                    {
-                        // in the system's own frame (metres): where it is in the system he is in
-                        objectives.Add(new { player = name, title, system = where.System, x = pos.X / 1e9, y = pos.Y / 1e9, where = text ?? "in space" });
-                        continue;
-                    }
-                    if (text != null && NamedIn(text, m.System, atlas) is { } named)   // "Go to a debris field above Daymar": at Daymar
-                    {
-                        objectives.Add(new { player = name, title, system = named.System, place = named.Key, where = text });
-                        continue;
-                    }
-                    // the game does not say where (a bounty's marker is at 0, 0, 0): in the list, by what it says and the contract's system
-                    objectives.Add(new { player = name, title, system = m.System, where = text ?? "the game does not say where" });
-                    unplaced++;
+                    o.Who.Add(name);
+                    placed[id] = o;
+                    objectives.Add(o);
                 }
             }
         }
         return new
         {
             updated = nowUtc,
-            systems = StarMap.Systems.Select(s => new
-            {
-                id = s.Id,
-                name = s.Name,
-                places = atlas.Of(s.Id).Select(p => new { key = p.Key, name = p.Name, @short = p.Short, kind = p.Kind.ToString().ToLowerInvariant(), parent = p.Parent, x = p.X, y = p.Y }).ToList(),
-            }).ToList(),
+            systems = StarMap.Systems.Where(s => system == null || s.Id == system).Select(atlas.SystemData).ToList(),
             players,
             objectives,
             unplaced,

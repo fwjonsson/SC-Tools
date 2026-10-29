@@ -150,133 +150,155 @@ function signColors(box, col, d, rows) {
   });
 }
 
+// ------------------------------------------------------------------ the map of the Trip Planner
+// The map is the Map tool's (SystemMap, systemmap.js: Pyro from above, everybody playing where his quantum jumps put him, moving along his route while he is
+// in quantum, and the objectives of the missions going on as diamonds), with the planner's routes drawn on it: every worker's planned trips from Ruin through
+// his stops and back, bold for the trip he flies, dotted for the queued ones, arrows for the direction, and slow dark waves on the leg he flies now. The
+// players and the objectives are the site's /hauling/map.json (the Map tool's Pyro), every 3 seconds while the tab is shown; the program's own page has no
+// such data and shows the routes alone. Under every worker's name, the map's line for him (where he is, what he does) and his speed meter while he is in quantum.
+const NS = 'http://www.w3.org/2000/svg';
+const K = SystemMap.W / 520;   // the map is drawn in 760 px and shown in about 520: the lines are a little thicker so they look as they did
 // The waves on the map move with the clock of the page, not with an SVG animation (that would start again every time the map is drawn anew).
-const WAVE_LEN = 28, WAVE_SPEED = 20;   // px from one dark band to the next, px per second
+const WAVE_LEN = 28 * K, WAVE_SPEED = 20 * K;   // px from one dark band to the next, px per second
 let waveGrads = [];
 function slideWave(w, now) {
   const shift = (now / 1000 * WAVE_SPEED) % WAVE_LEN;
   w.el.setAttribute('gradientTransform', 'translate(' + (w.ux * shift).toFixed(2) + ' ' + (w.uy * shift).toFixed(2) + ')');
 }
+function plannerOn() { return !document.getElementById('viewP').classList.contains('hidden'); }
 function moveWaves(now) {
-  if (waveGrads.length && !document.hidden && !document.getElementById('viewP').classList.contains('hidden')) waveGrads.forEach(function (w) { slideWave(w, now); });
+  if (waveGrads.length && !document.hidden && plannerOn()) waveGrads.forEach(function (w) { slideWave(w, now); });
   requestAnimationFrame(moveWaves);
 }
 requestAnimationFrame(moveWaves);
 
-function mapSvg(el, stations, routes, bg) {
+let mapData = null, mapOff = false;   // the Map tool's Pyro (its players and objectives) fetched last; off: this page has no map.json (the program's own)
+let planMap = null;   // the map on the Trip Planner tab now: its engine, how to draw the routes again, and whose players it shows
+function pyroOf(d) { return d && (d.systems || []).find(function (s) { return s.id === 'pyro'; }); }
+
+function darker(hex, f) {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
+  if (!m) return '#000000';
+  return '#' + [1, 2, 3].map(function (k) { return Math.round(parseInt(m[k], 16) * f).toString(16).padStart(2, '0'); }).join('');
+}
+
+// The map in its box: the legend (who flies which route) above it, then the Map tool's Pyro with the routes on it. names: the workers shown (their players
+// and objectives are drawn, nobody else's).
+function mapSvg(el, p, routes, names) {
   el.textContent = '';
   waveGrads = [];
-  const NS = 'http://www.w3.org/2000/svg';
-  const W = 520, PAD = 8;
   const legend = routes.filter(function (r) { return r.label; });
-  const cols = Math.max(1, Math.floor(W / 170));
-  const T = legend.length ? 8 + Math.ceil(legend.length / cols) * 16 : 0;   // the legend (who flies which route) above the map
-  const H = T + W;   // under the legend the map is square: the orbits are as far from the top and the bottom as from the sides
-  // the sun in the middle of the map, which is as large as the outer orbit (Ruin is on it) and the names of the stations on the right let it be
-  const cx = W / 2, cy = T + W / 2, sun = bg.sun;
-  const outer = Math.max.apply(null, bg.orbits.concat(stations.map(function (s) { return Math.hypot(s.x - sun[0], s.y - sun[1]); })));
-  let sc = (W / 2 - PAD) / outer;
-  stations.forEach(function (s) {
-    const dx = s.x - sun[0], name = s.name.length * (s.id === 'Ruin' ? 7.6 : 6.6) + 10;   // about as wide as the name is written
-    if (s.id === '73041') { if (dx < 0) sc = Math.min(sc, (W / 2 - PAD - name) / -dx); }   // Orbituary has its name on the left
-    else if (dx > 0) sc = Math.min(sc, (W / 2 - PAD - name) / dx);
-  });
-  function at(x, y) { return [cx + (x - sun[0]) * sc, cy + (y - sun[1]) * sc]; }
-  const pos = {};
-  stations.forEach(function (s) { pos[s.id] = at(s.x, s.y); });
-  const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
-  svg.setAttribute('width', '100%');
-  function add(tag, attrs, text) {
-    const e = document.createElementNS(NS, tag);
-    for (const k in attrs) e.setAttribute(k, attrs[k]);
-    if (text !== undefined) e.textContent = text;
-    svg.appendChild(e);
-    return e;
-  }
-  // Darker waves that run along one leg of a solid route (from where he is to his next stop), in the direction of the arrow.
-  function darker(hex, f) {
-    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
-    if (!m) return '#000000';
-    return '#' + [1, 2, 3].map(function (k) { return Math.round(parseInt(m[k], 16) * f).toString(16).padStart(2, '0'); }).join('');
-  }
-  function wave(a, b, ux, uy, len, color, width) {
-    const ALPHA = 215 / 255, INSET = 8;   // how dark the middle of a band is, and clear of the stations at both ends of the leg
-    if (len <= 2 * INSET + 2) return;   // a leg that short is hardly more than its two stations
-    const id = 'wave' + waveGrads.length, shade = darker(color, 0.18);
-    // one wave goes from a to a + WAVE_LEN along the leg and repeats all along it; moveWaves() slides the pattern on towards the end of the leg
-    const grad = add('linearGradient', { id: id, gradientUnits: 'userSpaceOnUse', x1: a[0], y1: a[1], x2: a[0] + ux * WAVE_LEN, y2: a[1] + uy * WAVE_LEN, spreadMethod: 'repeat' });
-    for (let k = 0; k <= 8; k++) {
-      const t = k / 8;
-      const stop = document.createElementNS(NS, 'stop');
-      stop.setAttribute('offset', t);
-      stop.setAttribute('stop-color', shade);
-      stop.setAttribute('stop-opacity', (ALPHA * (1 - Math.cos(2 * Math.PI * t)) / 2).toFixed(3));   // clear, dark in the middle, clear again
-      grad.appendChild(stop);
-    }
-    waveGrads.push({ el: grad, ux: ux, uy: uy });
-    slideWave(waveGrads[waveGrads.length - 1], performance.now());
-    add('line', { x1: a[0] + ux * INSET, y1: a[1] + uy * INSET, x2: b[0] - ux * INSET, y2: b[1] - uy * INSET, stroke: 'url(#' + id + ')', 'stroke-width': width });
-  }
-  add('rect', { x: 0, y: 0, width: W, height: H, fill: '#06090e' });
-  const sx = cx, sy = cy;
-  bg.orbits.forEach(function (r) { add('circle', { cx: sx, cy: sy, r: r * sc, fill: 'none', stroke: '#ebebf5', 'stroke-opacity': 0.37, 'stroke-width': 1 }); });
-  bg.planets.forEach(function (q) { const p = at(q[0], q[1]); add('circle', { cx: p[0], cy: p[1], r: Math.max(3.5, 10 * sc), fill: '#8c5514' }); });
-  const sr = Math.max(7, bg.sunRadius * sc);
-  add('circle', { cx: sx, cy: sy, r: sr * 1.9, fill: '#ff461e', 'fill-opacity': 0.22 });
-  add('circle', { cx: sx, cy: sy, r: sr, fill: '#ff3a18' });
-  const n = routes.length;
-  [false, true].forEach(function (boldPass) {
-    routes.forEach(function (r, i) {
-      if (!!r.bold !== boldPass) return;
-      const ids = [r.from || 'Ruin'].concat(r.stops, ['Ruin']);
-      const shift = (i - (n - 1) / 2) * 3.5;
-      let waved = false;   // the waves run on one leg only: the first, or the one after the stops of a run that are done
-      for (let s = 0; s + 1 < ids.length; s++) {
-        if (ids[s] === ids[s + 1]) continue;
-        if (r.bold && !r.dashed && s < (r.passed || 0)) continue;   // a leg to a stop that is done is gone: the run starts at the leg he is flying now
-        let a = pos[ids[s]], b = pos[ids[s + 1]];
-        if (!a || !b) continue;
-        const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.sqrt(dx * dx + dy * dy);
-        if (len < 1) continue;
-        const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
-        a = [a[0] + nx * shift, a[1] + ny * shift];
-        b = [b[0] + nx * shift, b[1] + ny * shift];
-        if (r.dashed) add('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: r.color, 'stroke-width': r.bold ? 3.5 : 2.5, 'stroke-opacity': 0.92, 'stroke-dasharray': '1 5', 'stroke-linecap': 'round' });
-        else add('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: r.color, 'stroke-width': r.bold ? 3.5 : 2, 'stroke-opacity': r.bold ? 1 : 0.67 });
-        if (r.bold && !r.dashed && !waved && s >= (r.passed || 0)) { waved = true; wave(a, b, ux, uy, len, r.color, 3.5); }
-        const cx = a[0] + (b[0] - a[0]) * 0.62, cy = a[1] + (b[1] - a[1]) * 0.62, z = r.bold ? 8 : 6;
-        const pts = [
-          [cx + ux * z, cy + uy * z],
-          [cx - ux * z * 0.7 + nx * z * 0.6, cy - uy * z * 0.7 + ny * z * 0.6],
-          [cx - ux * z * 0.7 - nx * z * 0.6, cy - uy * z * 0.7 - ny * z * 0.6]
-        ].map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
-        add('polygon', { points: pts, fill: r.color });
-      }
+  if (legend.length) {
+    const lg = document.createElement('div'); lg.className = 'maplegend';
+    legend.forEach(function (r) {
+      const item = document.createElement('span');
+      const sw = document.createElementNS(NS, 'svg'); sw.setAttribute('width', '18'); sw.setAttribute('height', '8'); sw.setAttribute('aria-hidden', 'true');
+      const ln = document.createElementNS(NS, 'line');
+      ln.setAttribute('x1', '0'); ln.setAttribute('y1', '4'); ln.setAttribute('x2', '18'); ln.setAttribute('y2', '4'); ln.setAttribute('stroke', r.color); ln.setAttribute('stroke-width', '3');
+      if (r.dashed) { ln.setAttribute('stroke-dasharray', '1 5'); ln.setAttribute('stroke-linecap', 'round'); }
+      sw.appendChild(ln);
+      item.appendChild(sw); item.appendChild(document.createTextNode(r.label));
+      lg.appendChild(item);
     });
-  });
-  const used = {};
-  routes.forEach(function (r) { r.stops.forEach(function (id) { used[id] = true; }); });
-  stations.forEach(function (s) {
-    const p = pos[s.id];
-    if (s.id === 'Ruin') {
-      add('rect', { x: p[0] - 6, y: p[1] - 6, width: 12, height: 12, style: 'fill:#ecece8' });
-      add('text', { x: p[0] + 9, y: p[1] + 4, style: 'fill:#ecece8;font-size:12px;font-weight:700' }, s.name);
-      return;
+    el.appendChild(lg);
+  }
+  const box = document.createElement('div'); box.className = 'mapsvg'; el.appendChild(box);
+  const map = SystemMap.create(box, { active: plannerOn });
+  const keep = function (name) { return among(names, name || ''); };
+
+  // the routes, in the engine's own layer (between the system and the objectives), at the places of the planner's stations on it
+  function drawRoutes() {
+    const g = map.layer();
+    if (!g) return;
+    g.textContent = '';
+    waveGrads = [];
+    const pos = {};
+    p.stations.forEach(function (s) { if (s.key) pos[s.id] = map.at(s.key); });
+    function add(tag, attrs) { return map.el(tag, attrs, g); }
+    // Darker waves that run along one leg of a solid route (from where he is to his next stop), in the direction of the arrow.
+    function wave(a, b, ux, uy, len, color, width) {
+      const ALPHA = 215 / 255, INSET = 8 * K;   // how dark the middle of a band is, and clear of the stations at both ends of the leg
+      if (len <= 2 * INSET + 2) return;   // a leg that short is hardly more than its two stations
+      const id = 'wave' + waveGrads.length, shade = darker(color, 0.18);
+      // one wave goes from a to a + WAVE_LEN along the leg and repeats all along it; moveWaves() slides the pattern on towards the end of the leg
+      const grad = add('linearGradient', { id: id, gradientUnits: 'userSpaceOnUse', x1: a[0], y1: a[1], x2: a[0] + ux * WAVE_LEN, y2: a[1] + uy * WAVE_LEN, spreadMethod: 'repeat' });
+      for (let k = 0; k <= 8; k++) {
+        const t = k / 8;
+        const stop = document.createElementNS(NS, 'stop');
+        stop.setAttribute('offset', t);
+        stop.setAttribute('stop-color', shade);
+        stop.setAttribute('stop-opacity', (ALPHA * (1 - Math.cos(2 * Math.PI * t)) / 2).toFixed(3));   // clear, dark in the middle, clear again
+        grad.appendChild(stop);
+      }
+      waveGrads.push({ el: grad, ux: ux, uy: uy });
+      slideWave(waveGrads[waveGrads.length - 1], performance.now());
+      add('line', { x1: a[0] + ux * INSET, y1: a[1] + uy * INSET, x2: b[0] - ux * INSET, y2: b[1] - uy * INSET, stroke: 'url(#' + id + ')', 'stroke-width': width });
     }
-    const on = !!used[s.id];
-    const st = on ? 'fill:#ecece8' : 'fill:#ecece8;opacity:.55';
-    add('circle', { cx: p[0], cy: p[1], r: on ? 5 : 3.5, style: st });
-    if (s.id === '73041') add('text', { x: p[0] - 8, y: p[1] + 4, 'text-anchor': 'end', style: st + ';font-size:11px' }, s.name);
-    else add('text', { x: p[0] + 8, y: p[1] + 4, style: st + ';font-size:11px' }, s.name);
-  });
-  legend.forEach(function (r, i) {
-    const x = 8 + (i % cols) * 170, y = 6 + Math.floor(i / cols) * 16;
-    add('line', r.dashed ? { x1: x, y1: y + 8, x2: x + 16, y2: y + 8, stroke: r.color, 'stroke-width': 3, 'stroke-dasharray': '1 5', 'stroke-linecap': 'round' } : { x1: x, y1: y + 8, x2: x + 16, y2: y + 8, stroke: r.color, 'stroke-width': 3 });
-    add('text', { x: x + 20, y: y + 12, style: 'fill:#ecece8;font-size:11px' }, r.label);
-  });
-  el.appendChild(svg);
+    const n = routes.length;
+    [false, true].forEach(function (boldPass) {
+      routes.forEach(function (r, i) {
+        if (!!r.bold !== boldPass) return;
+        const ids = [r.from || 'Ruin'].concat(r.stops, ['Ruin']);
+        const shift = (i - (n - 1) / 2) * 3.5 * K;
+        let waved = false;   // the waves run on one leg only: the first, or the one after the stops of a run that are done
+        for (let s = 0; s + 1 < ids.length; s++) {
+          if (ids[s] === ids[s + 1]) continue;
+          if (r.bold && !r.dashed && s < (r.passed || 0)) continue;   // a leg to a stop that is done is gone: the run starts at the leg he is flying now
+          let a = pos[ids[s]], b = pos[ids[s + 1]];
+          if (!a || !b) continue;
+          const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.sqrt(dx * dx + dy * dy);
+          if (len < 1) continue;
+          const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+          a = [a[0] + nx * shift, a[1] + ny * shift];
+          b = [b[0] + nx * shift, b[1] + ny * shift];
+          const wide = (r.bold ? 3.5 : r.dashed ? 2.5 : 2) * K;
+          if (r.dashed) add('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: r.color, 'stroke-width': wide, 'stroke-opacity': 0.92, 'stroke-dasharray': '1 ' + 5 * K, 'stroke-linecap': 'round' });
+          else add('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: r.color, 'stroke-width': wide, 'stroke-opacity': r.bold ? 1 : 0.67 });
+          if (r.bold && !r.dashed && !waved && s >= (r.passed || 0)) { waved = true; wave(a, b, ux, uy, len, r.color, 3.5 * K); }
+          const cx = a[0] + (b[0] - a[0]) * 0.62, cy = a[1] + (b[1] - a[1]) * 0.62, z = (r.bold ? 8 : 6) * K;
+          const pts = [
+            [cx + ux * z, cy + uy * z],
+            [cx - ux * z * 0.7 + nx * z * 0.6, cy - uy * z * 0.7 + ny * z * 0.6],
+            [cx - ux * z * 0.7 - nx * z * 0.6, cy - uy * z * 0.7 - ny * z * 0.6]
+          ].map(function (q) { return q[0] + ',' + q[1]; }).join(' ');
+          add('polygon', { points: pts, fill: r.color });
+        }
+      });
+    });
+    // a ring around every station a route touches (where it starts, stops or ends): no station looks special, Ruin neither (Frank, 29 Oct 2026: the
+    // planner is to work with every kind of hauling and lose its Ruin bias, so the map knows no home station)
+    const used = {};
+    routes.forEach(function (r) { [r.from || 'Ruin', 'Ruin'].concat(r.stops).forEach(function (id) { used[id] = true; }); });
+    p.stations.forEach(function (s) {
+      const q = pos[s.id];
+      if (q && used[s.id]) add('circle', { cx: q[0], cy: q[1], r: 7, fill: 'none', stroke: '#ecece8', 'stroke-opacity': 0.7, 'stroke-width': 1.5 });
+    });
+  }
+  map.show(pyroOf(mapData) || p.map);
+  drawRoutes();
+  if (mapData) map.draw(mapData, keep);
+  planMap = { map: map, drawRoutes: drawRoutes, keep: keep };
+  return map;
 }
+
+// The players and the objectives of the Trip Planner's map (the Map tool's Pyro, /hauling/map.json), every 3 seconds while the tab is shown. The program's
+// own page has no such address (404): then the map shows the routes alone and the poll stops.
+async function refreshMap() {
+  if (document.hidden || mapOff || shownTab !== 'P') return;
+  try {
+    const res = await fetch('/hauling/map.json', { cache: 'no-store' });
+    if (res.status === 404) { mapOff = true; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    mapData = await res.json();
+    if (planMap && last && last.planner) {
+      if (planMap.map.show(pyroOf(mapData) || last.planner.map)) planMap.drawRoutes();   // the places changed (the admin's Map places): drawn anew
+      planMap.map.draw(mapData, planMap.keep);
+    }
+  } catch (e) {
+    // the next poll tries again
+  }
+}
+setInterval(refreshMap, 3000);
 
 // What the Trip Planner shows: Everyone, one party (its members' routes), or Only me (the viewer's own, when he is logged in and one of the workers).
 // The viewer's party first. The plan itself is the same: this only picks whose routes are drawn and listed.
@@ -322,13 +344,14 @@ function renderPlanner() {
   workers.forEach(function (w) {
     w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, passed: r.passed || 0, bold: !!r.solid, dashed: !r.solid }); });
   });
-  mapSvg(mapBox, p.stations, routes, p.backdrop);
+  mapSvg(mapBox, p, routes, workers.map(function (w) { return w.name || ''; }));
   renderStatus(mapBox);
   workers.forEach(function (w) {
     const frame = document.createElement('div'); frame.className = 'planworker'; tables.appendChild(frame);   // every worker in his own frame
     const h = document.createElement('h2'); frame.appendChild(h);
     const nm = document.createElement('span'); nm.textContent = w.heading || w.name || ''; if (w.color) nm.style.color = w.color; h.appendChild(nm);   // his name in capitals, in his colour
     h.appendChild(document.createTextNode(w.title));
+    frame.appendChild(planMap.map.meter(w.name || ''));   // the map's line for him (where he is, what he does) and his speed meter while he is in quantum
     if (!w.current) return;   // nothing to do for him
     const pair = document.createElement('div'); pair.className = 'planpair'; frame.appendChild(pair);
     [['plancur', 'Current Route', w.current], ['planque', 'Queued routes', w.queued]].forEach(function (x) {
@@ -432,6 +455,7 @@ function tabOf(name) {
 }
 function show(which) {
   shownTab = which;
+  if (which === 'P') refreshMap();   // the map's players at once, not at the next poll
   Object.keys(TABS).forEach(function (k) {
     document.getElementById('view' + k).classList.toggle('hidden', k !== which);
     document.getElementById('tab' + k).classList.toggle('on', k === which);
@@ -637,6 +661,6 @@ async function refresh() {
     live.textContent = '● connection lost, trying again'; live.className = 'live bad';
   }
 }
-document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
+document.addEventListener('visibilitychange', function () { if (!document.hidden) { refresh(); refreshMap(); } });
 refresh();
 setInterval(refresh, 3000);

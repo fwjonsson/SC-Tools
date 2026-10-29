@@ -83,6 +83,17 @@
     .planleft { flex:1 1 100%; }
   }
   .mapbox { background:var(--cell); border:1px solid var(--line); }
+  /* the map of the Trip Planner: the legend (who flies which route) above the Map tool's Pyro, and under every worker's name the map's line for him with his speed meter */
+  .maplegend { display:flex; flex-wrap:wrap; gap:2px 14px; padding:6px 8px 4px; font-size:11px; }
+  .maplegend span { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
+  .mapsvg svg { display:block; }
+  .mapmeter { margin:-2px 0 6px; }
+  .mapmeter .what { opacity:.75; font-size:13px; }
+  .speed { margin-top:4px; max-width:520px; }
+  .speed .bar { height:8px; background:rgba(128,128,128,.2); border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+  .speed .bar span { display:block; height:100%; background:linear-gradient(90deg, #2f7dd1, #7fd3ff); }
+  .speed .num { font-variant-numeric:tabular-nums; font-size:20px; font-weight:700; }
+  .speed .unit { opacity:.75; font-size:12px; margin-left:4px; }
   .status { padding:4px 10px 8px; font-size:14px; font-style:italic; opacity:.7; min-height:1.3em; }
   .status.fade { animation:statusfade .6s ease-out; }
   @keyframes statusfade { from { opacity:0; } to { opacity:.7; } }

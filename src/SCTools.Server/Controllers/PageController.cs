@@ -18,10 +18,12 @@ public sealed class PageController : Controller
     readonly MissionLibrary _missions;
     readonly Playtime _playtime;
     readonly IFileVersionProvider _files;
+    readonly MapService _map;
 
-    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions, Playtime playtime, IFileVersionProvider files)
+    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions, Playtime playtime, IFileVersionProvider files, MapService map)
     {
         _files = files;
+        _map = map;
         _live = live;
         _tools = tools;
         _gauntlet = gauntlet;
@@ -113,6 +115,26 @@ public sealed class PageController : Controller
         if (Request.Headers.IfNoneMatch.Any(h => h != null && h.Split(',').Any(v => v.Trim() == snapshot.ETag)))
             return StatusCode(StatusCodes.Status304NotModified);
         return File(snapshot.Bytes, "application/json; charset=utf-8");
+    }
+
+    /// <summary>
+    /// The map of the Trip Planner tab: the Map tool's data for Pyro alone (MapService.Snapshot: everybody playing where his jumps put him, the objectives
+    /// going on), polled every few seconds while the tab is shown, by whoever sees the Hauling Planner; the page draws the planner's routes on it.
+    /// </summary>
+    [HttpGet("/hauling/map.json")]
+    public IActionResult PlannerMap()
+    {
+        if (!_tools.Sees(User, SiteTools.Hauling)) return StatusCode(StatusCodes.Status403Forbidden);
+        Response.Headers.CacheControl = "no-store";
+        return Json(_map.Snapshot(DateTime.UtcNow, "pyro"));
+    }
+
+    /// <summary>The map engine (systemmap.js): the script the live page has inline, for the Map tool's page. With its version in the address, a browser keeps it until it changes.</summary>
+    [HttpGet("/systemmap.js")]
+    public IActionResult SystemMap([FromQuery] string? v)
+    {
+        Response.Headers.CacheControl = v == WebAssets.SystemMapVersion ? "public, max-age=31536000, immutable" : "no-cache";
+        return Content(WebAssets.SystemMap, "text/javascript; charset=utf-8");
     }
 
     [HttpGet("/favicon.ico")]

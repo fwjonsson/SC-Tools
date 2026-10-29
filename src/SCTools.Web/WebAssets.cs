@@ -6,7 +6,16 @@ namespace SCTools.Web;
 /// </summary>
 public static class WebAssets
 {
-    /// <summary>The page: index.html with the style and the script inline.</summary>
+    /// <summary>
+    /// The map engine (systemmap.js): the one map of the site, inlined into the live page for the Trip Planner tab and sent by the server to the Map tool as
+    /// /systemmap.js, so both draw a system, its players and its objectives the same way. Before Page: the page is built from it.
+    /// </summary>
+    public static readonly string SystemMap = Read("systemmap.js");
+
+    /// <summary>A short hash of the engine, for its address on the site (/systemmap.js?v=...): a browser keeps the script until it changes.</summary>
+    public static readonly string SystemMapVersion = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(SystemMap)))[..12].ToLowerInvariant();
+
+    /// <summary>The page: index.html with the style and the scripts (the map engine, then the page's own) inline.</summary>
     public static readonly string Page = Build();
 
     /// <summary>The program icon, the icon of the page and of a bookmark (null when it cannot be read).</summary>
@@ -33,6 +42,7 @@ public static class WebAssets
         var html = Read("index.html");
         return html
             .Replace("<link rel=\"stylesheet\" href=\"app.css\">", "<style>\n" + Read("app.css") + "</style>")
+            .Replace("<script src=\"systemmap.js\"></script>", "<script>\n" + SystemMap + "</script>")
             .Replace("<script src=\"app.js\"></script>", "<script>\n" + Read("app.js") + "</script>");
     }
 
