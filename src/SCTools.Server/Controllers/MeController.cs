@@ -33,6 +33,8 @@ public sealed class MeController : Controller
         m.Fleet = _fleet.Fleet(Player);
         m.Active = _fleet.Active(Player);
         m.ShipNames = ShipModels.All.Select(s => s.Name).ToList();   // every spaceship of the game data
+        m.ShipSizes = ShipModels.All.Select(s => (s.Name, Size: FleetService.DriveSizeOf(s.Name))).Where(s => s.Size != null)
+            .ToDictionary(s => s.Name.ToLowerInvariant(), s => s.Size!.Value);
         return View(m);
     }
 

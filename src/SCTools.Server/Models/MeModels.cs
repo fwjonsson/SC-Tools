@@ -42,6 +42,9 @@ public sealed class MeModel
     /// <summary>The ships to pick a name from (any ship can be typed: the haulers are the ones the Hauling Planner knows the cargo grid of).</summary>
     public List<string> ShipNames { get; set; } = new();
 
+    /// <summary>The size of quantum drive every ship the site knows takes (by its name in small letters), for the Add ship form to list the drives that fit.</summary>
+    public Dictionary<string, int> ShipSizes { get; set; } = new();
+
     /// <summary>What he has now, from the tracker (read under its lock).</summary>
     public static MeModel Of(Tracker t, string player)
     {

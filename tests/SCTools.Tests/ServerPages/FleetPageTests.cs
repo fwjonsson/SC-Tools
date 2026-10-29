@@ -28,10 +28,26 @@ public class FleetPageTests
         Assert.DoesNotContain("not a hauler the planner knows", page);   // the Gladius is a ship of the game, not a hauler
         Assert.Contains("Stock: Beacon S1", page);                        // no drive picked for it: its stock drive
         Assert.Contains("Aegis Gladius", page);
+        // a ship takes the drives of its stock drive's size: the Gladius lists size 1 drives, the C2 size 3, and another size is refused
+        var gladius = System.Text.RegularExpressions.Regex.Match(page, "<tr[^>]*>(?:(?!</tr>).)*Aegis Gladius(?:(?!</tr>).)*</tr>", System.Text.RegularExpressions.RegexOptions.Singleline).Value;
+        Assert.Contains("value=\"Beacon S1\"", gladius);
+        Assert.DoesNotContain("value=\"TS-2 S3\"", gladius);
+        var c2 = System.Text.RegularExpressions.Regex.Match(page, "<tr[^>]*>(?:(?!</tr>).)*Crusader C2 Hercules(?:(?!</tr>).)*</tr>", System.Text.RegularExpressions.RegexOptions.Singleline).Value;
+        Assert.Contains("value=\"TS-2 S3\" selected", c2);
+        Assert.DoesNotContain("value=\"Beacon S1\"", c2);
+        Assert.Contains("data-size=\"3\">TS-2 S3</option>", page);   // the Add form has every drive with its size, for the script
+        Assert.Contains("\"crusader c2 hercules starlifter\":3", page);
+        await ServerFactory.Send(me, "/me", "/me/fleet/add", ("ship", "Aegis Gladius"), ("drive", "TS-2 S3"), ("quality", ""));
+        Assert.Contains("A Aegis Gladius takes a size 1 quantum drive: TS-2 S3 is size 3.", WebUtility.HtmlDecode(await me.GetStringAsync("/me")));
 
         var fleet = f.Services.GetRequiredService<FleetService>();
         var ships = fleet.Fleet("zzoega");
         Assert.Equal(new[] { "Crusader C2 Hercules Starlifter", "Aegis Gladius" }, ships.Select(s => s.Row.Ship));
+        Assert.Equal("A Aegis Gladius takes a size 1 quantum drive: TS-2 S3 is size 3.", fleet.Set("zzoega", ships[1].Row.Id, "drive", "TS-2 S3"));
+        Assert.Null(fleet.Set("zzoega", ships[1].Row.Id, "drive", "VK-00 S1"));
+        Assert.Null(fleet.Set("zzoega", ships[1].Row.Id, "ship", "Anvil Carrack"));   // a size 3 ship now: the size 1 drive goes, its stock drive until one is picked
+        Assert.Null(fleet.Fleet("zzoega")[1].Row.Drive);
+        Assert.Null(fleet.Set("zzoega", ships[1].Row.Id, "ship", "Aegis Gladius"));
         Assert.Equal("C2 Hercules Starlifter", ships[0].Hauler?.Name);
 
         // Automatic: his latest quantum jump was in a C2 (the logs name it CRUS_Starlifter_C2)
