@@ -25,4 +25,31 @@ public class LeftoversTests
             Directory.Delete(dir, true);
         }
     }
+
+    [Fact]
+    public void The_downloads_of_earlier_updates_go_too_but_not_one_going_on_right_now()
+    {
+        var temp = Directory.CreateTempSubdirectory("sctools-temp").FullName;
+        try
+        {
+            var old = Path.Combine(temp, "SCToolsUpdate-0123456789abcdef");
+            Directory.CreateDirectory(old);
+            File.WriteAllText(Path.Combine(old, "SCToolsTracker.zip"), "x");
+            Directory.SetLastWriteTimeUtc(old, DateTime.UtcNow.AddDays(-2));
+            var fresh = Path.Combine(temp, "SCToolsUpdate-fedcba9876543210");
+            Directory.CreateDirectory(fresh);
+            File.WriteAllText(Path.Combine(fresh, "SCToolsTracker.zip"), "x");
+            var other = Path.Combine(temp, "SomethingElse");
+            Directory.CreateDirectory(other);
+            Directory.SetLastWriteTimeUtc(other, DateTime.UtcNow.AddDays(-2));
+
+            Assert.Equal(1, Updater.RemoveOldDownloads(temp));
+
+            Assert.Equal(new[] { "SCToolsUpdate-fedcba9876543210", "SomethingElse" }, Directory.GetDirectories(temp).Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray());
+        }
+        finally
+        {
+            Directory.Delete(temp, true);
+        }
+    }
 }

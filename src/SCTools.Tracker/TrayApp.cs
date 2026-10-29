@@ -29,6 +29,8 @@ sealed class TrayApp : ApplicationContext
     LogSender? _sender;
     string? _player;
     bool _updating;
+    readonly RetryDelay _delay = new();   // how long until the next upload: longer and longer while the server cannot be reached
+    CancellationTokenSource _wake = new();   // cancelled by new settings: the next upload is at once, however long the wait was
 
     /// <param name="updated">it was started by an update of itself: it says so</param>
     public TrayApp(bool updated = false)
@@ -114,22 +116,32 @@ sealed class TrayApp : ApplicationContext
         Reconnect();
     }
 
-    /// <summary>New settings: a new connection, and the logs are followed again from where the server is.</summary>
+    /// <summary>New settings: a new connection, and the logs are followed again from where the server is, at once (not when the wait after a failure ends).</summary>
     void Reconnect()
     {
         _server?.Dispose();
         _server = null;
         _sender = null;
         _player = null;
+        _delay.Worked();
+        var wake = _wake;
+        _wake = new CancellationTokenSource();
+        wake.Cancel();
+        wake.Dispose();
     }
 
+    /// <summary>
+    /// Uploads what is new, then waits: three seconds, or longer after failures in a row (RetryDelay), so a server that is down or being updated is not asked
+    /// every three seconds by every tracker.
+    /// </summary>
     async Task SendLoopAsync()
     {
         while (!_stop.IsCancellationRequested)
         {
             await SendOnceAsync();
-            try { await Task.Delay(TimeSpan.FromSeconds(3), _stop.Token); }
-            catch (TaskCanceledException) { return; }
+            using var wake = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token, _wake.Token);
+            try { await Task.Delay(_delay.Next, wake.Token); }
+            catch (TaskCanceledException) { if (_stop.IsCancellationRequested) return; }
         }
     }
 
@@ -137,6 +149,7 @@ sealed class TrayApp : ApplicationContext
     {
         if (!_settings.Complete)
         {
+            _delay.Worked();
             SetStatus("Not set up: open Settings and type your key");
             return;
         }
@@ -152,11 +165,13 @@ sealed class TrayApp : ApplicationContext
                 _player = await _server.PlayerAsync(_stop.Token);
                 if (_player == null)
                 {
-                    SetStatus("The server does not know this key: check it in Settings");
+                    _delay.KeyUnknown();
+                    SetStatus("The server does not know this key: check it in Settings (asked again in " + RetryDelay.Say(_delay.Next) + ")");
                     return;
                 }
             }
             await _sender.TickAsync(_stop.Token);
+            _delay.Worked();
             if (_sender.LiveFile == null)
             {
                 SetStatus("No Game.log found in " + _settings.StarCitizenFolder);
@@ -171,14 +186,17 @@ sealed class TrayApp : ApplicationContext
         catch (UnauthorizedAccessException)
         {
             _player = null;
-            SetStatus("The server does not know this key: check it in Settings");
+            _delay.KeyUnknown();
+            SetStatus("The server does not know this key: check it in Settings (asked again in " + RetryDelay.Say(_delay.Next) + ")");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            SetStatus("Cannot reach the server, trying again (" + ex.Message + ")");
+            _delay.Failed();
+            SetStatus("Cannot reach the server, trying again in " + RetryDelay.Say(_delay.Next) + " (" + ex.Message + ")");
         }
         catch (IOException ex)
         {
+            _delay.Worked();   // the log, not the server: soon again
             SetStatus("Cannot read the log, trying again (" + ex.Message + ")");
         }
     }
