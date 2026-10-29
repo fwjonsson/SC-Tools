@@ -296,7 +296,8 @@ admin (done), then going live.
   drive speed 20 % higher, 500 is as bought, 0 is 20 % lower, in a straight line; only the drive speed changes). The ships to pick from are every
   spaceship of the game data (`ShipModels`: 231, from the Star Citizen Wiki's vehicles in the ScApiTool download of 20 Oct 2026, with their classes,
   cargo grid and stock quantum drive; ground vehicles, display and concept models left out); a ship without a drive picked flies its stock drive
-  ("Beacon S1 (stock)"). His **active ship** is the one he picks, or Automatic: the ship of his latest quantum jump (every quantum travel line names it
+  ("Beacon S1 (stock)"); a ship takes the drives of its stock drive's size, so only those are listed and another size is refused (Frank, 29 Oct 2026;
+  a ship the site does not know lists every drive). His **active ship** is the one he picks, or Automatic: the ship of his latest quantum jump (every quantum travel line names it
   by the game's class, `CRUS_Starlifter_C2`, `VehicleLines`; only the lines about his own ship: he picked a destination, the route, the arrival, his
   ship's navigation; not "Local Route Guard - Server Rerouted", which the game writes for every ship that comes near him), the ship of his fleet that is that class's ship (`ShipModels.OfClass`), else the one whose
   name fits the class best; a class that is not in his fleet shows by the game's name ("Crusader C2 Hercules Starlifter"). The Hauling Planner flies the active ship: its name (when it is a hauler the planner knows: a name like "Crusader C2

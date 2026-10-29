@@ -26,13 +26,15 @@
 @{
     var inv = System.Globalization.CultureInfo.InvariantCulture;
     string Speed(double? mps) => mps == null ? "" : mps.Value.ToString("N0", inv) + " m/s";
+    // the drives to pick from: a ship takes the size of its stock drive (Frank, 29 Oct 2026), so only those are listed; every size for a ship the site does not know
+    IEnumerable<QtDrive> Drives(int? size) => QuantumDrives.All.Where(d => size == null || d.Size == size).OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase).ThenBy(d => d.Size);
     var active = Model.Active;
     var auto = active == null || active.Vehicle == null
         ? "no quantum jump in your logs yet"
         : (active.Picked ? VehicleLines.Pretty(active.Vehicle) : active.Text) + " (your last quantum jump" + (active.Picked || active.Ship != null ? "" : ", not in your fleet") + ")";
 }
 <h2 id="fleet">My fleet</h2>
-<p class="hint">Every ship you own and the quantum drive in it (none picked: the ship's stock drive). A crafted drive: type its quality (0 to 1000). Quality
+<p class="hint">Every ship you own and the quantum drive in it (none picked: the ship's stock drive; only the drives of the size the ship takes are listed). A crafted drive: type its quality (0 to 1000). Quality
   1000 makes the drive speed 20 % higher, 500 is as bought, 0 is 20 % lower (only the drive speed changes). The Hauling Planner flies your active ship: its cargo grid, its drive and the drive's
   speed for the flying times.</p>
 <form method="post" action="/me/fleet/active" asp-antiforgery="true" class="line" data-autosave>
@@ -73,9 +75,9 @@
             <input type="hidden" name="id" value="@s.Row.Id"><input type="hidden" name="field" value="drive">
             <select name="value" aria-label="Quantum drive">
               <option value="">@(s.StockDrive is { } stock ? "Stock: " + stock.Label : "")</option>
-              @foreach (var d in Model.Drives)
+              @foreach (var d in Drives(s.DriveSize))
               {
-                <option value="@d.Value" selected="@(s.Row.Drive != null && s.Drive?.Label == d.Value)">@d.Text</option>
+                <option value="@d.Label" selected="@(s.Row.Drive != null && s.Drive?.Label == d.Label)">@d.Label</option>
               }
             </select>
           </form>
@@ -101,11 +103,12 @@
 }
 <form method="post" action="/me/fleet/add" asp-antiforgery="true" class="line">
   <input name="ship" list="shipNames" maxlength="@FleetService.MaxName" placeholder="Ship" aria-label="Ship to add" required autocomplete="off">
-  <select name="drive" aria-label="Its quantum drive">
+  @* every drive, with its size: the script below keeps only the ones of the size the ship typed takes (ShipSizes) *@
+  <select name="drive" aria-label="Its quantum drive" id="addDrive" data-sizes="@System.Text.Json.JsonSerializer.Serialize(Model.ShipSizes)">
     <option value="">Stock quantum drive</option>
-    @foreach (var d in Model.Drives)
+    @foreach (var d in Drives(null))
     {
-      <option value="@d.Value">@d.Text</option>
+      <option value="@d.Label" data-size="@d.Size">@d.Label</option>
     }
   </select>
   <input name="quality" inputmode="numeric" placeholder="Crafted quality" aria-label="Crafted quality" class="num" autocomplete="off">
@@ -117,3 +120,18 @@
     <option value="@n"></option>
   }
 </datalist>
+<script>
+// Add ship: once the ship typed is one the site knows, only the drives of the size it takes are left to pick (the server refuses another size anyway)
+(function () {
+  var ship = document.querySelector('input[name="ship"][list="shipNames"]'), drive = document.getElementById('addDrive');
+  if (!ship || !drive) return;
+  var sizes = JSON.parse(drive.dataset.sizes || '{}');
+  function fit() {
+    var size = sizes[ship.value.trim().toLowerCase()];
+    Array.prototype.forEach.call(drive.options, function (o) { if (o.dataset.size) o.hidden = !!size && +o.dataset.size !== size; });
+    if (drive.selectedOptions[0] && drive.selectedOptions[0].hidden) drive.value = '';
+  }
+  ship.addEventListener('input', fit);
+  fit();
+})();
+</script>

@@ -13,6 +13,9 @@ public sealed record FleetShip(FleetShipRow Row, QtDrive? Drive, double Bonus, S
     /// <summary>The ship's stock drive (the game data's), or null.</summary>
     public QtDrive? StockDrive => QuantumDrives.Find(Model?.Drive);
 
+    /// <summary>The size of quantum drive the ship takes (its stock drive's), or null for a ship the site does not know the drive of.</summary>
+    public int? DriveSize => StockDrive?.Size;
+
     /// <summary>No drive picked: the stock drive is the one.</summary>
     public bool Stock => Row.Drive == null && Drive != null;
 
@@ -104,6 +107,16 @@ public sealed class FleetService
     /// <summary>The name of a ship as typed (trimmed), or null when it is empty or too long.</summary>
     static string? ShipName(string? typed) => typed?.Trim() is { Length: > 0 and <= MaxName } name ? name : null;
 
+    /// <summary>The size of quantum drive a ship takes (its stock drive's in the game data), or null when the site does not know.</summary>
+    public static int? DriveSizeOf(string ship) => QuantumDrives.Find(ShipModels.Find(ship)?.Drive)?.Size;
+
+    /// <summary>The sentence for the page when this drive does not fit this ship (another size than its stock drive's), else null.</summary>
+    static string? Misfit(string ship, string? driveKey)
+    {
+        if (driveKey == null || QuantumDrives.Find(driveKey) is not { } d || DriveSizeOf(ship) is not { } size || d.Size == size) return null;
+        return "A " + (ShipModels.Find(ship)?.Name ?? ship) + " takes a size " + size + " quantum drive: " + d.Label + " is size " + d.Size + ".";
+    }
+
     /// <summary>A drive as picked: (true, its key), (true, null) for none, (false, _) when it is not a drive.</summary>
     static (bool Ok, string? Key) DriveKey(string? typed) =>
         string.IsNullOrWhiteSpace(typed) ? (true, null) : QuantumDrives.Find(typed.Trim()) is { } d ? (true, d.Key) : (false, null);
@@ -123,6 +136,7 @@ public sealed class FleetService
         if (!driveOk) return "That is not one of the quantum drives.";
         var (qualityOk, q) = QualityOf(quality);
         if (!qualityOk) return "The quality of a crafted drive is a whole number from 0 to 1000 (empty: not crafted).";
+        if (Misfit(name, driveKey) is { } misfit) return misfit;
         lock (_lock)
         {
             Load();
@@ -149,10 +163,12 @@ public sealed class FleetService
                 case "ship":
                     if (ShipName(value) is not { } name) return "Type the ship's name (at most " + MaxName + " letters).";
                     row.Ship = name;
+                    if (Misfit(name, row.Drive) != null) row.Drive = null;   // another ship, another size: its stock drive until one is picked
                     break;
                 case "drive":
                     var (driveOk, driveKey) = DriveKey(value);
                     if (!driveOk) return "That is not one of the quantum drives.";
+                    if (Misfit(row.Ship, driveKey) is { } wrong) return wrong;
                     row.Drive = driveKey;
                     break;
                 case "quality":
