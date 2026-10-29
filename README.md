@@ -248,7 +248,11 @@ admin (done), then going live.
   which in-game party (AutoParty over everybody's log: anybody playing, not only the Hauling Planner's party; a player alone is a party of one), with the
   ship each one flies; everybody else the site knows (the tracker keys, the Hauling Planner's party, the fleets, the logs) with when he was last seen.
   A player's page (`/party/{name}`): playing or last seen, his party, the ship he flies and its drive (picked, or his last quantum jump), where the
-  Hauling Planner has him, his tracker, and his fleet. Only for the admin until it is shown on the Tools page.
+  Hauling Planner has him, his tracker, and his fleet. Only for the admin until it is shown on the Tools page. It is not a card on the landing page and
+  not in the row of tools (Frank, 29 Oct 2026; `SiteTools.Cards`): a **Party** button beside the viewer's name in the top bar (`TopBar.PartyButton`, on
+  the tools' own pages too) opens a panel under it with the same parties, the ships and the links to the players' pages, and "Everybody" to the Party
+  page. The panel is fetched when it opens (`/party/panel`, a fragment: `_Panel.cshtml`), so a page costs nothing for it until somebody looks; without
+  JavaScript the button is a link to the Party page. The button is marked in the tool's colour on the Party pages, like a tool in the row.
 - **The Map tool** (`/map`, `MapService`, `wwwroot/map.js`): Pyro, Stanton and Nyx from above (a tab per system over the map; it opens on the system
   where most players are, `#stanton` in the address opens that one), with everybody playing where his quantum jumps put him and the objectives of
   the missions going on (`map.json`, every 3 seconds). The places are `StarMap` (Core): the stars, planets, moons, cities, gateways and stations of
@@ -307,7 +311,8 @@ admin (done), then going live.
   project. The landing page has the title over faint orbit rings (like the Pyro map) and a card per tool, centred, each in the tool's colour with its
   icon and what it shows now (the hauling session, your gauntlet runs this week, the missions left to fill in). Every page has the same bar at the top
   (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards), the tools the viewer sees, and on the right
-  **Tracker** (its page: download and setup), who is logged in, My page, Admin and Log out (or Log in); on a phone all of it is behind a menu button.
+  **Tracker** (its page: download and setup), who is logged in, his **Party** button (the panel of who is playing, see the Party tool), My page, Admin and
+  Log out (or Log in); on a phone all of it is behind a menu button.
   The part of the site you are in is marked in its own colour: a tool (by its address, `/gauntlet/stats` too) in the colour of its card, My page in
   green, Admin in red on the admin's pages and his account. The pages of the site end with a footer: the tracker's download, how to set it up, and the
   disclaimer. The admin's pages have a second row under it with his pages (Session, Party, Contracts, Debts, Gauntlet, Edit Mission Info, Scrip, Map

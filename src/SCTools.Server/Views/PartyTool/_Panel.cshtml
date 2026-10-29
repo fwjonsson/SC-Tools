@@ -1,0 +1,32 @@
+@model PartyToolPage
+@{
+    // the panel of the Party button in the top bar (TopBar.PartyButton, fetched when it opens): the parties now as the Party page shows them, and a link to it
+    Layout = null;
+    string Link(string name) => "/party/" + Uri.EscapeDataString(name);
+    var playing = Model.Parties.Sum(p => p.Names.Count);
+}
+<div class="partypanel">
+  <p class="head"><span>@(playing == 0 ? "Nobody is playing now." : playing + " playing" + (Model.Parties.Count > 1 ? " in " + Model.Parties.Count + " parties" : ""))</span>
+    <a href="/party">Everybody ›</a></p>
+  @foreach (var p in Model.Parties)
+  {
+    <div class="group">
+      <b>@p.Title</b>
+      <ul>
+      @foreach (var n in p.Names)
+      {
+        <li><a href="@Link(n)">@n</a>@(string.Equals(n, p.Leader, StringComparison.OrdinalIgnoreCase) && p.Names.Count > 1 ? " (leader)" : "")
+          @if (Model.Ships.TryGetValue(n, out var ship) && ship.Length > 0)
+          {
+            <span class="muted"> · @ship</span>
+          }
+        </li>
+      }
+      </ul>
+    </div>
+  }
+  @if (Model.Others.Count > 0)
+  {
+    <p class="muted small">Not playing: @string.Join(", ", Model.Others.Select(o => o.Name))</p>
+  }
+</div>
