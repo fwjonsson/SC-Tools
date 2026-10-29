@@ -291,7 +291,8 @@ admin (done), then going live.
   ("Go to a debris field above Daymar": `MapService.NamedIn`), else only in the list, by what they say and the contract's system (a bounty's marker
   is at 0, 0, 0). Only for the admin until it is shown on the Tools page.
   **One map engine** (Frank, 29 Oct 2026): the map itself is `wwwroot/systemmap.js`, a file of the site both the Map tool's page and the Hauling
-  Planner's page load before their own script (with its version in the address, so a browser keeps it until it changes). `SystemMap.create(box)` draws a system (`show`: the places of map.json's
+  Planner's page load before their own script (with its version in the address, so a browser keeps it until it changes). The Trip Planner's map is the Map tool's size (820 px wide; Frank, 29 Oct 2026), smaller on a
+  narrower window so the workers' tables keep their columns. `SystemMap.create(box)` draws a system (`show`: the places of map.json's
   `systems`, drawn anew only when they change), the objectives and players of map.json on it (`draw`, with a filter by name), gives the caller a layer
   between the system and the objectives and the anchors of the places (`layer`, `at`) for his own drawing, and makes the line and the speed meter of a
   player by name (`meter`: what he does, `describe`; in quantum his speed every frame). The Hauling Planner's Trip Planner tab draws Pyro with it:

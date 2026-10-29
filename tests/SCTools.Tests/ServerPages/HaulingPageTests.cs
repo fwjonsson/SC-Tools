@@ -51,6 +51,8 @@ public class HaulingPageTests
         Assert.Contains(".hauling .planworker", style);   // every rule under .hauling: nothing reaches the other pages
         Assert.Contains(".hauling #party th:nth-child(2) { width:46%; }", style);
         Assert.DoesNotContain("\nbody", style);
+        Assert.Contains(".hauling .planleft { flex:0 0 820px; max-width:100%; }", style);   // the Trip Planner's map is the Map tool's size
+        Assert.Contains(".mapbox { flex:1 1 560px; max-width:820px;", await visitor.GetStringAsync("/site.css"));
         var engine = await visitor.GetStringAsync("/systemmap.js");
         Assert.StartsWith("var SystemMap = (function ()", engine.Split('\n').First(l => !l.StartsWith("//")));
         Assert.Equal("image/x-icon", (await visitor.GetAsync("/favicon.ico")).Content.Headers.ContentType?.MediaType);
