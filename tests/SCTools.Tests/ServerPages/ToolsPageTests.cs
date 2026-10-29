@@ -75,6 +75,8 @@ public class ToolsPageTests
         Assert.DoesNotContain("<meta name=\"admin\"", live);   // a watcher is not the admin
         Assert.DoesNotContain("position:absolute", live);   // the old links in the corner are gone
         Assert.Equal(HttpStatusCode.OK, (await visitor.GetAsync("/topbar.css")).StatusCode);
+        Assert.Contains("max(18px, calc((100% - 1900px) / 2))", await visitor.GetStringAsync("/topbar.css"));   // the bar keeps to the pages' 1,900 px band on an ultrawide screen
+        Assert.Contains("margin-left:max(0px, calc((100% - 1900px) / 2))", await visitor.GetStringAsync("/site.css"));
 
         var home = await visitor.GetStringAsync("/");
         Assert.Contains("<a href=\"/hauling\" style=\"--tool:#4682ff\">Hauling Planner</a>", home);   // the same bar on the landing page, no tool marked

@@ -4,7 +4,7 @@
 body { margin:0; background:var(--bg); color:var(--fg); font:14px "Segoe UI", system-ui, sans-serif; }
 a { color:inherit; }
 /* the bar at the top is topbar.css; under it on the admin's pages, the admin's pages */
-.subnav { display:flex; gap:6px; flex-wrap:wrap; padding:6px 18px; border-bottom:1px solid var(--line); font-weight:600; }
+.subnav { display:flex; gap:6px; flex-wrap:wrap; padding:6px max(18px, calc((100% - 1900px) / 2)); border-bottom:1px solid var(--line); font-weight:600; }
 .subnav a { text-decoration:none; padding:4px 10px; border-radius:4px; }
 .subnav a:hover { background:var(--cell); }
 .subnav a.on { background:var(--header); color:#fff; }
@@ -12,7 +12,8 @@ a { color:inherit; }
 .subnav.area { background:color-mix(in srgb, var(--tool) 8%, var(--bg)); border-top:2px solid var(--tool); }
 .subnav.area a:hover { background:color-mix(in srgb, var(--tool) 16%, transparent); }
 .subnav.area a.on { background:color-mix(in srgb, var(--tool) 32%, transparent); box-shadow:inset 0 -2px 0 var(--tool); }
-main { padding:8px 18px 40px; max-width:900px; }
+/* every page keeps to a band of 1,900 px in the middle of an ultrawide screen (the bar and the admin's row too), so nothing is stretched out or far apart */
+main { padding:8px 18px 40px; max-width:900px; margin-left:max(0px, calc((100% - 1900px) / 2)); }
 h1 { font-size:22px; margin:18px 0 8px; }
 h2 { font-size:16px; margin:24px 0 8px; }
 .muted, .hint { color:var(--muted); }
@@ -71,7 +72,7 @@ button.took { background:#685818; }
 button.tooknot { background:#6e4a1e; }
 
 /* the landing page: the title over faint orbit rings (like the Pyro map), a card per tool in its own colour, centred */
-main:has(.landing) { max-width:none; padding:0; }
+main:has(.landing) { max-width:none; padding:0; margin-left:0; }
 .landing { position:relative; overflow:hidden; padding-bottom:56px; }
 .landing svg.orbits { position:absolute; left:50%; top:0; width:1200px; height:460px; transform:translateX(-50%); pointer-events:none; }
 .orbits ellipse { fill:none; stroke:#22324a; stroke-width:1; }

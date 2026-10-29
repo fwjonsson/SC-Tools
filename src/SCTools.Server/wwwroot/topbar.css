@@ -1,5 +1,6 @@
 /* The bar at the top of every page of the site (TopBar.cs), the tools' own pages too, so it has its own colours ("Deep space") and needs nothing else. */
-.topbar { display:flex; gap:24px; align-items:center; padding:10px 18px; border-bottom:1px solid #2f3a48; flex-wrap:wrap; background:#0d1117; color:#e6edf3; font:14px "Segoe UI", system-ui, sans-serif; }
+/* the bar keeps to the same 1,900 px band as the pages on an ultrawide screen (Frank, 29 Oct 2026): its padding grows with the window beyond that */
+.topbar { display:flex; gap:24px; align-items:center; padding:10px max(18px, calc((100% - 1900px) / 2)); border-bottom:1px solid #2f3a48; flex-wrap:wrap; background:#0d1117; color:#e6edf3; font:14px "Segoe UI", system-ui, sans-serif; }
 .topbar a { color:inherit; }
 .topbar .brand { font-size:18px; font-weight:700; text-decoration:none; }
 .topbar .toolnav { display:flex; gap:6px; flex:1; font-weight:600; flex-wrap:wrap; }
