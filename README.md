@@ -320,7 +320,8 @@ admin (done), then going live.
   **Tracker** (its page: download and setup), who is logged in, his **Party** button (the panel of who is playing, see the Party tool), My page, Admin and
   Log out (or Log in); on a phone all of it is behind a menu button.
   The part of the site you are in is marked in its own colour: a tool (by its address, `/gauntlet/stats` too) in the colour of its card, My page in
-  green, Admin in red on the admin's pages and his account. The pages of the site end with a footer: the tracker's download, how to set it up, and the
+  green, Admin in red on the admin's pages and his account. On an ultrawide screen every page keeps to a band of 1,900 px in the middle: the bar, the
+  admin's row and the pages' content (`topbar.css`, `site.css`), like the Hauling Planner's live page (Frank, 29 Oct 2026). The pages of the site end with a footer: the tracker's download, how to set it up, and the
   disclaimer. The admin's pages have a second row under it with his pages (Session, Party, Contracts, Debts, Gauntlet, Edit Mission Info, Scrip, Map
   places, Tracker keys, Tools, Account), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
 - **The admin's pages** change what the program changes, with the same logic (`Editing/Edits.cs`, each change saved and worked out again at once):
