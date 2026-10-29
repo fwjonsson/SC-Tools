@@ -4,7 +4,10 @@ namespace SCTools.View;
 
 public sealed partial class WebSnapshot
 {
-    /// <summary>The Debts tab for everybody: earnings, the balance of every member with the others, all money transfers and the mission payouts.</summary>
+    /// <summary>
+    /// The Debts tab for everybody: earnings, the balance of every member with the others, all money transfers (transfersEdit: the key and sender of each, so
+    /// the sender logged in can tick Payment on the page) and the mission payouts.
+    /// </summary>
     object Debts()
     {
         var data = _s.Data;
@@ -26,8 +29,10 @@ public sealed partial class WebSnapshot
         var transfers = new ViewTable(_p,
             new ViewColumn("Time"), new ViewColumn("From"), new ViewColumn("To"), new ViewColumn("Amount", "right"),
             new ViewColumn("Payment"));
+        var transfersEdit = new List<object>();
         foreach (var t in data.Transfers.OrderByDescending(t => t.Time))
         {
+            transfersEdit.Add(new { key = t.Key, from = t.From, payment = t.Payment });
             transfers.Add(
                 t.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture),
                 t.From,
@@ -66,7 +71,7 @@ public sealed partial class WebSnapshot
         }
         earnings.Add("Total", sumNow.ToString("N0", CultureInfo.InvariantCulture), sumAll.ToString("N0", CultureInfo.InvariantCulture), "").Bold = true;
 
-        return new { earnings, balances, transfers, payouts, pos = ViewPalette.Hex(_p.Green), neg = ViewPalette.Hex(_p.Red) };
+        return new { earnings, balances, transfers, transfersEdit, payouts, pos = ViewPalette.Hex(_p.Green), neg = ViewPalette.Hex(_p.Red) };
     }
 
     /// <summary>The History tab: the all-time leaderboard, the best session, and every saved session with the Total.</summary>

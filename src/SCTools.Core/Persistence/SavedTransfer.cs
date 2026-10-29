@@ -10,4 +10,8 @@ public sealed class SavedTransfer
     public string To { get; set; } = "";
     public decimal Amount { get; set; }
     public bool Payment { get; set; }
+
+    /// <summary>The transfer on a page (it has no id of its own): its time, who to whom, and the amount.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string Key => Time.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + From + "|" + To + "|" + Amount.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }

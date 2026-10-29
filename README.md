@@ -434,6 +434,9 @@ admin (done), then going live.
   - **Value:** the Mission Library's aUEC for the kind.
   - The server gives the tracker what it knows besides the logs as a `JobBook` (the haulers' SCU, the library's kinds, the map's places), made new
     whenever the library changes, so the tracker never waits for the library.
+- **The Payment tick on the live page** (Frank, 29 Oct 2026): on the Debts tab, the player who sent a money transfer ticks whether it pays off a debt
+  (sent in the background to `/hauling/debts/payment`, `DebtsPayController`; `data.json` says where, `debtsPay`, and whose every transfer is,
+  `transfersEdit`); only the sender can (the admin on his Debts page), everybody else sees yes or nothing.
 - **Parties never owe each other.** Who carried a mission and who shared its payout are one party (`SessionInputs.Groups`, worked out with the payouts),
   so two parties that hauled in the same session are two groups, and the Debts tab works out who owes whom inside each of them only (`DebtCalc.Pairs`). A
   session from before has no groups and stays as it was.
