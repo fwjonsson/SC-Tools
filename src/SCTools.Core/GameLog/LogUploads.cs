@@ -47,6 +47,20 @@ public sealed class LogUploads
         }
     }
 
+    /// <summary>
+    /// How many pieces of log came in (and files were read again at the start): it moves whenever there is anything new to look at, also for lines the Hauling
+    /// Planner does not read (Version moves for those alone). The Mission Library and the Gauntlet Tracker look at the logs again only when it moved.
+    /// </summary>
+    public long Pieces
+    {
+        get
+        {
+            lock (Sync) return _pieces;
+        }
+    }
+
+    long _pieces;
+
     /// <summary>How far this log file of this player is uploaded (0: not yet).</summary>
     public long Cursor(string player, string file)
     {
@@ -77,6 +91,7 @@ public sealed class LogUploads
                 SeeShip(feed, text);
             }
             feed.At[file] = to;
+            if (lines.Count > 0) _pieces++;
             var seen = Seen(feed.Log, file, last ?? LastTime(lines), feed.Quit.Contains(file));
             Keep(player, file, to, lines, seen);
             return new UploadResult(true, to);
@@ -190,6 +205,7 @@ public sealed class LogUploads
                         SeeShip(feed, kept2);
                     }
                     feed.At[kept[0]] = at;
+                    _pieces++;
                     // how long the game ran: kept next to the cursor (a file kept by an older server: the time of its last line)
                     DateTime? last = kept.Length >= 3 && DateTime.TryParse(kept[2], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var l) ? l : LastTime(File.ReadLines(path));
                     Seen(feed.Log, kept[0], last, feed.Quit.Contains(kept[0]));

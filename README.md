@@ -217,7 +217,13 @@ admin (done), then going live.
   `HistorySender.Version` goes up and the server asks for every log again. The tracker's menu says how far it is ("Old logs: sending 3 of 140"), its
   version (up to date, or updating), and **Check for an update now**; after an update it says "Updated to version ...".
 - **SCTools.Server** keeps the uploads (one log per player, also on disk, so a restart reads them again), works the session out every two seconds
-  with the same logic as the program, and serves the live page to everybody. An upload without a known key is refused. The admin makes the keys on the
+  with the same logic as the program, and serves the live page to everybody. The two-second refresh makes `data.json` anew only when something in it can
+  have changed (a piece of log, a save, the status line, half a minute gone by: `LiveTracker.Refresh`), and the page polls it every 3 seconds with the
+  ETag it got last (`If-None-Match`): the same data again is a 304 with no body, so an idle server and an idle page do next to nothing. The page draws
+  only the tab shown, and in it only the tables whose data changed; a browser tab nobody looks at does not poll until it is shown again. The Mission
+  Library and the Gauntlet Tracker look at the logs again only when a piece came in (`LogUploads.Pieces`), and the database runs in write-ahead mode
+  (WAL), so a write does not make the readers wait. The server's log says how the refresh goes: a tick over a second at once, and once an hour how
+  many ticks there were, how long they took and how often `data.json` was made. An upload without a known key is refused. The admin makes the keys on the
   **Tracker keys** page (`/admin/keys`): a new key is shown once (the database keeps only a hash of it), and a key can be taken back (that tracker stops,
   and its player's browser is logged out within a minute). Keys in the settings (`SCTools:Trackers`: key to player) are still added when the server
   starts.

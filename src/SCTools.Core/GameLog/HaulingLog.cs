@@ -319,7 +319,6 @@ public sealed class HaulingLog
                             list.Add(new ObjEvent { Time = e.Time, State = e.State });
                     }
                 }
-                t.Notes.AddRange(m.Notes);
             }
         }
 
@@ -713,13 +712,7 @@ public sealed class HaulingLog
         x = Deliver.Match(line);
         if (x.Success)
         {
-            var m = Get(x.Groups["m"].Value);
-            m.Notes.Add(new DeliverNote
-            {
-                Time = t,
-                Delivered = int.Parse(x.Groups["x"].Value, CultureInfo.InvariantCulture),
-                Total = int.Parse(x.Groups["n"].Value, CultureInfo.InvariantCulture),
-            });
+            var m = Get(x.Groups["m"].Value);   // the "Deliver x/n SCU" popup: only the n of an objective is used (its SCU); the x was once noted and never read
             if (x.Groups["o"].Success) m.ObjScu[x.Groups["o"].Value] = int.Parse(x.Groups["n"].Value, CultureInfo.InvariantCulture);
             Touch(t);
         }

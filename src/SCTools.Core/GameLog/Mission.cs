@@ -14,7 +14,6 @@ public sealed class Mission
     public string? EndState;              // COMPLETED, ABANDON, ...
     public Dictionary<string, string> ObjZone = new();                 // objective id -> zone host id
     public Dictionary<string, List<ObjEvent>> Events = new();          // objective id -> state changes
-    public List<DeliverNote> Notes = new();
 
     /// <summary>The players (characters of the logs) who have this mission running: the logs that know it and have not ended it. Only set on the missions of the merged log.</summary>
     public HashSet<string> Holders = new(StringComparer.OrdinalIgnoreCase);

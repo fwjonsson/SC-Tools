@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Mvc.ViewFeatures;
 namespace SCTools.Server.Controllers;
 
 /// <summary>
-/// The pages for everybody: the landing page of the tools (/), the live page of the hauling tracker (/hauling), its data (data.json, new every two seconds)
-/// and the icon. Watching needs no login, unless the admin hid the hauling tracker on the Tools page: then it is only for him.
+/// The pages for everybody: the landing page of the tools (/), the live page of the hauling tracker (/hauling), its data (data.json, made anew when something
+/// changed, polled with its ETag) and the icon. Watching needs no login, unless the admin hid the hauling tracker on the Tools page: then it is only for him.
 /// </summary>
 public sealed class PageController : Controller
 {
@@ -107,12 +107,20 @@ public sealed class PageController : Controller
     [HttpGet("/hauling/{tab}")]
     public IActionResult Tab(string tab) => HaulingTabs.Contains(tab) ? Page() : NotFound();
 
+    /// <summary>
+    /// The live page's data, made anew only when something changed (LiveTracker.Refresh). The page sends back the ETag it got (If-None-Match): the same one
+    /// means the same data, and the answer is 304 with no body, so a poll that finds nothing new costs next to nothing on both sides.
+    /// </summary>
     [HttpGet("/data.json")]
     public IActionResult Data()
     {
         if (!_tools.Sees(User, SiteTools.Hauling)) return StatusCode(StatusCodes.Status403Forbidden);
+        var snapshot = _live.Snapshot;
         Response.Headers.CacheControl = "no-store";
-        return Content(_live.Json, "application/json; charset=utf-8");
+        Response.Headers.ETag = snapshot.ETag;
+        if (Request.Headers.IfNoneMatch.Any(h => h != null && h.Split(',').Any(v => v.Trim() == snapshot.ETag)))
+            return StatusCode(StatusCodes.Status304NotModified);
+        return File(snapshot.Bytes, "application/json; charset=utf-8");
     }
 
     [HttpGet("/favicon.ico")]

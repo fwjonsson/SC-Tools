@@ -1,10 +1,12 @@
+using System.Diagnostics;
 using SCTools.Server.Data;
 
 namespace SCTools.Server;
 
 /// <summary>
-/// Every two seconds: works out what the trackers uploaded (only when something new came in), moves the team status line on and makes data.json, then writes
-/// what changed to the database. Once a day a copy of the database is made. When the server stops, the last changes are written.
+/// Every two seconds: works out what the trackers uploaded (only when something new came in), moves the team status line on and makes data.json when anything
+/// changed, then writes what changed to the database. Once a day a copy of the database is made. When the server stops, the last changes are written. The log
+/// says how the ticks go: a slow one at once, and once an hour how many there were, how long they took and how often data.json was made.
 /// </summary>
 public sealed class RefreshService : BackgroundService
 {
@@ -16,6 +18,11 @@ public sealed class RefreshService : BackgroundService
     readonly Playtime _playtime;
     readonly FleetService _fleet;
     readonly ILogger<RefreshService> _log;
+    long _ticks, _totalMs, _slowestMs, _buildsReported;
+    DateTime _reported = DateTime.UtcNow;
+
+    /// <summary>A tick that takes this long is logged by itself (the server's log then says what is slow, and when).</summary>
+    public static readonly TimeSpan SlowTick = TimeSpan.FromSeconds(1);
 
     public RefreshService(LiveTracker live, DataStore store, ServerPaths paths, GauntletService gauntlet, MissionLibrary missions, Playtime playtime,
         FleetService fleet, ILogger<RefreshService> log)
@@ -37,7 +44,9 @@ public sealed class RefreshService : BackgroundService
         {
             do
             {
+                var watch = Stopwatch.StartNew();
                 Tick();
+                Measure(watch.Elapsed);
             }
             while (await timer.WaitForNextTickAsync(stop));
         }
@@ -49,6 +58,26 @@ public sealed class RefreshService : BackgroundService
         {
             Save();
         }
+    }
+
+    /// <summary>Keeps count of the ticks: a slow one goes to the log at once, and once an hour a line says how they went.</summary>
+    void Measure(TimeSpan took)
+    {
+        var ms = (long)took.TotalMilliseconds;
+        _ticks++;
+        _totalMs += ms;
+        if (ms > _slowestMs) _slowestMs = ms;
+        if (took >= SlowTick) _log.LogWarning("The refresh took {Ms} ms", ms);
+        var now = DateTime.UtcNow;
+        if (now - _reported < TimeSpan.FromHours(1)) return;
+        var builds = _live.Builds;
+        _log.LogInformation("Refresh: {Ticks} ticks in the last hour, data.json made {Builds} times, {Average} ms on average, the slowest {Slowest} ms",
+            _ticks, builds - _buildsReported, _ticks == 0 ? 0 : _totalMs / _ticks, _slowestMs);
+        _buildsReported = builds;
+        _ticks = 0;
+        _totalMs = 0;
+        _slowestMs = 0;
+        _reported = now;
     }
 
     void Tick()
