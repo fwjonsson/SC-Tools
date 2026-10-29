@@ -29,7 +29,10 @@ public class MissionLibraryTests
     {
         $"<{day}T08:00:00.000Z> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Accepted: {title}: \" [84] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [] [Missions][Comms]",
         $"<{day}T08:00:00.500Z> [Notice] <CSCPlayerMissionLog::MissionStartCommsNotification> MissionStart comms notification will not be sent - This mission has no MissionStart comms setup. ContractId: [{contract}]. MissionId: {mission} [Missions][Comms]",
-        $"<{day}T08:30    [Fact]
+        $"<{day}T08:30:00.000Z> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Complete: {title}: \" [84] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [] [Missions][Comms]",
+    };
+
+    [Fact]
     public async Task The_missions_with_the_same_name_are_one_row_the_admin_fills_in_the_rest_and_everybody_looks_it_up()
     {
         using var f = new ServerFactory();
@@ -119,10 +122,6 @@ public class MissionLibraryTests
         var ok = await Quiet("mg", "7");
         Assert.Equal((true, "Saved."), (ok.GetProperty("ok").GetBoolean(), ok.GetProperty("said").GetString()));
         Assert.Equal(7L, library.Entries().Single(e => e.Row.Key == RivalKey).Row.MgScrip);   // the list is made again
-        Assert.False((await Quiet("mg", "lots")).GetProperty("ok").GetBoolean());
-    }
-
-rvice<MissionLibrary>().Entries().Single(e => e.Row.Key == RivalKey).Row.MgScrip);   // the list is made again
         Assert.False((await Quiet("mg", "lots")).GetProperty("ok").GetBoolean());
     }
 
