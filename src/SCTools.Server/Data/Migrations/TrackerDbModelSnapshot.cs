@@ -651,6 +651,9 @@ namespace SCTools.Server.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("WikiUuid")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Key");
 
                     b.ToTable("MissionKinds", (string)null);
@@ -1077,6 +1080,15 @@ namespace SCTools.Server.Data.Migrations
 
                     b.Property<string>("Orders")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("RewardCurrency")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("RewardMax")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("RewardMin")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Title")
                         .HasColumnType("TEXT");
