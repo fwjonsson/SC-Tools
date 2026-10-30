@@ -116,8 +116,13 @@ public class CompanionPageTests
         var admin = await f.Admin();
         Assert.Contains("companion.js", await admin.GetStringAsync("/companion"));   // only for the admin until it is shown
 
-        // personal: the admin's own view is his own player's (the admin login has none here), not everybody's as on the Map tool
-        Assert.Empty(Json(await admin.GetStringAsync("/companion/map.json")).GetProperty("players").EnumerateArray());
+        // the admin's own view (View as: Admin): everybody on the map, the rest his own player's (the admin login has none here: no contracts), and the lists
+        // beside the map keep to his party (Frank, 30 Oct 2026)
+        var own = Json(await admin.GetStringAsync("/companion/map.json"));
+        Assert.Equal(new[] { "bileh123", "zzatvo", "zzoega" }, Names(own.GetProperty("players")));
+        Assert.NotEmpty(own.GetProperty("objectives").EnumerateArray());
+        Assert.Empty(own.GetProperty("missions").EnumerateArray());
+        Assert.Equal(new[] { "admin" }, own.GetProperty("party").EnumerateArray().Select(n => n.GetString()));
         Assert.Equal(new[] { "bileh123", "zzatvo", "zzoega" }, Names(Json(await admin.GetStringAsync("/map/map.json")).GetProperty("players")));   // the Map tool: everybody
 
         // View as zzoega: exactly his Companion, with the library's fields of every contract for the admin
@@ -128,6 +133,7 @@ public class CompanionPageTests
         var map = Json(await admin.GetStringAsync("/companion/map.json"));
         Assert.Equal("zzoega", map.GetProperty("me").GetString());
         Assert.Equal(new[] { "zzatvo", "zzoega" }, Names(map.GetProperty("players")));
+        Assert.False(map.TryGetProperty("party", out _));   // a player's Companion, also when the admin looks as his own player
         var edit = Assert.Single(map.GetProperty("missions").EnumerateArray()).GetProperty("edit");
         Assert.Equal("Senior | Stellar Large Haul | to Ruin Station [50/200/250/500/1000/2000/4000 Rep]", edit.GetProperty("name").GetString());
         var rival = Json(await admin.GetStringAsync("/companion/session.json")).GetProperty("completed").EnumerateArray()

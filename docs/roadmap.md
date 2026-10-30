@@ -159,7 +159,8 @@ All the tools track at the same time, all the time. The tracking runs on the ser
     - **Next**: the design's stages, one pull request each: stage 1 Pyro places (1a the model and the boards, 1b the planner without a hub), stage
       2 the other systems, stage 3 the interstellar legs, stage 4 earnings and debts (the roadmap's stage 3 routes and stage 4 earnings, split up).
 12. **Companion** (`/companion`, #380, Frank 30 Oct 2026): a player's own page to keep open while playing, made as a copy of the Map tool. The map
-    with him and his party (personal: the admin's own view is his own player's, not everybody's; View as shows a player's), the Players list, the
+    with him and his party (personal; the admin's own view, View as: Admin, has everybody on the map and the rest his own player's, and View as shows a
+    player's, his own player's too; Frank, 30 Oct 2026), the Players list, the
     objectives, the party's **Active Contracts** and under them **Completed Contracts** (the same columns, with how each ended, Completed, Failed or
     Abandoned, and when, in place of Open), both with who in the party has each; and a table with the Session tool's figures except Games for the
     **current game session** (from when the game started until an hour after it was closed, crashed or quit and not started again; a game started

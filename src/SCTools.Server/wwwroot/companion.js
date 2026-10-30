@@ -1,6 +1,6 @@
 // The Companion (#380): your own page to keep open while you play, started as a copy of the Map tool (map.js). The map is SystemMap (systemmap.js, the one
 // map engine of the site) with you and your party; while it shows the system you are in, it goes with you when you jump to another one. Beside it the
-// players with their speed meters, your game session (session.json: the Session tool's figures for the session going on, or the last one) and the
+// players with their speed meters (the admin's own view has everybody on the map, and the lists keep to his party: data.party), your game session (session.json: the Session tool's figures for the session going on, or the last one) and the
 // objectives; under it your party's Active Contracts (map.json's missions) and the contracts it ended this session (Completed Contracts). The admin gets the
 // Mission Library's fields in the contracts' rows, sent in the background to Edit Mission Info's address (autosave.js) as soon as one changes.
 (function () {
@@ -84,16 +84,21 @@
   }
 
   // ------------------------------------------------------------------ the map, the players and the objectives
+  // Yours to list: everybody the data has, or, when the map has everybody (the admin's own view), the ones of your party.
+  function ours(name) { return !data.party || data.party.some(function (n) { return same(n, name); }); }
+
   function render() {
     const d = data;
     tabs(d);
     map.draw(d);
     const here = function (sys) { return sys === map.system(); };
+    const players = d.players.filter(function (pl) { return ours(pl.name); });
+    const objectives = d.objectives.filter(function (o) { return (o.who || [o.player]).some(ours); });
 
     const side = document.getElementById('players');
     side.textContent = '';
-    if (d.players.length === 0) side.appendChild(muted(d.me ? 'Nobody of your party is playing now.' : 'Log in to see yourself and your party here.'));
-    d.players.forEach(function (pl) {
+    if (players.length === 0) side.appendChild(muted(d.me ? 'Nobody of your party is playing now.' : 'Log in to see yourself and your party here.'));
+    players.forEach(function (pl) {
       const card = el('div', 'mapplayer');
       card.style.setProperty('--c', pl.color);
       const away = pl.system && !here(pl.system);
@@ -117,15 +122,15 @@
     objs.textContent = '';
     const list = el('ul', 'objs');
     const lines = {};   // the same place with the same people once, with how many objectives; no mission names (the Active Contracts table has them)
-    d.objectives.forEach(function (o) {
+    objectives.forEach(function (o) {
       const text = (o.where || '') + (o.system && !here(o.system) ? ' · ' + nameOfSystem(o.system) : '') + ' (' + (o.who || [o.player]).join(', ') + ')';
       lines[text] = (lines[text] || 0) + 1;
     });
     Object.keys(lines).forEach(function (text) { list.appendChild(el('li', '', text + (lines[text] > 1 ? ' ×' + lines[text] : ''))); });
-    if (d.objectives.length) objs.appendChild(list);
+    if (objectives.length) objs.appendChild(list);
     const note = el('p', 'hint');
-    note.textContent = (d.objectives.length === 0 ? 'No objectives going on. ' : '') +
-      (d.unplaced > 0 ? (d.unplaced === 1 ? 'One objective is' : d.unplaced + ' objectives are') + ' only in the list: the game does not say where ' +
+    note.textContent = (objectives.length === 0 ? 'No objectives going on. ' : '') +
+      (d.unplaced > 0 && !d.party ? (d.unplaced === 1 ? 'One objective is' : d.unplaced + ' objectives are') + ' only in the list: the game does not say where ' +
         (d.unplaced === 1 ? 'it is.' : 'they are.') : '');
     if (note.textContent) objs.appendChild(note);
 

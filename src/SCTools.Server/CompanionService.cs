@@ -9,10 +9,12 @@ namespace SCTools.Server;
 
 /// <summary>
 /// The Companion's data (#380, Frank 30 Oct 2026): a player's own page to keep open while playing. Personal: it is the viewer's (the player the admin looks as
-/// with View as; the admin's own view is his own player's, not everybody's), with his party on the map, in the Players list and in the contracts.
+/// with View as, else who is logged in), with his party on the map, in the Players list and in the contracts. The admin's own view (View as: Admin) has
+/// everybody on the map, and the rest is his own player's like anybody's (Frank, 30 Oct 2026); View as his own player is a player's Companion.
 /// <list type="bullet">
 /// <item>Map: the Map tool's map.json cut to the viewer's party (DataViews.MapFor), with who the viewer is (me: the map follows him to another system), and for
-/// the admin the Mission Library's fields of every contract (edit), so he fills them in as he plays.</item>
+/// the admin the Mission Library's fields of every contract (edit), so he fills them in as he plays. For the admin's own view the players and objectives
+/// are everybody's, and party names the ones the lists beside the map keep to.</item>
 /// <item>Session: his current game session (GameSession: from when the game started until an hour after it was closed; after that the last one, marked
 /// over) with the Session tool's figures for it, and the contracts his party ended in it (completed, failed or abandoned, with who had each). No running
 /// time in it (the clock rule): the browser counts the game going on from its start.</item>
@@ -43,13 +45,25 @@ public sealed class CompanionService
     HashSet<string> PartyOf(string? me, DateTime nowUtc) =>
         me == null ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : _audience.PartyOf(me, nowUtc);
 
-    /// <summary>The map for this viewer (me: his player's name, null for a visitor); editor: the real admin, who gets the library's fields of the contracts.</summary>
-    public JsonNode Map(string? me, bool editor, DateTime nowUtc)
+    /// <summary>
+    /// The map for this viewer (me: his player's name, null for a visitor); editor: the real admin, who gets the library's fields of the contracts;
+    /// everybody: the admin's own view, with everybody's players and objectives on the map (party: the ones the Players and Objectives lists show).
+    /// </summary>
+    public JsonNode Map(string? me, bool editor, DateTime nowUtc, bool everybody = false)
     {
-        var node = DataViews.MapFor(_map.Snapshot(nowUtc), PartyOf(me, nowUtc));
+        var snapshot = _map.Snapshot(nowUtc);
+        var party = PartyOf(me, nowUtc);
+        var node = DataViews.MapFor(snapshot, party);
         if (node is JsonObject d)
         {
             d["me"] = me;
+            if (everybody && JsonSerializer.SerializeToNode(snapshot, JsonSerializerOptions.Web) is JsonObject all)
+            {
+                d["players"] = all["players"]?.DeepClone();
+                d["objectives"] = all["objectives"]?.DeepClone();
+                d["unplaced"] = all["unplaced"]?.DeepClone();
+                d["party"] = new JsonArray(party.Order(StringComparer.OrdinalIgnoreCase).Select(n => (JsonNode)n).ToArray());
+            }
             if (editor && d["missions"] is JsonArray missions)
             {
                 _library.Collect();   // a contract just taken is in the library (nothing new: nothing done)

@@ -8,7 +8,7 @@ namespace SCTools.Server.Controllers;
 /// (it follows him to another system while it shows the one he is in), the Players list, the objectives, his party's Active Contracts and the ones it ended
 /// this game session (Completed Contracts, with who had each), and his game session's playtime and earnings (CompanionService). The admin fills in the
 /// Mission Library's fields of a contract right in its row (sent to Edit Mission Info's address in the background, autosave.js). A visitor sees the map's
-/// places and a note to log in; the admin's View as shows exactly what that player sees.
+/// places and a note to log in; the admin's View as shows exactly what that player sees, and his own view everybody on the map.
 /// </summary>
 [Route("/companion")]
 public sealed class CompanionController : Controller
@@ -45,7 +45,8 @@ public sealed class CompanionController : Controller
     {
         if (!_tools.Sees(User, SiteTools.Companion)) return Hidden();
         Response.Headers.CacheControl = "no-store";
-        return Json(_companion.Map(Me, Editor, DateTime.UtcNow));
+        // the admin's own view (View as: Admin) has everybody on the map, the rest is his own (Frank, 30 Oct 2026)
+        return Json(_companion.Map(Me, Editor, DateTime.UtcNow, Audience.Of(HttpContext).Everything));
     }
 
     /// <summary>The game session and the contracts ended in it, polled with its ETag (the same data again is a 304, PageController.Matches).</summary>

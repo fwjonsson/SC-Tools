@@ -302,7 +302,8 @@ admin (done), then going live.
   `SessionBuilder.PickedUp`) is off the map at once, and an objective one holder's log says is done is done for everybody with the mission.
 - **The Companion** (`/companion`, `CompanionService`, `CompanionController`, `wwwroot/companion.js`; #380, Frank 30 Oct 2026): a player's own page to keep
   open while playing, made as a copy of the Map tool. Personal (`Audience.PartyOf` of the viewer: the player the admin looks as with View as, else who is
-  logged in; the admin's own view is his own player's, not everybody's): the map with him and his party (map.json cut by `DataViews.MapFor`, with `me`),
+  logged in; the admin's own view, View as: Admin, has everybody on the map and everything else his own player's, and View as his own player is a
+  player's Companion, Frank 30 Oct 2026): the map with him and his party (map.json cut by `DataViews.MapFor`, with `me`),
   the Players list, the objectives beside it, and under the map the party's **Active Contracts** and **Completed Contracts**, both with who in the party
   has each. Completed Contracts are the contracts the party ended in the viewer's current game session (`MissionLibrary.Ended`: completed, failed or
   abandoned, newest first), with how each ended and when in place of Open, and the same columns. Beside the players is the **game session**: the Session
