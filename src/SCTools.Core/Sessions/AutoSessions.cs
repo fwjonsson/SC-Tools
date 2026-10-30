@@ -2,7 +2,8 @@ namespace SCTools.Sessions;
 
 /// <summary>
 /// The sessions that start and stop by themselves (the Hauling Planner's, the Gauntlet Tracker's grind sessions): a session starts when a mission of the
-/// tool is accepted, and goes on while something happens with its missions (accepted, completed, failed, abandoned; for hauling also the pickups and drop-offs).
+/// tool is accepted, and goes on while something happens with its missions (accepted, completed, failed, abandoned; for hauling also the pickups and drop-offs,
+/// and the quantum jumps of everybody while a contract is still going: somebody online with a contract going is a session going on, Frank 30 Oct 2026).
 /// After an hour with nothing (also when the game crashed or the tracker was off), it ended 5 minutes after the last thing that happened.
 /// </summary>
 public static class AutoSessions
@@ -98,12 +99,15 @@ public static class AutoSessions
 
     /// <summary>
     /// What happened in the log with the missions the Hauling Planner reads (to and from Ruin): when each was accepted (the starts; a mission shared to you
-    /// when you first saw it), and everything (the starts, the pickups and drop-offs, the ends).
+    /// when you first saw it), and everything (the starts, the pickups and drop-offs, the ends). While a contract is still going, the quantum jumps of everybody
+    /// from its acceptance on count too, and the latest log line: a party hauling long routes can go an hour without a pickup or a drop-off, and the session
+    /// ended under them (29 Oct 2026, 22:45, with nine contracts going; Frank: not while somebody is online with contracts going).
     /// </summary>
     public static (List<DateTime> Starts, List<DateTime> Activity) HaulingActivity(HaulingLog log)
     {
         var starts = new List<DateTime>();
         var activity = new List<DateTime>();
+        DateTime? openSince = null;   // the oldest contract still going was accepted then
         foreach (var m in log.Missions.Values)
         {
             if (!m.IsHauling && !m.IsOut) continue;
@@ -111,10 +115,16 @@ public static class AutoSessions
             {
                 starts.Add(start);
                 activity.Add(start);
+                if (m.EndedAt == null && !m.Dropped && (openSince == null || start < openSince)) openSince = start;
             }
             if (m.EndedAt is { } end) activity.Add(end);
             foreach (var list in m.Events.Values)
                 foreach (var e in list) activity.Add(e.Time);
+        }
+        if (openSince is { } since)
+        {
+            activity.AddRange(log.Qt.Where(q => q.Time >= since).Select(q => q.Time));
+            if (log.LastTime >= since) activity.Add(log.LastTime);
         }
         return (starts, activity);
     }
