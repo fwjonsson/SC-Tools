@@ -207,7 +207,7 @@ public class MapPageTests
         var css = await f.Browser().GetStringAsync("/site.css");
         Assert.Contains(".mapside.objectives { grid-column:3; grid-row:1; }", css);
         Assert.Contains(".mapmissions { grid-column:1 / span 3; grid-row:2;", css);   // from the map's left edge to the objectives' right edge
-        // the objectives list says where and who, not which mission (the Active missions table says that)
+        // the objectives list says where and who, not which mission (the Active Contracts table says that)
         var script = await f.Browser().GetStringAsync("/map.js");
         Assert.Contains("const text = (o.where || '') + (o.system && !here(o.system)", script);
         Assert.DoesNotContain("o.title + ' · '", script);
@@ -232,7 +232,7 @@ public class MapPageTests
         Assert.StartsWith("var SystemMap = (function ()", script.Split('\n').First(l => !l.StartsWith("//")));
         Assert.Contains("base.svg.appendChild(base.labels);", script);   // the names of the places above the routes (30 Oct 2026)
         var mapJs = await f.Browser().GetStringAsync("/map.js");
-        Assert.Contains("[['#', ''], ['Mission', '']", mapJs);   // the Active missions table numbered like the others
+        Assert.Contains("[['#', ''], ['Mission', '']", mapJs);   // the Active Contracts table numbered like the others
         Assert.Contains("b.href = '#' + s.id;", mapJs);   // the systems are links like the other tools' tabs, so the row has the same height (30 Oct 2026)
         Assert.Contains(".mapmissions table.missions th:first-child, .mapmissions table.missions td:first-child { width:36px;", await f.Browser().GetStringAsync("/site.css"));
         // the speed meter stays at 0 Mm/s when a player is not in quantum, so his card keeps its size (Frank, 29 Oct 2026)

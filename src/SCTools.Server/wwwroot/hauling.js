@@ -291,13 +291,36 @@ function mapSvg(el, p, routes, names) {
 
 // The players and the objectives of the Trip Planner's map (the Map tool's Pyro, /hauling/map.json), every 3 seconds while the tab is shown. The program's
 // own page has no such address (404): then the map shows the routes alone and the poll stops.
+// The missions going on, as the Map tool lists them under its map: a copy above the contracts of the Session tab (Frank, 30 Oct 2026: Active Contracts).
+function missionsTable(box, list) {
+  box.textContent = '';
+  if (!list || list.length === 0) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'No contracts going on.'; box.appendChild(p); return; }
+  const t = document.createElement('table'); t.className = 'missions view';
+  const hr = t.createTHead().insertRow();
+  [['#', ''], ['Mission', ''], ['Who', ''], ['Open', 'right'], ['Faction', ''], ['Category', ''], ['SCU', 'right'], ['Reward', 'right'], ['MG scrip', 'right'], ['Council scrip', 'right'], ['XP', 'right'], ['Legality', '']]
+    .forEach(function (h) { const th = document.createElement('th'); th.textContent = h[0]; if (h[1]) th.className = h[1]; hr.appendChild(th); });
+  const tb = t.createTBody();
+  list.forEach(function (m, n) {
+    const tr = tb.insertRow();
+    [String(n + 1), m.title, m.who.join(', '), String(m.open), m.faction, m.category, m.scu, m.reward, m.mg, m.council, m.xp, m.legality].forEach(function (v, i) {
+      const td = tr.insertCell(); td.textContent = v;
+      if (i === 1) td.className = 'name'; else if (i === 3 || (i >= 6 && i <= 10)) td.className = 'right';
+    });
+  });
+  const scroll = document.createElement('div'); scroll.className = 'scroll'; scroll.appendChild(t); box.appendChild(scroll);
+}
+function renderActive() {
+  if (mapData && changed('active', mapData.missions || [])) missionsTable(document.getElementById('active'), mapData.missions);
+}
+
 async function refreshMap() {
-  if (document.hidden || mapOff || shownTab !== 'P') return;
+  if (document.hidden || mapOff || (shownTab !== 'P' && shownTab !== 'S')) return;   // the Session tab wants the map's Active Contracts (30 Oct 2026)
   try {
     const res = await fetch('/hauling/map.json', { cache: 'no-store' });
     if (res.status === 404) { mapOff = true; return; }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     mapData = await res.json();
+    if (shownTab === 'S') renderActive();
     if (planMap && last && last.planner) {
       if (planMap.map.show(pyroOf(mapData) || last.planner.map)) planMap.drawRoutes();   // the places changed (the admin's Map places): drawn anew
       planMap.map.draw(mapData, planMap.keep);
@@ -567,7 +590,7 @@ function tabOf(name) {
 }
 function show(which) {
   shownTab = which;
-  if (which === 'P') refreshMap();   // the map's players at once, not at the next poll
+  if (which === 'P' || which === 'S') refreshMap();   // the map's players (and the Session tab's Active Contracts) at once, not at the next poll
   Object.keys(TABS).forEach(function (k) {
     document.getElementById('view' + k).classList.toggle('hidden', k !== which);
     document.getElementById('tab' + k).classList.toggle('on', k === which);
@@ -678,6 +701,7 @@ function renderTab(k) {
   const d = last;
   const v = k === 'S' || k === 'L' ? partyView() : null;
   if (k === 'S') {
+    renderActive();   // the map's missions going on, fetched last (refreshMap keeps them fresh while the tab is shown)
     let measure = false;   // a table that lines up with the others was drawn anew: line them up again
     if (changed('pickups', v.pickups)) { table(document.getElementById('pickups'), v.pickups); measure = true; }
     document.getElementById('finishedBox').classList.toggle('hidden', !v.finished || !v.finished.rows || v.finished.rows.length === 0);
