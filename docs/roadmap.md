@@ -84,7 +84,8 @@ All the tools track at the same time, all the time. The tracking runs on the ser
      the Next Stops button of the admin's Session page went (Frank: not used; better logic instead of a button).
 7. **Map places** (`/admin/places`, PR #244, Frank 28 Oct): the admin says what a quantum destination or start name the map does not know is (a
    place, or not a place to show; `Text*` for every one that starts so), renames places, and adds places the game data does not have (at a place, or
-   X/Y in Gm). Saved in the database and used by the map at once.
+   X/Y in Gm). Saved in the database and used by the map at once. The maps label every place with its full name since 30 Oct 2026 (Frank: "Dudley &
+   Daughters", "Rod's Fuel 'N Supplies", like the Hauling Planner again); the short name on Map places is the full name unless he shortens it.
 8. **Fleet** (My page, PR #240): ships with quantum drive and crafted quality (1000 = +20 % drive speed, 500 = as bought, 0 = −20 %, linear); active
    ship picked or Automatic (the ship class in the latest quantum travel line); the Hauling Planner flies the active ship, and its Party table shows
    Ship instead of Active.

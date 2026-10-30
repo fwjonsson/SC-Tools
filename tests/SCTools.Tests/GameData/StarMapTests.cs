@@ -27,6 +27,16 @@ public class StarMapTests
         Assert.Equal(PyroDistances.Between(PyroDistances.Ruin, "69936"), StarMap.JumpGm(StarMap.Find("pyro/ruin-station")!, StarMap.Find("pyro/gaslight")!), 6);
     }
 
+    [Fact]
+    public void The_label_of_every_place_of_the_game_data_is_its_full_name()
+    {
+        // Frank, 30 Oct 2026: "Dudley & Daughters" and "Rod's Fuel 'N Supplies" written out on the maps, as the Hauling Planner has them again; the short labels
+        // ("Dudley", "Rod's Fuel", "HUR-L1") went. The admin can still shorten one on Map places
+        Assert.All(StarMap.Places, p => Assert.Equal(p.Name, p.Short));
+        Assert.Equal("Dudley & Daughters", StarMap.Find("pyro/dudley-daughters")!.Short);
+        Assert.Equal("Rod's Fuel 'N Supplies", StarMap.Find("pyro/rods-fuel-n-supplies")!.Short);
+    }
+
     [Theory]
     [InlineData("rs_ext_pyro5_l2", "pyro/gaslight")]
     [InlineData("pyro3", "pyro/bloom")]

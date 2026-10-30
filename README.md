@@ -296,7 +296,8 @@ admin (done), then going live.
   names in the logs on the server that the map cannot place (`MapService.Follow` reports them), with how often, when last, who and the system;
   for each he says what it is: a place, or *not a place to show* (a mission's marker, an encounter), and a text ending in * is every one that
   starts so (`AsteroidCluster_Pyro_*`). His word comes before the game data's rules; a party member's marker is never a place. **Places** lists
-  every place with its name and short name (the label on the map), which he can change (empty: the game's again; the game's name still finds
+  every place with its name and short name (the label on the map; the full name since 30 Oct 2026, when Frank wanted "Dudley & Daughters" and
+  "Rod's Fuel 'N Supplies" written out on the maps as the Hauling Planner has them again, instead of "Dudley", "Rod's Fuel", "HUR-L1"), which he can change (empty: the game's again; the game's name still finds
   the place). **Add a place**: its system, name, short name, what it is, and where: at a place of that system (in its orbit when it is a
   planet or a moon) or X and Y in Gm; optionally for a text of the log, which is then that place (the *add it* link of a Not known row fills
   it in).
