@@ -664,12 +664,18 @@ public sealed class PlanService
         var volume = new Dictionary<string, (double Scu, int Stops)>();   // station -> the SCU of its open stops together (a guess, see StopScu) and how many stops that is
         var limits = new Dictionary<string, List<(string[] Workers, int Batches)>>();   // station -> batches that only some of the crew can take (they have those missions running, the others do not)
         var flyers = crew.Where(c => c.Capacity > 0).Select(c => c.Name).ToList();
+        var later = new List<string>();   // the stops of the contracts to another station: the planner without a hub (stage 1b) plans those
         if (_state.Inputs != null)
         {
             foreach (var r in _state.OpenRows)
             {
                 var left = r.Missions - r.Loaded;   // batches not picked up yet
                 if (left <= 0) continue;
+                if (!r.ToRuin)
+                {
+                    later.Add(_places.LocationName(r.Zone) + " \u00d7" + left + " to " + (r.DropName ?? (r.DropZone != null ? _places.LocationName(r.DropZone) : "another station")));
+                    continue;
+                }
                 var id = _places.StationOf(r.Zone);
                 if (id != null && r.Missions > 0)
                 {
@@ -736,7 +742,8 @@ public sealed class PlanService
         if (waits.Count > 0) dropNote = (dropNote + "  Waiting to go along on a pickup trip: " + string.Join(", ", waits) + ".").Trim();
         double ScuPerBatch(string id) => volume.TryGetValue(id, out var y) && y.Stops > 0 ? y.Scu / y.Stops : 0;   // the average stop at that station, in SCU
 
-        var plan = new PlanView { Note = (core.Note + "  " + dropNote).Trim() };
+        var laterNote = later.Count > 0 ? "Not planned yet (the drop-off is not Ruin): " + string.Join(", ", later) + "." : "";
+        var plan = new PlanView { Note = (core.Note + "  " + dropNote + "  " + laterNote).Trim() };
         var flying = crew.Where(c => c.Capacity > 0).ToList();
         for (var i = 0; i < flying.Count; i++)
         {

@@ -14,7 +14,7 @@ namespace SCTools.Tests.ServerPages;
 public class WikiMissionsTests
 {
     const string Uuid = "26e80306-6190-447f-a214-634d8ed8ca7d";
-    const string Master = "RedWind_Pyro_BulkGrade_Solar_CFP_StationToStation_Potassium_CargoHauling_Multi4ToSingle";
+    const string Master = "HaulCargo_Multi4ToSingle_Interstellar_Large_preIce_AggSup_Scr_FreFoo";   // a job of the board (the Pyro station-to-station contracts are the planner's own since stage 1a)
 
     // the API's answer, as Frank downloaded it on 29 Oct 2026 (the parts the server reads; the API has no reward for this one: this one is made up)
     static readonly string Answer = JsonSerializer.Serialize(new

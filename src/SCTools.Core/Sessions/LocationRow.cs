@@ -2,10 +2,13 @@ using System.Text.RegularExpressions;
 
 namespace SCTools.Sessions;
 
-/// <summary>One pickup location with every mission that has cargo there.</summary>
+/// <summary>One pickup location with every mission that has cargo there for one drop-off: Ruin, or (since stage 1a of docs/planner-any-hauling.md) another station.</summary>
 public sealed class LocationRow
 {
     public string Zone = "";
+    public bool ToRuin = true;      // the cargo here goes to Ruin Station (the planner plans it); false: to the station of DropZone (stage 1b plans those)
+    public string? DropZone;        // the location id of the drop-off station when it is not Ruin
+    public string? DropName;        // the drop-off's name as the game's popup says it ("Stanton Gateway"), when it said one
     public int Missions;        // missions with a stop here
     public int Stops2;          // of those, stops that belong to 2 stop missions
     public int Stops3;          // of those, stops that belong to 3 stop missions
