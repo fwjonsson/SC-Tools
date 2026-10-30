@@ -102,6 +102,30 @@ public class DataStoreTests
     }
 
     [Fact]
+    public void A_save_after_the_first_writes_what_changed_and_what_went_and_every_field_comes_back()
+    {
+        // the second save compares with what the first wrote, not with the database: a changed session, a transfer gone, a payout and a member new
+        using var temp = new TempDatabase();
+        var data = new Filler().Make<AppData>();
+        temp.Store.Save(data);
+        var key = data.Sessions.Keys.Single();
+        data.Sessions[key].Party = new List<string> { "someone else" };
+        data.Sessions["manual-20261030120000"] = new SessionInputs();
+        data.Transfers.Clear();
+        data.Payouts.Add(new PayoutRecord { MissionId = "m-new", Members = new List<string> { "zzoega" } });
+        data.Party.Add("bileh123");
+        temp.Store.Save(data);
+        Assert.Equal(Canonical(data), Canonical(temp.Store.Load()));
+
+        data.Sessions.Remove("manual-20261030120000");
+        data.Payouts.RemoveAt(0);
+        temp.Store.Save(data);
+        Assert.Equal(Canonical(data), Canonical(temp.Store.Load()));
+        // a new start reads the database again: the same
+        Assert.Equal(Canonical(data), Canonical(DataStore.ForFile(Path.Combine(temp.Dir, "tracker.db")).Load()));
+    }
+
+    [Fact]
     public void A_json_column_added_to_a_row_that_is_there_already_reads_as_empty()
     {
         // 30 Oct 2026: the CombinedAccounts migration gave the Settings row an empty string in the new column, and the server crashed at startup reading it
