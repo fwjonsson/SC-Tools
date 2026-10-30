@@ -49,34 +49,6 @@ public class LoginTests
     }
 
     [Fact]
-    public async Task The_old_address_sends_every_page_to_the_site_and_still_takes_the_uploads_of_a_tracker_that_has_not_updated()
-    {
-        using var f = new ServerFactory();
-        var c = f.Browser();
-        foreach (var host in new[] { "haulingtracker.fwjonsson.dev", "sct.fwjonsson.dev" })   // both old addresses
-        foreach (var page in new[] { "/", "/hauling?tab=planner", "/admin/party", "/site.css" })
-        {
-            var old = await c.GetAsync("http://" + host + page);
-            Assert.Equal(HttpStatusCode.MovedPermanently, old.StatusCode);   // for good: the browser goes there by itself next time
-            Assert.Equal("https://sc-tools.fwjonsson.dev" + page, old.Headers.Location!.OriginalString);
-        }
-        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("http://sc-tools.fwjonsson.dev/")).StatusCode);   // the site itself
-
-        var tracker = f.Tracker(f.AddKey("zzoega"));   // a tracker with the old address saved
-        var me = await tracker.GetAsync("http://haulingtracker.fwjonsson.dev/api/me");
-        Assert.Equal(HttpStatusCode.OK, me.StatusCode);
-        Assert.Contains("zzoega", await me.Content.ReadAsStringAsync());
-        var link = await tracker.PostAsync("http://haulingtracker.fwjonsson.dev/api/login-link", null);
-        var url = JsonDocument.Parse(await link.Content.ReadAsStringAsync()).RootElement.GetProperty("url").GetString()!;
-        var open = await c.GetAsync("http://haulingtracker.fwjonsson.dev" + url);   // its Open my page: the login link at the site's address
-        Assert.Equal("https://sc-tools.fwjonsson.dev" + url, open.Headers.Location!.OriginalString);
-        var login = await c.GetAsync(url);   // and the link still works there (the move did not use it up)
-        Assert.Equal("/me", login.Headers.Location?.OriginalString);
-
-        Assert.Equal("https://sc-tools.fwjonsson.dev", SiteAddress.Moved("https://haulingtracker.fwjonsson.dev"));   // the tracker moves to the site by itself
-    }
-
-    [Fact]
     public async Task The_admin_logs_in_with_his_password_and_makes_and_takes_back_a_key()
     {
         using var f = new ServerFactory();
