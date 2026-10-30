@@ -797,6 +797,9 @@ public sealed class PlanService
                 runRow.OnMap = true;   // nothing is added to it (full ship): the run itself is his solid line
                 runRow.Solid = true;
                 runRow.Passed = runRow.Stops.Count;   // everything on it is picked up: he is on his way home
+                // ... and home already when the map has him at Ruin: the leg home is flown too, so nothing of the run is left to draw (Frank, 30 Oct 2026: the
+                // arrow with the waves from the last stop to Ruin stayed on the map after he had arrived, until he handed in)
+                if (_where.MapStationOf(c.Name) == PyroDistances.Ruin) runRow.Passed++;
             }
             if (runRow != null && runRow.Lines.Count > 0)
             {
