@@ -59,7 +59,8 @@
 .hauling .planpair { display:flex; flex-direction:column; gap:4px; }
 .hauling .plancur, .hauling .planque { min-width:0; }
 .hauling .plancur table, .hauling .planque table { min-width:640px; }
-.hauling .planpair h3 { margin:6px 0 4px; }
+.hauling .planpair h3 { margin:6px 0 4px; display:flex; align-items:center; }
+.hauling .planpair h3 .submitroute { margin:0 0 0 auto; padding:2px 12px; font-size:12px; }   /* the Submit button at the right end of the Current Route title (30 Oct 2026) */
 .hauling .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
 /* the map is the Map tool's size (820 px, .mapbox in site.css; Frank, 29 Oct 2026), smaller on a narrower window so the workers' tables keep their columns */
 .hauling .planleft { flex:0 0 820px; max-width:100%; }
