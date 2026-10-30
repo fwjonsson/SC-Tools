@@ -318,7 +318,8 @@ admin (done), then going live.
   project. The landing page has the title over faint orbit rings (like the Pyro map) and a card per tool, centred, each in the tool's colour with its
   icon and what it shows now (the hauling session, your gauntlet runs this week, the missions left to fill in). Every page has the same bar at the top
   (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards), the tools the viewer sees, and on the right
-  **Tracker** (its page: download and setup), who is logged in, his **Party** button (the panel of who is playing, see the Party tool), My page, Admin and
+  **Tracker** (its page: download and setup; the tools come in the order Frank set on 30 Oct 2026, `SiteTools.Bar`: Hauling Planner, Gauntlet Tracker, Map,
+  Session, Mission Library, while the cards of the landing page keep theirs), who is logged in, his **Party** button (the panel of who is playing, see the Party tool), My page, Admin and
   Log out (or Log in); on a phone all of it is behind a menu button.
   The part of the site you are in is marked in its own colour: a tool (by its address, `/gauntlet/stats` too) in the colour of its card, My page in
   green, Admin in red on the admin's pages and his account. On an ultrawide screen every page keeps to a band of 1,900 px in the middle: the bar, the
