@@ -71,6 +71,9 @@ public sealed class TrackerState
     /// <summary>The names of the zones of the party's hauling jobs as the map has their places (zone id to name; HaulJobs, stage 4): for the tables, where the station table knows no name.</summary>
     public Dictionary<string, string> JobZoneNames { get; set; } = new(StringComparer.Ordinal);
 
+    /// <summary>The places of those zones as planner ids (StarRoutes: a Pyro station's id, else the place key), where the map has one: the Route Planner (new) draws a job's run by them (stage 4b).</summary>
+    public Dictionary<string, string> JobZonePlaces { get; set; } = new(StringComparer.Ordinal);
+
     /// <summary>True while the running game's Game.log is watched.</summary>
     public bool Live { get; set; }
 

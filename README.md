@@ -511,7 +511,11 @@ admin (done), then going live.
     one, a job's pickups when it has one drop-off, else its drop-offs), which is what reward over stops was. A job's zones are named as the map has their
     places everywhere a table names a location (`TrackerState.JobZoneNames`). The old planner leaves a job's rows with its note; the Route Planner (new)
     plans the job itself (not its rows a second time). The Other hauling board stays for now: it has the SCU field, which the Stops board does not have
-    yet (stage 4b, with the cargo aboard of a job followed in the runs).
+    yet.
+  - **A job's cargo aboard** (stage 4b, 30 Oct 2026): a run with a job's parcels goes on to the job's drop-offs still to make (`CargoRuns.LoadedDestinationsOf`:
+    their places as the map has them, in any system), so the Route Planner (new) continues the run there and its Current Route ends with a Deliver line at
+    each; a job with several drop-offs ends the run at the last of them, the ones before take a parcel off the ship (`WorkerTripBuilder`). On the new tab a
+    run's lines start at the session's hub (a party in Stanton: where its cargo goes), on the old one at Ruin as always.
   - **Stops:** one per objective group (`pickup_<guid>_0.._2` is one stop with three commodities), ✓ when every objective of it is completed.
   - **Names:** from the objectives' texts ("Deliver 0/4 SCU of Distilled Spirits to Port Tressler", "Collect … From Shallow Fields Station at
     Crusader's L4 Lagrange point" is CRU-L4, "… on microTech", the spaceports: NB Int. is New Babbage, Teasa Lorville, Riker Memorial Area18, August

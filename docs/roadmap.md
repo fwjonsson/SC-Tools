@@ -133,9 +133,10 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       the jobs on the Stops, Finished stops and Contracts boards, their earnings (stage 4).
     - **Stage 4a of the design, the jobs in the session** (30 Oct): the sessions take every hauling mission, so a job is on the Stops board with its
       places, in the Contracts table by its name at the library's reward, in the Cargo runs (its delivery ends the run) and in the earnings, the
-      leaderboard and the payouts, at reward over its parcels (`Mission.Parcels`). Left for 4b: the SCU field on the Stops board and the Other hauling
-      board going, the cargo aboard of a job in the planner's runs (a run in progress with a job's parcels continues to their drop-offs), several pickups
-      to several drop-offs.
+      leaderboard and the payouts, at reward over its parcels (`Mission.Parcels`).
+    - **Stage 4b, a job's cargo aboard** (30 Oct): a run with a job's parcels goes on to the job's drop-offs still to make, in any system, and the new
+      planner continues it there; a job with several drop-offs ends the run at the last of them. Left: the SCU field on the Stops board and the Other
+      hauling board going, several pickups to several drop-offs, and the new planner replacing the old one when Frank says so.
     - **Wiki API** (#264; #265 for every mission of the library): the log's `contract [...]` and `contractDefinitionId[...]` are the API's
       `debug_name` and `uuid` (Frank confirmed with `701271ba-…` = `Iasi_HaulCargo_AtoB_Small_PartySupplies`), so a string mod's names do not matter.
       The contract ids are kept on the Missions rows (the old logs re-read once); the server asks `api.star-citizen.wiki/api/missions/{uuid}` about

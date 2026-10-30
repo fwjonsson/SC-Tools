@@ -187,11 +187,16 @@ public static class WorkerTripBuilder
         foreach (var m in g.Missions.Concat(g.Failed))
         {
             string? handInActor = null;   // who the logs show handing this mission in
+            // a hauling job with several drop-offs (stage 4b): only its last delivery ends the run, the ones before it take a parcel off the ship and the run goes on
+            var dropStops = m.ObjZone.Keys.Where(k => k.StartsWith("dropoff_", StringComparison.Ordinal)).Select(k => StopId.Replace(k, "")).Distinct().ToList();
+            var several = !m.IsHauling && !m.IsOut && dropStops.Count > 1;
+            bool LastDrop(DateTime at) => !several || dropStops.All(stop => m.Events.Any(kv => kv.Key.StartsWith(stop, StringComparison.Ordinal) && kv.Value.Any(e => e.State == "COMPLETED" && e.Time <= at)));
             foreach (var kv in m.Events)
             {
                 if (!kv.Key.StartsWith("dropoff_")) continue;
                 foreach (var e in kv.Value)
                 {
+                    if (!LastDrop(e.Time)) continue;   // a parcel delivered, more aboard: the run goes on to the next drop-off
                     // a to-Ruin contract is handed in at Ruin, which the station table does not list as a pickup station: named outright, so who was there counts
                     // there too (30 Oct 2026, 03:37 UTC: zzatvo handed two missions in at Ruin while zzoega was landing at Rat's Nest; zzoega's platform line was the
                     // nearer one, the hand-in went to him, and zzatvo's route stuck at "Delivering" until his next hand-in)

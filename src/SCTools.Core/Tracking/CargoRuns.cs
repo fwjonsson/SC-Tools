@@ -215,8 +215,9 @@ public sealed class CargoRuns
     }
 
     /// <summary>
-    /// Where the cargo a worker carries in his run in progress goes (stage 1b): the stations of the contracts to another station he picked up for, then Ruin
-    /// when he carries anything for Ruin (or nothing at all: his run ends at Ruin). The order he would deliver in is the planner's; this is the set.
+    /// Where the cargo a worker carries in his run in progress goes (stage 1b): the stations of the contracts to another station he picked up for, the places of
+    /// the drop-offs still to make of a hauling job of another kind he picked up for (stage 4b: its places as the map has them, in any system), then Ruin when he
+    /// carries anything for Ruin (or nothing at all: his run ends at Ruin). The order he would deliver in is the planner's; this is the set.
     /// </summary>
     public List<string> LoadedDestinationsOf(string name)
     {
@@ -228,6 +229,16 @@ public sealed class CargoRuns
             foreach (var id in p.MissionIds)
             {
                 if (!missions.TryGetValue(id, out var m)) continue;
+                if (HaulJobs.IsJob(m))
+                {
+                    foreach (var drop in JobOf(m).Drops.Where(d => !d.Done && d.Place != null && !d.Near))
+                    {
+                        var at = StarRoutes.IdOf(drop.Place!);
+                        if (at == PyroDistances.Ruin) toRuin = true;
+                        else if (!places.Contains(at)) places.Add(at);
+                    }
+                    continue;
+                }
                 var to = m.ToStation ? _places.StationOf(SessionBuilder.DropZoneOf(m) ?? "") : PyroDistances.Ruin;
                 if (to == null || to == PyroDistances.Ruin) toRuin = true;
                 else if (!places.Contains(to)) places.Add(to);
@@ -236,6 +247,9 @@ public sealed class CargoRuns
         if (toRuin || places.Count == 0) places.Add(PyroDistances.Ruin);
         return places;
     }
+
+    /// <summary>A hauling job of another kind as the board has it (its stops placed, its SCU), from the mission alone.</summary>
+    HaulJob JobOf(Mission m) => HaulJobs.Of(new[] { m }, _s.Jobs.Atlas, null, _s.Jobs.HaulerScu, x => _s.Jobs.KindOf(x)?.ScuToUse, _s.Jobs.WikiOf)[0];
 
     /// <summary>The latest run of a worker that was handed in at a station the table knows: the station and when, or null.</summary>
     public (string Station, DateTime Time)? LastHandInOf(string name)

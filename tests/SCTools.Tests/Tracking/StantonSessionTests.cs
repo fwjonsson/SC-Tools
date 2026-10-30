@@ -89,6 +89,23 @@ public class StantonSessionTests
     }
 
     [Fact]
+    public void A_run_on_the_way_in_Stanton_starts_at_the_hub_and_goes_to_the_jobs_drop_off()
+    {
+        // stage 4b: picked up at CRU-L4, not delivered: the run goes to Port Tressler, and on the Route Planner (new) it starts at the hub, not at Ruin
+        var t = Load(Writer().Minutes(10).Unstow().Seconds(5).Objective(Job, "pickup_sa_0", "COMPLETED"));
+        Assert.Equal(new[] { Drop }, t.Runs.LoadedDestinationsOf(PlayedSession.Player));
+        var w = t.FreePlan.GetPlan().Workers.Single();
+        var current = w.Rows.First(r => !r.Hidden);
+        Assert.Equal("active", current.Level);
+        Assert.Equal(new[] { Drop, Pickup, Drop }, current.Lines.Select(l => l.Id));   // the hub, the pickup (done), the drop-off
+        Assert.Equal("Port Tressler  \u2192  CRU-L4 Shallow Fields Station  \u2192  Port Tressler", current.Route);
+        Assert.Contains("Collected", current.Lines[1].ActionText);
+        Assert.Contains("Deliver", current.Lines[2].ActionText);
+        Assert.Equal(0, t.FreePlan.Core!.Batches);   // nothing left to plan
+        Assert.Equal(PyroDistances.Ruin, t.Plan.GetPlan().Workers.Single().Rows.First(r => !r.Hidden).Lines[0].Id);   // the old planner's run still starts at Ruin
+    }
+
+    [Fact]
     public void Picking_up_and_delivering_the_job_is_a_run_that_pays_the_librarys_reward()
     {
         var w = Writer()
