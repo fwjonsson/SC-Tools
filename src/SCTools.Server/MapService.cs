@@ -298,7 +298,7 @@ public sealed class MapService
     }
 
     /// <summary>Everything the page draws, now: the systems (one of them when system is given: the Trip Planner's Pyro), the players, the objectives, the missions.</summary>
-    public object Snapshot(DateTime nowUtc, string? system = null)
+    public object Snapshot(DateTime nowUtc)
     {
         var games = _uploads.Games();
         var titles = _uploads.MissionsSeen();
@@ -386,7 +386,7 @@ public sealed class MapService
         return new
         {
             updated = nowUtc,
-            systems = StarMap.Systems.Where(s => system == null || s.Id == system).Select(atlas.SystemData).ToList(),
+            systems = StarMap.Systems.Select(atlas.SystemData).ToList(),
             players,
             objectives,
             unplaced,

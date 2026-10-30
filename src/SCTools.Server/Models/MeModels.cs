@@ -25,15 +25,7 @@ public sealed class MeModel
     /// <summary>His colour, as #rrggbb.</summary>
     public string Color { get; set; } = "";
 
-    /// <summary>The label of his ship, or "".</summary>
-    public string Ship { get; set; } = "";
-
-    /// <summary>The label of his quantum drive, or "".</summary>
-    public string Drive { get; set; } = "";
-
     public List<Choice> Stations { get; set; } = new();
-    public List<Choice> Ships { get; set; } = new();
-    public List<Choice> Drives { get; set; } = new();
 
     /// <summary>His fleet (FleetService), the ship he flies now, and when that comes from the logs, what they said.</summary>
     public List<FleetShip> Fleet { get; set; } = new();
@@ -57,11 +49,7 @@ public sealed class MeModel
             AutoLocation = PyroDistances.NameOf(t.Whereabouts.AutoLocationOf(player)),
             Location = byHand ? location : "",
             Color = ViewPalette.Hex(Edits.ColorOf(t, player)),
-            Ship = t.Crew.ShipOf(player)?.Label ?? "",
-            Drive = t.Crew.DriveOf(player)?.Label ?? "",
             Stations = StationChoices(),
-            Ships = ShipChoices(),
-            Drives = DriveChoices(),
         };
     }
 
@@ -92,6 +80,4 @@ public sealed class MeForm
     [RegularExpression("^#[0-9a-fA-F]{6}$", ErrorMessage = "Pick a colour.")]
     public string Color { get; set; } = "";
 
-    public string? Ship { get; set; }
-    public string? Drive { get; set; }
 }

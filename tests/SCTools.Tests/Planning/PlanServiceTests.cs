@@ -46,7 +46,6 @@ public class PlanServiceTests
 
         // the batch still waiting at Patch City is in a trip of his
         Assert.Contains(w.Rows.SelectMany(r => r.Lines), l => l.Name == "Patch City" && l.Batches == 1);
-        Assert.False(string.IsNullOrEmpty(plan.Signature));
     }
 
     [Fact]
@@ -60,7 +59,7 @@ public class PlanServiceTests
         Assert.Same(core, t.Plan.Core);   // the same batches, crew and locks: the same trips
         t.Plan.Invalidate();
         Assert.Null(t.Plan.Core);
-        Assert.Equal(t.Plan.GetPlan().Signature, t.Plan.GetPlan().Signature);
+        Assert.Equal(t.Plan.GetPlan().Summary, t.Plan.GetPlan().Summary);
     }
 
     [Fact]

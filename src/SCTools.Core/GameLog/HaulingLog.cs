@@ -207,24 +207,6 @@ public sealed class HaulingLog
     /// <summary>Character name of the player whose log this is.</summary>
     public string? Player { get; private set; }
 
-    public static string? FirstPlayer(string path)
-    {
-        try
-        {
-            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var sr = new StreamReader(fs);
-            string? line;
-            for (var i = 0; i < 3000 && (line = sr.ReadLine()) != null; i++)
-            {
-                if (!line.Contains("AccountLoginCharacterStatus_Character")) continue;
-                var m = Character.Match(line);
-                if (m.Success) return m.Groups["n"].Value;
-            }
-        }
-        catch (IOException) { }
-        return null;
-    }
-
     /// <summary>Goes up every time something relevant changed, so the screen knows when to redraw.</summary>
     public int Version { get; private set; }
 

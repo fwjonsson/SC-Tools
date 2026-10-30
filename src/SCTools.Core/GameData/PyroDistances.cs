@@ -42,10 +42,7 @@ public static class PyroDistances
         ["70273"] = (48.2968, 48.2920, 0.0027),
     };
 
-    // The backdrop of the map: the sun, the orbits and the planets, in the pixels of the same top-down map (measured on it).
-    public static readonly (double X, double Y) Sun = (1919.5, 1079.5);
-    public const double SunRadius = 25;
-    public static readonly double[] OrbitRadii = { 123.4, 158.7, 266.0, 642.4, 1026.5 };   // Pyro I, Monox, Bloom, Pyro V, Terminus
+    // The planets of the map's backdrop, in the pixels of the same top-down map (measured on it).
     public static readonly (double X, double Y)[] Planets =
     {
         (1801.5, 1115.5),   // Pyro I

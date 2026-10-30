@@ -75,8 +75,6 @@ public class TrackerPageTests
         Assert.Equal(Path.Combine(dir, "SCToolsTracker.exe"), AppName.Tracker.MovedPath(Path.Combine(dir, "haulingtrackersender.EXE")));
         Assert.Null(AppName.Tracker.MovedPath(Path.Combine(dir, "SCToolsTracker.exe")));   // it has its name already
         Assert.Null(AppName.Tracker.MovedPath(Path.Combine(dir, "MyTracker.exe")));        // a name of your own stays
-        Assert.Equal(Path.Combine(dir, "HaulingPlanner.exe"), AppName.Planner.MovedPath(Path.Combine(dir, "HaulingTracker.exe")));   // the Windows program
-        Assert.Null(AppName.Planner.MovedPath(Path.Combine(dir, "HaulingTrackerSender.exe")));   // not the tracker
-        Assert.Equal(("SCToolsTracker.zip", "HaulingPlanner.zip"), (AppName.Tracker.Zip, AppName.Planner.Zip));
+        Assert.Equal("SCToolsTracker.zip", AppName.Tracker.Zip);
     }
 }

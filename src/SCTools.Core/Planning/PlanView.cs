@@ -81,12 +81,8 @@ public sealed class PlanWorkerView
 {
     public string Name = "";
     public int Capacity;
-    public string DriveNote = "";    // only when no drive is set
-    public string Drive = "";        // the quantum drive, or that none is set
-    public int RunsSoFar;            // all his runs of the session, also the finished ones that are no longer listed in his table
     public string LocationId = PyroDistances.Ruin;   // his Current location (station id): where he is now
     public bool LocationByHand;      // set in the drop-down (the logs take over again at his next pickup, delivery or hand-in)
-    public string AutoLocationId = PyroDistances.Ruin;   // where the logs say he is
     public List<PlanRow> Rows = new();
     public List<PlanRow> Planned => Rows.Where(r => r.IsPlan).ToList();
     public List<PlanRow> MapRows => Rows.Where(r => r.IsPlan || r.OnMap).ToList();   // the lines on the map: the planned trips, and the run in progress when the plan adds nothing to it
@@ -95,7 +91,6 @@ public sealed class PlanWorkerView
 /// <summary>The plan of the session shown, with everything the Trip Planner tab and the web page show of it.</summary>
 public sealed class PlanView
 {
-    public string Signature = "";   // what the pages show: they are only built again when it changes
     public string Summary = "";
     public string Note = "";
     public List<PlanWorkerView> Workers = new();
