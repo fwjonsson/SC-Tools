@@ -128,13 +128,7 @@ public sealed class PlanService
     public static int Landings(PlannedTrip t) => t.Drops.Select(d => d.Id).Concat(t.Stops.Select(s => s.Id)).Distinct().Count();
 
     /// <summary>The waste he has taken out at Ruin and not brought anywhere yet (recently): his run in progress with nothing else in it, or null.</summary>
-    WorkerTrip? WasteTakenOut(string name)
-    {
-        var run = _state.Trips.Where(x => SameName(x.Worker, name) && !x.End.HasValue && x.Pickups.Count == 0 && x.Drops.Count == 0 && x.Collects.Count > 0)
-            .OrderBy(x => x.Start).LastOrDefault();
-        if (run == null || _state.Log == null || _state.Log.LastTime - run.Collects.Max(x => x.Time) > CargoRuns.StaleLeg) return null;
-        return run;
-    }
+    WorkerTrip? WasteTakenOut(string name) => _runs.WasteTakenOut(name);
 
     /// <summary>The name a worker has in the locked trips of this session, or null when he has none.</summary>
     public string? LockKey(string name) => _state.Inputs?.LockedTrips.Keys.FirstOrDefault(k => SameName(k, name));

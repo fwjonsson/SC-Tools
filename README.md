@@ -249,7 +249,10 @@ admin (done), then going live.
   `LastMoveOf`), when they are newer than anything his jumps say; his card says so ("the Hauling Planner"). The other way too (Frank's list of 29 Oct 2026: the map and the planner learn from each other): every six
   seconds the server gives the planner where the map has everybody (`PlannerPositions`, `TrackerState.Positions`), and a worker's Current location and
   the station he is flying to take the map's place when it is newer than his last pickup or delivery (`Whereabouts`): a crew member's jumps through the
-  pilot's log, a destination or an area named on Map places, a mission's objective. The players' cards stand beside the map and
+  pilot's log, a destination or an area named on Map places, a mission's objective. Not in the middle of a run, though: while he flies a run his
+  trip is planned from his last pickup, and while he carries waste out of Ruin it is planned from Ruin, whatever the map says (Frank, 30 Oct 2026:
+  the map put him at Patch City before he had delivered the waste, and the Ruin "Collect Waste" row and the "Deliver Waste" of the Patch City
+  row vanished from his Current Route until he had; every row of a route stays until the route is done). The players' cards stand beside the map and
   the objectives beside them, three columns on a wide screen (Frank, 29 Oct 2026; under each other on a narrow one); an objective line says the place
   and who, not the mission. Under all three, from the map's left edge to the objectives' right edge, **Active missions**: every
   mission going on with who has it, its open objectives and the Mission Library's columns for its kind (faction, category, SCU, reward, scrip, XP,

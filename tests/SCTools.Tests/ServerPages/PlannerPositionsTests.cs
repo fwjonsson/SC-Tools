@@ -30,4 +30,27 @@ public class PlannerPositionsTests
         f.Live.Refresh(now.AddSeconds(1));
         Assert.Contains("Current location: Gaslight", f.Live.Json);   // the Trip Planner says so
     }
+
+    [Fact]
+    public void The_map_does_not_move_a_worker_who_is_flying_waste_out_of_Ruin()
+    {
+        // Frank, 30 Oct 2026: zzoega took waste out at Ruin and flew it to Patch City; the map had him at Patch City before he delivered, the planner then
+        // started his trip there, and the Ruin "Collect Waste" row and the "Deliver Waste" of the Patch City row vanished until he had delivered. The
+        // waste he carries is planned from Ruin until it is delivered, whatever the map says
+        using var f = new ServerFactory { FollowSessions = true };   // the logs start the session (the accepted contract)
+        var now = DateTime.UtcNow;
+        var m = GameLogWriter.MissionId(81);
+        var log = new GameLogWriter().At(now.AddMinutes(-30)).Login("zzoega").Accepted(m)
+            .Marker(m, GameLogWriter.DirectContract, "pickup_w81_0", "900000008101", GameLogWriter.RuinStation)
+            .Marker(m, GameLogWriter.DirectContract, "dropoff_w81_0", "900000008102", GameLogWriter.PatchCity)
+            .DeliverPopup(m, "dropoff_w81_0", 400, "Waste", "Patch City")
+            .Minutes(2).Unstow().Seconds(5).Objective(m, "pickup_w81_0", "COMPLETED")
+            .Minutes(1).QuantumSelected("rs_ext_pyro3_l3").Minutes(6).QuantumArrived();
+        Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-30)), 0, 1000, log.Lines.ToList(), now).Ok);
+        f.Live.Refresh(now);
+        f.Services.GetRequiredService<PlannerPositions>().Push(now, force: true);
+        Assert.Equal(PlayedSession.PatchCity, f.Live.Read(t => t.State.Positions.First(kv => kv.Key.Equals("zzoega", StringComparison.OrdinalIgnoreCase)).Value.AtStation));   // the map has him at Patch City
+        Assert.NotNull(f.Live.Read(t => t.Runs.WasteTakenOut("zzoega")));
+        Assert.Equal(PyroDistances.Ruin, f.Live.Read(t => t.Whereabouts.AutoLocationOf("zzoega")));   // the planner keeps him at Ruin until the waste is delivered
+    }
 }
