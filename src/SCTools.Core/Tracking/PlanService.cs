@@ -21,6 +21,7 @@ public sealed class PlanService
     readonly Whereabouts _where;
     PlanCore? _planCore;
     string _hub = PyroDistances.Ruin;   // where a worker nobody can place starts (stage 3): the place most of the open batches go to (Ruin in a to-Ruin session)
+    readonly Dictionary<string, List<(string Key, int Scu)>> _parcelsOf = new(StringComparer.Ordinal);   // group key -> the drop-offs of the job parcels in it ("mission|objective") and their SCU (0: not known), for the typable Deliver lines
 
     public PlanService(TrackerState state, Places places, Crew crew, Contracts contracts, Earnings earnings, DropOffs dropOffs, CargoRuns runs, Whereabouts where)
     {
@@ -278,9 +279,22 @@ public sealed class PlanService
         foreach (var end in EndsOf(trip))
         {
             var going = trip.Picks.Where(p => p.To == end).Sum(p => p.Batches);
-            Add(end, PlaceName(end), false, going > 0 || (trip.Batches > 0 && trip.Ends.Count == 0) ? new[] { "Deliver" } : Array.Empty<string>());
+            var line = Add(end, PlaceName(end), false, going > 0 || (trip.Batches > 0 && trip.Ends.Count == 0) ? new[] { "Deliver" } : Array.Empty<string>());
+            // a job's drop-offs delivered here (Frank, 30 Oct 2026): their SCU and keys on the line, typable by the hauler like a load from Ruin, so the boxes follow
+            JobParts(line, trip.Picks.Where(p => p.To == end).SelectMany(p => _parcelsOf.GetValueOrDefault(p.Group) ?? new List<(string Key, int Scu)>()));
         }
         return lines;
+    }
+
+    /// <summary>The drop-offs of hauling jobs on a Deliver line: their SCU (0 = not known, typable) and keys, like the loads from Ruin (Load).</summary>
+    static void JobParts(StopLine line, IEnumerable<(string Key, int Scu)> parcels)
+    {
+        var list = parcels.ToList();
+        if (list.Count == 0) return;
+        line.Parts.AddRange(list.Select(p => p.Scu));
+        line.Keys.AddRange(list.Select(p => p.Key));
+        line.Typable = true;
+        line.Unknown.AddRange(list.Where(p => p.Scu <= 0).Select(p => p.Key));
     }
 
     /// <summary>The loads of a planned trip on the line of the stop they go to: their SCU and keys, typable by the hauler on the page.</summary>
@@ -323,6 +337,7 @@ public sealed class PlanService
             var gm = StarRoutes.Gm(prev, end);
             var line = new StopLine { Id = end, Name = PlaceName(end), Stop = false, Gm = gm, Seconds = StarRoutes.Seconds(_crew.QtOf(worker), prev, end), Gate = StarRoutes.Crosses(prev, end) };
             if (batches > 0) line.Actions.Add("Deliver");   // the SCU column only says how much where it is collected
+            JobParts(line, _runs.LoadedJobDrops(worker).Where(d => d.Place == end).Select(d => (d.Key, d.Scu)));   // a job's cargo aboard for here: its SCU, typable
             lines.Add(line);
         }
     }
@@ -710,6 +725,7 @@ public sealed class PlanService
         var limits = new Dictionary<string, List<(string[] Workers, int Batches)>>();   // station -> batches that only some of the crew can take (they have those missions running, the others do not)
         var flyers = crew.Where(c => c.Capacity > 0).Select(c => c.Name).ToList();
         var later = new List<string>();   // the stops of the contracts to a station the distance table does not know, and the jobs with a stop the map has no place for: not planned
+        _parcelsOf.Clear();
         if (_state.Inputs != null)
         {
             foreach (var r in _state.OpenRows)
@@ -772,6 +788,9 @@ public sealed class PlanService
                     foreach (var p in parcels.Where(p => !p.Pickup.Done && !p.Drop.Done))
                     {
                         var id = RoutePlanner.GroupKey(StarRoutes.IdOf(p.Pickup.Place!), StarRoutes.IdOf(p.Drop.Place!));
+                        if (!_parcelsOf.TryGetValue(id, out var keys)) _parcelsOf[id] = keys = new List<(string Key, int Scu)>();
+                        var dropKey = HaulJobs.DropKey(j.Mission, p.Drop);
+                        if (keys.All(k => k.Key != dropKey)) keys.Add((dropKey, p.Drop.Exact ? (int)Math.Round(p.Drop.Scu) : 0));
                         var was = worth.GetValueOrDefault(id);
                         worth[id] = (was.Value + reward, was.Batches + 1);
                         remaining[id] = remaining.GetValueOrDefault(id) + 1;

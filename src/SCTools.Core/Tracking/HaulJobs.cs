@@ -137,6 +137,13 @@ public static class HaulJobs
     /// <summary>The stop an objective is at: its id without the number of the commodity ("pickup_1f934d6b-…_2" is "pickup_1f934d6b-…").</summary>
     public static string StopKey(string objective) => Regex.Replace(objective, @"_\d+$", "");
 
+    /// <summary>
+    /// The key of a job's drop-off for the SCU a hauler types ("mission id|objective id", as the loads from Ruin have it, AppData.TypedScu): the stop's first
+    /// objective; the typed SCU lands in the mission's ObjScu for it, which is where the game's own number would be.
+    /// </summary>
+    public static string DropKey(Mission m, HaulStop drop) =>
+        m.Id + "|" + (m.ObjZone.Keys.Where(o => StopKey(o) == drop.Key).OrderBy(o => o, StringComparer.Ordinal).FirstOrDefault() ?? drop.Key + "_0");
+
     static readonly Regex DeliverText = new(@"^Deliver (?:\d+/\d+ SCU of )?.+? [Tt]o (?<p>.+)$", RegexOptions.Compiled);
     static readonly Regex CollectText = new(@"^(?:Collect|Pick ?up|Retrieve) .+? [Ff]rom (?<p>.+)$", RegexOptions.Compiled);
 

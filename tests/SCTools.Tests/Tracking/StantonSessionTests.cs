@@ -80,7 +80,7 @@ public class StantonSessionTests
         var rewards = d.GetProperty("rewards").GetProperty("rows").EnumerateArray().Select(x => x.GetProperty("cells").EnumerateArray().Select(c => c.GetString()!).ToArray()).ToList();
         Assert.Contains(rewards, c => c[0] == Title && c[1] == 90_000m.ToString("N0") && c[2] == "1" && c[3] == "0");   // the Contracts table: the job by its name, going
         Assert.Equal("CRU-L4 Shallow Fields Station 60 SCU", t.Contracts.ContractStopsText(m));
-        Assert.Single(d.GetProperty("jobs").GetProperty("rows").EnumerateArray());   // the Other hauling board keeps it too (its SCU field) until the boards have one
+        Assert.False(d.TryGetProperty("jobs", out _));   // no Other hauling board any more (30 Oct 2026): the Stops board has the jobs
     }
 
     [Fact]

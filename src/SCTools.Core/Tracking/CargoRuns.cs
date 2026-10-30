@@ -248,6 +248,20 @@ public sealed class CargoRuns
         return places;
     }
 
+    /// <summary>The drop-offs of the hauling jobs a worker carries in his run in progress, still to make: their place (a planner id), their key for the typed SCU, and their SCU (0: not known).</summary>
+    public List<(string Place, string Key, int Scu)> LoadedJobDrops(string name)
+    {
+        var drops = new List<(string Place, string Key, int Scu)>();
+        var missions = (_s.Current?.Missions ?? new List<Mission>()).Concat(_s.Current?.Failed ?? new List<Mission>()).ToDictionary(m => m.Id, m => m);
+        foreach (var id in _s.Trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue).SelectMany(t => t.Pickups).SelectMany(p => p.MissionIds).Distinct())
+        {
+            if (!missions.TryGetValue(id, out var m) || !HaulJobs.IsJob(m)) continue;
+            foreach (var drop in JobOf(m).Drops.Where(d => !d.Done && d.Place != null && !d.Near))
+                drops.Add((StarRoutes.IdOf(drop.Place!), HaulJobs.DropKey(m, drop), drop.Exact ? (int)Math.Round(drop.Scu) : 0));
+        }
+        return drops;
+    }
+
     /// <summary>A hauling job of another kind as the board has it (its stops placed, its SCU), from the mission alone.</summary>
     HaulJob JobOf(Mission m) => HaulJobs.Of(new[] { m }, _s.Jobs.Atlas, null, _s.Jobs.HaulerScu, x => _s.Jobs.KindOf(x)?.ScuToUse, _s.Jobs.WikiOf)[0];
 
