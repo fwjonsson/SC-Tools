@@ -236,6 +236,40 @@ public class ContractMoneyTests
     }
 
     [Fact]
+    public void Frank_s_gauntlet_routine_pays_his_main_the_whole_scenario()
+    {
+        // Frank, 30 Oct 2026: he takes a scenario on zzatvo, shares it to zzoega and abandons it on zzatvo (to escape the mission cooldown); zzoega
+        // completes it. The lines as zzoega's log of 9 Aug 2026 has them: the share without a mission id, his accept a second later, the game saying
+        // zzatvo left the mission, and "You've Earned: 14 Rewards" (his MG scrip) after the completion
+        var now = DateTime.UtcNow;
+        var at = now.AddMinutes(-30);
+        const string Run = "7ccccccc-cccc-4ccc-8ccc-cccccccccccc";
+        const string Six = "Combat Gauntlet - Scenario #6";
+        using var f = new ServerFactory();
+        f.Upload("zzatvo", new GameLogWriter().At(at).Login("zzatvo").Lines
+            .Append(Note(at, "Contract Accepted", Six, Run)).Append(Abandon(at.AddSeconds(3), Run, "zzatvo")).ToList(), T(at));
+        f.Upload("zzoega", new GameLogWriter().At(at).Login("zzoega").Lines
+            .Append(Note(at.AddSeconds(1), "Contract Shared", Six, "00000000-0000-0000-0000-000000000000"))
+            .Append(Note(at.AddSeconds(2), "Contract Accepted", Six, Run))
+            .Append($"<{T(at.AddSeconds(3))}> [Notice] <PlayerLeft> Received PlayerLeft push message for: mission_id {Run} - player_id 515604414831 [Team_GameServices][Missions]")
+            .Append(Note(at.AddMinutes(4), "Contract Complete", Six, Run))
+            .Append($"<{T(at.AddMinutes(4).AddSeconds(1))}> [Notice] <SHUDEvent_OnNotification> Added notification \"You've Earned: 14 Rewards")
+            .ToList(), T(at));
+        var gauntlet = f.Services.GetRequiredService<GauntletService>();
+        gauntlet.Collect();
+        f.Services.GetRequiredService<MissionLibrary>().Collect();
+        var rewards = gauntlet.Rewards();   // scenario 6: 171,250 aUEC and 14 MG scrip
+
+        var zzoega = GauntletStats.Totals(gauntlet.Runs("zzoega"), rewards, 1_000);
+        Assert.Equal((1, 171_250L, 14L), (zzoega.Completed, zzoega.Auec, zzoega.Scrip));   // all of it: zzatvo took it and abandoned it
+        var zzatvo = GauntletStats.Totals(gauntlet.Runs("zzatvo"), rewards, 1_000);
+        Assert.Equal((0, 1, 0L, 0L), (zzatvo.Completed, zzatvo.Cancelled, zzatvo.Auec, zzatvo.Scrip));
+        var earned = Assert.Single(f.Services.GetRequiredService<ContractTracker>().Earned("zzoega"));
+        Assert.Equal((171_250L, 14L), (earned.Auec!.Value, earned.Mg!.Value));   // the Session tool and the Companion say the same
+        Assert.Empty(f.Services.GetRequiredService<ContractTracker>().Earned("zzatvo"));
+    }
+
+    [Fact]
     public void A_payout_typed_on_the_debts_tab_is_what_the_contract_paid()
     {
         var now = DateTime.UtcNow;
