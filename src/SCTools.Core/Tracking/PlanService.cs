@@ -240,7 +240,6 @@ public sealed class PlanService
         var drop = hasDrop ? trip.Drops[0] : default;
         var cargo = trip.DropCargo ?? "cargo";
         var firstStop = trip.Stops.Count > 0 ? trip.Stops[0].Id : null;
-        var unknownKeys = trip.DropKeys.Where((k, i) => i < trip.DropParts.Count && trip.DropParts[i] <= 0).ToList();   // drop-offs the game did not tell the SCU of
 
         StopLine Add(string id, string name, bool stop, IEnumerable<string> actions, int batches = 0, decimal value = 0, double scu = 0)
         {
@@ -263,10 +262,9 @@ public sealed class PlanService
             var ruin = Add(PyroDistances.Ruin, "Ruin", false, collect);
             if (hasDrop)
             {
-                ruin.Loads.Add(DropOffs.LoadText(trip.DropParts));   // the SCU of the load and the containers it is cut into
+                // the load's SCU and boxes are on the line of the stop it goes to (Frank, 29 Oct 2026: the hauler types the SCU there); the total counts it here
                 ruin.WasteScu = trip.DropParts.Where(x => x > 0).Sum();
                 ruin.Value = _earnings.WasteValue(trip.DropKeys);     // what the load pays (reward / drop-offs of its contract), from the From Ruin rows of the rewards table
-                ruin.Unknown.AddRange(unknownKeys);
             }
         }
         else if (firstStop != trip.From) Add(trip.From, PyroDistances.NameOf(trip.From), false, Array.Empty<string>());   // where he is now
@@ -274,7 +272,7 @@ public sealed class PlanService
         var dropShown = !hasDrop;
         if (hasDrop && firstStop != drop.Id)
         {
-            Add(drop.Id, PyroDistances.NameOf(drop.Id), true, new[] { "Deliver " + cargo });   // a stop with only the drop-off (its SCU is on the line where it is collected)
+            Load(Add(drop.Id, PyroDistances.NameOf(drop.Id), true, new[] { "Deliver " + cargo }), trip);   // a stop with only the drop-off, with its SCU and boxes
             dropShown = true;
         }
         foreach (var (id, batches) in trip.Stops)
@@ -286,12 +284,21 @@ public sealed class PlanService
                 dropShown = true;
             }
             if (batches > 0) actions.Add("Collect");
-            Add(id, PyroDistances.NameOf(id), true, actions, batches, batches * perBatch(id), batches * scuPerBatch(id)).Count = batches;   // a drop-off here: its SCU is on the line where it is collected
+            var line = Add(id, PyroDistances.NameOf(id), true, actions, batches, batches * perBatch(id), batches * scuPerBatch(id));
+            line.Count = batches;
+            if (actions.Count > 0 && actions[0].StartsWith("Deliver", StringComparison.Ordinal)) Load(line, trip);   // the drop-off here: its SCU and boxes
         }
-        Add(PyroDistances.Ruin, "Ruin", false, trip.Batches > 0 ? new[] { "Deliver" } : Array.Empty<string>());   // everything on board is handed in (the Cargo column only says how much where it is collected)
-        var handedIn = lines.Sum(l => l.Scu);
-        if (ShowPickupScu && handedIn > 0) lines[^1].Loads.Add(ScuGuess(handedIn));   // everything picked up is handed in here
+        Add(PyroDistances.Ruin, "Ruin", false, trip.Batches > 0 ? new[] { "Deliver" } : Array.Empty<string>());   // everything on board is handed in (the SCU column says how much where it is collected)
         return lines;
+    }
+
+    /// <summary>The loads of a planned trip on the line of the stop they go to: their SCU and keys, typable by the hauler on the page.</summary>
+    static void Load(StopLine line, PlannedTrip trip)
+    {
+        line.Parts.AddRange(trip.DropParts);
+        line.Keys.AddRange(trip.DropKeys);
+        line.Typable = true;
+        line.Unknown.AddRange(trip.DropKeys.Where((k, i) => i < trip.DropParts.Count && trip.DropParts[i] <= 0));
     }
 
     /// <summary>Puts what the plan still collects at a station after the lines of a run in progress (at the station where the last pickup was it joins that line).</summary>
@@ -322,9 +329,7 @@ public sealed class PlanService
         var prev = lines.LastOrDefault(l => l.Id.Length > 0)?.Id ?? PyroDistances.Ruin;
         var gm = PyroDistances.Between(prev, PyroDistances.Ruin);
         var line = new StopLine { Id = PyroDistances.Ruin, Name = "Ruin", Stop = false, Gm = gm, Seconds = gm > 0 ? _crew.QtOf(worker).Seconds(gm) : 0 };
-        if (batches > 0) line.Actions.Add("Deliver");   // the Cargo column only says how much where it is collected
-        var handedIn = lines.Sum(l => l.Scu);
-        if (ShowPickupScu && handedIn > 0) line.Loads.Add(ScuGuess(handedIn));   // everything picked up is handed in here
+        if (batches > 0) line.Actions.Add("Deliver");   // the SCU column only says how much where it is collected
         lines.Add(line);
     }
 
@@ -449,7 +454,8 @@ public sealed class PlanService
                     if (t.Drops.Count > 0)
                     {
                         line.Value += _earnings.WasteValue(t);   // what the waste delivered so far pays (the value of the run counts it too)
-                        line.Loads.Add(DropOffs.LoadText(t.Drops.Select(x => x.Scu)));
+                        line.Parts.AddRange(t.Drops.Select(x => x.Scu));
+                        line.Keys.AddRange(t.Drops.Select(x => x.MissionId + "|" + x.Objective));
                         line.WasteScu += t.Drops.Where(x => x.Scu > 0).Sum(x => x.Scu);
                         line.Unknown.AddRange(t.Drops.Where(x => x.Scu <= 0).Select(x => x.MissionId + "|" + x.Objective));
                     }
@@ -862,7 +868,7 @@ public sealed class PlanService
         }
 
         plan.Signature = plan.Summary + "¦" + string.Join("|", plan.Workers.Select(x => x.Name + "@" + x.LocationId + (x.LocationByHand ? "!" : "") + ">" + x.AutoLocationId)) + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
-            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Flight.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Here + "|" + string.Join(";", r.Lines.Select(l => l.Name + "~" + l.ActionText + "~" + l.CargoText + "~" + l.Batches + "~" + l.Value.ToString("F0", CultureInfo.InvariantCulture) + "~" + l.Gm.ToString("F1", CultureInfo.InvariantCulture) + "~" + l.Seconds.ToString("F0", CultureInfo.InvariantCulture))) + "|" + w.Drive + "|" + w.RunsSoFar)));
+            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Flight.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Here + "|" + string.Join(";", r.Lines.Select(l => l.Name + "~" + l.ActionText + "~" + l.ScuText + "~" + l.BoxesText + "~" + l.Batches + "~" + l.Value.ToString("F0", CultureInfo.InvariantCulture) + "~" + l.Gm.ToString("F1", CultureInfo.InvariantCulture) + "~" + l.Seconds.ToString("F0", CultureInfo.InvariantCulture))) + "|" + w.Drive + "|" + w.RunsSoFar)));
         return plan;
     }
 }

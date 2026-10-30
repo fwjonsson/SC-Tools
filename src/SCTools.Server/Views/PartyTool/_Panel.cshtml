@@ -1,9 +1,16 @@
 @model PartyToolPage
 @{
-    // the panel of the Party button in the top bar (TopBar.PartyButton, fetched when it opens): the parties now as the Party page shows them, and a link to it
+    // the panel of the Party button in the top bar (TopBar.PartyButton, fetched when it opens): the parties now, each a table like the Hauling Planner's
+    // old Party table (Frank, 29 Oct 2026: Member, Ship, QT Drive, every member's row in his colour), and a link to the Party page
     Layout = null;
     string Link(string name) => "/party/" + Uri.EscapeDataString(name);
     var playing = Model.Parties.Sum(p => p.Names.Count);
+    // the admin, and the leader of a party for his members, ticks a member of the Hauling Planner's party off when he stopped playing and the logs still
+    // count him (the planner plans no trips for him then)
+    var admin = User.IsInRole(Roles.Admin);
+    // the column only where there is somebody to tick: a member of the planner's party (Active known)
+    bool Ticks(PartyGroup p) => (admin || string.Equals(p.Leader, User.Identity?.Name, StringComparison.OrdinalIgnoreCase))
+        && p.Names.Any(n => Model.Ships.TryGetValue(n, out var l) && l.Active != null);
 }
 <div class="partypanel">
   <p class="head"><span>@(playing == 0 ? "Nobody is playing now." : playing + " playing" + (Model.Parties.Count > 1 ? " in " + Model.Parties.Count + " parties" : ""))</span>
@@ -12,17 +19,18 @@
   {
     <div class="group">
       <b>@p.Title</b>
-      <ul>
-      @foreach (var n in p.Names)
-      {
-        <li><a href="@Link(n)">@n</a>@(string.Equals(n, p.Leader, StringComparison.OrdinalIgnoreCase) && p.Names.Count > 1 ? " (leader)" : "")
-          @if (Model.Ships.TryGetValue(n, out var ship) && ship.Length > 0)
-          {
-            <span class="muted"> · @ship</span>
-          }
-        </li>
-      }
-      </ul>
+      <table class="members">
+        <thead><tr><th>Member</th><th>Ship</th><th>QT Drive</th>@if (Ticks(p)) { <th>Active</th> }</tr></thead>
+        <tbody>
+        @foreach (var n in p.Names)
+        {
+          var m = Model.Ships.TryGetValue(n, out var line) ? line : new PartyMemberLine("", "", "#888888", "#ffffff", null);
+          <tr class="@(m.Active == false ? "inactive" : null)" style="background:@m.Color;color:@m.Text"><td><a href="@Link(n)">@n.ToUpperInvariant()</a></td><td>@m.Ship</td><td>@m.Drive</td>@if (Ticks(p)) {
+            <td class="center">@if (m.Active is bool on) { <input type="checkbox" name="active" data-name="@n" checked="@on" aria-label="Active in the Hauling Planner" title="Off: the Hauling Planner plans no trips for him (he stopped playing); on: he is back. Holds until the logs change their mind."> }</td>
+          }</tr>
+        }
+        </tbody>
+      </table>
     </div>
   }
   @if (Model.Others.Count > 0)

@@ -35,7 +35,7 @@ builder.Services.AddSingleton(sp =>
     var log = sp.GetRequiredService<ILogger<DataStore>>();
     var data = store.LoadOrImport(sp.GetRequiredService<ServerPaths>().DataFile, m => log.LogInformation("{Message}", m));
     var settings = sp.GetRequiredService<ServerSettings>();
-    return new LiveTracker(data, store.Changed, sp.GetRequiredService<LogUploads>(), new WebSnapshotOptions { JobsScu = "/hauling/jobs/scu", DebtsPay = "/hauling/debts/payment" },
+    return new LiveTracker(data, store.Changed, sp.GetRequiredService<LogUploads>(), new WebSnapshotOptions { JobsScu = "/hauling/jobs/scu", DebtsPay = "/hauling/debts/payment", RunsLost = "/hauling/runs/lost", TripScu = "/hauling/trips/scu" },
         followParty: settings.FollowParty, followSessions: settings.FollowSessions);
 });
 builder.Services.AddSingleton(sp =>

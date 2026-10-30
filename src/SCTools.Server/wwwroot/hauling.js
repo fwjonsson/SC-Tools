@@ -137,6 +137,7 @@ function section(parent, tag, title, g) {
   const h = document.createElement(tag); h.textContent = title; parent.appendChild(h);
   const box = document.createElement('div'); box.className = 'scroll'; parent.appendChild(box);
   table(box, g);
+  return box;
 }
 
 // green when somebody owes the member (+), red when he owes them (-), like in the program
@@ -361,11 +362,16 @@ function renderPlanner() {
       const box = document.createElement('div'); box.className = 'scroll'; col.appendChild(box);
       table(box, x[2]);
       if (x[0] === 'plancur' && p.actionWidth) { const th = box.querySelector('th:nth-child(3)'); if (th) th.style.width = p.actionWidth + 'px'; }
+      if (x[0] === 'plancur') tripScuFields(box, w, p.tripScu);
     });
   });
-  // the short copy of Cargo Runs under the map: #, Worker, Value, Started, Completed, Time and In flight (the Session tab has the whole table)
+  // the short copy of Cargo Runs under the map: #, Worker, Value, Started, Completed, Time and In flight (the Session tab has the whole table); the Time
+  // of a run on the way counts up here too (Frank, 29 Oct 2026)
   const runs = last.planRuns || last.runs;
-  section(left, 'h2', 'Cargo Runs', runs && names ? { headers: runs.headers, rows: runs.rows.filter(function (r) { return shown(r.cells[1]); }) } : runs);
+  const live = [];
+  const rows = runs ? runs.rows.filter(function (r, i) { const ok = !names || shown(r.cells[1]); if (ok) live.push(!!(last.runsLive || [])[i]); return ok; }) : [];
+  const runsBox = section(left, 'h2', 'Cargo Runs', runs ? { headers: runs.headers, rows: rows } : runs);
+  runsBox.querySelectorAll('tbody tr').forEach(function (tr, i) { if (live[i] && tr.cells[5]) addTicker(tr.cells[5]); });
 }
 
 // The small team status line under the map: it fades in only when the text really changed. It is drawn on its own, so a new line (every few seconds while
@@ -433,6 +439,64 @@ function paymentTicks(box, edits, url) {
   });
 }
 
+// The SCU column of a Current Route: on the stop a drop-off of a planned trip goes to, the hauler of that trip (or the admin) types how much goes there
+// (Frank, 29 Oct 2026); it is kept for that drop-off only, and the plan is worked out again with it. Everybody else sees the number.
+function tripScuFields(box, w, url) {
+  if (!url || !ME || !w.lines || !(ADMIN || (w.name || '').toLowerCase() === ME)) return;
+  const rows = box.querySelectorAll('tbody tr');
+  w.lines.forEach(function (l, i) {
+    const row = rows[i];
+    if (!l || !l.typable || !l.keys || l.keys.length !== 1 || !row || !row.cells[3]) return;
+    const cell = row.cells[3], was = l.scu > 0 ? String(l.scu) : '';
+    cell.textContent = '';
+    const input = document.createElement('input');
+    input.className = 'scuin'; input.inputMode = 'numeric'; input.value = was; input.placeholder = '?';
+    input.setAttribute('aria-label', 'SCU to ' + (row.cells[1].textContent || 'this stop'));
+    input.title = 'How many SCU go to this stop (your own trip only; the boxes follow). Empty: back to what the game or the library says.';
+    input.addEventListener('change', function () {
+      const token = document.querySelector('input[name="__RequestVerificationToken"]');
+      const body = new FormData();
+      body.append('key', l.keys[0]); body.append('value', input.value.trim());
+      if (token) body.append('__RequestVerificationToken', token.value);
+      input.className = 'scuin saving';
+      fetch(url, { method: 'POST', body: body, headers: { 'X-Autosave': '1' }, credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (d) { input.className = 'scuin ' + (d.ok ? 'saved' : 'unsaved'); input.title = d.said || ''; if (d.ok) refresh(); })
+        .catch(function () { input.className = 'scuin unsaved'; input.title = 'Not saved: the site could not be reached. Try again.'; });
+    });
+    cell.appendChild(input);
+  });
+}
+
+// The Lost Cargo column of the Cargo runs: the admin picks None, Little or All right here (sent at once in the background, as the SCU field) instead of
+// on his Session page (Frank, 29 Oct 2026); everybody else sees the text. The table is drawn anew when the data comes back with the pick in it.
+function lostPicks(box, keys, url) {
+  if (!url || !ADMIN || !keys) return;
+  const rows = box.querySelectorAll('tbody tr');
+  keys.forEach(function (key, i) {
+    const row = rows[i];
+    if (!key || !row || !row.cells[10]) return;
+    const cell = row.cells[10], was = cell.textContent;
+    cell.textContent = '';
+    const pick = document.createElement('select');
+    pick.className = 'lostpick';
+    pick.setAttribute('aria-label', 'Lost cargo');
+    ['None', 'Little', 'All'].forEach(function (v) { const o = document.createElement('option'); o.value = v; o.textContent = v; o.selected = v === was; pick.appendChild(o); });
+    pick.addEventListener('change', function () {
+      const token = document.querySelector('input[name="__RequestVerificationToken"]');
+      const body = new FormData();
+      body.append('key', key); body.append('level', pick.value);
+      if (token) body.append('__RequestVerificationToken', token.value);
+      pick.disabled = true;
+      fetch(url, { method: 'POST', body: body, headers: { 'X-Autosave': '1' }, credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (d) { pick.disabled = false; pick.title = d.said || ''; if (!d.ok) pick.value = was; else refresh(); })
+        .catch(function () { pick.disabled = false; pick.value = was; pick.title = 'Not saved: the site could not be reached. Try again.'; });
+    });
+    cell.appendChild(pick);
+  });
+}
+
 function renderHistory() {
   const el = document.getElementById('viewH');
   el.textContent = '';
@@ -448,7 +512,7 @@ const TABS = { S: 'session', C: 'contracts', P: 'planner', D: 'debts', H: 'histo
 const ON_SITE = /^\/hauling(\/|$)/.test(location.pathname);
 // Only the tab shown is drawn when data comes; the others are drawn when they are shown (dirty: the tabs with data they have not shown yet).
 const dirty = { S: true, C: true, P: true, D: true, H: true };
-let shownTab = 'S';
+let shownTab = 'P';   // the Trip Planner first (Frank, 29 Oct 2026)
 function tabOf(name) {
   name = (name || '').replace(/^#/, '');
   if (name === 'plan') name = 'planner';
@@ -469,7 +533,7 @@ function show(which) {
   layout();   // the tables of a tab that was hidden could not be measured
 }
 Object.keys(TABS).forEach(function (k) { document.getElementById('tab' + k).onclick = function () { show(k); }; });
-show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || 'S');
+show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || 'P');
 
 // Whose session the Session and Contracts tabs show: with one party, the whole session is theirs; with more than one (the ones in the game, then the ones
 // that hauled in this session and are not playing now), a player sees his own party by itself (its stops, contracts, session, leaderboard and runs: the
@@ -610,15 +674,15 @@ function renderTab(k) {
         + '; else the Mission Library\'s; else the Star Citizen Wiki\'s. Split evenly over the stops (~).'
       : '';
     if (changed('summary', v.summary || [])) summary(document.getElementById('summary'), v.summary || []);
-    if (changed('party', d.party)) table(document.getElementById('party'), d.party);
     if (changed('leaders', v.leaders)) { table(document.getElementById('leaders'), v.leaders); measure = true; }
-    if (changed('runs', [v.runs, v.runsLive])) {
+    if (changed('runs', [v.runs, v.runsLive, v.runKeys])) {
       table(document.getElementById('runs'), v.runs);
       measure = true;
       if (v.runsLive) {
         const runRows = document.querySelectorAll('#runs tbody tr');
         v.runsLive.forEach(function (live, i) { if (live && runRows[i] && runRows[i].cells[7]) addTicker(runRows[i].cells[7]); });
       }
+      lostPicks(document.getElementById('runs'), v.runKeys, d.runsLost);
     }
     if (measure) alignColumns();
   } else if (k === 'C') {

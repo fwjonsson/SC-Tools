@@ -302,7 +302,8 @@ var SystemMap = (function () {
     }
 
     // The line and the speed meter of a player, by his name: what he does (describe) and, while he is in quantum, his speed every frame (Mm/s, in c, against
-    // his drive's top speed) and how long is left. Made once and kept up to date from every draw(); a player the data does not have is not playing.
+    // his drive's top speed) and how long is left. Made once and kept up to date from every draw(); a player the data does not have is not playing. The
+    // meter stays when he is not in quantum, at 0 Mm/s (Frank, 29 Oct 2026): a card keeps its size instead of jumping when a jump starts or ends.
     function meter(name) {
       const wrap = document.createElement('div'); wrap.className = 'mapmeter';
       const what = document.createElement('div'); what.className = 'what'; wrap.appendChild(what);
@@ -320,9 +321,14 @@ var SystemMap = (function () {
     }
     function bind(m) {
       const pl = data ? (data.players || []).find(function (p) { return same(p.name, m.name); }) : null;
-      m.speed.style.display = pl && pl.state === 'jump' ? '' : 'none';
       m.what.textContent = pl ? describe(pl) : data ? 'Not playing now (no game with a tracker running).' : '';
-      if (!pl || pl.state !== 'jump') return;
+      if (!pl || pl.state !== 'jump') {   // standing still: the meter at 0, with his drive's top speed when the data has it
+        const top = pl && pl.motion && pl.motion.v > 0 ? pl.motion.v : 0;
+        m.num.textContent = '0';
+        m.unit.textContent = 'Mm/s · 0.00 c' + (top > 0 ? ' · top ' + (top / 1e6).toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' Mm/s' : '');
+        m.fill.style.width = '0%';
+        return;
+      }
       const mv = movers.find(function (x) { return x.pl === pl; });
       if (!mv) return;
       mv.what = m.what; mv.num = m.num; mv.unit = m.unit; mv.fill = m.fill;

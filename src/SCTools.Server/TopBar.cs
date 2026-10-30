@@ -76,9 +76,20 @@ public static class TopBar
         "<details class=\"party\" style=\"--tool:" + SiteTools.Party.Color + "\" ontoggle=\"partyPanel(this)\"><summary class=\"area" + (on ? " on" : "") + "\""
         + (on ? " aria-current=\"page\"" : "") + ">Party</summary><div class=\"panel\"><p class=\"muted\"><a href=\"/party\">Open the Party page</a></p></div></details>";
 
-    /// <summary>The panel of the Party button is fetched every time it opens (so it is what the logs say now), and an open panel closes on a click anywhere else.</summary>
+    /// <summary>
+    /// The panel of the Party button is fetched every time it opens (so it is what the logs say now), and an open panel closes on a click anywhere else. The
+    /// Active tick in it (the admin's, and the party leader's) goes to /party/active in the background (PartyToolController.Active); it goes back when the
+    /// site said no.
+    /// </summary>
     const string PartyScript = "<script>function partyPanel(d){if(!d.open)return;var p=d.lastElementChild;fetch('/party/panel',{credentials:'same-origin'})"
         + ".then(function(r){if(!r.ok)throw new Error(r.status);return r.text();}).then(function(t){p.innerHTML=t;})"
         + ".catch(function(){p.innerHTML='<p class=\"muted\">The party could not be fetched. <a href=\"/party\">Open the Party page</a></p>';});}"
-        + "document.addEventListener('click',function(e){document.querySelectorAll('details.party[open]').forEach(function(d){if(!d.contains(e.target))d.removeAttribute('open');});});</script>";
+        + "document.addEventListener('click',function(e){document.querySelectorAll('details.party[open]').forEach(function(d){if(!d.contains(e.target))d.removeAttribute('open');});});"
+        + "document.addEventListener('change',function(e){var i=e.target;if(!i.matches||!i.matches('.partypanel input[name=active]'))return;"
+        + "var b=new FormData();b.append('name',i.dataset.name);b.append('active',i.checked?'true':'false');"
+        + "var t=document.querySelector('input[name=__RequestVerificationToken]');if(t)b.append('__RequestVerificationToken',t.value);i.disabled=true;"
+        + "fetch('/party/active',{method:'POST',body:b,headers:{'X-Autosave':'1'},credentials:'same-origin'})"
+        + ".then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})"
+        + ".then(function(d){i.disabled=false;i.title=d.said||'';if(!d.ok)i.checked=!i.checked;else i.closest('tr').classList.toggle('inactive',!i.checked);})"
+        + ".catch(function(){i.disabled=false;i.checked=!i.checked;i.title='Not saved: the site could not be reached. Try again.';});});</script>";
 }

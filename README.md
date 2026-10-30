@@ -252,7 +252,11 @@ admin (done), then going live.
   A player's page (`/party/{name}`): playing or last seen, his party, the ship he flies and its drive (picked, or his last quantum jump), where the
   Hauling Planner has him, his tracker, and his fleet. Only for the admin until it is shown on the Tools page. It is not a card on the landing page and
   not in the row of tools (Frank, 29 Oct 2026; `SiteTools.Cards`): a **Party** button beside the viewer's name in the top bar (`TopBar.PartyButton`, on
-  the tools' own pages too) opens a panel under it with the same parties, the ships and the links to the players' pages, and "Everybody" to the Party
+  the tools' own pages too) opens a panel under it with the same parties, each a table like the Hauling Planner's old Party table (Frank, 29 Oct 2026:
+  Member, Ship, QT Drive, every member's row in his colour, `Edits.ColorOf`; the names link to the players' pages; for the admin, and for the leader of
+  a party for his members, an **Active** tick per member of the Hauling Planner's party, `/party/active`, sent in the background: off when somebody
+  stopped playing and the logs still count him, so the planner plans no trips for him, the same as In and Out on the admin's Party page, holding until
+  the logs change their mind), and "Everybody" to the Party
   page. The panel is fetched when it opens (`/party/panel`, a fragment: `_Panel.cshtml`), so a page costs nothing for it until somebody looks; without
   JavaScript the button is a link to the Party page. The button is marked in the tool's colour on the Party pages, like a tool in the row.
 - **The Map tool** (`/map`, `MapService`, `wwwroot/map.js`): Pyro, Stanton and Nyx from above (a tab per system over the map; it opens on the system
@@ -264,7 +268,8 @@ admin (done), then going live.
   The log says when a player picks a destination ("Projected Start Location is Ruin Station for route to destination rs_ext_pyro5_l2") and when
   he arrives, not when the jump starts: it is taken to start 10 seconds after the destination was picked (`MapService.JumpDelay`), and the page
   moves him along his route by his drive (`Crew.QtOf`: his fleet's active ship, crafted as it is; the same motion as `QtDrive.Seconds`), with a
-  speed meter (Mm/s, in c, against his drive's top speed). `MapService.Follow` walks his jumps: the start name sets his system and place
+  speed meter (Mm/s, in c, against his drive's top speed; it stays at 0 Mm/s while he is not in quantum, so his card keeps its size, on the Trip
+  Planner too; Frank, 29 Oct 2026). `MapService.Follow` walks his jumps: the start name sets his system and place
   (`StarMap.OfName`: "Pyro System" is the system alone; a name two systems have, like "Nyx Gateway", is the one he is in, and after a gateway the
   system it leads to), the destination is a place (`StarMap.OfQuantumTarget`: the Pyro stations, "pyro3" the third planet, "LOC_RR_S1_L2" HUR-L2,
   "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. Opening the
@@ -292,7 +297,8 @@ admin (done), then going live.
   ("Go to a debris field above Daymar": `MapService.NamedIn`), else only in the list, by what they say and the contract's system (a bounty's marker
   is at 0, 0, 0). Only for the admin until it is shown on the Tools page.
   **One map engine** (Frank, 29 Oct 2026): the map itself is `wwwroot/systemmap.js`, a file of the site both the Map tool's page and the Hauling
-  Planner's page load before their own script (with its version in the address, so a browser keeps it until it changes). `SystemMap.create(box)` draws a system (`show`: the places of map.json's
+  Planner's page load before their own script (with its version in the address, so a browser keeps it until it changes). The Trip Planner's map is the Map tool's size (820 px wide; Frank, 29 Oct 2026), smaller on a
+  narrower window so the workers' tables keep their columns. `SystemMap.create(box)` draws a system (`show`: the places of map.json's
   `systems`, drawn anew only when they change), the objectives and players of map.json on it (`draw`, with a filter by name), gives the caller a layer
   between the system and the objectives and the anchors of the places (`layer`, `at`) for his own drawing, and makes the line and the speed meter of a
   player by name (`meter`: what he does, `describe`; in quantum his speed every frame). The Hauling Planner's Trip Planner tab draws Pyro with it:
@@ -321,8 +327,18 @@ admin (done), then going live.
   ship's navigation; not "Local Route Guard - Server Rerouted", which the game writes for every ship that comes near him), the ship of his fleet that is that class's ship (`ShipModels.OfClass`), else the one whose
   name fits the class best; a class that is not in his fleet shows by the game's name ("Crusader C2 Hercules Starlifter"). The Hauling Planner flies the active ship: its name (when it is a hauler the planner knows: a name like "Crusader C2
   Hercules Starlifter" is the C2), its drive and how much faster the drive is (`AppData.DriveSpeedBonus`, `Crew.QtOf`) go to the planner every few
-  seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Party table of the live page shows every member's ship
-  and drive ("TS-2 S3 +20 %") instead of Active, which comes from the logs now (a member who is not active is faded).
+  seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Trip Planner is the first tab of the page (Frank, 29 Oct
+  2026: `/hauling` opens it), the Σ line of its Current Route table is like the Queued routes' total, and the Time of a run on the way counts up under
+  the map too. On the Session tab the admin picks the Lost Cargo of a run in the Cargo runs table (`/hauling/runs/lost`, sent in the background, the
+  same edit as his Session page's). The **Stops** board (`WebSnapshot.Stops`) reads the from-Ruin drop-offs the same way as the pickups (Frank, 29 Oct
+  2026): a pickup location is a row with its batches, its cargo, its value and Ruin as the **Drop-off Location**, and every station that drop-offs go
+  to is a row of its own with Ruin as the pickup, how many drop-offs, the cargo with its SCU in containers, their value and the station as the drop-off
+  (in gold); the most valuable row on top. The SCU and the boxes are two columns, **SCU** and **Boxes**, on the Stops, Finished stops and Current Route
+  tables (Frank, 29 Oct 2026), and the Queued routes have an SCU column beside Batches (everything the trip carries). On the Current Route the drop-off
+  of a planned trip has its SCU and boxes on the line of the stop it goes to, and the hauler of that trip (or the admin) types the SCU there
+  (`/hauling/trips/scu`, sent in the background): it is kept for that drop-off only (`AppData.TypedScu`, the same as the admin's SCU of the drop-offs on
+  his Session page), not in the Mission Library, the plan is worked out again with it, and the game's own number wins once it writes it. The Party button's panel in the top bar shows every member's
+  ship and drive ("TS-2 S3 +20 %"); the Hauling Planner's page has no Party table of its own since 29 Oct 2026 (Frank).
 - **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the Hauling Planner's page is at
   `/hauling`, every tab at an address of its own (`/hauling/session`, `/hauling/contracts`, `/hauling/planner`, `/hauling/debts`, `/hauling/history`; the program's own page
   keeps them after a #, and the old `#plan` links still work; the live page's tables keep to 1,900 px in the middle of an ultrawide screen, with the bar at the top

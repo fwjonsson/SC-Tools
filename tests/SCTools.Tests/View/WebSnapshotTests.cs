@@ -21,7 +21,7 @@ public class WebSnapshotTests
     public void Every_tab_is_in_it_and_every_row_has_a_cell_and_colours_for_every_column()
     {
         var d = Snapshot();
-        foreach (var key in new[] { "updated", "session", "theme", "summary", "rewards", "party", "pickups", "finished", "leaders", "runs", "planRuns", "runsLive", "planner", "debts", "history" })
+        foreach (var key in new[] { "updated", "session", "theme", "summary", "rewards", "pickups", "finished", "leaders", "runs", "planRuns", "runsLive", "planner", "debts", "history" })
             Assert.True(d.TryGetProperty(key, out _), key + " is missing");
 
         var tables = 0;
@@ -56,10 +56,13 @@ public class WebSnapshotTests
         Assert.EndsWith("(2 missions)", d.GetProperty("session").GetString());
 
         var stops = d.GetProperty("pickups");
-        Assert.Equal(new[] { "#", "Pickup Location", "Batches", "Cargo", "Value", "Drop-off" }, Headers(stops));   // no From Ruin and Notes (29 Oct 2026)
+        Assert.Equal(new[] { "#", "Pickup Location", "Batches", "SCU", "Boxes", "Value", "Drop-off Location" }, Headers(stops));   // no From Ruin and Notes; SCU and Boxes apart (29 Oct 2026)
         var patch = Rows(stops).Select(Cells).Single(c => c[1] == "Patch City");
         Assert.Equal("1/1", patch[2]);   // the open mission's batch still waiting (the completed mission is gone from the board)
-        Assert.Equal(CargoRuns.WaitingScuText(new LocationRow { Missions = 1, OpenMissions = { new Mission { Multi = 2 } } }), patch[3]);
+        Assert.Equal(PyroDistances.NameOf(PyroDistances.Ruin), patch[6]);   // a pickup goes to Ruin
+        var waiting = CargoRuns.WaitingScu(new LocationRow { Missions = 1, OpenMissions = { new Mission { Multi = 2 } } });
+        Assert.Equal((PlanText.ScuSum(waiting), PlanText.ScuGuess(waiting)), (patch[3], patch[4]));   // a guess: "~250" and its boxes
+        Assert.Equal(new[] { "#", "Pickup Location", "Delivered", "SCU", "Boxes", "Worker", "Value", "Handed In" }, Headers(d.GetProperty("finished")));
         Assert.All(Rows(stops).Select(Cells).Select((c, i) => (c, i)), x => Assert.Equal((x.i + 1).ToString(), x.c[0]));   // numbered
 
         Assert.Equal(new[] { "Contract", "Mission Reward", "Active", "Completed", "Total" }, Headers(d.GetProperty("rewards")));
@@ -78,13 +81,39 @@ public class WebSnapshotTests
     }
 
     [Fact]
+    public void A_from_Ruin_drop_off_is_a_stop_of_its_own_read_like_the_pickups()
+    {
+        // a waste contract with two drop-offs: Patch City (a pickup stop too) and Rod's Fuel (nothing to pick up there): a row of its own for each
+        // (Frank, 29 Oct 2026): Ruin as the pickup, the count, the cargo with its SCU, its value, the station as the drop-off, in gold
+        var w = GameLogWriter.MissionId(61);
+        var waste = string.Format(GameLogWriter.WasteContract, 2);
+        var (t, _) = PlayedSession.Load(more: x => x.Minutes(1).Accepted(w)
+            .Marker(w, waste, "dropoff_w_0", "900000006101", GameLogWriter.PatchCity)
+            .Marker(w, waste, "dropoff_w_1", "900000006102", GameLogWriter.RodsFuel));
+        var d = JsonDocument.Parse(WebSnapshot.Json(t, new WebSnapshotOptions())).RootElement;
+        var rows = Rows(d.GetProperty("pickups"));
+        var ruin = PyroDistances.NameOf(PyroDistances.Ruin);
+        var drops = rows.Where(r => Cells(r)[1] == ruin).ToList();
+        Assert.Equal(2, drops.Count);
+        Assert.Equal(new[] { "Patch City", "Rod's Fuel" }, drops.Select(r => Cells(r)[6]).OrderBy(x => x));
+        Assert.All(drops, r => Assert.Equal("1", Cells(r)[2]));
+        Assert.All(drops, r => Assert.StartsWith("Waste: ", Cells(r)[4]));   // the boxes; the SCU beside it is a number, or ? when nobody knows it
+        Assert.All(drops, r => Assert.True(Cells(r)[3] == "?" || int.TryParse(Cells(r)[3], out _)));
+        Assert.All(drops, r => Assert.Equal((Earnings.DefaultReward2 / 2).ToString("N0"), Cells(r)[5]));   // its part of the contract
+        Assert.All(drops, r => Assert.Equal(Hex(ViewPalette.Dark.Gold), r.GetProperty("back")[6].GetString()));
+        var patch = Cells(rows.Single(r => Cells(r)[1] == "Patch City"));   // the pickup stop there is its own row still, worth its pickups alone
+        Assert.Equal(ruin, patch[6]);
+        Assert.Equal(t.Earnings.StopValue(t.State.PickupRows.Single(r => r.Zone == PlayedSession.PatchZone)).ToString("N0"), patch[5]);
+    }
+
+    [Fact]
     public void Every_column_has_the_same_colour_and_an_empty_session_shows_nothing_rather_than_zeros()
     {
         var d = Snapshot();
         static string[] Backs(JsonElement row) => row.GetProperty("back").EnumerateArray().Select(c => c.GetString()!).ToArray();
         var stop = Backs(Rows(d.GetProperty("pickups"))[0]);
         Assert.Equal(stop[3], stop[1]);   // Pickup Location and Drop-off look like the rest (nothing is typed on the page; Batches is green when all is picked up)
-        Assert.Equal(stop[3], stop[5]);
+        Assert.Equal(stop[3], stop[6]);
         Assert.Equal(Hex(ViewPalette.Dark.Calc), stop[3]);
         Assert.Single(Backs(Rows(d.GetProperty("rewards"))[0]).Distinct());   // the Mission Reward too
 
@@ -156,14 +185,10 @@ public class WebSnapshotTests
     }
 
     [Fact]
-    public void The_party_rows_have_the_member_colour_and_the_planner_his_tables()
+    public void The_planner_has_the_workers_tables()
     {
         var d = Snapshot();
-        var member = Rows(d.GetProperty("party")).Single();
-        Assert.Equal("PILOT_A", Cells(member)[0]);
-        var colour = Hex(ViewPalette.MapPalette[0]);   // not zzoega or zzatvo: the first colour of the map palette
-        Assert.All(member.GetProperty("back").EnumerateArray(), c => Assert.Equal(colour, c.GetString()));
-
+        Assert.False(d.TryGetProperty("party", out _));   // no Party table since 29 Oct 2026: the Party button of the top bar shows it
         var worker = d.GetProperty("planner").GetProperty("workers").EnumerateArray().Single();
         Assert.Equal(PlayedSession.Player, worker.GetProperty("name").GetString());
         Assert.Equal("PILOT_A", worker.GetProperty("heading").GetString());

@@ -9,8 +9,8 @@
 .hauling .ok { color:#5fd35f; } .hauling .bad { color:#ff6b6b; }
 .hauling .top { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
 .hauling .top > .main { min-width:0; flex:1 1 560px; }   /* the tabs and the stops take the width ... */
-.hauling .top > .side { flex:0 0 560px; max-width:100%; }   /* ... the Party table beside the title, level with it, and the session under it */
-.hauling .side h2 { margin-top:18px; }
+.hauling .top > .side { flex:0 0 560px; max-width:100%; }   /* ... the session beside the title, level with it */
+.hauling .side h2 { margin-top:12px; }
 .hauling #viewC .scroll { max-width:960px; }   /* the Contracts tab: room for the contracts' names ("Senior | Stellar Large Haul | to Ruin Station [...]") */
 .hauling .scroll { overflow-x:auto; }
 .hauling .bal table { table-layout:fixed; }
@@ -22,16 +22,13 @@
 .hauling th { background:var(--header); color:#fff; font-weight:600; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hauling table.tight th { white-space:normal; }
 .hauling .kv td:first-child { font-weight:600; width:50%; }
-/* party, contracts (its own tab) and session: set widths (the contracts' first two columns and the session's two are halves) */
-.hauling #party table, .hauling #rewards table, .hauling #summary table { table-layout:fixed; }
+/* contracts (its own tab) and session: set widths (the contracts' first two columns and the session's two are halves) */
+.hauling #rewards table, .hauling #summary table { table-layout:fixed; }
 .hauling #rewards th:nth-child(1) { width:44%; } .hauling #rewards th:nth-child(2) { width:16%; }   /* Contract: the room; its name wraps when there is still not enough */
 .hauling #rewards td:nth-child(1) { white-space:normal; }
-/* the Party table: Member, Ship (the room: "Crusader C2 Hercules Starlifter"), QT Drive; a ship name that is still too long wraps instead of running into the drive */
-.hauling #party th:nth-child(1) { width:24%; } .hauling #party th:nth-child(2) { width:46%; } .hauling #party th:nth-child(3) { width:30%; }
-.hauling #party td:nth-child(2) { white-space:normal; }
 .hauling #rewards th:nth-child(3) { width:11%; } .hauling #rewards th:nth-child(4) { width:13%; } .hauling #rewards th:nth-child(5) { width:16%; }
 .hauling #runs td:nth-child(3) { white-space:normal; }   /* Pickup Location & Time of Cargo runs: a long run wraps instead of running over the next columns */
-.hauling #pickups td:nth-child(6) { white-space:normal; }   /* Drop-off of Stops: it wraps on a narrower window */
+.hauling #pickups td:nth-child(5) { white-space:normal; }   /* Boxes of Stops ("Waste: 4×32 + 24"): it wraps on a narrower window; Drop-off Location is a station name */
 .hauling .empty { opacity:.6; padding:6px 0; }
 .hauling #jobs td:nth-child(1), .hauling #jobs td:nth-child(3), .hauling #jobs td:nth-child(4) { white-space:normal; }   /* Other hauling: the mission and its stops wrap */
 .hauling .note { opacity:.75; font-size:12px; margin:4px 0 0; }
@@ -45,16 +42,18 @@
 .hauling .nav button.on, .hauling .sub button.on { background:var(--header); color:#fff; }
 .hauling .nav select { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 10px; font:inherit; font-weight:600; border-radius:4px; margin-left:auto; }   /* the admin: whose session */
 .hauling .hidden { display:none; }
+.hauling .lostpick { background:var(--cell); color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:2px 4px; font:inherit; }   /* the admin's Lost Cargo pick */
 .hauling .plantables { flex:1 1 520px; min-width:0; }
 .hauling .plantables h2:first-child { margin-top:0; }
 .hauling .plantables table { table-layout:fixed; }
-/* Current Route: #, Stops, Drop/Collect, Cargo (takes the rest), Value, Distance, In flight */
-.hauling .plancur th:nth-child(1) { width:36px; } .hauling .plancur th:nth-child(2) { width:120px; } .hauling .plancur th:nth-child(3) { width:200px; } .hauling .plancur th:nth-child(5) { width:80px; }
-.hauling .plancur th:nth-child(6) { width:80px; } .hauling .plancur th:nth-child(7) { width:70px; }
-.hauling .plancur td:nth-child(3), .hauling .plancur td:nth-child(4) { white-space:normal; }
-/* Queued routes: #, Route (takes the rest), Stops (how many), Batches, Value, Distance, In flight */
-.hauling .planque th:nth-child(1) { width:36px; } .hauling .planque th:nth-child(3) { width:64px; } .hauling .planque th:nth-child(4) { width:84px; } .hauling .planque th:nth-child(5) { width:80px; }
-.hauling .planque th:nth-child(6) { width:80px; } .hauling .planque th:nth-child(7) { width:70px; }
+/* Current Route: #, Stops, Drop/Collect, SCU, Boxes (takes the rest), Value, Distance, In flight */
+.hauling .plancur th:nth-child(1) { width:36px; } .hauling .plancur th:nth-child(2) { width:120px; } .hauling .plancur th:nth-child(3) { width:200px; } .hauling .plancur th:nth-child(4) { width:64px; }
+.hauling .plancur th:nth-child(6) { width:80px; } .hauling .plancur th:nth-child(7) { width:80px; } .hauling .plancur th:nth-child(8) { width:70px; }
+.hauling .plancur td:nth-child(3), .hauling .plancur td:nth-child(5) { white-space:normal; }
+.hauling .plancur .scuin { width:5em; }   /* the hauler's SCU to a stop */
+/* Queued routes: #, Route (takes the rest), Stops (how many), Batches, SCU, Value, Distance, In flight */
+.hauling .planque th:nth-child(1) { width:36px; } .hauling .planque th:nth-child(3) { width:64px; } .hauling .planque th:nth-child(4) { width:84px; } .hauling .planque th:nth-child(5) { width:64px; }
+.hauling .planque th:nth-child(6) { width:80px; } .hauling .planque th:nth-child(7) { width:80px; } .hauling .planque th:nth-child(8) { width:70px; }
 .hauling .planque td:nth-child(2) { white-space:normal; }
 /* every worker in his own frame: the Current Route, and the Queued routes under it */
 .hauling .planworker { background:var(--cell); border:1px solid var(--line); padding:4px 10px 10px; margin-bottom:12px; }
@@ -64,16 +63,20 @@
 .hauling .plancur table, .hauling .planque table { min-width:640px; }
 .hauling .planpair h3 { margin:6px 0 4px; }
 .hauling .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
-.hauling .planleft { flex:0 0 520px; max-width:100%; }
+/* the map is the Map tool's size (820 px, .mapbox in site.css; Frank, 29 Oct 2026), smaller on a narrower window so the workers' tables keep their columns */
+.hauling .planleft { flex:0 0 820px; max-width:100%; }
 .hauling .planleft h2 { margin-top:14px; }
-/* a tablet or a smaller window: a smaller map, so the tables of the workers keep all their columns in view */
+/* a smaller window: a smaller map, so the tables of the workers keep all their columns in view */
 @media (max-width:1600px) {
-  .hauling .planleft { flex:0 0 340px; }
+  .hauling .planleft { flex:0 0 520px; }
   .hauling .plancur table, .hauling .planque table { min-width:0; }
-  .hauling .plancur th:nth-child(2) { width:96px; } .hauling .plancur th:nth-child(3) { width:150px; } .hauling .plancur th:nth-child(5) { width:84px; }
-  .hauling .plancur th:nth-child(6), .hauling .planque th:nth-child(6) { width:72px; } .hauling .plancur th:nth-child(7), .hauling .planque th:nth-child(7) { width:62px; }
-  .hauling .planque th:nth-child(3) { width:52px; } .hauling .planque th:nth-child(4) { width:66px; } .hauling .planque th:nth-child(5) { width:84px; }
+  .hauling .plancur th:nth-child(2) { width:96px; } .hauling .plancur th:nth-child(3) { width:150px; } .hauling .plancur th:nth-child(4) { width:56px; } .hauling .plancur th:nth-child(6) { width:84px; }
+  .hauling .plancur th:nth-child(7), .hauling .planque th:nth-child(7) { width:72px; } .hauling .plancur th:nth-child(8), .hauling .planque th:nth-child(8) { width:62px; }
+  .hauling .planque th:nth-child(3) { width:52px; } .hauling .planque th:nth-child(4) { width:66px; } .hauling .planque th:nth-child(5) { width:56px; } .hauling .planque th:nth-child(6) { width:84px; }
   .hauling .plantables th, .hauling .plantables td { padding:4px 5px; }
+}
+@media (max-width:1200px) {
+  .hauling .planleft { flex:0 0 340px; }
 }
 /* a phone, or a tablet held upright: the map on top, the tables under it, full width */
 @media (max-width:900px) {
