@@ -328,12 +328,15 @@ function renderPlanner() {
   body.textContent = '';
   const choices = planChoices(p);
   const names = planNames(p, choices);
+  let pick = null;   // the choice (Everyone, a party, Only me): in the logged in player's own route card, top right (Frank, 30 Oct 2026); at the top when he has no card shown
   if (choices.length > 1) {
-    const pick = document.createElement('div'); pick.className = 'sub'; body.appendChild(pick);
+    pick = document.createElement('div'); pick.className = 'sub';
     tabButtons(pick, choices, planShown, function (key) { planShown = key; remember('plan', key); renderPlanner(); fitHeaders(); });
   }
   const shown = function (name) { return !names || among(names, name || ''); };
   const workers = p.workers.filter(function (w) { return shown(w.name); });
+  const ownCard = ME && workers.some(function (w) { return (w.name || '').toLowerCase() === ME; });
+  if (pick && !ownCard) body.appendChild(pick);
   // the map on the left with the short copy of Cargo Runs under it, the tables of everybody on the right (like in the program)
   const wrap = document.createElement('div'); wrap.className = 'planwrap';
   const left = document.createElement('div'); left.className = 'planleft';
@@ -349,6 +352,7 @@ function renderPlanner() {
   workers.forEach(function (w) {
     const frame = document.createElement('div'); frame.className = 'planworker'; tables.appendChild(frame);   // every worker in his own frame
     const h = document.createElement('h2'); frame.appendChild(h);
+    if (pick && ownCard && (w.name || '').toLowerCase() === ME) h.appendChild(pick);   // his own card: the choice at its top right
     const nm = document.createElement('span'); nm.textContent = w.heading || w.name || ''; if (w.color) nm.style.color = w.color; h.appendChild(nm);   // his name in capitals, in his colour
     h.appendChild(document.createTextNode(w.title));
     frame.appendChild(planMap.map.meter(w.name || ''));   // the map's line for him (where he is, what he does) and his speed meter while he is in quantum

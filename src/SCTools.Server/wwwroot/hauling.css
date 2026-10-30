@@ -55,7 +55,8 @@
 .hauling .planque td:nth-child(2) { white-space:normal; }
 /* every worker in his own frame: the Current Route, and the Queued routes under it */
 .hauling .planworker { background:var(--cell); border:1px solid var(--line); padding:4px 10px 10px; margin-bottom:12px; }
-.hauling .planworker h2 { margin-top:6px; }
+.hauling .planworker h2 { margin-top:6px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.hauling .planworker h2 .sub { margin:0 0 0 auto; }   /* the choice (Everyone, a party, Only me) at the top right of the logged in player's own card (30 Oct 2026) */
 .hauling .planpair { display:flex; flex-direction:column; gap:4px; }
 .hauling .plancur, .hauling .planque { min-width:0; }
 .hauling .plancur table, .hauling .planque table { min-width:640px; }
