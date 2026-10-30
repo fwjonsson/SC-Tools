@@ -29,7 +29,6 @@
     string When(DateTime? utc) => utc == null ? "" : utc.Value.ToLocalTime().ToString("d MMM yyyy", inv);
     string Arrow(string key) => f.Sort == key ? (f.Desc ? " \u25be" : " \u25b4") : "";
 }
-<h1>@(edit ? "Edit Mission Info" : "Mission Library")</h1>
 @if (edit)
 {
 <p class="muted">The Mission Library as you change it: every mission anybody took is here by itself, from the logs (the old ones too), one row per name

@@ -182,6 +182,10 @@ public class WebSnapshotTests
         Assert.Equal("None", Cells(rows[1])[10]);
         Assert.Equal(2, Rows(d.GetProperty("planRuns")).Length);
         Assert.Equal(2, d.GetProperty("runsLive").GetArrayLength());
+        // a run on the way says when it started (UTC), so the page counts its Time up by its own clock (30 Oct 2026); a run that ended says nothing
+        Assert.All(d.GetProperty("runsLive").EnumerateArray(), x => Assert.True(x.ValueKind == JsonValueKind.Null || DateTime.TryParse(x.GetString(), null, System.Globalization.DateTimeStyles.RoundtripKind, out _)));
+        var time = d.GetProperty("summary").EnumerateArray().Single(i => i.GetProperty("k").GetString() == "Session Time");
+        Assert.Equal(time.GetProperty("live").GetBoolean(), time.GetProperty("since").ValueKind == JsonValueKind.String);   // the same for the session clock
     }
 
     [Fact]

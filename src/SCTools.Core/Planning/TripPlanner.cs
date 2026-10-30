@@ -25,6 +25,7 @@ public static class TripPlanner
     // at all (that one would take it), it only costs his. The leftover waits for a later trip, where new missions can make it worth the landing.
     const double FillNowSeconds = 900;    // what the trip he is flying picks up (not leftovers), as a part of his ship: a full ship of pickups counts as a landing saved
     const double LeftoverSeconds = 1800;  // the trip he is flying takes the smaller part of a station that is landed at anyway: that costs as much as a trip of its own for it later (a landing and the hand-in), so the leftover waits
+    const double LoneBatchSeconds = StopSeconds;   // the trip he is flying lands at a station for its one and only batch: a landing more than it is worth now, so it waits for a later trip, where new missions can fill the station up (Frank, 30 Oct 2026: the biggest stops first, a lone batch last)
     const double WasteWaitSeconds = StopSeconds;   // picking up at a station with waste waiting for it, on a trip that cannot take the waste along: the waste then needs a landing of its own later (or waits for ever), so that pickup is left for a trip from Ruin that brings the waste
 
     /// <summary>The cheapest way from a start through these stations and back to Ruin (exact for up to 12 stations): the cost in Gm and the order (indexes into ids).</summary>
@@ -441,6 +442,7 @@ public static class TripPlanner
                     if (row[i] <= 0) continue;
                     if (row[i] * 2 < atStation[i]) now += LeftoverSeconds;   // the bigger part of that station is for another trip, which lands there anyway
                     else picked += row[i] * wt[i];
+                    if (atStation[i] == 1) now += LoneBatchSeconds;   // one batch there: the biggest stops first, this one later
                 }
                 now -= FillNowSeconds * Math.Min(1.0, picked / cap);
             }

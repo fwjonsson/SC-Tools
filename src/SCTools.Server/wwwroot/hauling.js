@@ -43,16 +43,14 @@ function table(el, g) {
   el.appendChild(t);
 }
 
-// Clocks that run (the session time and the run time of runs on the way) count up on the page every second between the updates: a cell keeps the time it
-// came with (data-tick, in seconds) and shows it plus what passed since the data was fetched.
-let fetchedAt = Date.now();
-function parseHms(s) { const m = /^(\d+):(\d\d):(\d\d)$/.exec(s || ''); return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : null; }
+// Clocks that run (the session time and the run time of runs on the way) count up on the page every second from when they started (data-since, UTC in
+// the data), by the browser's clock, like the Session tool's clock. The text that comes with the data is only the first value: it was made when the data
+// was made, which can be a while before the page fetched it, so counting on from it made the clocks lag and jump (Frank, 30 Oct 2026).
 function fmtHms(n) { const h = Math.floor(n / 3600), m = Math.floor(n % 3600 / 60), s = n % 60; return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0'); }
-function addTicker(td) { const b = parseHms(td.textContent); if (b !== null) td.dataset.tick = b; }
+function addTicker(td, since) { if (since) td.dataset.since = since; }
 setInterval(function () {
   if (document.hidden) return;
-  const dt = Math.floor((Date.now() - fetchedAt) / 1000);
-  document.querySelectorAll('[data-tick]').forEach(function (td) { td.textContent = fmtHms(+td.dataset.tick + dt); });
+  document.querySelectorAll('[data-since]').forEach(function (td) { const s = Math.floor((Date.now() - Date.parse(td.dataset.since)) / 1000); if (s >= 0) td.textContent = fmtHms(s); });
 }, 1000);
 
 // The first columns of Stops, Finished stops and Cargo runs are as wide as the same columns of the Session leaderboard, so they line up (like in the program).
@@ -128,7 +126,7 @@ function summary(el, items) {
     const tr = tb.insertRow();
     tr.insertCell().textContent = it.k;
     const td = tr.insertCell(); td.textContent = it.v; td.style.textAlign = 'right';
-    if (it.live) addTicker(td);
+    if (it.live) addTicker(td, it.since);
   });
   el.appendChild(t);
 }
@@ -369,9 +367,9 @@ function renderPlanner() {
   // of a run on the way counts up here too (Frank, 29 Oct 2026)
   const runs = last.planRuns || last.runs;
   const live = [];
-  const rows = runs ? runs.rows.filter(function (r, i) { const ok = !names || shown(r.cells[1]); if (ok) live.push(!!(last.runsLive || [])[i]); return ok; }) : [];
+  const rows = runs ? runs.rows.filter(function (r, i) { const ok = !names || shown(r.cells[1]); if (ok) live.push((last.runsLive || [])[i] || null); return ok; }) : [];
   const runsBox = section(left, 'h2', 'Cargo Runs', runs ? { headers: runs.headers, rows: rows } : runs);
-  runsBox.querySelectorAll('tbody tr').forEach(function (tr, i) { if (live[i] && tr.cells[5]) addTicker(tr.cells[5]); });
+  runsBox.querySelectorAll('tbody tr').forEach(function (tr, i) { if (live[i] && tr.cells[5]) addTicker(tr.cells[5], live[i]); });
 }
 
 // The small team status line under the map: it fades in only when the text really changed. It is drawn on its own, so a new line (every few seconds while
@@ -532,7 +530,7 @@ function show(which) {
   if (last && dirty[which]) renderTab(which);
   layout();   // the tables of a tab that was hidden could not be measured
 }
-Object.keys(TABS).forEach(function (k) { document.getElementById('tab' + k).onclick = function () { show(k); }; });
+Object.keys(TABS).forEach(function (k) { document.getElementById('tab' + k).onclick = function (e) { if (e && e.preventDefault) e.preventDefault(); show(k); }; });   // a link to the tab's address: shown here, no reload
 show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || 'P');
 
 // Whose session the Session and Contracts tabs show: with one party, the whole session is theirs; with more than one (the ones in the game, then the ones
@@ -680,7 +678,7 @@ function renderTab(k) {
       measure = true;
       if (v.runsLive) {
         const runRows = document.querySelectorAll('#runs tbody tr');
-        v.runsLive.forEach(function (live, i) { if (live && runRows[i] && runRows[i].cells[7]) addTicker(runRows[i].cells[7]); });
+        v.runsLive.forEach(function (live, i) { if (live && runRows[i] && runRows[i].cells[7]) addTicker(runRows[i].cells[7], live); });
       }
       lostPicks(document.getElementById('runs'), v.runKeys, d.runsLost);
     }
@@ -716,7 +714,6 @@ async function refresh() {
     const d = await res.json();
     etag = res.headers.get('ETag');
     last = d;
-    fetchedAt = Date.now();
     // d.theme (the program's palette) is not applied: the page has the site's colours (site.css) since it became a page of the site, 29 Oct 2026
     document.getElementById('updated').textContent = 'updated ' + d.updated;
     live.textContent = '● live'; live.className = 'live ok';

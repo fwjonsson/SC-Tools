@@ -37,20 +37,21 @@
 .hauling .scuin.saving { opacity:.6; } .hauling .scuin.saved { border-color:#5fd35f; } .hauling .scuin.unsaved { border-color:#ff6b6b; }
 .hauling .src { opacity:.7; font-size:12px; margin-left:6px; white-space:nowrap; }
 .hauling .note a { color:inherit; }
-.hauling .nav, .hauling .sub { display:flex; gap:8px; margin:8px 0 4px; flex-wrap:wrap; }
-.hauling .nav button, .hauling .sub button { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 16px; font:inherit; font-weight:600; cursor:pointer; border-radius:4px; }
-.hauling .nav button.on, .hauling .sub button.on { background:var(--header); color:#fff; }
-.hauling .nav select { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 10px; font:inherit; font-weight:600; border-radius:4px; margin-left:auto; }   /* the admin: whose session */
+/* the Trip Planner's choice (Everyone, a party, Only me): buttons under the tabs; the tabs themselves are the row under the bar (site.css .subnav, 30 Oct 2026) */
+.hauling .sub { display:flex; gap:8px; margin:8px 0 4px; flex-wrap:wrap; }
+.hauling .sub button { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 16px; font:inherit; font-weight:600; cursor:pointer; border-radius:4px; }
+.hauling .sub button.on { background:var(--header); color:#fff; }
 .hauling .hidden { display:none; }
 .hauling .lostpick { background:var(--cell); color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:2px 4px; font:inherit; }   /* the admin's Lost Cargo pick */
 .hauling .plantables { flex:1 1 520px; min-width:0; }
 .hauling .plantables h2:first-child { margin-top:0; }
 .hauling .plantables table { table-layout:fixed; }
 /* Current Route: #, Stops, Drop/Collect, SCU, Boxes (takes the rest), Value, Distance, In flight */
-.hauling .plancur th:nth-child(1) { width:36px; } .hauling .plancur th:nth-child(2) { width:120px; } .hauling .plancur th:nth-child(3) { width:200px; } .hauling .plancur th:nth-child(4) { width:64px; }
+.hauling .plancur th:nth-child(1) { width:36px; } .hauling .plancur th:nth-child(2) { width:120px; } .hauling .plancur th:nth-child(3) { width:200px; } .hauling .plancur th:nth-child(4) { width:84px; }
 .hauling .plancur th:nth-child(6) { width:80px; } .hauling .plancur th:nth-child(7) { width:80px; } .hauling .plancur th:nth-child(8) { width:70px; }
 .hauling .plancur td:nth-child(3), .hauling .plancur td:nth-child(5) { white-space:normal; }
-.hauling .plancur .scuin { width:5em; }   /* the hauler's SCU to a stop */
+.hauling .plancur td:nth-child(4):has(.scuin) { padding:2px 4px; }   /* the hauler's SCU to a stop: the field fills the cell (it ran over into Boxes; Frank, 30 Oct 2026) */
+.hauling .plancur .scuin { width:100%; min-width:4em; box-sizing:border-box; text-align:right; }
 /* Queued routes: #, Route (takes the rest), Stops (how many), Batches, SCU, Value, Distance, In flight */
 .hauling .planque th:nth-child(1) { width:36px; } .hauling .planque th:nth-child(3) { width:64px; } .hauling .planque th:nth-child(4) { width:84px; } .hauling .planque th:nth-child(5) { width:64px; }
 .hauling .planque th:nth-child(6) { width:80px; } .hauling .planque th:nth-child(7) { width:80px; } .hauling .planque th:nth-child(8) { width:70px; }

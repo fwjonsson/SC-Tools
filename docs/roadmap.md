@@ -135,7 +135,8 @@ Not wanted:
 - **Clean exit or crash**: a clean exit writes SystemQuit; a log that just stops is a crash. Disconnects show as "Hub disconnected".
 - **Shard**: "Join PU … shard[pub_euw1b_12881860_110]".
 - **Where**: armistice zones, monitored space, jurisdictions (UEE, People's Alliance, Rough & Ready…), ship channels ("You have joined channel 'RSI
-  Perseus : zzoega'": whose ship he is in), and the inventory of a place ("Location[Nyx_Levski]").
+  Perseus : zzoega'": whose ship he is in), and the area he is in ("Location[Nyx_Levski]", "Location[RR_P6_LEO]": the game's area tags that come with
+  the inventory lines, the space around a place; Frank, 30 Oct 2026, not inventories).
 - **Blueprints received**: "Received Blueprint: …".
 - **Shop purchases**: `<CEntityComponentShopUIProvider::SendShopBuyRequest> … shopName[…] client_price[…] itemName[…] quantity[…]` and the result
   (`RmShopFlowResponse … result[Success]`).

@@ -21,7 +21,9 @@ public class HaulingPageTests
         Assert.Contains("src=\"/systemmap.js?v=", page);   // the map engine, then the page's own script
         Assert.True(page.IndexOf("systemmap.js?v=", StringComparison.Ordinal) < page.IndexOf("src=\"/hauling.js?v=", StringComparison.Ordinal));
         Assert.Contains("<div class=\"hauling\" data-me=\"\">", page);   // a watcher: nobody
-        Assert.Contains("<button id=\"tabP\" class=\"on\">Trip Planner</button><button id=\"tabS\">Session</button>", page);   // the Trip Planner first (29 Oct 2026)
+        // the tabs: a row under the bar in the tool's colour, like the admin's pages (30 Oct 2026), every tab a link to its address; the Trip Planner first (29 Oct)
+        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#4682ff\"><a href=\"/hauling/planner\" id=\"tabP\" class=\"on\">Trip Planner</a><a href=\"/hauling/session\" id=\"tabS\">Session</a>", page);
+        Assert.DoesNotContain("<h1>", page);   // no title of its own: the bar says where you are
         Assert.Contains("<div id=\"viewP\">", page);
         Assert.Contains("<div id=\"viewS\" class=\"hidden\">", page);
         Assert.DoesNotContain("id=\"party\"", page);   // no Party table of its own: the Party button in the top bar shows it (29 Oct 2026)
