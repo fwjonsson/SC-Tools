@@ -307,7 +307,8 @@ admin (done), then going live.
   tool's clock: the text in the data was made when the data was made, which can be a while before the page fetched it, so counting on from it made
   the clocks lag and jump (Frank, 30 Oct 2026). On the Session tab the admin picks the Lost Cargo of a run in the Cargo runs table (`/hauling/runs/lost`, sent in the background, the
   same edit as his Session page's). The **Stops** board (`WebSnapshot.Stops`) reads the from-Ruin drop-offs the same way as the pickups (Frank, 29 Oct
-  2026): a pickup location is a row with its batches, its cargo, its value and Ruin as the **Drop-off Location**, and every station that drop-offs go
+  2026): a pickup location is a row with its batches, its cargo, its value and Ruin as the **Drop-off Location** (the station, for the stops of a contract
+  to another station: a row of their own, stage 1a, 30 Oct 2026), and every station that drop-offs go
   to is a row of its own with Ruin as the pickup, how many drop-offs, the cargo with its SCU in containers, their value and the station as the drop-off
   (in gold); the most valuable row on top. The SCU and the boxes are two columns, **SCU** and **Boxes**, on the Stops, Finished stops and Current Route
   tables (Frank, 29 Oct 2026), and the Queued routes have an SCU column beside Batches (everything the trip carries). On the Current Route the drop-off
@@ -435,6 +436,12 @@ admin (done), then going live.
 - **Hauling of every system** (`Tracking/HaulJobs`, `JobBook` in the core; `HaulJobsController`). Besides its own contracts, the Session tab has an
   **Other hauling** board: every mission with drop-offs (`dropoff_…` objectives) that a member of the party has going, taken in the last 12 hours
   of the logs and not ended (with a party picked, only theirs): *RSI Disc. Month: Ling Small Haul*, courier runs, the cargo of a salvage order.
+  - **To another station** (stage 1a of `docs/planner-any-hauling.md`, 30 Oct 2026): the Red Wind contracts from 2 to 4 stations to a station other
+    than Ruin (`_StationToStation_…_Multi<n>ToSingle`, *Master | Stellar Large Haul | to Stanton Gateway*; `Mission.ToStation`) are the planner's own
+    contracts, not jobs of this board: they are in the session, on the Stops board with their station in the Drop-off Location column (a row of their
+    own beside the to-Ruin stops of the same location, `LocationRow.ToRuin`, `DropZone`, `DropName` from the "Deliver 0/520 SCU of Waste to Stanton
+    Gateway" popup), in the Contracts tab (*2 To Station*) and in the Cargo runs (the hand-in at the station ends the run). The Route Planner does not
+    plan them yet: its note says "Not planned yet (the drop-off is not Ruin): …" until the planner without a hub (stage 1b).
   - **Stops:** one per objective group (`pickup_<guid>_0.._2` is one stop with three commodities), ✓ when every objective of it is completed.
   - **Names:** from the objectives' texts ("Deliver 0/4 SCU of Distilled Spirits to Port Tressler", "Collect … From Shallow Fields Station at
     Crusader's L4 Lagrange point" is CRU-L4, "… on microTech", the spaceports: NB Int. is New Babbage, Teasa Lorville, Riker Memorial Area18, August

@@ -31,6 +31,23 @@ public class HaulingLogTests
     }
 
     [Fact]
+    public void A_contract_to_another_station_is_a_hauling_mission_whose_drop_off_is_that_station()
+    {
+        // zzoega, 26 Oct 2026: "Master | Stellar Large Haul | to Stanton Gateway", the same shape as a to-Ruin contract (stage 1a of docs/planner-any-hauling.md)
+        var log = new GameLogWriter()
+            .Accepted(M1)
+            .Marker(M1, string.Format(GameLogWriter.StationContract, 4), "pickup_dddd_0", "900000000501", GameLogWriter.Gaslight)
+            .Marker(M1, string.Format(GameLogWriter.StationContract, 4), "dropoff_dddd_0", "900000000502", GameLogWriter.RodsFuel)
+            .Read();
+        var m = log.Missions[M1];
+        Assert.True(m.IsHauling);
+        Assert.True(m.ToStation);
+        Assert.False(m.ToRuin);
+        Assert.Equal(("Waste", 4), (m.Cargo, m.Multi));
+        Assert.Equal("900000000502", SessionBuilder.DropZoneOf(m));
+    }
+
+    [Fact]
     public void A_station_is_recognised_by_the_position_of_its_marker()
     {
         new GameLogWriter().Marker(M1, string.Format(GameLogWriter.HaulingContract, 2), "pickup_bbbb_0", "900000000202", GameLogWriter.PatchCity).Read();

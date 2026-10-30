@@ -6,8 +6,15 @@ namespace SCTools.GameLog;
 public sealed class Mission
 {
     public string Id = "";
-    public string? Cargo;                 // Potassium, Carbon... (only set for Station -> Ruin hauling contracts)
-    public int Multi;                     // number of pickup stops (2 or 3)
+    public string? Cargo;                 // Potassium, Carbon... (only set for the Red Wind contracts from 2 to 4 stations to one: to Ruin, or to another station)
+    public int Multi;                     // number of pickup stops (2 to 4)
+
+    /// <summary>
+    /// A Red Wind contract from 2 to 4 stations to a station other than Ruin ("Master | Stellar Large Haul | to Stanton Gateway", 26 Oct 2026): the same
+    /// shape as the to-Ruin ones, with the drop-off at the station its one drop-off objective says. Stage 1a of docs/planner-any-hauling.md: the sessions
+    /// and the boards know it; the planner plans it with the next stage.
+    /// </summary>
+    public bool ToStation;
     public DateTime? Accepted;
     public DateTime? FirstSeen;
     public DateTime? EndedAt;
@@ -55,7 +62,11 @@ public sealed class Mission
     /// <summary>The star system of the contract, when its name says ("..._DrawOutBoss_Nyx_Super": "nyx"), as StarMap names systems.</summary>
     public string? System;
 
+    /// <summary>A Red Wind contract from 2 to 4 stations to one (to Ruin, or ToStation).</summary>
     public bool IsHauling => Cargo != null;
+
+    /// <summary>A hauling contract whose drop-off is Ruin Station: what the planner plans today.</summary>
+    public bool ToRuin => IsHauling && !ToStation;
     public bool Completed => EndState == "COMPLETED";
     public bool Dead => EndState != null && EndState != "COMPLETED";
 }

@@ -252,7 +252,9 @@ public sealed partial class WebSnapshot
             {
                 var value = _t.Earnings.StopValue(r);
                 var waiting = CargoRuns.WaitingScu(r);   // a guess (mission SCU / its stops), nothing when everything there is picked up
-                lines.Add((value, new[] { "", _t.Places.LocationName(stop.Zone), BoardTexts.MissionsText(r), PlanText.ScuSum(waiting), waiting >= 1 ? PlanText.ScuGuess(waiting) : "", ValueText(value), ruin }, r.Loaded >= r.Missions, false));
+                // a row of a contract to another station says that station (stage 1a of docs/planner-any-hauling.md): the game's name for it, else the position's
+                var to = r.ToRuin ? ruin : r.DropName ?? (r.DropZone != null ? _t.Places.LocationName(r.DropZone) : "another station");
+                lines.Add((value, new[] { "", _t.Places.LocationName(stop.Zone), BoardTexts.MissionsText(r), PlanText.ScuSum(waiting), waiting >= 1 ? PlanText.ScuGuess(waiting) : "", ValueText(value), to }, r.Loaded >= r.Missions, false));
             }
             if (stop.Drops.Count > 0)
             {

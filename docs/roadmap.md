@@ -106,6 +106,9 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       the planet's); titles from Contract Accepted/Shared; "Deliver 0/4 SCU of Distilled Spirits" (two-word cargo) is read now.
     - **Stage 2** (#263): the Other hauling board on the Session tab; a hauler's SCU; suggestions in the library (grey); the game's SCU becomes the
       suggestion every minute. The tracker gets it all as a `JobBook` (lock-free). One planner, not two apps (#266): the SCU field is in the board.
+    - **Stage 1a of the design** (30 Oct; `docs/planner-any-hauling.md`): the Pyro station-to-station contracts (`_StationToStation_…`, "Master |
+      Stellar Large Haul | to Stanton Gateway") are the planner's own: in the sessions, on the Stops board with their station as the drop-off (a row
+      of their own), in the Contracts tab and the runs; the planner names them in its note until stage 1b (the planner without a hub) plans them.
     - **Wiki API** (#264; #265 for every mission of the library): the log's `contract [...]` and `contractDefinitionId[...]` are the API's
       `debug_name` and `uuid` (Frank confirmed with `701271ba-…` = `Iasi_HaulCargo_AtoB_Small_PartySupplies`), so a string mod's names do not matter.
       The contract ids are kept on the Missions rows (the old logs re-read once); the server asks `api.star-citizen.wiki/api/missions/{uuid}` about
