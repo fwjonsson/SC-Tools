@@ -78,7 +78,7 @@ public sealed partial class WebSnapshot
             leaders = SessionLeaders(),
             runs = runs.Full,
             planRuns = runs.Short,   // the short copy under the map of the Trip Planner (#, Worker, Value, Started, Completed, Time, In flight, aUEC/h)
-            runsLive = runs.Live,    // runs on the way: the page counts their Time up
+            runsLive = runs.Live,    // runs on the way: when each started (UTC), the page counts its Time up from that by its own clock (null: not running)
             runKeys = runs.Keys,     // the runs' keys, for the admin's Lost Cargo pick (RunsLost)
             runsLost = _o.RunsLost,
             planner = Planner(),
@@ -145,9 +145,13 @@ public sealed partial class WebSnapshot
     // ------------------------------------------------------------------ Session tab
 
     /// <summary>The Session table: start, session time (counting up while the clocks run), batches, missions, earned and per hour.</summary>
+    /// <summary>A time for the page's clocks ("2026-10-30T20:15:00.0000000Z"): UTC, so the browser's clock can count up from it.</summary>
+    static string Iso(DateTime utc) => DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToString("O", CultureInfo.InvariantCulture);
+
     object[] Summary()
     {
-        object Item(string k, string v, bool live = false) => new { k, v, live };
+        // a clock that runs says when it started (since, UTC): the page counts up from it by its own clock, like the Session tool (Frank, 30 Oct 2026)
+        object Item(string k, string v, string? since = null) => new { k, v, live = since != null, since };
         if (_s.Current == null || _s.Inputs == null || _s.Summary == null)
             return new[] { "Start Time", "Session Time", "Batches Delivered", "Active Missions", "Missions Completed", "Total aUEC Earned", "aUEC/Hour" }.Select(k => Item(k, "")).ToArray();
         var elapsed = _t.Figures.Elapsed();
@@ -155,7 +159,7 @@ public sealed partial class WebSnapshot
         return new[]
         {
             Item("Start Time", _s.Inputs.Start ?? FormatTime(_s.Summary.Start)),
-            Item("Session Time", elapsed.HasValue ? LongDuration(elapsed.Value) : "", elapsed.HasValue && !_s.Current.Stop.HasValue && _s.ClocksRunning),
+            Item("Session Time", elapsed.HasValue ? LongDuration(elapsed.Value) : "", elapsed.HasValue && !_s.Current.Stop.HasValue && _s.ClocksRunning ? Iso(DateTime.UtcNow - elapsed.Value) : null),
             Item("Batches Delivered", _t.Figures.BatchesText()),
             Item("Active Missions", _t.Figures.ActiveText()),
             Item("Missions Completed", _t.Figures.CompletedText()),
@@ -331,7 +335,7 @@ public sealed partial class WebSnapshot
     }
 
     /// <summary>Cargo Runs (latest activity on top), the short copy of it under the map of the Trip Planner, and which runs are on the way.</summary>
-    (ViewTable Full, ViewTable Short, bool[] Live, string[] Keys) RunsTables()
+    (ViewTable Full, ViewTable Short, string?[] Live, string[] Keys) RunsTables()
     {
         var full = new ViewTable(_p,
             new ViewColumn("#"), new ViewColumn("Worker"), new ViewColumn("Pickup Location & Time", "left"), new ViewColumn("Batches"), new ViewColumn("Value", "right"),
@@ -340,7 +344,7 @@ public sealed partial class WebSnapshot
         var brief = new ViewTable(_p,
             new ViewColumn("#"), new ViewColumn("Worker"), new ViewColumn("Value", "right"), new ViewColumn("Started"), new ViewColumn("Completed"), new ViewColumn("Time"),
             new ViewColumn("In flight"), new ViewColumn("aUEC/h", "right"));
-        var live = new List<bool>();
+        var live = new List<string?>();
         var keys = new List<string>();
         if (_s.Current == null || _s.Inputs == null || _s.Log == null) return (full, brief, live.ToArray(), keys.ToArray());
         var runs = _t.Runs;
@@ -357,7 +361,7 @@ public sealed partial class WebSnapshot
             var color = _p.RunColor(t.Manual ? "All" : level, t.End.HasValue);
             full.Add(number, t.Worker, runs.RunStepsText(t), runs.BatchesText(t), value, started, completed, duration, flight, perHour, level).RowColor(color);
             brief.Add(number, t.Worker, value, started, completed, duration, flight, perHour).RowColor(color);
-            live.Add(!t.End.HasValue && duration.Length > 0);
+            live.Add(!t.End.HasValue && duration.Length > 0 ? Iso(t.Start) : null);
             keys.Add(t.Key);
         }
         return (full, brief, live.ToArray(), keys.ToArray());
