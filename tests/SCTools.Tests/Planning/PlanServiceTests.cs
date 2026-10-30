@@ -50,24 +50,6 @@ public class PlanServiceTests
     }
 
     [Fact]
-    public void The_two_planners_keep_stops_of_their_own()
-    {
-        // the Route Planner (new) is tried out beside the Route Planner (30 Oct 2026): each plan is sticky by itself, so one planner's kept stops never bind the other
-        var (t, _) = PlayedSession.Load();
-        t.Plan.GetPlan();
-        Assert.NotEmpty(t.State.Inputs!.LockedTrips);
-        Assert.Empty(t.State.Inputs.FreeLockedTrips);
-        t.FreePlan.GetPlan();
-        Assert.NotEmpty(t.State.Inputs.FreeLockedTrips);
-        Assert.True(t.FreePlan.Free);
-        Assert.False(t.Plan.Free);
-        Assert.Equal(t.Plan.GetPlan().Workers.Single().Rows.Where(r => !r.Hidden).Select(r => r.Route), t.FreePlan.GetPlan().Workers.Single().Rows.Where(r => !r.Hidden).Select(r => r.Route));   // only to-Ruin contracts: the same routes
-        foreach (var plan in t.Plans) plan.ReleaseLock(PlayedSession.Player);
-        Assert.Empty(t.State.Inputs.LockedTrips);
-        Assert.Empty(t.State.Inputs.FreeLockedTrips);
-    }
-
-    [Fact]
     public void The_plan_is_worked_out_once_until_something_changes()
     {
         var (t, _) = PlayedSession.Load();

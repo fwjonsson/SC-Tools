@@ -87,7 +87,7 @@ public sealed class Whereabouts
     /// Where the logs say the worker is: at the station of his last pickup (a run in progress), or of the last load of a from-Ruin mission he delivered, whichever
     /// is later; else at Ruin Station (nothing yet, or his run is handed in).
     /// </summary>
-    /// <param name="anyPlace">The map's place for him may be in any system (the planner without a hub, stage 2); else only one of the Pyro stations counts (the old planner's table).</param>
+    /// <param name="anyPlace">The map's place for him may be in any system (the Route Planner, stage 2); else only one of the Pyro stations counts (the map's own reading).</param>
     /// <param name="fallback">Where he is when nothing says (stage 3: the planner without a hub starts him at the session's hub, the place most of its parcels go to); Ruin Station when null.</param>
     public string AutoLocationOf(string name, bool anyPlace = false, string? fallback = null)
     {

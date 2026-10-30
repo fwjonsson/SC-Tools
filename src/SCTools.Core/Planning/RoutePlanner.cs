@@ -7,9 +7,8 @@ namespace SCTools.Planning;
 /// last place it delivers at: for the contracts to Ruin that is Ruin, so those plans are what they always were. A location can be split over several trips
 /// and several workers (take what fits, fill the last seats with a small pickup that is close by). The plan aims for the crew to finish at about the same
 /// time (the longest worker total is the main number) while flying as little as possible in total.
-/// This is the planner without a hub. It is tried out beside the old one (TripPlanner, which plans every trip from Ruin and back) on the Route Planner (new)
-/// tab, with kept stops of its own, until Frank is happy with it; then it takes the Route Planner tab and the old one goes (docs/planner-any-hauling.md).
-/// Every rule the old one gets meanwhile is brought over here (the kept stops of a worker's trip, 30 Oct 2026).
+/// This is the planner without a hub, the Route Planner's one planner since the evening of 30 Oct 2026 (it was tried out beside the old TripPlanner, which
+/// planned every trip from Ruin and back, for a day; docs/planner-any-hauling.md).
 /// A place is a planner id (StarRoutes: a Pyro station's id, or a place key of the map), and every leg is StarRoutes' way between two places: within a system a
 /// jump, between systems the jumps to and from the gateways and the crossing (stage 2, interstellar legs), so the hauling jobs of the Other hauling board whose
 /// places the map knows are planned with the Pyro contracts.

@@ -85,7 +85,6 @@ public sealed partial class WebSnapshot
             runKeys = runs.Keys,     // the runs' keys, for the admin's Lost Cargo pick (RunsLost)
             runsLost = _o.RunsLost,
             planner = Planner(_t.Plan),
-            freePlanner = Planner(_t.FreePlan),   // the Route Planner (new) tab: the planner without a hub, tried out beside the old one (30 Oct 2026)
             debts = Debts(),
             debtsPay = _o.DebtsPay,
             history = History(),

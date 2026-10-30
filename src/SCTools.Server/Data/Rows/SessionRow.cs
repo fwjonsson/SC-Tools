@@ -35,7 +35,6 @@ public sealed class SessionRow
     public Dictionary<string, RowInputs> Rows { get; set; } = new();
     public Dictionary<string, string> PickupClaims { get; set; } = new();
     public Dictionary<string, List<LockedStop>> LockedTrips { get; set; } = new();
-    public Dictionary<string, List<LockedStop>> FreeLockedTrips { get; set; } = new();   // the kept stops of the planner without a hub (tried out beside the old one, 30 Oct 2026)
     public List<WorkerEra> PastWorkers { get; set; } = new();
     public Dictionary<string, decimal> Carried { get; set; } = new();
     public Dictionary<string, decimal> RunValues { get; set; } = new();

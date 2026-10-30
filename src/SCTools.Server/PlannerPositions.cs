@@ -34,7 +34,7 @@ public sealed class PlannerPositions
         lock (_live.Uploads.Sync)
         {
             _live.Tracker.State.Positions = now;
-            foreach (var plan in _live.Tracker.Plans) plan.Invalidate();   // the plan starts where the map has him
+            _live.Tracker.Plan.Invalidate();   // the plan starts where the map has him
         }
         return true;
     }

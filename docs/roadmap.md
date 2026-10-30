@@ -118,14 +118,13 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       worker is (or where his trip before it ended) and ends at the last place it delivers at, the contracts to another station are planned in the
       same trips as the to-Ruin ones (Frank's answer 1), a run ends where it is handed in, the map draws every route from its start to its end. The
       to-Ruin plans are unchanged scenario for scenario.
-    - **Two planners side by side** (Frank, 30 Oct): the new planner (`RoutePlanner`) is on a tab of its own, *Route Planner (new)*, with kept stops of
-      its own; the *Route Planner* tab keeps the old planner (`TripPlanner`) and stays the default until Frank has tested the new one and decides whether
-      it replaces the old one. Every rule the old planner gets meanwhile is brought over to the new one (so far: the kept stops of a worker's whole trip).
-      When the new one takes over: the Route Planner tab shows it, the old class, the second tab and `FreeLockedTrips` go.
-    - **Frank's rules of 30 Oct, evening** (the new planner only; the old one is frozen and the admin hides either tab on the Tools page): the first stop
+    - **Two planners side by side, then one** (Frank, 30 Oct): the new planner (`RoutePlanner`) was tried out for a day on a tab of its own beside the old
+      one (`TripPlanner`), with kept stops of its own and a switch for each tab on the Tools page; in the evening Frank made it the Route Planner and the
+      old planner, the second tab, the switches and `FreeLockedTrips` went.
+    - **Frank's rules of 30 Oct, evening**: the first stop
       of a trip is fixed, its batch count and the other kept stops are soft (a kept stop gives way for a landing saved or a fuller ship, a third of a
       landing as the penalty); a landing counts 20 minutes; the flying a tenth. Left: the SCU field on the Stops board (the Other hauling board stays),
-      several pickups to several drop-offs, removing the old planner when Frank says so.
+      several pickups to several drop-offs.
     - **Stage 2 of the design, interstellar legs** (30 Oct): `StarRoutes` gives the way between any two places of the map, through the gateways between
       systems with a 3.4 minute crossing; the planner without a hub plans the Other hauling board's jobs whose stops the map has places for (a parcel per
       pickup or per drop-off; Frank's Covalex mission from Stanton to Pyro) with the Pyro contracts, starts a worker where the map has him in any system,

@@ -10,7 +10,7 @@ public sealed class LocationRow
     public string? DropZone;        // the location id of the drop-off station when it is not Ruin
     public string? DropName;        // the drop-off's name as the game's popup says it ("Stanton Gateway"; "Orbituary, Gaslight" for a job with several), when it said one
     public string? PickupName;      // the pickup's name as the game's popup says it ("Shallow Fields Station at Crusader's L4 Lagrange point"), when it said one (stage 4: the jobs of other systems)
-    public bool Job;                // the stops here are a hauling job's of another kind (not a Red Wind contract's; stage 4): the Route Planner (new) plans them from the job, the old planner leaves them
+    public bool Job;                // the stops here are a hauling job's of another kind (not a Red Wind contract's; stage 4): the planner plans them from the job, not from this row
     public int Missions;        // missions with a stop here
     public int Stops2;          // of those, stops that belong to 2 stop missions
     public int Stops3;          // of those, stops that belong to 3 stop missions

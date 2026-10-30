@@ -7,7 +7,7 @@ namespace SCTools.Tests.Tracking;
 /// <summary>
 /// A party hauling in Stanton alone (stages 3 and 4 of docs/planner-any-hauling.md): its hauling job starts the session, is on the Stops board with its places
 /// and on the Contracts table by its name, the planner without a hub plans it from the session's hub (the place its parcel goes to) when nobody knows where the
-/// worker is, its pickup and delivery are a run, and it pays what the Mission Library says. The old planner has nothing to plan and keeps everybody at Ruin.
+/// worker is, its pickup and delivery are a run, and it pays what the Mission Library says.
 /// </summary>
 public class StantonSessionTests
 {
@@ -49,17 +49,12 @@ public class StantonSessionTests
         Assert.True(going);
         Assert.Single(HaulJobs.Open(t.State));
 
-        var old = t.Plan.GetPlan();
-        Assert.Equal(0, t.Plan.Core!.Batches);
-        Assert.Equal(PyroDistances.Ruin, old.Workers.Single().LocationId);   // the old planner: Ruin, as always
-        Assert.Contains("Not planned here (the drop-off is not Ruin; the Route Planner (new) plans them): Shallow Fields Station at Crusader's L4 Lagrange point ×1 to Port Tressler.", old.Note);
-
-        var plan = t.FreePlan.GetPlan();
-        Assert.Equal(1, t.FreePlan.Core!.Batches);   // once: from the job, not from its row on the Stops board too
+        var plan = t.Plan.GetPlan();
+        Assert.Equal(1, t.Plan.Core!.Batches);   // once: from the job, not from its row on the Stops board too
         var w = plan.Workers.Single();
         Assert.Equal(Drop, w.LocationId);   // nobody knows where he is: the session's hub, where its parcel goes
         Assert.False(w.LocationByHand);
-        var trip = Assert.Single(t.FreePlan.Core.Trips);
+        var trip = Assert.Single(t.Plan.Core.Trips);
         Assert.Equal(new[] { Drop, Pickup, Drop }, trip.Places());   // from the hub to the pickup and back to the drop-off
         Assert.Equal(StarRoutes.PathGm(trip.Places()), trip.Distance, 3);
         var row = w.Rows.Single(r => !r.Hidden);
@@ -91,18 +86,17 @@ public class StantonSessionTests
     [Fact]
     public void A_run_on_the_way_in_Stanton_starts_at_the_hub_and_goes_to_the_jobs_drop_off()
     {
-        // stage 4b: picked up at CRU-L4, not delivered: the run goes to Port Tressler, and on the Route Planner (new) it starts at the hub, not at Ruin
+        // stage 4b: picked up at CRU-L4, not delivered: the run goes to Port Tressler, and it starts at the hub, not at Ruin
         var t = Load(Writer().Minutes(10).Unstow().Seconds(5).Objective(Job, "pickup_sa_0", "COMPLETED"));
         Assert.Equal(new[] { Drop }, t.Runs.LoadedDestinationsOf(PlayedSession.Player));
-        var w = t.FreePlan.GetPlan().Workers.Single();
+        var w = t.Plan.GetPlan().Workers.Single();
         var current = w.Rows.First(r => !r.Hidden);
         Assert.Equal("active", current.Level);
         Assert.Equal(new[] { Drop, Pickup, Drop }, current.Lines.Select(l => l.Id));   // the hub, the pickup (done), the drop-off
         Assert.Equal("Port Tressler  \u2192  CRU-L4 Shallow Fields Station  \u2192  Port Tressler", current.Route);
         Assert.Contains("Collected", current.Lines[1].ActionText);
         Assert.Contains("Deliver", current.Lines[2].ActionText);
-        Assert.Equal(0, t.FreePlan.Core!.Batches);   // nothing left to plan
-        Assert.Equal(PyroDistances.Ruin, t.Plan.GetPlan().Workers.Single().Rows.First(r => !r.Hidden).Lines[0].Id);   // the old planner's run still starts at Ruin
+        Assert.Equal(0, t.Plan.Core!.Batches);   // nothing left to plan
     }
 
     [Fact]
@@ -120,7 +114,7 @@ public class StantonSessionTests
         Assert.Empty(t.State.OpenRows);   // the mission is completed: off the Stops and Finished stops boards, like a completed contract (the Cargo runs keep it)
         var done = Assert.Single(t.State.Rows);
         Assert.Equal((1, 1, true), (done.Delivered, done.Missions, done.DeliveredTime.HasValue));
-        Assert.Equal(0, t.FreePlan.GetPlan().Workers.Single().Rows.Count(x => x.Level == "plan"));   // nothing left to plan
+        Assert.Equal(0, t.Plan.GetPlan().Workers.Single().Rows.Count(x => x.Level == "plan"));   // nothing left to plan
         var d = JsonDocument.Parse(WebSnapshot.Json(t, new WebSnapshotOptions())).RootElement;
         var runs = Assert.Single(d.GetProperty("runs").GetProperty("rows").EnumerateArray()).GetProperty("cells").EnumerateArray().Select(c => c.GetString()!).ToArray();
         Assert.Equal(PlayedSession.Player, runs[1]);   // the Cargo runs board has the run

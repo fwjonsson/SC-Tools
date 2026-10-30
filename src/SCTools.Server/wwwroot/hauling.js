@@ -180,7 +180,7 @@ function moveWaves(now) {
 requestAnimationFrame(moveWaves);
 
 let mapData = null, mapOff = false;   // the Map tool's Pyro (its players and objectives) fetched last; off: this page has no map.json (the program's own)
-const planMaps = {};   // the map on each planner tab (P: the Route Planner, N: the Route Planner (new)): its engine, how to draw the routes again, whose players it shows, its waves
+const planMaps = {};   // the map of the planner tab (P: the Route Planner): its engine, how to draw the routes again, whose players it shows, its waves
 function systemIn(d, id) { return d && (d.systems || []).find(function (s) { return s.id === id; }); }   // a system of the map's data (map.json has every system since stage 2)
 
 function darker(hex, f) {
@@ -347,14 +347,14 @@ function renderActive() {
 }
 
 async function refreshMap() {
-  if (document.hidden || mapOff || (shownTab !== 'P' && shownTab !== 'N' && shownTab !== 'S')) return;   // the Session tab wants the map's Active Contracts (30 Oct 2026)
+  if (document.hidden || mapOff || (shownTab !== 'P' && shownTab !== 'S')) return;   // the Session tab wants the map's Active Contracts (30 Oct 2026)
   try {
     const res = await fetch('/hauling/map.json', { cache: 'no-store' });
     if (res.status === 404) { mapOff = true; return; }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     mapData = await res.json();
     if (shownTab === 'S') renderActive();
-    const pm = planMaps[shownTab], pd = last && last[plannerKey(shownTab)];
+    const pm = planMaps[shownTab], pd = last && last.planner;
     if (pm && pd) {
       if (pm.map.show(pm.sysData(pm.system))) pm.drawRoutes();   // the places changed (the admin's Map places): drawn anew
       pm.map.draw(mapData, pm.keep);
@@ -398,12 +398,11 @@ function keepScroll(part, build) {
   }
 }
 
-// The two planner tabs (30 Oct 2026): P is the Route Planner (the old planner, data.planner), N the Route Planner (new) with the planner without a hub
-// (data.freePlanner, docs/planner-any-hauling.md), tried out beside it until it takes over. Both are drawn the same way, each with a map of its own.
-function plannerKey(tab) { return tab === 'N' ? 'freePlanner' : 'planner'; }
+// The Route Planner tab (P, data.planner): the planner without a hub (docs/planner-any-hauling.md), the one planner since the evening of 30 Oct 2026 (for a day
+// a second tab, N, showed it beside the old planner; the drawing is still by tab, so a second one could come back).
 function renderPlanner(tab) { keepScroll(document.getElementById('planBody' + tab), function () { buildPlanner(tab); }); }
 function buildPlanner(tab) {
-  const p = last[plannerKey(tab)];
+  const p = last.planner;
   document.getElementById('planNote' + tab).textContent = '';   // no line above the map (like in the program): the tables get the room
   const body = document.getElementById('planBody' + tab);
   body.textContent = '';
@@ -473,7 +472,7 @@ function buildPlanner(tab) {
 // The small team status line under the map: it fades in only when the text really changed. It is drawn on its own, so a new line (every few seconds while
 // somebody plays) does not draw the map and the tables anew.
 function renderStatus(tab, mapBox) {
-  const p = last[plannerKey(tab)];
+  const p = last.planner;
   mapBox = mapBox || document.querySelector('#planBody' + tab + ' .mapbox');
   if (!mapBox) return;
   let st = mapBox.querySelector('.status');
@@ -636,23 +635,23 @@ function buildHistory() {
 // Every tab has its own address: /hauling/session, /hauling/planner, /hauling/debts, /hauling/history, /hauling/leaderboard on the site; the program's
 // own page (at /) keeps them after a # (#planner). The old #plan links still open the Trip Planner, and /hauling/contracts the Session tab, where the
 // contracts are since 30 Oct 2026 (Frank; the Leaderboard tab is new that day: the Session leaderboard and the All-time leaderboard).
-const TABS = { S: 'session', P: 'planner', N: 'planner-new', D: 'debts', H: 'history', L: 'leaderboard' };
+const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history', L: 'leaderboard' };
 const ON_SITE = /^\/hauling(\/|$)/.test(location.pathname);
 // Only the tab shown is drawn when data comes; the others are drawn when they are shown (dirty: the tabs with data they have not shown yet).
-const dirty = { S: true, P: true, N: true, D: true, H: true, L: true };
-// the tabs on this page: the admin shows or hides the two Route Planners on the Tools page (30 Oct 2026), so one of them may not be here
-const HAVE = Object.keys(TABS).filter(function (k) { return !!document.getElementById('tab' + k); });
-const FIRST = HAVE.indexOf('P') >= 0 ? 'P' : HAVE.indexOf('N') >= 0 ? 'N' : HAVE[0];   // the Route Planner first (Frank, 29 Oct 2026), the new one when the old is hidden
+const dirty = { S: true, P: true, D: true, H: true, L: true };
+const HAVE = Object.keys(TABS).filter(function (k) { return !!document.getElementById('tab' + k); });   // the tabs on this page
+const FIRST = HAVE.indexOf('P') >= 0 ? 'P' : HAVE[0];   // the Route Planner first (Frank, 29 Oct 2026)
 let shownTab = FIRST;
 function tabOf(name) {
   name = (name || '').replace(/^#/, '');
   if (name === 'plan') name = 'planner';
   if (name === 'contracts') name = 'session';   // the contracts are on the Session tab since 30 Oct 2026
+  if (name === 'planner-new') name = 'planner';   // the Route Planner (new) of 30 Oct 2026 is the Route Planner now
   return HAVE.find(function (k) { return TABS[k] === name; });
 }
 function show(which) {
   shownTab = which;
-  if (which === 'P' || which === 'N' || which === 'S') refreshMap();   // the map's players (and the Session tab's Active Contracts) at once, not at the next poll
+  if (which === 'P' || which === 'S') refreshMap();   // the map's players (and the Session tab's Active Contracts) at once, not at the next poll
   HAVE.forEach(function (k) {
     document.getElementById('view' + k).classList.toggle('hidden', k !== which);
     document.getElementById('tab' + k).classList.toggle('on', k === which);
@@ -800,12 +799,11 @@ function renderTab(k) {
     // the Leaderboard tab (Frank, 30 Oct 2026): the Session leaderboard of the party shown, and the All-time leaderboard of every saved session
     if (changed('leaders', v.leaders)) { table(document.getElementById('leaders'), v.leaders); alignColumns(); }
     if (d.history && changed('allTime', d.history.allTime)) table(document.getElementById('allTime'), d.history.allTime);
-  } else if (k === 'P' || k === 'N') {
-    const pd = d[plannerKey(k)];
-    if (!pd) return;
-    const rest = Object.assign({}, pd);
+  } else if (k === 'P') {
+    if (!d.planner) return;
+    const rest = Object.assign({}, d.planner);
     delete rest.status; delete rest.statusKey;   // the status line is drawn on its own
-    if (changed(plannerKey(k), [rest, d.planRuns || d.runs, d.parties, planShown])) renderPlanner(k);
+    if (changed('planner', [rest, d.planRuns || d.runs, d.parties, planShown])) renderPlanner(k);
     else renderStatus(k);
   } else if (k === 'D') {
     if (d.debts && changed('debts', d.debts)) renderDebts();
