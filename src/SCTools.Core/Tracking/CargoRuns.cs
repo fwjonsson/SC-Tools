@@ -228,6 +228,15 @@ public sealed class CargoRuns
         return any ? (loaded, from, latest ?? DateTime.MinValue) : null;
     }
 
+    /// <summary>The waste he has taken out at Ruin and not brought anywhere yet (recently): his run in progress with nothing else in it, or null.</summary>
+    public WorkerTrip? WasteTakenOut(string name)
+    {
+        var run = _s.Trips.Where(x => SameName(x.Worker, name) && !x.End.HasValue && x.Pickups.Count == 0 && x.Drops.Count == 0 && x.Collects.Count > 0)
+            .OrderBy(x => x.Start).LastOrDefault();
+        if (run == null || _s.Log == null || _s.Log.LastTime - run.Collects.Max(x => x.Time) > StaleLeg) return null;
+        return run;
+    }
+
     /// <summary>True when the worker has a run that has pickups but is not handed in yet.</summary>
     public bool HasActiveRun(string name) => ActiveRunOf(name) != null;
 

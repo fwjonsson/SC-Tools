@@ -89,11 +89,13 @@ public sealed class Whereabouts
     /// </summary>
     public string AutoLocationOf(string name)
     {
-        // the map's place for him when it is newer than anything the planner saw him do (a crew member's jump through the pilot's log, a destination or an
-        // area named on Map places, a mission's objective: TrackerState.Positions)
-        if (MapPosition(name) is { AtStation: { } at, Since: { } since } && since > LastMoveOf(name)) return at;
         var run = _runs.ActiveRunOf(name);
         var drop = _drops.DropStartOf(name);
+        // the map's place for him when it is newer than anything the planner saw him do (a crew member's jump through the pilot's log, a destination or an
+        // area named on Map places, a mission's objective: TrackerState.Positions), but not in the middle of a run: his trip is planned from the station of his
+        // last pickup, and the waste he has taken out at Ruin is planned from Ruin (Frank, 30 Oct 2026: with the map saying Patch City while he flew the
+        // waste there, the Ruin "Collect Waste" row and the "Deliver Waste" of the Patch City row vanished until he had delivered)
+        if (run == null && _runs.WasteTakenOut(name) == null && MapPosition(name) is { AtStation: { } at, Since: { } since } && since > LastMoveOf(name)) return at;
         if (run?.From != null && (drop == null || run.Value.Last >= drop.Value.Time)) return run.Value.From!;
         return drop?.Station ?? PyroDistances.Ruin;
     }
