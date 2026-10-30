@@ -15,7 +15,6 @@ public sealed class AdminSessionModel
     /// <summary>The logs start and stop the sessions (AutoSessions): no Start / Stop Session button.</summary>
     public bool Auto { get; set; }
 
-    public bool Locked { get; set; }
     public string StartTime { get; set; } = "";
     public List<RunInput> Runs { get; set; } = new();
     public List<ScuInput> Scu { get; set; } = new();
@@ -30,7 +29,6 @@ public sealed class AdminSessionModel
             HasSession = s.Current != null && inp != null,
             Session = s.Current == null ? "No session yet: it starts by itself when somebody in the party accepts a hauling contract." : BoardTexts.DescribeSession(s.Current),
             OpenSince = open?.StartUtc.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture),
-            Locked = inp?.NextStopsLocked == true,
             StartTime = inp?.Start ?? "",
         };
         if (inp == null) return m;

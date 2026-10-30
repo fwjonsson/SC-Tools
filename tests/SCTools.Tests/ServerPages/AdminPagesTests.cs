@@ -38,7 +38,7 @@ public class AdminPagesTests
         Assert.DoesNotContain("Mission rewards", page);   // the rewards are the Mission Library's, not on this page
         Assert.Contains("Register lost cargo", page);
         Assert.Contains("Patch City", page);
-        Assert.Contains("Next Stops: Unlocked", page);
+        Assert.DoesNotContain("Next Stops", page);   // no lock button since 30 Oct 2026: the planner keeps everybody's Current Route by itself
         Assert.Contains("Stop Session", page);   // the played session was started by hand and runs
 
         // the rewards are in the Mission Library, by the contract's own name (the game's), typed on Edit Mission Info: the planner pays it for every such contract
@@ -58,10 +58,8 @@ public class AdminPagesTests
         Assert.Contains("lost cargo Little", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/run", ("key", done), ("level", "Little")), "/admin"));
         Assert.Equal("Little", Read(f, t => t.Runs.LostLevel(done)));
 
-        Assert.Contains("The next stops are locked", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/locks"), "/admin"));
-        Assert.True(Read(f, t => t.State.Inputs!.NextStopsLocked));
-        Assert.Contains("unlocked", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/locks"), "/admin"));
-        Assert.False(Read(f, t => t.State.Inputs!.NextStopsLocked));
+        Assert.DoesNotContain("Next Stops", await admin.GetStringAsync("/admin"));   // no lock button since 30 Oct 2026: the planner keeps everybody's stops by itself
+        Assert.Equal(HttpStatusCode.NotFound, (await ServerFactory.Send(admin, "/admin", "/admin/locks")).StatusCode);
 
         Assert.Contains("Session stopped.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/session"), "/admin"));
         Assert.Null(Read(f, t => t.State.Data.ManualSessions.LastOrDefault(s => !s.StopUtc.HasValue)));

@@ -31,9 +31,6 @@ public sealed class AdminSessionController : AdminControllerBase
     public IActionResult ToggleSession() =>
         Live.FollowSessions ? Say("The sessions start and stop by themselves.", Back) : Change(t => Edits.ToggleSession(t, DateTime.UtcNow), Back);
 
-    [HttpPost("locks")]
-    public IActionResult ToggleLocks() => Change(Edits.ToggleLocks, Back);
-
     [HttpPost("start-time")]
     public IActionResult StartTime(string? startTime) => Change(t => Edits.SetStartTime(t, startTime), Back);
 
