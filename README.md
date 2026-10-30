@@ -413,9 +413,9 @@ admin (done), then going live.
   lifetime earned; "Earnings ranking" on History until 30 Oct 2026) and the times by scenario. **History** has the earlier grind sessions (on Session
   until then). A
   mission shared in the party is in every member's log, and each member's run earned him his part of it (the contracts tracker, Frank 30 Oct 2026: the
-  aUEC split evenly among who completed it, the MG scrip only to the one who accepted it; before, it counted in full for each), on every tab and on the
-  leaderboard, so a party's or one player's combined accounts' earnings count it once; only the one who accepted it has its start, so it is timed
-  once. What a scenario pays (the Stats tab's per hour) stays its whole reward. The old address `/gauntlet/ranking` goes to Stats. The **Leaderboard** ("All-time leaderboard") is everybody's: total earned, aUEC,
+  aUEC split evenly among who completed it, the MG scrip only to the one who accepted it first; before, it counted in full for each), on every tab and
+  on the leaderboard, so a party's or one player's combined accounts' earnings count it once. It is timed from each member's own accept (the one who
+  gets a share has an accept line too, seconds later: Frank's logs of 29-30 Oct 2026), so a shared run is timed once per member. What a scenario pays (the Stats tab's per hour) stays its whole reward. The old address `/gauntlet/ranking` goes to Stats. The **Leaderboard** ("All-time leaderboard") is everybody's: total earned, aUEC,
   MG scrip, total aUEC per hour over the timed runs, completed and completion rate, fastest run, favourite and best scenario, last played. The rewards
   are the same for everybody: the Mission Library's "Combat Gauntlet - Scenario #n", typed on Edit Mission Info (the admin's Gauntlet page and his
   Contracts page went on 29 Oct 2026).
@@ -428,7 +428,11 @@ admin (done), then going live.
   admin's payout override on the Debts tab wins) and the Hauling Planner's payout of it (`AppData.Payouts`, kept with the sessions). The split
   (`ContractSplit`): the aUEC evenly among the players who have the contract when it pays out (the one who took it and everybody who accepted the share
   and still had it; being in the party without it gets nothing), the MG and Council scrip only to the one who took it, and a contract the planner paid
-  out keeps the planner's payout (so a past session's debts never change). A player's combined accounts are added up where a tool shows his totals
+  out keeps the planner's payout (so a past session's debts never change). **Who took it** is who accepted it first: the game never marks a share in
+  the log of the one who gets it (its "Contract Shared" line has no mission id, all zeros, and the contract's template for a name; a few seconds later
+  his log says "Contract Accepted" with the real mission, as if he took it; Frank's logs of 29-30 Oct 2026), so the first accept is the taker's and a
+  later one a share. The game also says "Contract Accepted" again for every contract when he logs in, so the Mission Library keeps the earliest
+  accept a log shows. A player's combined accounts are added up where a tool shows his totals
   (the Companion, the Gauntlet leaderboard). It is asked by the Session tool and the Companion (`ContractTracker.Earned`), the Gauntlet Tracker (each
   run's part, `GauntletRun.Paid`) and the Hauling Planner's payouts (`Payouts.ComputePayouts` picks who is paid with `ContractSplit.PlannerPayees`).
   Worked out again on every question, so a reward typed in later counts for the past. The tests `tests/SCTools.Tests/ContractTracking` show what every

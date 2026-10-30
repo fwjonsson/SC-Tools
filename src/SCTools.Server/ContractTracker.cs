@@ -106,8 +106,8 @@ public sealed class ContractTracker
         new() { MissionId = p.MissionId, Time = p.Time, Contract = p.Contract, Payout = p.Payout, Members = p.Members.ToList(), Each = p.Each };
 
     /// <summary>
-    /// One contract from everybody's rows of its mission: a player with a row in the Mission Library and a run in the Gauntlet Tracker is one holder (he
-    /// took it when either says so).
+    /// One contract from everybody's rows of its mission: a player with a row in the Mission Library and a run in the Gauntlet Tracker is one holder; the
+    /// one who took it is the one who accepted it first.
     /// </summary>
     static TrackedContract Contract(string id, List<MissionRow> missions, List<GauntletRunRow> runs, PayoutRecord? planner, Dictionary<string, decimal> overrides,
         Dictionary<string, ContractReward> rewards)
@@ -135,6 +135,20 @@ public sealed class ContractTracker
                 nameof(GauntletOutcome.Fail) => MissionOutcome.Fail,
                 _ => MissionOutcome.Abandon,
             }, r.EndedUtc));
+        // who took it: the one who accepted it first. A contract shared in the party is "Contract Accepted" in the log of everybody who accepts the share
+        // too, a few seconds after the game's "Contract Shared" line, which has no mission id (all zeros; Frank's logs of 29-30 Oct 2026), so the logs
+        // never mark it as shared: the first accept is the taker's, a later one a share. (The game says every contract he has accepted again when he
+        // logs in, so the Mission Library keeps the earliest.) A holder whose accept was never read is not known, and one marked Shared did not take it.
+        var startOf = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        void Start(string p, DateTime? t)
+        {
+            if (t != null && (!startOf.TryGetValue(p, out var was) || t < was)) startOf[p] = t.Value;
+        }
+        foreach (var m in missions.Where(m => !m.Shared)) Start(m.Player, m.StartedUtc);
+        foreach (var r in runs) Start(r.Player, r.AcceptedUtc);
+        var first = startOf.Count > 0 ? startOf.Values.Min() : (DateTime?)null;
+        holders = holders.Select(h => h with { Took = startOf.TryGetValue(h.Player, out var s) ? s == first : h.Took == false ? false : null }).ToList();
+
         var kind = missions.Select(m => m.Kind).FirstOrDefault(k => k != null)
             ?? (runs.Count > 0 ? GauntletService.LibraryKey(runs[0].Scenario) : null)
             ?? missions.Select(m => m.ContractId).FirstOrDefault(c => !string.IsNullOrEmpty(c));

@@ -291,6 +291,12 @@ public sealed class MissionLibrary
         return written;
     }
 
+    /// <summary>
+    /// When a mission was taken: the earliest a log says (the game says every contract he has "Contract Accepted" again when he logs in, and an old log can
+    /// come after the live one), so the contracts tracker knows who accepted it first.
+    /// </summary>
+    static DateTime? Earliest(DateTime? a, DateTime? b) => a == null ? b : b == null || a <= b ? a : b;
+
     /// <summary>Writes these missions where they are new or went on (an old log a tracker sent, or the live logs). Returns how many were written.</summary>
     public int Add(IReadOnlyDictionary<string, IReadOnlyList<MissionSeen>> found)
     {
@@ -313,7 +319,7 @@ public sealed class MissionLibrary
                     var key = (player.ToLowerInvariant(), m.MissionId.ToLowerInvariant());
                     if (!pending.TryGetValue(key, out var had)) _known.TryGetValue(key, out had);
                     var merged = had == null ? m : new MissionSeen(had.MissionId, had.ContractId ?? m.ContractId, MissionKinds.Better(had.Title, m.Title), had.Shared,
-                        had.StartedUtc ?? m.StartedUtc, had.EndedUtc ?? m.EndedUtc, had.Outcome ?? m.Outcome, had.Hauling ?? m.Hauling, had.Definition ?? m.Definition);
+                        Earliest(had.StartedUtc, m.StartedUtc), had.EndedUtc ?? m.EndedUtc, had.Outcome ?? m.Outcome, had.Hauling ?? m.Hauling, had.Definition ?? m.Definition);
                     if (merged == had) continue;
                     var row = had == null ? null : db.Missions.Find(player, had.MissionId) ?? db.Missions.FirstOrDefault(r => r.Player == player && r.MissionId == had.MissionId);
                     if (row == null) db.Missions.Add(row = new MissionRow { Player = player, MissionId = m.MissionId, ContractId = m.ContractId ?? "" });

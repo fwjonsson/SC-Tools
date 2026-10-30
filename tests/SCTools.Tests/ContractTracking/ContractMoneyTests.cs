@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SCTools.Gauntlet;
+using SCTools.Missions;
 using SCTools.Server;
 using SCTools.Tests.ServerPages;
 using SCTools.Tests.Support;
@@ -30,7 +31,7 @@ public class ContractMoneyTests
     static string Note(DateTime t, string what, string title, string mission) =>
         $"<{T(t)}> [Notice] <SHUDEvent_OnNotification> Added notification \"{what}: {title}: \" [84] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [] [Missions][Comms]";
 
-    /// <summary>The offer a mission came from: a shared mission is in the Mission Library for the player it was shared with only with it.</summary>
+    /// <summary>The offer a mission came from (ContractId): some missions have it in the log, most do not (one of ten in zzatvo's log of 29-30 Oct 2026).</summary>
     static string OfferOf(DateTime t, string mission) =>
         $"<{T(t)}> [Notice] <CSCPlayerMissionLog::MissionStartCommsNotification> MissionStart comms notification will not be sent - This mission has no MissionStart comms setup. ContractId: [{Offer}]. MissionId: {mission} [Missions][Comms]";
 
@@ -41,9 +42,15 @@ public class ContractMoneyTests
         new[] { Note(at, "Contract Accepted", title, mission) }.Concat(offer ? new[] { OfferOf(at, mission) } : Array.Empty<string>())
             .Append(Note(at.AddMinutes(done), "Contract Complete", title, mission)).ToArray();
 
+    /// <summary>
+    /// A contract shared with him, as the game writes it (Frank's logs of 29-30 Oct 2026): "Contract Shared" with no mission id (all zeros) and the
+    /// contract's template for a name, then "Contract Accepted" with the real mission a few seconds later, as if he took it himself.
+    /// </summary>
     static string[] SharedWith(DateTime at, double done, string title, string mission, bool offer = true) =>
-        new[] { Note(at, "Contract Shared", title, mission) }.Concat(offer ? new[] { OfferOf(at, mission) } : Array.Empty<string>())
-            .Append(Note(at.AddMinutes(done), "Contract Complete", title, mission)).ToArray();
+        new[] { SharedNote(at) }.Concat(Took(at.AddSeconds(5), done, title, mission, offer)).ToArray();
+
+    static string SharedNote(DateTime at) =>
+        Note(at, "Contract Shared", "~mission(ReputationRank) | ~mission(CargoRouteToken) ~mission(CargoGradeToken) Haul", "00000000-0000-0000-0000-000000000000");
 
     const string Gauntlet3 = "Combat Gauntlet - Scenario #3";
     const string Gauntlet7 = "Combat Gauntlet - Scenario #7";
@@ -71,7 +78,7 @@ public class ContractMoneyTests
             .Concat(SharedWith(start.AddMinutes(25), 5, Gauntlet3, GauntletShared, offer: false))
             .Append(Note(now.AddMinutes(-2), "Contract Accepted", "Something Else", "79999999-9999-4999-8999-999999999999")).ToList(), T(start));
         f.Upload("zzoii", new GameLogWriter().At(start).Login("zzoii").Lines
-            .Append(Note(start.AddMinutes(9), "Contract Shared", "Stop Rival Attack", RivalLeft)).Append(OfferOf(start.AddMinutes(9), RivalLeft))
+            .Append(SharedNote(start.AddMinutes(9))).Append(Note(start.AddMinutes(9).AddSeconds(5), "Contract Accepted", "Stop Rival Attack", RivalLeft))
             .Append(Abandon(start.AddMinutes(12), RivalLeft, "zzoii"))
             .Append(Note(now.AddMinutes(-2), "Contract Accepted", "Something Else", "7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")).ToList(), T(start));
         var library = f.Services.GetRequiredService<MissionLibrary>();
@@ -170,6 +177,38 @@ public class ContractMoneyTests
         Assert.Equal(new[] { "zzoega", "zzatvo", "zzoii" }, haul.Payees);   // the planner's payout
         Assert.Equal(new ContractReward(30_000, null, null), haul.PartOf("zzoii"));
         Assert.DoesNotContain(all.Values, c => c.MissionId.StartsWith("7aaaaaaa", StringComparison.Ordinal) && c.Outcome != null);   // taken, not ended yet
+    }
+
+    [Fact]
+    public void Who_took_a_shared_contract_is_who_accepted_it_first_also_after_logging_in_again()
+    {
+        var now = DateTime.UtcNow;
+        using var f = Played(now);
+        var tracker = f.Services.GetRequiredService<ContractTracker>();
+        Assert.Equal("zzoega", tracker.Of(new[] { RivalShared })[RivalShared].Taker);   // zzatvo's accept came seconds after the share
+
+        // zzoega logs in again: the game says "Contract Accepted" once more for every contract he has (his log of 30 Oct 2026, 02:57)
+        var relog = now.AddMinutes(-1);
+        f.Upload("zzoega", new GameLogWriter().At(relog).Login("zzoega").Lines.Append(Note(relog.AddSeconds(30), "Contract Accepted", "Stop Rival Attack", RivalShared)).ToList(),
+            T(relog));
+        f.Services.GetRequiredService<MissionLibrary>().Collect();
+        var c = tracker.Of(new[] { RivalShared })[RivalShared];
+        Assert.Equal("zzoega", c.Taker);
+        Assert.Equal(new ContractReward(50_000, 0, null), c.PartOf("zzatvo"));   // half the aUEC, no scrip
+    }
+
+    [Fact]
+    public void The_first_accept_counts_also_when_the_older_log_comes_in_last()
+    {
+        // zzoega's live log (logged in again at 03:00, the game says his contract again) is read before his old log of 20:00, when he took it; zzatvo
+        // accepted the share at 20:01
+        using var f = new ServerFactory();
+        var library = f.Services.GetRequiredService<MissionLibrary>();
+        var took = new DateTime(2026, 10, 29, 20, 0, 0, DateTimeKind.Utc);
+        MissionSeen Seen(DateTime started) => new(RivalShared, null, "Stop Rival Attack", false, started, took.AddHours(8), SCTools.Missions.MissionOutcome.Complete);
+        library.Add(new Dictionary<string, IReadOnlyList<MissionSeen>> { ["zzoega"] = new[] { Seen(took.AddHours(7)) }, ["zzatvo"] = new[] { Seen(took.AddMinutes(1)) } });
+        library.Add(new Dictionary<string, IReadOnlyList<MissionSeen>> { ["zzoega"] = new[] { Seen(took) } });
+        Assert.Equal("zzoega", f.Services.GetRequiredService<ContractTracker>().Of(new[] { RivalShared })[RivalShared].Taker);
     }
 
     [Fact]

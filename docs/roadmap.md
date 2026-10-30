@@ -186,9 +186,12 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       accepted it), and the Session tool and the Companion count the shared scenario for the one it was shared with too; the planner pays a player
       whose log still has the contract when it pays out, also when he was marked out of the party, and when nobody is known to have it, the one who
       took it (before: the active party).
-    - Later, maybe: the Mission Library keeps a mission shared with a player only when his log showed its offer (or the planner reads it), so a
-      bounty shared without the offer in the sharer's log is counted in full for the one who took it; the tracker would split it once those rows are
-      kept (it changes the library's counts, so Frank decides).
+    - **Who took it is who accepted it first** (Frank's logs of 29-30 Oct 2026, zzoega sharing to zzatvo): the "Contract Shared" line in the log of
+      the one who gets the share has no mission id (all zeros) and the contract's template for a name; seconds later his log says "Contract Accepted"
+      with the real mission, as if he took it. So nothing marks a share, and the first accept is the taker's. The game says "Contract Accepted" again
+      for every contract on every login, so the library keeps the earliest accept. The offer line (ContractId) is in few logs (one mission in ten).
+    - Still to look at: the Gauntlet Tracker times a shared run for everybody who accepted it (the one who got the share has an accept line too), so
+      the timings and the Top 10 count a shared run once per member; and which member a party's Top 10 names for it is not sure to be the taker.
 
 Later, maybe: a party/crew board (who is on which shard, in which jurisdiction, in whose ship) and crash/server statistics.
 
