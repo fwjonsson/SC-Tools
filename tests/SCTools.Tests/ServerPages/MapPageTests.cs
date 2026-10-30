@@ -98,6 +98,40 @@ public class MapPageTests
     }
 
     [Fact]
+    public async Task A_jump_picked_on_the_pad_starts_when_he_leaves_the_stations_area_and_ends_in_the_next_one()
+    {
+        using var f = new ServerFactory();
+        var now = DateTime.UtcNow;
+        const long pad = 2026442305, ruinArea = 685899972, space = 3184339241, gaslightArea = 3688917516;
+        var sent = 0;
+        async Task<JsonElement> Zzoega(GameLogWriter w)
+        {
+            // the tracker sends what is new in his log (by where it is in the file: here the line's number)
+            Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-10)), sent, w.Lines.Count, w.Lines.Skip(sent).ToList(), now).Ok);
+            sent = w.Lines.Count;
+            return Player(JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/map/map.json")).RootElement, "zzoega");
+        }
+
+        // on the pad at Ruin, he picks Gaslight: still at Ruin, leaving for Gaslight (no spooling yet)
+        var w = new GameLogWriter().At(now.AddMinutes(-10)).Login("zzoega").AreaChange("zzoega", 0, pad, ruinArea, pad)
+            .Minutes(5).QuantumSelected(Gaslight).RouteStart("Ruin Station", Gaslight);
+        var z = await Zzoega(w);
+        Assert.Equal(("at", "pyro/ruin-station", "Gaslight"), (z.GetProperty("state").GetString(), z.GetProperty("at").GetString(), z.GetProperty("leaving").GetString()));
+
+        // off the pad, then out of Ruin's area into space three seconds later: the jump starts then
+        w.Seconds(30).AreaChange("zzoega", pad, 0, pad, ruinArea).Seconds(3).AreaChange("zzoega", pad, 0, ruinArea, space);
+        z = await Zzoega(w);
+        Assert.Equal(("jump", "pyro/ruin-station", "pyro/gaslight"), (z.GetProperty("state").GetString(), z.GetProperty("from").GetString(), z.GetProperty("to").GetString()));
+        var start = new DateTimeOffset(now.AddMinutes(-5).AddSeconds(33)).ToUnixTimeMilliseconds();
+        Assert.InRange(z.GetProperty("start").GetInt64(), start - 5, start + 5);
+
+        // into Gaslight's area, well into the jump: he is there (before the arrival line)
+        w.Seconds(Math.Max(1, (int)(z.GetProperty("seconds").GetDouble() * 0.9))).AreaChange("zzoega", pad, 0, space, gaslightArea);
+        z = await Zzoega(w);
+        Assert.Equal(("at", "pyro/gaslight"), (z.GetProperty("state").GetString(), z.GetProperty("at").GetString()));
+    }
+
+    [Fact]
     public async Task A_player_in_quantum_is_on_his_way_and_one_who_arrived_is_there()
     {
         using var f = new ServerFactory();

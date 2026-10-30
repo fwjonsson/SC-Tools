@@ -220,7 +220,10 @@ Not wanted:
 - **Quantum travel**: the destination picked (an id: `pyro3`, `LOC_RR_S1_L2`, `rs_ext_nyx-pyro_jp1`, `levski_all-001`, `PartyMemberMarker_…`,
   `AsteroidCluster_Pyro_…`), the start in plain words ("Projected Start Location is Aberdeen", "… is Pyro System") and the arrival. An arrival with
   no destination picked: a jump at a marker looked at, or as crew (the same ship id in the pilot's log). A mission objective's quantum beacon:
-  `PairWithMissionNavpoint … MISSION_QT_Quantum_Beacon_…`.
+  `PairWithMissionNavpoint … MISSION_QT_Quantum_Beacon_…`. When the jump starts and ends: the area lines (`<Update Inventory Location> … Landing
+  [a] -> [b]. Location [c] -> [d]`, numbers, not names): off the pad and out of the station's area is the start, the next area the end; the same
+  route takes the same time to about 2 seconds that way (sent and read since 31 Oct 2026, the Map tool). There is no line for the spool itself: the
+  "Quantum Travel Calibration Started By X" notification is only for somebody else in the party. No "Exited … Jurisdiction" either, only "Entered".
 - **Deaths and ships lost**: "[ActorState] Dead … ejected from zone RSI_Perseus … destroyed vehicle"; "Local Emergency Services Are En Route" when downed.
 - **Clean exit or crash**: a clean exit writes SystemQuit; a log that just stops is a crash. Disconnects show as "Hub disconnected".
 - **Shard**: "Join PU … shard[pub_euw1b_12881860_110]".
