@@ -47,6 +47,9 @@ public static class TopBar
         foreach (var tool in SiteTools.Bar.Where(t => t.Path != null && tools.Sees(user, t)))   // in the order Frank set (SiteTools.Bar)
             html.Append(Link(tool.Path!, tool.Name, tool.Color, tool == current));
         html.Append("</nav>\n  <div class=\"who\">")
+            // the live dot and the time the page's data was made, left of Tracker (Frank, 30 Oct 2026: in the bar, not on every tab of the Hauling Planner); empty
+            // until a page's script fills them (hauling.js), so the other pages show nothing here
+            .Append("<span class=\"live\" id=\"live\"></span><span class=\"updated\" id=\"updated\"></span>")
             .Append("<a class=\"dl\" href=\"/tracker\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M12 3v12M7 10l5 5 5-5M4 20h16\"/></svg>Tracker</a>");
         if (user.Identity?.IsAuthenticated == true)
         {

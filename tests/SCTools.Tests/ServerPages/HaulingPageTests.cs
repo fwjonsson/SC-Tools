@@ -24,6 +24,9 @@ public class HaulingPageTests
         // the tabs: a row under the bar in the tool's colour, like the admin's pages (30 Oct 2026), every tab a link to its address; the Trip Planner first (29 Oct)
         Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#4682ff\"><a href=\"/hauling/planner\" id=\"tabP\" class=\"on\">Trip Planner</a><a href=\"/hauling/session\" id=\"tabS\">Session</a>", page);
         Assert.DoesNotContain("<h1>", page);   // no title of its own: the bar says where you are
+        // the live dot and the time the data was made: in the top bar left of Tracker, not on every tab (30 Oct 2026); hauling.js fills them
+        Assert.Contains("<span class=\"live\" id=\"live\"></span><span class=\"updated\" id=\"updated\"></span><a class=\"dl\" href=\"/tracker\">", page);
+        Assert.Contains("<div class=\"bar\"><span id=\"session\"></span></div>", page);
         Assert.Contains("<div id=\"viewP\">", page);
         Assert.Contains("<div id=\"viewS\" class=\"hidden\">", page);
         Assert.DoesNotContain("id=\"party\"", page);   // no Party table of its own: the Party button in the top bar shows it (29 Oct 2026)

@@ -10,6 +10,11 @@
 .topbar .toolnav a.on, .topbar .who a.on { background:#1f4b7a; background:color-mix(in srgb, var(--tool, #4682ff) 30%, transparent); color:#fff;
   box-shadow:inset 0 -2px 0 var(--tool, #4682ff); }
 .topbar .who a.area { text-decoration:none; padding:5px 12px; border-radius:4px; font-weight:600; }
+/* the live dot and the time the page's data was made (the Hauling Planner's script fills them; empty on the other pages) */
+.topbar .who .live { font-weight:600; font-size:13px; white-space:nowrap; }
+.topbar .who .live.ok { color:#5fd35f; } .topbar .who .live.bad { color:#ff6b6b; }
+.topbar .who .updated { color:#8b949e; font-size:12px; white-space:nowrap; }
+.topbar .who .live:empty, .topbar .who .updated:empty { display:none; }
 .topbar .who a.area:hover { background:#151b23; }
 .topbar .who a.area.on:hover { background:color-mix(in srgb, var(--tool, #4682ff) 38%, transparent); }
 .topbar .who { display:flex; gap:14px; align-items:center; color:#c9d1d9; }
