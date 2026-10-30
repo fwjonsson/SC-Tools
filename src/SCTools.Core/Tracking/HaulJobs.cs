@@ -129,13 +129,21 @@ public static class HaulJobs
     const double OwnZone = 10_000;
 
     /// <summary>Is this mission a hauling job (and not one of the Hauling Planner's own contracts)?</summary>
-    public static bool IsJob(Mission m) => !m.IsHauling && !m.IsOut && Objectives(m).Any(o => o.StartsWith("dropoff_", StringComparison.Ordinal));
+    public static bool IsJob(Mission m) => !m.IsHauling && !m.IsOut && (HasDrop(m.ObjZone.Keys) || HasDrop(m.ObjText.Keys) || HasDrop(m.Events.Keys) || HasDrop(m.ObjScu.Keys));
+
+    static bool HasDrop(IEnumerable<string> objectives)
+    {
+        foreach (var o in objectives) if (o.StartsWith("dropoff_", StringComparison.Ordinal)) return true;
+        return false;
+    }
 
     /// <summary>Every objective of a mission the log says anything about.</summary>
     static IEnumerable<string> Objectives(Mission m) => m.ObjZone.Keys.Concat(m.ObjText.Keys).Concat(m.Events.Keys).Concat(m.ObjScu.Keys).Distinct(StringComparer.Ordinal);
 
     /// <summary>The stop an objective is at: its id without the number of the commodity ("pickup_1f934d6b-…_2" is "pickup_1f934d6b-…").</summary>
-    public static string StopKey(string objective) => Regex.Replace(objective, @"_\d+$", "");
+    public static string StopKey(string objective) => NumberAtEnd.Replace(objective, "");
+
+    static readonly Regex NumberAtEnd = new(@"_\d+$", RegexOptions.Compiled);
 
     /// <summary>
     /// The key of a job's drop-off for the SCU a hauler types ("mission id|objective id", as the loads from Ruin have it, AppData.TypedScu): the stop's first

@@ -72,16 +72,21 @@ public sealed class Atlas
         return (false, null);
     }
 
-    /// <summary>The names of a place to compare with what the game says: its own, and the game data's when the admin renamed it.</summary>
-    IEnumerable<string> Names(Place p)
+    /// <summary>The names of a place to compare with what the game says: its own, and the game data's when the admin renamed it (made once per place).</summary>
+    IReadOnlyList<string> Names(Place p) => _names.GetOrAdd(p, MakeNames);
+
+    readonly System.Collections.Concurrent.ConcurrentDictionary<Place, string[]> _names = new(ReferenceEqualityComparer.Instance as IEqualityComparer<Place> ?? EqualityComparer<Place>.Default);
+    readonly System.Collections.Concurrent.ConcurrentDictionary<(string Name, string? System, string? At), (string? System, Place? Place)> _ofName = new();
+
+    static string[] MakeNames(Place p)
     {
-        yield return StarMap.Letters(p.Name);
-        yield return StarMap.Letters(p.Short);
+        var names = new List<string> { StarMap.Letters(p.Name), StarMap.Letters(p.Short) };
         if (StarMap.Find(p.Key) is { } game && (game.Name != p.Name || game.Short != p.Short))
         {
-            yield return StarMap.Letters(game.Name);
-            yield return StarMap.Letters(game.Short);
+            names.Add(StarMap.Letters(game.Name));
+            names.Add(StarMap.Letters(game.Short));
         }
+        return names.ToArray();
     }
 
     /// <summary>The place of one of the Hauling Planner's Pyro stations (its id in PyroDistances), or null.</summary>
@@ -157,7 +162,10 @@ public sealed class Atlas
     /// alone, or neither). The admin's word first. A name of more than one system ("Nyx Gateway" is in Pyro and Stanton): the one in this system; else, after a
     /// gateway, the system it leads to; else the only one.
     /// </summary>
-    public (string? System, Place? Place) OfName(string name, string? system = null, Place? at = null)
+    public (string? System, Place? Place) OfName(string name, string? system = null, Place? at = null) =>
+        _ofName.GetOrAdd((name, system, at?.Key), _ => WorkOutName(name, system, at));   // the same few names come again every tick
+
+    (string? System, Place? Place) WorkOutName(string name, string? system, Place? at)
     {
         var n = StarMap.Letters(name);
         if (n.Length == 0) return (null, null);

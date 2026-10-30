@@ -105,7 +105,7 @@ public sealed class DropOffs
         {
             var seen = m.Accepted ?? m.FirstSeen;
             if (seen.HasValue && log.LastTime - seen.Value > TimeSpan.FromHours(12)) continue;   // an old one that never ended
-            var drops = m.ObjZone.Where(o => o.Key.StartsWith("dropoff_")).ToList();
+            var drops = m.ObjZone.Where(o => o.Key.StartsWith("dropoff_", StringComparison.Ordinal)).ToList();
             var library = _s.Jobs.KindOf(m)?.ScuToUse ?? (_s.Jobs.WikiOf(m) is { Orders.Count: > 0 } wiki ? (long?)Math.Round(wiki.Total.Middle) : null);
             var each = library is > 0 && drops.Count > 0 ? (int)(library.Value / drops.Count) : 0;
             foreach (var kv in drops)

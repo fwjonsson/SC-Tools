@@ -30,7 +30,15 @@ public sealed record QtDrive(string Name, string Maker, int Size, string Grade, 
         if (dist <= 0) return 0;
         var (rampTime, rampDist) = Ramp(Speed);
         if (2 * rampDist <= dist) return 2 * rampTime + (dist - 2 * rampDist) / Speed;
-        // too short to reach the top speed: find the speed where the way up and the way down together use the whole distance
+        // too short to reach the top speed: find the speed where the way up and the way down together use the whole distance (kept: the same drive and leg give
+        // the same time, and the planner asks for them over and over)
+        return ShortLegs.GetOrAdd((this, dist), k => k.Drive.ShortLeg(k.Dist));
+    }
+
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<(QtDrive Drive, double Dist), double> ShortLegs = new();
+
+    double ShortLeg(double dist)
+    {
         double lo = 0, hi = Speed;
         for (var i = 0; i < 80; i++)
         {

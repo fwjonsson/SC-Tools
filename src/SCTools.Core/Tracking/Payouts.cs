@@ -40,19 +40,36 @@ public sealed class Payouts
     /// </summary>
     public Dictionary<string, decimal> ComputeCarried(SessionGroup g, SessionInputs inp, CarryMode mode = CarryMode.Run)
     {
-        var carried = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        if (_s.Log == null) return carried;
-        var trips = _runs.BuildRuns(g, inp);
-        foreach (var t in trips)
+        var all = ComputeCarriedAll(g, inp);
+        return mode == CarryMode.Confirmed ? all.Confirmed : mode == CarryMode.Failed ? all.Failed : all.Run;
+    }
+
+    /// <summary>
+    /// The three of ComputeCarried at once, from one build of the runs (trips: the runs of the session already built, else they are built here): the
+    /// leaderboard and the saved sessions want all three, and each build of the runs reads the whole log again.
+    /// </summary>
+    public (Dictionary<string, decimal> Run, Dictionary<string, decimal> Confirmed, Dictionary<string, decimal> Failed) ComputeCarriedAll(SessionGroup g, SessionInputs inp,
+        List<WorkerTrip>? trips = null)
+    {
+        var run = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var confirmed = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var failed = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        if (_s.Log == null) return (run, confirmed, failed);
+        static void Add(Dictionary<string, decimal> d, string worker, decimal value)
+        {
+            if (value <= 0) return;
+            d.TryGetValue(worker, out var old);
+            d[worker] = old + value;
+        }
+        foreach (var t in trips ?? _runs.BuildRuns(g, inp))
         {
             if (!t.End.HasValue || t.Worker == "Unassigned") continue;
             var v = Earnings.RunValues(t, g, inp, _s.Jobs);
-            var value = mode == CarryMode.Confirmed ? v.Confirmed : mode == CarryMode.Failed ? v.Failed : v.Total;
-            if (value <= 0) continue;
-            carried.TryGetValue(t.Worker, out var old);
-            carried[t.Worker] = old + value;
+            Add(run, t.Worker, v.Total);
+            Add(confirmed, t.Worker, v.Confirmed);
+            Add(failed, t.Worker, v.Failed);
         }
-        return carried;
+        return (run, confirmed, failed);
     }
 
     /// <summary>
@@ -63,13 +80,13 @@ public sealed class Payouts
     /// </summary>
     /// <param name="groups">gets the parties of the session as the payouts went: who carried a mission and who shared its payout are in one</param>
     public (Dictionary<string, decimal> Carried, Dictionary<string, decimal> Received) ComputePayouts(SessionGroup g, SessionInputs inp, List<PayoutRecord>? records = null,
-        List<List<string>>? groups = null)
+        List<List<string>>? groups = null, List<WorkerTrip>? built = null)
     {
         var carried = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         var received = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         if (_s.Log == null) return (carried, received);
 
-        var trips = _runs.BuildRuns(g, inp);
+        var trips = built ?? _runs.BuildRuns(g, inp);
         var byMission = new Dictionary<string, Dictionary<string, decimal>>();
         foreach (var t in trips)
         {
@@ -218,6 +235,9 @@ public sealed class Payouts
         var log = _s.Log;
         if (log == null) return;
         var changed = false;
+        // the payouts by mission (one look-up each, not a walk through every payout ever saved for every mission)
+        var saved = new Dictionary<string, PayoutRecord>(StringComparer.Ordinal);
+        foreach (var p in Data.Payouts) saved.TryAdd(p.MissionId, p);
 
         foreach (var g in _s.Sessions)
         {
@@ -227,28 +247,30 @@ public sealed class Payouts
             var basis = stored ?? NewInputs();
             var payouts = new List<PayoutRecord>();
             var groups = new List<List<string>>();
-            var (carried, received) = ComputePayouts(g, basis, payouts, groups);
+            var built = _runs.BuildRuns(g, basis);   // the runs once for the payouts and what everybody carried (four builds gave the same list)
+            var (carried, received) = ComputePayouts(g, basis, payouts, groups, built);
             foreach (var r in payouts)
             {
-                var old = Data.Payouts.FirstOrDefault(x => x.MissionId == r.MissionId);
+                var old = saved.GetValueOrDefault(r.MissionId);
                 if (old != null && old.Time == r.Time && old.Contract == r.Contract && old.Payout == r.Payout && old.Each == r.Each
                     && old.Members.SequenceEqual(r.Members, StringComparer.OrdinalIgnoreCase)) continue;
                 if (old != null) Data.Payouts.Remove(old);
                 Data.Payouts.Add(r);
+                saved[r.MissionId] = r;
                 changed = true;
             }
-            var runValues = ComputeCarried(g, basis);
-            var failedValues = ComputeCarried(g, basis, CarryMode.Failed);
+            var (runValues, _, failedValues) = ComputeCarriedAll(g, basis, built);
             if (carried.Count == 0 && runValues.Count == 0) continue;
 
             var inp = stored ?? _s.InputsOf(g.Key);
             var ids = g.Missions.Select(m => m.Id).ToList();
+            var idSet = new HashSet<string>(ids, StringComparer.Ordinal);
 
             // a session that grew and got a new key must not be counted twice
             foreach (var kv in Data.Sessions)
             {
                 if (kv.Key == g.Key || (kv.Value.Carried.Count == 0 && kv.Value.RunValues.Count == 0)) continue;
-                if (kv.Value.MissionIds.Any(id => ids.Contains(id)))
+                if (kv.Value.MissionIds.Any(idSet.Contains))
                 {
                     kv.Value.Carried = new Dictionary<string, decimal>();
                     kv.Value.RunValues = new Dictionary<string, decimal>();
@@ -274,7 +296,7 @@ public sealed class Payouts
                 changed = true;
             }
 
-            var trips = _runs.BuildRuns(g, inp);
+            var trips = ReferenceEquals(inp, basis) ? built : _runs.BuildRuns(g, inp);   // the same inputs: the same runs
             var stats = Leaderboard.ComputeStats(trips, inp, _places.StationOf);   // a perfect run stays perfect, whatever the server does later
 
             var same = Leaderboard.SameStats(inp.Stats, stats)
