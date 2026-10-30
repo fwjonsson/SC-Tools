@@ -17,6 +17,12 @@ public class PointOfViewTests
         Assert.Contains("data-me=\"admin\" data-admin=\"1\"", await admin.GetStringAsync("/hauling"));   // his own view: the admin's, with his extras
 
         var res = await ServerFactory.Send(admin, "/", "/admin/pov", ("name", "zzoega"), ("back", "/hauling"));
+        // "View as:" with Admin first (everybody's at once), and the page it comes back to is the one as it is now: a tab after the # (the Map) stays
+        Assert.Contains("<label for=\"pov-pick\">View as:</label>", home);
+        Assert.Contains("<option value=\"\">Admin</option>", home);
+        Assert.Contains("this.form.back.value=location.pathname+location.search+location.hash", home);
+        var tab = await ServerFactory.Send(admin, "/", "/admin/pov", ("name", "zzoega"), ("back", "/map#stanton"));
+        Assert.Equal("/map#stanton", tab.Headers.Location!.OriginalString);
         Assert.Equal("/hauling", res.Headers.Location!.OriginalString);
         var page = await admin.GetStringAsync("/hauling");
         Assert.Contains("<div class=\"hauling\" data-me=\"zzoega\">", page);   // zzoega's view: his party's session and his own trips, no admin extras

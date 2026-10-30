@@ -353,7 +353,7 @@ admin (done), then going live.
   and the cards went that day. Every page has the same bar at the top
   (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards), the tools the viewer sees, and on the right
   **Tracker** (its page: download and setup; the tools come in the order Frank set on 30 Oct 2026, `SiteTools.Bar`: Hauling Planner, Gauntlet Tracker, Map,
-  Session, Mission Library, the landing page's links in the same order), who is logged in, for the admin **View as** (a pick of a player, Frank 30 Oct 2026: the `sct-pov` cookie set by `/admin/pov`, `PointOfView`; the
+  Session, Mission Library, the landing page's links in the same order), who is logged in, for the admin **View as:** (a pick of a player, the first choice **Admin** for everybody's at once; the page and its tab stay as they are when the view changes; Frank 30 Oct 2026: the `sct-pov` cookie set by `/admin/pov`, `PointOfView`; the
   Hauling Planner's page, the Gauntlet Tracker, the Session tool and the landing page's links then show that player's view, and the Hauling Planner's
   own pick of a party on its Session tab went with it; what a page lets the viewer change still goes by who is really logged in), his **Party** button (the panel of who is playing, see the Party tool), My page, Admin and
   Log out (or Log in); on a phone all of it is behind a menu button.

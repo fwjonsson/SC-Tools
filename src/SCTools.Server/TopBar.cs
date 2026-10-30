@@ -82,7 +82,7 @@ public static class TopBar
 
     /// <summary>
     /// The admin's pick of a player to look at the site as (Frank, 30 Oct 2026: the tools from anybody's point of view): a form that sets the sct-pov cookie
-    /// (PovController, PointOfView) and comes back to this page; "Your own view" clears it. The players are everybody the site knows (PartyService.Players).
+    /// (PovController, PointOfView) and comes back to this page; the first choice, Admin (everybody's at once), clears it. The players are everybody the site knows (PartyService.Players).
     /// </summary>
     static string ViewAs(HttpContext context, AntiforgeryTokenSet token)
     {
@@ -92,8 +92,12 @@ public static class TopBar
         var html = new System.Text.StringBuilder("<form method=\"post\" action=\"/admin/pov\" class=\"inline pov\"><input type=\"hidden\" name=\"")
             .Append(E(token.FormFieldName)).Append("\" value=\"").Append(E(token.RequestToken ?? "")).Append("\"><input type=\"hidden\" name=\"back\" value=\"")
             .Append(E(context.Request.Path + context.Request.QueryString)).Append("\">")
-            .Append("<select name=\"name\" aria-label=\"View as\" title=\"Look at the tools as this player sees them\" onchange=\"this.form.submit()\">")
-            .Append("<option value=\"\">Your own view</option>");
+            // "View as:" before the pick (Frank, 30 Oct 2026). The page comes back where it is now: its address as the browser has it when the pick is made, not
+            // as it was loaded (the Hauling Planner's tabs change the address without loading the page, the Map's tabs are after the #), so the tab stays
+            .Append("<label for=\"pov-pick\">View as:</label>")
+            .Append("<select id=\"pov-pick\" name=\"name\" title=\"Look at the tools as this player sees them\" ")
+            .Append("onchange=\"this.form.back.value=location.pathname+location.search+location.hash;this.form.submit()\">")
+            .Append("<option value=\"\">Admin</option>");   // everybody's at once (it said Your own view)
         foreach (var p in players)
             html.Append("<option value=\"").Append(E(p)).Append('"').Append(pov != null && string.Equals(pov, p, StringComparison.OrdinalIgnoreCase) ? " selected" : "").Append('>').Append(E(p)).Append("</option>");
         return html.Append("</select></form>").ToString();
