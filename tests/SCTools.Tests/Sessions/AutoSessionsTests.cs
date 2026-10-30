@@ -71,4 +71,27 @@ public class AutoSessionsTests
         Assert.Equal(new[] { At(10, 0) }, starts);
         Assert.Contains(At(10, 40), activity);
     }
+
+    [Fact]
+    public void A_contract_still_going_keeps_the_session_alive_while_somebody_jumps_around()
+    {
+        // 29 Oct 2026: long routes, nothing with the contracts themselves for over an hour, nine contracts going: the session ended under the party.
+        // The jumps count while a contract is going; once every contract ended, they count for nothing
+        var m1 = GameLogWriter.MissionId(21);
+        GameLogWriter Hauling(bool ended)
+        {
+            var w = new GameLogWriter().At(At(10, 0)).Login("zzoega").Accepted(m1)
+                .Marker(m1, string.Format(GameLogWriter.HaulingContract, 2), "pickup_bbbb_0", "900000000201", GameLogWriter.Gaslight)
+                .Minutes(40).Objective(m1, "pickup_bbbb_0", "COMPLETED");
+            if (ended) w = w.Minutes(10).MissionEnded(m1, "COMPLETED");
+            for (var i = 0; i < 6; i++) w = w.Minutes(ended && i == 0 ? 15 : 25).QuantumSelected("Gaslight").Minutes(5).QuantumArrived();   // flying until 13:40
+            return w;
+        }
+        var (starts, activity) = AutoSessions.HaulingActivity(Hauling(false).Read());
+        Assert.Contains(At(11, 5), activity);   // a jump while the contract is going
+        Assert.Null(Assert.Single(AutoSessions.Find(starts, activity, At(14, 0))).Stop);   // still running at 14:00: the last jump was at 13:40
+        var (done, doneActivity) = AutoSessions.HaulingActivity(Hauling(true).Read());
+        Assert.DoesNotContain(At(11, 5), doneActivity);
+        Assert.Equal(At(10, 55), Assert.Single(AutoSessions.Find(done, doneActivity, At(14, 0))).Stop);   // ended 5 minutes after the hand-in at 10:50
+    }
 }
