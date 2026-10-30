@@ -80,6 +80,7 @@ public class ToolsPageTests
 
         var home = await visitor.GetStringAsync("/");
         Assert.Contains("<a href=\"/hauling\" style=\"--tool:#4682ff\">Hauling Planner</a>", home);   // the same bar on the landing page, no tool marked
+        Assert.Contains("<span class=\"about\" role=\"tooltip\"><b>Hauling Planner</b>Plans the crew", home);   // what the tool does, on hover (30 Oct 2026)
 
         var admin = await f.Admin();
         // the bar's order (Frank, 30 Oct 2026), seen by the admin who sees every tool: Hauling Planner, Gauntlet Tracker, Map, Session, Mission Library
@@ -89,6 +90,10 @@ public class ToolsPageTests
         var order = new[] { "Hauling Planner", "Gauntlet Tracker", "Map", "Session", "Mission Library" };
         var at = order.Select(n => bar.IndexOf(">" + n + "</a>", StringComparison.Ordinal)).ToArray();
         Assert.True(at.All(x => x >= 0) && at.SequenceEqual(at.OrderBy(x => x)), bar);
+        // the landing page's links come in the bar's order too (Frank, 30 Oct 2026)
+        var row = adminHome[adminHome.IndexOf("<div class=\"enter\">", StringComparison.Ordinal)..];
+        var linkAt = order.Select(n => row.IndexOf("<span class=\"tool-name\">" + n + "</span>", StringComparison.Ordinal)).ToArray();
+        Assert.True(linkAt.All(x => x >= 0) && linkAt.SequenceEqual(linkAt.OrderBy(x => x)), row);
         live = await admin.GetStringAsync("/hauling");
         Assert.Contains("<a href=\"/admin\" class=\"area\" style=\"--tool:#e5534b\">Admin</a>", live);
         Assert.Contains("data-admin=\"1\"", live);   // the page lets him pick whose session the tabs show

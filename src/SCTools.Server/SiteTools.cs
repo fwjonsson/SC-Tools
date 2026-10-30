@@ -8,25 +8,26 @@ namespace SCTools.Server;
 /// A tool of the site: its card on the landing page (with its colour and its icon, an SVG drawn with currentColor), and its page (Path null: not made yet,
 /// the card says Coming).
 /// </summary>
+/// <param name="Text">what the tool does and how it is used: the landing page shows it when the mouse is over the tool's link (Frank, 30 Oct 2026)</param>
 public sealed record SiteTool(string Id, string Name, string Text, string? Path, bool PublicByDefault, string Color, string Icon);
 
 /// <summary>The tools of the site, in the order of their cards.</summary>
 public static class SiteTools
 {
     public static readonly SiteTool Hauling = new("hauling", "Hauling Planner",
-        "The party's hauling, live: the stops and contracts to and from Ruin, the Other hauling board of every system, the Trip Planner with everybody's routes, the cargo runs, the leaderboards and who owes whom. A session starts and ends by itself.", "/hauling", true,
+        "Plans the crew's hauling together: the open contracts and stops, a route for every hauler, the cargo runs as they happen, the leaderboards and who owes whom. Keep the SC Tools Tracker running while you play: the planner follows your pickups and hand-ins from the game log, and a session starts and ends by itself.", "/hauling", true,
         "#4682ff", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><path d=\"M3 7l9-4 9 4-9 4-9-4z\"/><path d=\"M3 7v10l9 4 9-4V7\"/><path d=\"M12 11v10\"/></svg>");
 
     public static readonly SiteTool Session = new("session", "Session",
-        "Your own play: time played today, this week, this month and in all, your games and crashes, and what your completed missions earned (aUEC, MG and Council scrip) at the Mission Library's rewards, per hour too.", "/session", false,
+        "Your own playtime and earnings: today, this week, this month and all time, game by game, with crashes and what your completed missions paid at the Mission Library's rewards.", "/session", false,
         "#8b949e", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13\" r=\"8\"/><path d=\"M12 9v4l3 2M9 2h6\"/></svg>");
 
     public static readonly SiteTool Missions = new("missions", "Mission Library",
-        "Every mission we take, one row per mission, with what the log does not say: the reward, MG and Council scrip, cargo in SCU and who gives it, from the Star Citizen Wiki and what we fill in. Search it, sort it, and see your own plays.", "/missions", false,
+        "Every mission the crew has taken, one row per mission: the reward, MG and Council scrip, cargo in SCU, the faction and what the Star Citizen Wiki says. Search and sort it; the admin fills in what the log does not say, and the other tools count with those rewards.", "/missions", false,
         "#3fb8a4", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><rect x=\"5\" y=\"3\" width=\"14\" height=\"18\" rx=\"2\"/><path d=\"M9 8h6M9 12h6M9 16h4\"/></svg>");
 
     public static readonly SiteTool Gauntlet = new("gauntlet", "Gauntlet Tracker",
-        "Gilly's Combat Gauntlet from your log: your runs and grind sessions, times by scenario with a top 10, what each scenario earns per hour, and a leaderboard of everybody.", "/gauntlet", false,
+        "Tracks Combat Gauntlet runs from the game log: earnings, grind sessions, times by scenario with a top 10, what each scenario pays per hour, and a leaderboard of everybody. Nothing to press: run the tracker and play.", "/gauntlet", false,
         "#d9a441", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 1v5M12 18v5M1 12h5M18 12h5\"/></svg>");
 
     public static readonly SiteTool Party = new("party", "Party",
@@ -34,7 +35,7 @@ public static class SiteTools
         "#b77fdb", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"9\" cy=\"8\" r=\"3.2\"/><circle cx=\"17\" cy=\"9.5\" r=\"2.6\"/><path d=\"M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15 14.5c3 0 5.5 2 5.5 5\"/></svg>");
 
     public static readonly SiteTool Map = new("map", "Map",
-        "Pyro, Stanton and Nyx from above: where everybody is by his quantum jumps, moving along his route at his drive's speed, and the objectives of the missions going on.", "/map", false,
+        "A live map of Pyro, Stanton and Nyx: where everybody is and where each is flying by his quantum jumps, the objectives of the missions going on and the active contracts. It updates every few seconds.", "/map", false,
         "#e0734a", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"2.5\"/><circle cx=\"12\" cy=\"12\" r=\"6\"/><circle cx=\"12\" cy=\"12\" r=\"9.5\"/><circle cx=\"18\" cy=\"8.4\" r=\"1.4\" fill=\"currentColor\"/></svg>");
 
     public static readonly IReadOnlyList<SiteTool> All = new[] { Hauling, Missions, Gauntlet, Session, Party, Map };   // the ones that work first
@@ -45,7 +46,7 @@ public static class SiteTools
     /// </summary>
     public static readonly IReadOnlyList<SiteTool> Cards = All.Where(t => t != Party).ToList();
 
-    /// <summary>The tools in the top bar, in the order Frank set (30 Oct 2026): the ones used while playing first. The cards keep their order.</summary>
+    /// <summary>The tools in the top bar, in the order Frank set (30 Oct 2026): the ones used while playing first. The landing page's links come in the same order (Frank, the same day).</summary>
     public static readonly IReadOnlyList<SiteTool> Bar = new[] { Hauling, Gauntlet, Map, Session, Missions };
 
     public static SiteTool? Find(string? id) => All.FirstOrDefault(t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));

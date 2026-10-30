@@ -30,11 +30,11 @@ public sealed class PageController : Controller
     /// <summary>A hidden tool's page: the login for somebody not logged in, "not for you" for a player.</summary>
     IActionResult Hidden() => User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
 
-    /// <summary>The landing page: a card for every tool this viewer sees, with what it shows now.</summary>
+    /// <summary>The landing page: a link for every tool this viewer sees, in the order of the top bar (Frank, 30 Oct 2026), with what it shows now.</summary>
     [HttpGet("/")]
     public IActionResult Home()
     {
-        var cards = SiteTools.Cards.Where(t => _tools.Sees(User, t)).Select(t => new HomeCard(t, !_tools.IsPublic(t), State(t))).ToList();
+        var cards = SiteTools.Bar.Where(t => _tools.Sees(User, t)).Select(t => new HomeCard(t, !_tools.IsPublic(t), State(t))).ToList();
         return View("~/Views/Home/Index.cshtml", new HomeModel(cards));
     }
 

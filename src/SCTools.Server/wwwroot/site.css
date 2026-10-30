@@ -91,8 +91,15 @@ main:has(.landing) { max-width:none; padding:0; margin-left:0; }
 .hero p { margin:14px auto 0; max-width:560px; color:#c9d1d9; font-size:18px; text-shadow:0 1px 12px rgba(0, 0, 0, .7); }
 .hero .nothing { color:var(--muted); }
 .enter { display:flex; gap:12px; margin-top:28px; flex-wrap:wrap; justify-content:center; }
-.enter .tool { display:inline-flex; align-items:center; gap:8px; color:#fff; text-decoration:none; font-weight:600; font-size:14px; padding:9px 16px;
+.enter .tool { position:relative; display:inline-flex; align-items:center; gap:8px; color:#fff; text-decoration:none; font-weight:600; font-size:14px; padding:9px 16px;
   border:1px solid rgba(255, 255, 255, .35); border-radius:6px; background:rgba(13, 17, 23, .45); backdrop-filter:blur(6px); }
+/* the mouse over a link: what the tool does and how it is used, and what it shows now, in a panel under the link (Frank, 30 Oct 2026) */
+.enter .about { display:none; position:absolute; top:calc(100% + 10px); left:50%; transform:translateX(-50%); width:min(340px, calc(100vw - 32px)); padding:12px 14px;
+  background:rgba(13, 17, 23, .94); border:1px solid var(--c); border-radius:8px; color:#c9d1d9; font-weight:400; font-size:13px; line-height:1.5; text-align:left;
+  box-shadow:0 10px 30px rgba(0, 0, 0, .5); z-index:2; }
+.enter .about b { display:block; color:#fff; font-size:14px; margin-bottom:4px; }
+.enter .about i { display:block; margin-top:8px; color:var(--good); font-style:normal; font-weight:600; }
+.enter .tool:hover .about, .enter .tool:focus-visible .about { display:block; }
 .enter .tool:hover { border-color:var(--c); background:rgba(13, 17, 23, .7); }
 .enter .tool:focus-visible { outline:2px solid var(--c); outline-offset:3px; }
 .enter .dot { width:10px; height:10px; border-radius:50%; background:var(--c); }

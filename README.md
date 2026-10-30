@@ -336,12 +336,13 @@ admin (done), then going live.
   site and one login. Only the uploads of trackers that have not updated yet (`api/...`) are still taken there; once every tracker has updated itself, the
   old addresses are removed from the Cloudflare tunnel (and from `OldHosts` in the server's settings). The plan of the tools is `claude/sc-tools-roadmap.md` in the
   project. The landing page (Frank, 30 Oct 2026, his pick of five mock-ups) has the title and the slogan centred over a screenshot of the crew's ship
-  in space (`wwwroot/img/landing.jpg`, a shade over it so the text reads) and under them a row of links to the tools, each with a dot in the tool's
-  colour, what it shows now as its hover text (the hauling session, your gauntlet runs this week, the missions left to fill in) and "Only you see this"
-  on the admin's hidden ones; the orbit rings and the cards went that day. Every page has the same bar at the top
+  in space (`wwwroot/img/landing.jpg`, a shade over it so the text reads) and under them a row of links to the tools in the order of the bar, each with
+  a dot in the tool's colour and "Only you see this" on the admin's hidden ones; the mouse over a link opens a panel with what the tool does and how
+  it is used (`SiteTool.Text`) and what it shows now (the hauling session, your gauntlet runs this week, the missions left to fill in); the orbit rings
+  and the cards went that day. Every page has the same bar at the top
   (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards), the tools the viewer sees, and on the right
   **Tracker** (its page: download and setup; the tools come in the order Frank set on 30 Oct 2026, `SiteTools.Bar`: Hauling Planner, Gauntlet Tracker, Map,
-  Session, Mission Library, while the links of the landing page keep theirs), who is logged in, for the admin **View as** (a pick of a player, Frank 30 Oct 2026: the `sct-pov` cookie set by `/admin/pov`, `PointOfView`; the
+  Session, Mission Library, the landing page's links in the same order), who is logged in, for the admin **View as** (a pick of a player, Frank 30 Oct 2026: the `sct-pov` cookie set by `/admin/pov`, `PointOfView`; the
   Hauling Planner's page, the Gauntlet Tracker, the Session tool and the landing page's links then show that player's view, and the Hauling Planner's
   own pick of a party on its Session tab went with it; what a page lets the viewer change still goes by who is really logged in), his **Party** button (the panel of who is playing, see the Party tool), My page, Admin and
   Log out (or Log in); on a phone all of it is behind a menu button.
