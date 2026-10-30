@@ -15,7 +15,13 @@ public static class JsonColumn
 
     public static string Write<T>(T value) => JsonSerializer.Serialize(value, Options);
 
-    public static T Read<T>(string json) => JsonSerializer.Deserialize<T>(json, Options)!;
+    public static T Read<T>(string json) => string.IsNullOrWhiteSpace(json) ? Empty<T>() : JsonSerializer.Deserialize<T>(json, Options)!;
+
+    /// <summary>
+    /// A column added by a migration to a row that is there already holds an empty string, not JSON (30 Oct 2026: the site crashed at startup, and the deploy
+    /// put the old release back, when CombinedAccounts came to the Settings row): that is an empty list or dictionary.
+    /// </summary>
+    static T Empty<T>() => (T)Activator.CreateInstance(typeof(T))!;
 
     /// <summary>Keeps this property as JSON.</summary>
     public static PropertyBuilder<T> AsJson<T>(this PropertyBuilder<T> property) where T : class?

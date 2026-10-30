@@ -102,6 +102,24 @@ public class DataStoreTests
     }
 
     [Fact]
+    public void A_json_column_added_to_a_row_that_is_there_already_reads_as_empty()
+    {
+        // 30 Oct 2026: the CombinedAccounts migration gave the Settings row an empty string in the new column, and the server crashed at startup reading it
+        using var temp = new TempDatabase();
+        temp.Store.Save(new AppData { CombinedAccounts = new List<List<string>> { new() { "zzoega", "zzatvo" } } });
+        using (var c = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=" + Path.Combine(temp.Dir, "tracker.db")))
+        {
+            c.Open();
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = "UPDATE Settings SET CombinedAccounts = '', WatchPaths = ''";
+            Assert.Equal(1, cmd.ExecuteNonQuery());
+        }
+        var back = temp.Store.Load();
+        Assert.Empty(back.CombinedAccounts);
+        Assert.Empty(back.WatchPaths);
+    }
+
+    [Fact]
     public void A_session_with_nothing_typed_comes_back_the_same()
     {
         using var temp = new TempDatabase();
