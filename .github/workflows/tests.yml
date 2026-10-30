@@ -17,6 +17,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# a newer push to the same pull request stops the run of the push before (it would only say what the newer one says); runs of main are never stopped
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   tests:
     runs-on: ubuntu-latest
