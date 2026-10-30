@@ -55,6 +55,11 @@ public sealed class ServerFactory : WebApplicationFactory<Program>
         {
             s.AddSingleton(new TrackerVersions(_ => Task.FromResult(NewestTracker)));
             s.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero);
+            // a password hashed once instead of a hundred thousand times: the same logins, without the seconds (every test makes the admin and logs in)
+            s.Configure<PasswordHasherOptions>(o => o.IterationCount = 1);
+            // the server's own two-second refresh and minute loop do not run beside a test: the tests work things out themselves (Upload, Live.Refresh), so
+            // nothing writes the database meanwhile (the race the bounty-kinds test had, 30 Oct 2026), and every test does only its own work
+            foreach (var hosted in s.Where(d => d.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService)).ToList()) s.Remove(hosted);
         });
     }
 

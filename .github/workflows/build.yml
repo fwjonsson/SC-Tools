@@ -13,6 +13,11 @@ on:
 permissions:
   contents: write
 
+# a newer push to the same pull request stops the run of the push before (it would only say what the newer one says); runs of main are never stopped
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     runs-on: windows-latest
@@ -64,6 +69,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: SC-Tools
+          retention-days: 3   # a pull request's tracker, to try it; the release has the one of main
           path: |
             SCToolsTracker.zip
 
