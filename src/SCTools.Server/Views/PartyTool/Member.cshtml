@@ -3,7 +3,8 @@
     var m = Model.Member;
     var inv = System.Globalization.CultureInfo.InvariantCulture;
     string Speed(double? mps) => mps == null ? "" : mps.Value.ToString("N0", inv) + " m/s";
-    var tracker = TrackerVersions.Describe(m.Tracker, null, Model.NowUtc).Text;
+    // a player without the SC Tools Tracker: only the others' logs show him (Frank, 31 Oct 2026)
+    var tracker = m.NoTracker ? "None: only the others' logs show him (in the party, joined, left, leads)" : TrackerVersions.Describe(m.Tracker, null, Model.NowUtc).Text;
 }
 <p><a href="/party">‹ Party</a></p>
 <h1>@m.Name@if (m.NoTracker) { <span class="notracker">no tracker</span> }</h1>

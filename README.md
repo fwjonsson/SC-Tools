@@ -254,7 +254,8 @@ admin (done), then going live.
   page. The panel is fetched when it opens (`/party/panel`, a fragment: `_Panel.cshtml`), so a page costs nothing for it until somebody looks; without
   JavaScript the button is a link to the Party page. The button is marked in the tool's colour on the Party pages, like a tool in the row. A member
   who runs no SC Tools Tracker (no log of his own and no tracker key: only the others' logs show him) has a small **no tracker** tag after his name
-  on the panel and the Party pages, and his last seen is the last time the others' logs showed him (Frank, 31 Oct 2026; `PartyService.WithoutTracker`).
+  on the panel and the Party pages (his own page says Tracker: None), and his last seen is the last time the others' logs showed him (Frank, 31 Oct
+  2026; `PartyService.WithoutTracker`).
 - **The Map tool** (`/map`, `MapService`, `wwwroot/map.js`): Pyro, Stanton and Nyx from above (a tab per system over the map; it opens on the system
   where most players are, `#stanton` in the address opens that one), with everybody playing where his quantum jumps put him and the objectives of
   the missions going on (`map.json`, every 3 seconds). The places are `StarMap` (Core): the stars, planets, moons, cities, gateways and stations of
