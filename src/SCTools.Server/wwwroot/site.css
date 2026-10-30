@@ -46,7 +46,7 @@ code { font-family:Consolas, monospace; }
 .key code { font-size:16px; background:var(--bg); border:1px solid var(--line); padding:6px 10px; display:inline-block; user-select:all; word-break:break-all; }
 
 /* the admin's pages: wider tables with a form in every row */
-main.wide, main:has(table.wide) { max-width:1400px; }
+main.wide, main:has(table.wide) { max-width:1900px; }   /* a page with a wide table takes the whole band, like the Hauling Planner's tables (Frank, 30 Oct 2026: the Mission Library, the Session tool's games, the Gauntlet Tracker; 1,400 px before) */
 main:has(.hauling) { max-width:1900px; }   /* the Hauling Planner: its tables take the band (hauling.css) */
 table.wide { max-width:none; }
 table.narrow { max-width:720px; }
