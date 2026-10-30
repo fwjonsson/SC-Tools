@@ -58,7 +58,8 @@ var SystemMap = (function () {
   // What a player does, in words, for his card or the line under his name. A player in quantum gets his line from the meter every frame instead.
   function describe(pl) {
     const of = pl.mission ? ' (' + pl.mission + ')' : '';   // at or to a mission's objective: which mission
-    if (pl.state === 'at' || pl.state === 'mission') return 'At ' + pl.atName + of + (pl.since ? ' since ' + since(pl.since) : '') + (pl.via ? ' (' + pl.via + ')' : '');
+    if (pl.state === 'at' || pl.state === 'mission') return 'At ' + pl.atName + of + (pl.since ? ' since ' + since(pl.since) : '') + (pl.via ? ' (' + pl.via + ')' : '')
+      + (pl.leaving ? ', leaving for ' + pl.leaving : '');   // he picked a jump on the pad: it starts when he is off it
     if (pl.state === 'heading') return 'In quantum to ' + pl.toName + of + (pl.since ? (of ? ', since ' : ' (since ') + since(pl.since) + (of ? '' : ')') : '');
     if (pl.state === 'unknown') return pl.off
       ? 'Off the grid: out of comm-array range' + (pl.since ? ' since ' + since(pl.since) : '') + (pl.lastPing ? ' · last ping at ' + pl.lastPing : '')

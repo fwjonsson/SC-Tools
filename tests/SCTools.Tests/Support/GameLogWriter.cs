@@ -144,6 +144,10 @@ sealed class GameLogWriter
     public GameLogWriter Inventory(string player, string location) =>
         Add($"{Ts} [Notice] <RequestLocationInventory> Player[{player}] requested inventory for Location[{location}] [Team_CoreGameplayFeatures][Inventory]");
 
+    /// <summary>He goes from one area into another: the game's numbers for the landing area he is at (0: none, he flew off) and for the area around him.</summary>
+    public GameLogWriter AreaChange(string player, long landingFrom, long landingTo, long from, long to) =>
+        Add($"{Ts} [Notice] <Update Inventory Location> Player [{player}] is changing location. Landing [{landingFrom}] -> [{landingTo}]. Location [{from}] -> [{to}]. Pending [0] [Team_CoreGameplayFeatures][Inventory]");
+
     /// <summary>The game is quit the normal way (a log without this line crashed).</summary>
     public GameLogWriter Quit() =>
         Add($"{Ts} [Notice] <SystemQuit> CSystem::Quit invoked with - cause=30016, reason=Quit via console command, exitCode=0, thread id=25072, main thread id=25072 [Team_Unknown][System]");

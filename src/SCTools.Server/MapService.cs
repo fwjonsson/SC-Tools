@@ -8,17 +8,21 @@ namespace SCTools.Server;
 
 /// <summary>
 /// The Map tool's live data (map.json): the star systems from above (StarMap: Pyro, Stanton, Nyx), everybody playing where his quantum jumps put him, and the
-/// objectives of the missions going on. The log says when a player picks a quantum destination (and, in plain words, where he starts from) and when he
-/// arrives, not when the jump itself starts: a jump is taken to start a few seconds after the destination was picked (JumpDelay), and the page works out
-/// where he is and how fast he goes from his drive (crafted as it is), so a player in quantum moves along his route with his speed. When he arrives, the log
-/// puts him there. A jump with no destination picked (at a marker he looked at, or as crew) is one too: to a mission's objective going on, to where the
+/// objectives of the missions going on. The log says when a player picks a quantum destination (and, in plain words, where he starts from), when he goes
+/// from one area into another (off a pad, out of a station's area into space, into the area of where he jumped to: AreaChange) and when he arrives. The jump
+/// starts when he left the area he picked it in, and ends when he comes into the next one (JumpTimes); picked out in space, a few seconds after the pick
+/// (JumpDelay). The page works out where he is and how fast he goes from his drive (crafted as it is), so a player in quantum moves along his route with his
+/// speed. When he arrives, the log puts him there. A jump with no destination picked (at a marker he looked at, or as crew) is one too: to a mission's objective going on, to where the
 /// pilot picked, or somewhere the map does not know. The Hauling Planner knows where its party is from the pickups, deliveries and hand-ins too (Whereabouts):
 /// where that is newer than what the jumps say, the map takes it (Frank, 29 Oct 2026: the planner knew they were at Ruin when the map did not). Under the
 /// map, the missions going on with what the Mission Library says about them.
 /// </summary>
 public sealed class MapService
 {
-    /// <summary>From picking the destination to the jump: aligning, the spool, the calibration (a guess; the arrival corrects it).</summary>
+    /// <summary>
+    /// From picking the destination to the jump when he picked it out in space, with no area to leave: aligning, the spool, the calibration (a guess; the
+    /// logs cannot measure it, the arrival corrects it).
+    /// </summary>
     public static readonly TimeSpan JumpDelay = TimeSpan.FromSeconds(10);
 
     /// <summary>A jump that should have ended this long ago without the arrival in the log: he is there (the line got lost, or the game ended).</summary>
@@ -51,10 +55,12 @@ public sealed class MapService
     /// <summary>
     /// Where a player's quantum jumps put him: his system, the place he is at (or null), since when; and the jump he is on, if any. At or to a mission's
     /// objective (AtMission, ToMission; its place, when its text names one). Jumped: the last jump took him somewhere the map does not know ("off the
-    /// grid"); LastPing: the last place the map knew him at before that, if any.
+    /// grid"); LastPing: the last place the map knew him at before that, if any. Moves: the areas he went into since he picked the jump he is on (JumpTimes);
+    /// PickedLanded: was he on a pad or in a hangar when he picked it (null: the log does not say, a tracker from before 31 Oct 2026).
     /// </summary>
     public sealed record Whereabouts(string? System, Place? At, DateTime? Since, QtEvent? Picked, Place? From, Place? To,
-        MissionPoint? AtMission = null, MissionPoint? ToMission = null, bool Jumped = false, Place? LastPing = null);
+        MissionPoint? AtMission = null, MissionPoint? ToMission = null, bool Jumped = false, Place? LastPing = null,
+        IReadOnlyList<AreaChange>? Moves = null, bool? PickedLanded = null);
 
     /// <summary>
     /// An objective of a mission he can quantum jump to: its beacon (MissionBeacon: the destination's id, and its marker's entity id), the mission's title,
@@ -91,8 +97,9 @@ public sealed class MapService
     }
 
     /// <summary>Follows a player's quantum jumps with the places of the game data alone.</summary>
-    public static Whereabouts Follow(IReadOnlyList<QtEvent> qt, IReadOnlyList<LocationSeen>? seen = null, IReadOnlyList<MissionPoint>? missions = null) =>
-        Follow(qt, Atlas.Default, null, seen, missions);
+    public static Whereabouts Follow(IReadOnlyList<QtEvent> qt, IReadOnlyList<LocationSeen>? seen = null, IReadOnlyList<MissionPoint>? missions = null,
+        IReadOnlyList<AreaChange>? areas = null) =>
+        Follow(qt, Atlas.Default, null, seen, missions, areas);
 
     /// <summary>
     /// Follows a player's quantum jumps in order: a route names where he starts from in plain words ("Projected Start Location is Aberdeen", or "Pyro System"),
@@ -100,10 +107,11 @@ public sealed class MapService
     /// of a place (seen: "Location[Nyx_Levski]", Atlas.OfLocation) he is there. The system is the one of the last place he was at or set out from. Unknown:
     /// told every start name, destination and location the map does not know (and nobody said is not a place), with when, what it is and the system he is in.
     /// Missions: the objectives he can jump to (MissionPoints). A destination that is one's beacon is that objective; an arrival with no destination picked
-    /// (he jumped at a marker he looked at) is at the one of a mission going on then, the latest; else it is somewhere the map does not know.
+    /// (he jumped at a marker he looked at) is at the one of a mission going on then, the latest; else it is somewhere the map does not know. Areas: the areas
+    /// he went into since he picked the jump he is on, and whether he was landed when he picked it, go with it (JumpTimes makes the jump's times of them).
     /// </summary>
     public static Whereabouts Follow(IReadOnlyList<QtEvent> qt, Atlas atlas, Action<DateTime, string, UnknownKind, string?>? unknown = null,
-        IReadOnlyList<LocationSeen>? seen = null, IReadOnlyList<MissionPoint>? missions = null)
+        IReadOnlyList<LocationSeen>? seen = null, IReadOnlyList<MissionPoint>? missions = null, IReadOnlyList<AreaChange>? areas = null)
     {
         string? system = null;
         Place? at = null;
@@ -113,11 +121,20 @@ public sealed class MapService
         MissionPoint? atMission = null, toMission = null;
         var jumped = false;
         Place? lastPing = null;
-        var steps = qt.Select(e => (e.Time, Qt: (QtEvent?)e, Seen: (LocationSeen?)null))
-            .Concat((seen ?? Array.Empty<LocationSeen>()).Select(s => (s.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)s)))
+        bool? landed = null, pickedLanded = null;
+        var moves = new List<AreaChange>();
+        var steps = qt.Select(e => (e.Time, Qt: (QtEvent?)e, Seen: (LocationSeen?)null, Area: (AreaChange?)null))
+            .Concat((seen ?? Array.Empty<LocationSeen>()).Select(s => (s.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)s, Area: (AreaChange?)null)))
+            .Concat((areas ?? Array.Empty<AreaChange>()).Select(a => (a.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)null, Area: (AreaChange?)a)))
             .OrderBy(s => s.Time);
         foreach (var step in steps)
         {
+            if (step.Area is { } area)
+            {
+                landed = area.Landed;
+                if (picked != null) moves.Add(area);   // on his way: when the jump starts and ends (JumpTimes)
+                continue;
+            }
             if (step.Seen is { } s)
             {
                 // he opened the inventory of a place: he is there (and not in quantum, unless it is where the jump he picked starts). A place the map does not
@@ -129,6 +146,7 @@ public sealed class MapService
                 if (place == null && picked == null) continue;
                 if (!Equals(place, at) || since == null || atMission != null || jumped) (at, since) = (place ?? at, s.Time);
                 picked = null;
+                moves = new List<AreaChange>();
                 from = to = null;
                 atMission = toMission = null;
                 jumped = false;
@@ -138,6 +156,12 @@ public sealed class MapService
             var e = step.Qt!;
             if (e.Kind == QtKind.Selected)
             {
+                // the game writes the pick again and again while he aims at it: the same destination again is the same jump, with the areas he left since
+                if (picked == null || !picked.Destination.Equals(e.Destination, StringComparison.OrdinalIgnoreCase))
+                {
+                    moves = new List<AreaChange>();
+                    pickedLanded = landed;
+                }
                 if (e.From.Length > 0)
                 {
                     var (sys, place) = atlas.OfName(e.From, system, at);
@@ -178,9 +202,11 @@ public sealed class MapService
                 picked = null;
                 from = to = null;
                 toMission = null;
+                moves = new List<AreaChange>();
             }
         }
-        return new Whereabouts(system, at, since, picked, from, to, atMission, toMission, jumped, lastPing);
+        return new Whereabouts(system, at, since, picked, from, to, atMission, toMission, jumped, lastPing,
+            picked != null ? moves : null, picked != null ? pickedLanded : null);
     }
 
     /// <summary>
@@ -206,6 +232,38 @@ public sealed class MapService
             all.Add(e);
         }
         return all;
+    }
+
+    /// <summary>
+    /// When a jump started and when it got there (null: not yet, as far as the log says), from the areas he went into since he picked it (moves) and how long
+    /// his drive takes (seconds). Picked on a pad or in a hangar (landed), it starts when he leaves: off the pad, and out of the station's area a few seconds
+    /// later (a leave line soon after the one before moves the start on); until then it has not started. Picked out in space (or a log that does not say),
+    /// JumpDelay after the pick, or when he leaves the area he is in soon after. A line well into the jump (three quarters of his drive's time) is the area of
+    /// where he jumped to: he is there. Measured on zzoega's logs (31 Oct 2026): from leaving to coming in, a route takes the same time to 2 seconds (Ruin to
+    /// Rod's Fuel 281 to 287 s, seven times; from the pick it was 323 to 388 s); the arrival line comes 2 seconds (gateways) to 14 (stations) after coming in.
+    /// </summary>
+    public static (DateTime? Start, DateTime? There) JumpTimes(QtEvent picked, IReadOnlyList<AreaChange>? moves, bool? landed, double seconds)
+    {
+        DateTime? start = landed == true ? null : picked.Time + JumpDelay;
+        // a leave line this soon after the one before is still leaving (off the pad and out of the area are 2 to 15 seconds apart in the logs); never as
+        // late as half the jump, nor so late that a drive slower than his real one takes coming in for leaving
+        var soon = TimeSpan.FromSeconds(Math.Clamp(seconds / 2, 10, 30));
+        foreach (var m in moves ?? Array.Empty<AreaChange>())
+        {
+            if (m.Time < picked.Time) continue;
+            if (start == null)
+            {
+                if (!m.Landed) start = m.Time;   // off the pad (one still landed is walking about the station)
+                continue;
+            }
+            if (!m.Landed && m.Time - start.Value <= soon)
+            {
+                start = m.Time;   // out of the station's area into space
+                continue;
+            }
+            if (m.Landed || m.Time - start.Value >= TimeSpan.FromSeconds(seconds * 0.75)) return (start, m.Time);   // into where he jumped to
+        }
+        return (start, null);
     }
 
     /// <summary>The destination picked in this log for the arrival of the same ship as this arrival, at the same moment (or null).</summary>
@@ -258,18 +316,18 @@ public sealed class MapService
     }
 
     /// <summary>Everybody playing (a game running, by the trackers' logs), with copies of his lists (the tracker adds to them meanwhile).</summary>
-    List<(HaulingLog Log, string Name, List<QtEvent> Qt, List<LocationSeen> Seen, List<MissionBeacon> Beacons, Dictionary<string, Mission> Missions)> Playing(DateTime nowUtc)
+    List<(HaulingLog Log, string Name, List<QtEvent> Qt, List<LocationSeen> Seen, List<AreaChange> Areas, List<MissionBeacon> Beacons, Dictionary<string, Mission> Missions)> Playing(DateTime nowUtc)
     {
         var games = _uploads.Games();
         List<HaulingLog> logs;
         lock (_uploads.Sync) logs = _uploads.Logs.ToList();
-        var playing = new List<(HaulingLog Log, string Name, List<QtEvent> Qt, List<LocationSeen> Seen, List<MissionBeacon> Beacons, Dictionary<string, Mission> Missions)>();
+        var playing = new List<(HaulingLog Log, string Name, List<QtEvent> Qt, List<LocationSeen> Seen, List<AreaChange> Areas, List<MissionBeacon> Beacons, Dictionary<string, Mission> Missions)>();
         foreach (var log in logs)
         {
             var name = log.Player ?? log.Uploader;
             if (string.IsNullOrWhiteSpace(name)) continue;
             if (!(games.TryGetValue(log.Uploader ?? name, out var runs) && runs.Any(r => !r.Quit && nowUtc - r.Run.Last < AutoParty.Quiet))) continue;
-            lock (_uploads.Sync) playing.Add((log, name, log.Qt.ToList(), log.Locations.ToList(), log.Beacons.ToList(), new Dictionary<string, Mission>(log.Missions)));
+            lock (_uploads.Sync) playing.Add((log, name, log.Qt.ToList(), log.Locations.ToList(), log.Areas.ToList(), log.Beacons.ToList(), new Dictionary<string, Mission>(log.Missions)));
         }
         return playing;
     }
@@ -289,7 +347,7 @@ public sealed class MapService
         {
             var others = playing.Where(o => !ReferenceEquals(o.Log, p.Log)).Select(o => (IReadOnlyList<QtEvent>)o.Qt).ToList();
             var points = Points(p.Beacons.Where(b => b.Time >= nowUtc - MissionAge), p.Missions, m => m.Title ?? "A mission", atlas);
-            var w = Follow(WithPilots(p.Qt, others), atlas, null, p.Seen, points);
+            var w = Follow(WithPilots(p.Qt, others), atlas, null, p.Seen, points, p.Areas);
             // a Pyro station by the planner's id, any other place by its key (the planner starts a trip anywhere, stage 2)
             positions[p.Name] = new WorkerPosition(w.At != null ? StarRoutes.IdOf(w.At) : null, w.At != null ? w.Since : null, w.To != null ? StarRoutes.IdOf(w.To) : null, w.To != null ? w.Picked?.Time : null);
         }
@@ -327,7 +385,7 @@ public sealed class MapService
             // a crew's jumps go where the pilot picked (another player of the site in the same ship); a jump to a mission's beacon is to that objective
             var others = playing.Where(o => !ReferenceEquals(o.Log, log)).Select(o => (IReadOnlyList<QtEvent>)o.Qt).ToList();
             var points = Points(p.Beacons.Where(b => b.Time >= nowUtc - MissionAge), p.Missions, Title, atlas);
-            var where = Follow(WithPilots(p.Qt, others), atlas, null, p.Seen, points);
+            var where = Follow(WithPilots(p.Qt, others), atlas, null, p.Seen, points, p.Areas);
             // the Hauling Planner saw him pick up, deliver or hand in later than the jumps say anything: he is at that station
             var planner = _live.Read(t => t.State.Data.Party.Any(n => PlayerNames.SameName(n, name)) ? (Station: t.Whereabouts.AutoLocationOf(name), At: t.Whereabouts.LastMoveOf(name)) : (null, DateTime.MinValue));
             var byPlanner = false;
@@ -428,18 +486,21 @@ public sealed class MapService
         var ship = _fleet.Active(name).Text;
         var shown = driveText.Length > 0 ? driveText : drive.Label + " (assumed)";
         static string AtMission(MissionPoint p) => "the mission: " + p.Text;
-        object At(Place place, DateTime? since, MissionPoint? mission) =>
+        // leaving: the destination he picked while he is still on the pad or in the hangar (the jump starts when he is off it)
+        object At(Place place, DateTime? since, MissionPoint? mission, string? leaving = null) =>
             new { name, color, ship, drive = shown, top = drive.Speed, system = place.System, state = "at", at = place.Key, atName = mission != null ? AtMission(mission) : place.Name,
-                mission = mission?.Title, since, via = byPlanner ? "the Hauling Planner" : null };
+                mission = mission?.Title, since, via = byPlanner ? "the Hauling Planner" : null, leaving };
 
         if (w.Picked is { } picked && (w.To != null || w.ToMission != null))
         {
             var toName = w.ToMission is { } tm ? AtMission(tm) : w.To!.Name;
             if (w.To is { } to && w.From is { } from && from.System == to.System && !Equals(from, to))
             {
-                var start = picked.Time + JumpDelay;
                 var gm = StarMap.JumpGm(from, to);
                 var seconds = drive.Seconds(gm);
+                var (left, there) = JumpTimes(picked, w.Moves, w.PickedLanded, seconds);
+                if (left is not { } start) return At(from, w.Since, null, toName);   // still on the pad: not gone yet
+                if (there != null) return At(to, there, w.ToMission);   // in the area of where he jumped to: there (the arrival line comes a few seconds later)
                 if (nowUtc > start + TimeSpan.FromSeconds(seconds) + LateArrival) return At(to, start + TimeSpan.FromSeconds(seconds), w.ToMission);   // long over: he is there
                 return new
                 {

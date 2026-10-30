@@ -93,6 +93,7 @@ public sealed class HaulingLog
         "FreightElevatorUIProvider::FillUnstowRequest",                 // he takes cargo out of a freight elevator
         "CSCLoadingPlatformManager::OnLoadingPlatformStateChanged",     // he hands cargo in at a loading platform
         InventoryLine,                                                  // he opened the inventory of a place: where he is
+        AreaLine,                                                       // he went into another area: when a quantum jump starts and ends
         "Mission",                                                      // the missions: markers, objectives, notifications, members
         QuitLine,                                                       // the game was quit (a log without it ended in a crash)
         SCTools.Missions.MissionReader.EarnedLine,                      // what a completed mission paid him ("You've Earned: 14 Rewards")
@@ -100,6 +101,12 @@ public sealed class HaulingLog
 
     /// <summary>What the game writes when the player opens the inventory of the place he is at (LocationSeen).</summary>
     public const string InventoryLine = "<RequestLocationInventory>";
+
+    /// <summary>What the game writes when the player goes from one area to another (AreaChange).</summary>
+    public const string AreaLine = "<Update Inventory Location>";
+
+    static readonly Regex AreaAt = new(@"<Update Inventory Location> Player \[(?<p>[^\]]+)\] is changing location\. Landing \[(?<la>\d+)\] -> \[(?<lb>\d+)\]\. Location \[(?<a>\d+)\] -> \[(?<b>\d+)\]",
+        RegexOptions.Compiled);
 
     static readonly Regex InventoryAt = new(@"<RequestLocationInventory> Player\[(?<p>[^\]]+)\] requested inventory for Location\[(?<l>[^\]]+)\]", RegexOptions.Compiled);
 
@@ -197,6 +204,9 @@ public sealed class HaulingLog
 
     /// <summary>Where the player of this log was when he opened the inventory of a place, in the order of the log.</summary>
     public List<LocationSeen> Locations { get; } = new();
+
+    /// <summary>The areas the player of this log went into (off a pad, out of a station's area, into the area of where he jumped to), in the order of the log.</summary>
+    public List<AreaChange> Areas { get; } = new();
 
     /// <summary>When the player of this log died (the first line of the burst of item recovery lines).</summary>
     public List<DateTime> Deaths { get; } = new();
@@ -527,6 +537,18 @@ public sealed class HaulingLog
             if (im.Success && it.Success && (Player == null || string.Equals(im.Groups["p"].Value, Player, StringComparison.OrdinalIgnoreCase)))
             {
                 Locations.Add(new LocationSeen(ParseTime(it.Groups[1].Value), im.Groups["l"].Value));
+                Version++;
+            }
+            return;
+        }
+        if (line.Contains(AreaLine))
+        {
+            var am = AreaAt.Match(line);
+            var at = Ts.Match(line);
+            if (am.Success && at.Success && (Player == null || string.Equals(am.Groups["p"].Value, Player, StringComparison.OrdinalIgnoreCase)))
+            {
+                Areas.Add(new AreaChange(ParseTime(at.Groups[1].Value), long.Parse(am.Groups["la"].Value), long.Parse(am.Groups["lb"].Value),
+                    long.Parse(am.Groups["a"].Value), long.Parse(am.Groups["b"].Value)));
                 Version++;
             }
             return;
