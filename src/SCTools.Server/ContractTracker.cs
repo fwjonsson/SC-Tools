@@ -147,7 +147,15 @@ public sealed class ContractTracker
         foreach (var m in missions.Where(m => !m.Shared)) Start(m.Player, m.StartedUtc);
         foreach (var r in runs) Start(r.Player, r.AcceptedUtc);
         var first = startOf.Count > 0 ? startOf.Values.Min() : (DateTime?)null;
-        holders = holders.Select(h => h with { Took = startOf.TryGetValue(h.Player, out var s) ? s == first : h.Took == false ? false : null }).ToList();
+        // when each of them accepted it or the share (the scrip goes to the share accepted first when the taker abandons it)
+        var acceptedOf = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (p, t) in missions.Select(m => (m.Player, m.StartedUtc)).Concat(runs.Select(r => (r.Player, r.AcceptedUtc))))
+            if (t != null && (!acceptedOf.TryGetValue(p, out var was) || t < was)) acceptedOf[p] = t.Value;
+        holders = holders.Select(h => h with
+        {
+            Took = startOf.TryGetValue(h.Player, out var s) ? s == first : h.Took == false ? false : null,
+            AcceptedUtc = acceptedOf.TryGetValue(h.Player, out var a) ? a : null,
+        }).ToList();
 
         var kind = missions.Select(m => m.Kind).FirstOrDefault(k => k != null)
             ?? (runs.Count > 0 ? GauntletService.LibraryKey(runs[0].Scenario) : null)

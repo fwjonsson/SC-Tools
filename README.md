@@ -427,7 +427,8 @@ admin (done), then going live.
   missions, every player's own row; the Gauntlet Tracker's runs), what it pays (the Mission Library's typed reward, else the Star Citizen Wiki's; the
   admin's payout override on the Debts tab wins) and the Hauling Planner's payout of it (`AppData.Payouts`, kept with the sessions). The split
   (`ContractSplit`): the aUEC evenly among the players who have the contract when it pays out (the one who took it and everybody who accepted the share
-  and still had it; being in the party without it gets nothing), the MG and Council scrip only to the one who took it, and a contract the planner paid
+  and still had it; being in the party without it gets nothing), the MG and Council scrip only to the one who took it (when he abandoned it, to the one
+  who accepted the share first of the ones who still had it: the game's rule), and a contract the planner paid
   out keeps the planner's payout (so a past session's debts never change). **Who took it** is who accepted it first: the game never marks a share in
   the log of the one who gets it (its "Contract Shared" line has no mission id, all zeros, and the contract's template for a name; a few seconds later
   his log says "Contract Accepted" with the real mission, as if he took it; Frank's logs of 29-30 Oct 2026), so the first accept is the taker's and a

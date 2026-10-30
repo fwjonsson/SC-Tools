@@ -212,6 +212,30 @@ public class ContractMoneyTests
     }
 
     [Fact]
+    public void When_the_taker_abandons_a_shared_contract_its_scrip_goes_to_who_accepted_the_share_first()
+    {
+        // zzoega takes a bounty, shares it, zzatvo accepts the share before zzoii, zzoega abandons it, the two complete it (the logs as the game writes them)
+        var now = DateTime.UtcNow;
+        var at = now.AddMinutes(-40);
+        const string Bounty = "7bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+        using var f = new ServerFactory();
+        f.Upload("zzoega", new GameLogWriter().At(at).Login("zzoega").Lines
+            .Append(Note(at.AddMinutes(1), "Contract Accepted", "Stop Rival Attack", Bounty)).Append(Abandon(at.AddMinutes(5), Bounty, "zzoega")).ToList(), T(at));
+        f.Upload("zzatvo", new GameLogWriter().At(at).Login("zzatvo").Lines.Concat(SharedWith(at.AddMinutes(2), 10, "Stop Rival Attack", Bounty, offer: false)).ToList(), T(at));
+        f.Upload("zzoii", new GameLogWriter().At(at).Login("zzoii").Lines.Concat(SharedWith(at.AddMinutes(3), 10, "Stop Rival Attack", Bounty, offer: false)).ToList(), T(at));
+        var library = f.Services.GetRequiredService<MissionLibrary>();
+        library.Collect();
+        library.Set("stop rival attack", "auec", "100000", "admin", now);
+        library.Set("stop rival attack", "mg", "10", "admin", now);
+
+        var c = f.Services.GetRequiredService<ContractTracker>().Of(new[] { Bounty })[Bounty];
+        Assert.Equal("zzoega", c.Taker);
+        Assert.Null(c.PartOf("zzoega"));                                      // he abandoned it: nothing
+        Assert.Equal(new ContractReward(50_000, 10, null), c.PartOf("zzatvo"));  // half the aUEC, and the MG scrip: his share was accepted first
+        Assert.Equal(new ContractReward(50_000, 0, null), c.PartOf("zzoii"));
+    }
+
+    [Fact]
     public void A_payout_typed_on_the_debts_tab_is_what_the_contract_paid()
     {
         var now = DateTime.UtcNow;

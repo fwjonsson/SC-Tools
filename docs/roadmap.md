@@ -179,7 +179,8 @@ All the tools track at the same time, all the time. The tracking runs on the ser
     every contract (who took it, who accepted the share, how and when it ended for each, what it pays) and every tool gets its money from it.
     **The split rule (decided):** the aUEC is split evenly among the players who have that same contract when it pays out (the one who took it plus
     everyone who accepted the share and still had it); being in the party without accepting the share gets nothing; two copies of the same contract
-    accepted separately are two contracts, each paying its own player in full. MG and Council scrip go only to the one who took it. Combined accounts
+    accepted separately are two contracts, each paying its own player in full. MG and Council scrip go only to the one who took it; when he abandoned
+    it, to the one who accepted the share first of the ones who still had it when it paid out (the game's rule, Frank 30 Oct 2026). Combined accounts
     are added up where a tool shows a player's totals. The admin's payout overrides on the Debts tab still win, and a payout already kept with a
     session keeps its members (debts are real money between friends: a past session's numbers do not change).
     - What changed with it: the Gauntlet Tracker counts a scenario shared in the party once (each member his share of the aUEC, the scrip to who
