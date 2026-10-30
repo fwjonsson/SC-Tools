@@ -88,7 +88,8 @@ public sealed class Whereabouts
     /// is later; else at Ruin Station (nothing yet, or his run is handed in).
     /// </summary>
     /// <param name="anyPlace">The map's place for him may be in any system (the planner without a hub, stage 2); else only one of the Pyro stations counts (the old planner's table).</param>
-    public string AutoLocationOf(string name, bool anyPlace = false)
+    /// <param name="fallback">Where he is when nothing says (stage 3: the planner without a hub starts him at the session's hub, the place most of its parcels go to); Ruin Station when null.</param>
+    public string AutoLocationOf(string name, bool anyPlace = false, string? fallback = null)
     {
         var run = _runs.ActiveRunOf(name);
         var drop = _drops.DropStartOf(name);
@@ -102,7 +103,7 @@ public sealed class Whereabouts
         // he handed a run in at another station (a contract to that station, stage 1b) and did nothing since: he is there
         if (run == null && _runs.LastHandInOf(name) is { } handed && handed.Station != PyroDistances.Ruin && (drop == null || handed.Time > drop.Value.Time)
             && _s.Log != null && _s.Log.LastTime - handed.Time <= CargoRuns.StaleLeg) return handed.Station;
-        return drop?.Station ?? PyroDistances.Ruin;
+        return drop?.Station ?? fallback ?? PyroDistances.Ruin;
     }
 
     /// <summary>Where the map has this worker (TrackerState.Positions), or null when it has nothing on him.</summary>
@@ -128,7 +129,7 @@ public sealed class Whereabouts
     /// delivery from Ruin, every hand-in). A station set by hand (for example at the start of a session, or when the logs miss something) holds until the logs
     /// show him doing something after that, then the logs take over again.
     /// </summary>
-    public (string Id, bool ByHand) LocationOf(string name, bool anyPlace = false)
+    public (string Id, bool ByHand) LocationOf(string name, bool anyPlace = false, string? fallback = null)
     {
         var kv = _s.Data.StartPoints.FirstOrDefault(k => SameName(k.Key, name));
         if (kv.Value != null)
@@ -143,7 +144,7 @@ public sealed class Whereabouts
                 return (kv.Value.Id, true);
             }
         }
-        return (AutoLocationOf(name, anyPlace), false);
+        return (AutoLocationOf(name, anyPlace, fallback), false);
     }
 
     /// <summary>Sets (or, with null, clears) where a worker is by hand. The same station as the logs say is no choice at all; Ruin Station by hand is one.</summary>

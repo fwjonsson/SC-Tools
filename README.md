@@ -497,6 +497,13 @@ admin (done), then going live.
     The map on the planner tabs gets a **row of systems** like the Map tool's when the routes touch more than one (Frank's answer 8; `data.freePlanner.maps`,
     `places` with the system of every place); a leg through a gateway is drawn to the gateway on the system it leaves, with the far end's name, and from the
     gateway on the system it enters; `/hauling/map.json` has every system.
+  - **The other systems** (stage 3, 30 Oct 2026): any hauling mission starts a session, a courier too (`AutoSessions.HaulingActivity`, Frank's answer 7),
+    so a party hauling in Stanton alone has a session and a plan on the Route Planner (new) tab. A stop the texts and the zones do not place is placed by
+    its marker's position when that is in the system's frame (metres from the star, as the Stanton pickups' are: the nearest place of the map within 0.05
+    Gm, `HaulJobs.AtPosition`; Frank's answer 5), else by the ends of a direct haul's title (*Baijini Point > Ruin Station*). A worker the logs and the map
+    place nowhere starts at the session's **hub**, the place most of the open batches go to (Ruin in a to-Ruin session, so nothing changes there;
+    `Whereabouts.LocationOf(name, anyPlace, fallback)`); the old planner starts everybody at Ruin. The Stops, Finished stops and Contracts boards still
+    show the Red Wind contracts only; the jobs stay on the Other hauling board until stage 4 folds them in.
   - **Stops:** one per objective group (`pickup_<guid>_0.._2` is one stop with three commodities), ✓ when every objective of it is completed.
   - **Names:** from the objectives' texts ("Deliver 0/4 SCU of Distilled Spirits to Port Tressler", "Collect … From Shallow Fields Station at
     Crusader's L4 Lagrange point" is CRU-L4, "… on microTech", the spaceports: NB Int. is New Babbage, Teasa Lorville, Riker Memorial Area18, August

@@ -104,6 +104,27 @@ public sealed record ZoneName(string Name, Place? Place, bool Near);
 /// </summary>
 public static class HaulJobs
 {
+    /// <summary>A marker this far (Gm) from a place of the map, in the system's own frame, is at that place (the stations in orbit of a planet are 0.001 Gm apart, so the nearest wins).</summary>
+    const double AtPlace = 0.05;
+
+    /// <summary>The ends of a direct haul's title: "Rookie | DIRECT Interstellar Bulk Haul | Baijini Point > Ruin Station".</summary>
+    static readonly Regex TitleEnds = new(@"\|\s*(?<a>[^|>]+?)\s*>\s*(?<b>[^|>]+?)\s*$", RegexOptions.Compiled);
+
+    /// <summary>
+    /// The place of the map at a position in a system's own frame (Gm from its star: a marker's position when it is not the zone's own, as the Stanton
+    /// pickups' are): the nearest place within AtPlace, in this system first, else in any (a position that fits a station of another system is that
+    /// station: the mission's system is not always known). Null when none is that near.
+    /// </summary>
+    public static Place? AtPosition(string? system, double x, double y, Atlas atlas)
+    {
+        var near = atlas.Places.Where(p => p.Kind != PlaceKind.Star)
+            .Select(p => (Place: p, D: Math.Sqrt((p.X - x) * (p.X - x) + (p.Y - y) * (p.Y - y))))
+            .Where(c => c.D <= AtPlace)
+            .OrderByDescending(c => c.Place.System == system).ThenBy(c => c.D)
+            .ToList();
+        return near.Count > 0 ? near[0].Place : null;
+    }
+
     /// <summary>A marker this close to the origin of its zone is in the place itself (a station's own zone); farther, the zone is the planet's.</summary>
     const double OwnZone = 10_000;
 
@@ -332,6 +353,20 @@ public static class HaulJobs
         var dropStops = drops.Select(d => d.Stop with { Scu = d.GameScu > 0 ? d.GameScu : unknownDrops > 0 ? rest / (double)unknownDrops : 0, Exact = d.GameScu > 0 }).ToList();
         var pickupStops = pickups.Select(p => p.Stop with { Scu = pickups.Count > 0 ? scu / (double)pickups.Count : 0, Exact = from == ScuFrom.Game && pickups.Count == 1 }).ToList();
         var system = m.System ?? dropStops.Concat(pickupStops).Select(s => s.Place?.System).FirstOrDefault(s => s != null);
+        // a stop the texts and the zones do not place (stage 3, Frank's answer 5): by its marker's position when that is in the system's frame (metres from the
+        // star, as the Stanton pickups' are; a zone's own frame is small), else by the ends of a direct haul's title ("Baijini Point > Ruin Station")
+        var ends = TitleEnds.Match(m.Title ?? "");
+        HaulStop Placed(HaulStop s, string? titleEnd)
+        {
+            if (s.Place != null) return s;
+            var pos = m.ObjPos.Where(kv => StopKey(kv.Key) == s.Key).Select(kv => kv.Value).FirstOrDefault(p => Math.Abs(p.X) > 1e9 || Math.Abs(p.Y) > 1e9);
+            if (pos != default && AtPosition(system, pos.X / 1e9, pos.Y / 1e9, atlas) is { } at) return s with { Place = at, Name = s.Name ?? at.Name };
+            if (titleEnd != null && PlaceOf(titleEnd, system, atlas) is { } named) return s with { Place = named, Name = s.Name ?? titleEnd };
+            return s;
+        }
+        pickupStops = pickupStops.Select(s => Placed(s, ends.Success && pickupStops.Count == 1 ? ends.Groups["a"].Value : null)).ToList();
+        dropStops = dropStops.Select(s => Placed(s, ends.Success && dropStops.Count == 1 ? ends.Groups["b"].Value : null)).ToList();
+        system ??= dropStops.Concat(pickupStops).Select(s => s.Place?.System).FirstOrDefault(s => s != null);
         return new HaulJob(m, title ?? m.Title ?? "A hauling mission", system, pickupStops, dropStops, scu, from, range);
     }
 }

@@ -60,6 +60,25 @@ public class AutoSessionsTests
     }
 
     [Fact]
+    public void Any_hauling_mission_starts_a_session_a_courier_too()
+    {
+        // Frank's answer 7 (30 Oct 2026): a courier mission counts as hauling; stage 3 of docs/planner-any-hauling.md
+        var m1 = GameLogWriter.MissionId(1);
+        var log = new GameLogWriter().At(At(10, 0)).Login("zzoii").AcceptedAs(m1, "RSI Disc. Month: Courier Run (Exp. E)")
+            .Marker(m1, "Iasi_2H_Box_Courier_0", "pickup_c1_0", "862737938329", (-34.999981, 1, 2)).Marker(m1, "Iasi_2H_Box_Courier_0", "dropoff_d1_0", "862738093314", (265321.16624, 1, 2))
+            .Minutes(30).Objective(m1, "pickup_c1_0", "COMPLETED")
+            .Read();
+        var (starts, activity, going) = AutoSessions.HaulingActivity(log, At(11, 0));
+        Assert.Equal(new[] { At(10, 0) }, starts);
+        Assert.Contains(At(10, 30), activity);
+        Assert.True(going);
+        // a mission without drop-offs (a bounty) starts nothing
+        var m2 = GameLogWriter.MissionId(2);
+        var bounty = new GameLogWriter().At(At(10, 0)).Login("zzoii").AcceptedAs(m2, "Bounty").MissionMarker(m2, "BountyHuntersGuild_ShipWaveAttack", "objective_1", "1474").Read();
+        Assert.Empty(AutoSessions.HaulingActivity(bounty, At(11, 0)).Starts);
+    }
+
+    [Fact]
     public void A_hauling_contract_is_what_starts_a_session_and_its_pickups_keep_it_going()
     {
         var m1 = GameLogWriter.MissionId(1);
