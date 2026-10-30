@@ -427,7 +427,9 @@ admin (done), then going live.
   and does not always say so (zzatvo's crash on 28 Oct: nothing about the party in any log afterwards). Only a game started more than an hour after his last
   one ended (`AutoParty.Rejoin`) starts alone until the game says otherwise. It is written to the party changes with its time, so payouts and runs go by it as they went by the tick. The Party page
   shows who is in the game and with whom ("zzoega's party: zzatvo, zzoega"; the leader is the one the game named, else the one who made the party) and has
-  **Auto / In / Out** for every member: In or Out holds until the logs show something new about him (In until he leaves, Out until he plays). It starts the
+  **Auto / In / Out** for every member: In or Out holds until the logs show something new about him (In until he leaves, Out until he plays); a member
+  the logs put out of the party is not in its table (Frank, 30 Oct 2026: gone from the page when he leaves; a line under the table names them, and he
+  is back when the logs show him in a party with a member again, or when he is set In or added). It starts the
   first time the server runs it (the ticks before stay in the history); `SCTools:FollowParty` = false turns it off.
 - **Your own party.** With more than one party (the ones in the game, "zzoega's party", named by its leader, and the parties that hauled in this session
   and are not playing now), the Session and Leaderboard tabs of the live page show the viewer's own party by themselves (the page knows who is logged in):
