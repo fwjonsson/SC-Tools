@@ -10,7 +10,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="HaulingPlanner" />
     <InternalsVisibleTo Include="SCTools.Tests" />
     <InternalsVisibleTo Include="PlanTest" />
   </ItemGroup>

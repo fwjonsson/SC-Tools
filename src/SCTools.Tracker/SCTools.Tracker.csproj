@@ -10,7 +10,7 @@
     <AssemblyName>SCToolsTracker</AssemblyName>
     <RootNamespace>SCTools.Tracker</RootNamespace>
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
-    <ApplicationIcon>../SCTools.HaulingPlanner/icon.ico</ApplicationIcon>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="../SCTools.HaulingPlanner/icon.ico" LogicalName="icon.ico" />   <!-- the tray icon -->
+    <EmbeddedResource Include="icon.ico" LogicalName="icon.ico" />   <!-- the tray icon (the site's favicon is a copy of it) -->
   </ItemGroup>
 
 </Project>
