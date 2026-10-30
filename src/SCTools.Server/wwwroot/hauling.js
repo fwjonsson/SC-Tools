@@ -352,9 +352,9 @@ function renderPlanner() {
   workers.forEach(function (w) {
     const frame = document.createElement('div'); frame.className = 'planworker'; tables.appendChild(frame);   // every worker in his own frame
     const h = document.createElement('h2'); frame.appendChild(h);
-    if (pick && ownCard && (w.name || '').toLowerCase() === ME) h.appendChild(pick);   // his own card: the choice at its top right
     const nm = document.createElement('span'); nm.textContent = w.heading || w.name || ''; if (w.color) nm.style.color = w.color; h.appendChild(nm);   // his name in capitals, in his colour
     h.appendChild(document.createTextNode(w.title));
+    if (pick && ownCard && (w.name || '').toLowerCase() === ME) h.appendChild(pick);   // his own card: the choice at its right end, the name and the location stay left (Frank, 30 Oct 2026)
     frame.appendChild(planMap.map.meter(w.name || ''));   // the map's line for him (where he is, what he does) and his speed meter while he is in quantum
     if (!w.current) return;   // nothing to do for him
     const pair = document.createElement('div'); pair.className = 'planpair'; frame.appendChild(pair);
