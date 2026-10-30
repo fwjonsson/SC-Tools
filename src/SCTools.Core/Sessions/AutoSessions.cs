@@ -2,7 +2,7 @@ namespace SCTools.Sessions;
 
 /// <summary>
 /// The sessions that start and stop by themselves (the Hauling Planner's, the Gauntlet Tracker's grind sessions): a session starts when a mission of the
-/// tool is accepted, and goes on while something happens with its missions (accepted, completed, failed, abandoned; for hauling also the pickups and drop-offs,
+/// tool is accepted (for hauling any mission with drop-offs, since stage 3: the Red Wind contracts, the hauls of other systems, the couriers), and goes on while something happens with its missions (accepted, completed, failed, abandoned; for hauling also the pickups and drop-offs,
 /// and the quantum jumps of everybody while a contract is still going). After an hour with nothing (also when the game crashed or the tracker was off), it
 /// ended 5 minutes after the last thing that happened. A hauling session never ends while a contract is still open (Frank, 30 Oct 2026: a break of an hour
 /// or more at a station with contracts open, or a loading that takes twenty minutes, is still the session); an open contract holds it for three hours after
@@ -124,7 +124,7 @@ public static class AutoSessions
         var open = false;
         foreach (var m in log.Missions.Values)
         {
-            if (!m.IsHauling && !m.IsOut) continue;
+            if (!m.IsHauling && !m.IsOut && !Tracking.HaulJobs.IsJob(m)) continue;   // every hauling mission counts, a courier too (Frank's answer 7, stage 3 of docs/planner-any-hauling.md)
             if ((m.Accepted ?? m.FirstSeen) is { } start)
             {
                 starts.Add(start);

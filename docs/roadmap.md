@@ -127,6 +127,10 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       pickup or per drop-off; Frank's Covalex mission from Stanton to Pyro) with the Pyro contracts, starts a worker where the map has him in any system,
       and its map has the Map tool's row of systems with the legs through a gateway drawn to and from the gateway. Not yet: the runs of a job (its
       cargo picked up is noted, not planned), several pickups to several drop-offs, and planning within Stanton without a Pyro session (stage 3).
+    - **Stage 3 of the design, the other systems** (30 Oct): any hauling mission starts a session (a courier too, Frank's answer 7), so a party in
+      Stanton gets its plan on the new tab; a stop is placed by its marker's position in the system's frame or by the title's ends ("Baijini Point >
+      Ruin Station", Frank's answer 5); a worker nobody can place starts at the session's hub (where most open batches go). Not yet: the runs of a job,
+      the jobs on the Stops, Finished stops and Contracts boards, their earnings (stage 4).
     - **Wiki API** (#264; #265 for every mission of the library): the log's `contract [...]` and `contractDefinitionId[...]` are the API's
       `debug_name` and `uuid` (Frank confirmed with `701271ba-…` = `Iasi_HaulCargo_AtoB_Small_PartySupplies`), so a string mod's names do not matter.
       The contract ids are kept on the Missions rows (the old logs re-read once); the server asks `api.star-citizen.wiki/api/missions/{uuid}` about

@@ -46,6 +46,34 @@ public class HaulJobsTests
     }
 
     [Fact]
+    public void A_stop_nobody_names_is_placed_by_its_markers_position_in_the_systems_frame_or_by_the_titles_ends()
+    {
+        // stage 3 (Frank's answer 5): a Stanton pickup's marker is in the system's frame (metres from the star); Baijini Point is at (18.5869, -22.1522) Gm
+        var a = GameLogWriter.MissionId(1);
+        var baijini = (18.5869e9 + 20_000, -22.1522e9 - 30_000, 1234.5);
+        var log = new GameLogWriter().Login("zzoii").AcceptedAs(a, "RSI Disc. Month: Ling Small Haul")
+            .Marker(a, AtoB, "pickup_a_0", "862000000001", baijini)
+            .Marker(a, AtoB, "dropoff_a_0", "862000000002", OnPlanet)
+            .ObjectivePopup(a, "dropoff_a_0", "Deliver 0/4 SCU of Souvenirs to Port Tressler")
+            .Read();
+        var job = Assert.Single(HaulJobs.Of(log.Missions.Values, Atlas.Default));
+        Assert.Equal(("stanton/baijini-point", "Baijini Point", false), (job.Pickups[0].Place?.Key, job.Pickups[0].Shown, job.Pickups[0].Near));
+        Assert.Equal("stanton/baijini-point", HaulJobs.AtPosition("stanton", 18.5869, -22.15225, Atlas.Default)?.Key);   // nearer Baijini Point than Area18 (0.0002 Gm apart)
+        Assert.Equal("stanton/baijini-point", HaulJobs.AtPosition(null, 18.5869, -22.15225, Atlas.Default)?.Key);   // the system not known: the position says
+        Assert.Null(HaulJobs.AtPosition("stanton", 10, 10, Atlas.Default));   // nothing within 0.05 Gm
+
+        // a direct haul's title names both ends: "Rookie | DIRECT Interstellar Bulk Haul | Baijini Point > Ruin Station" (zzoega, 16 Oct 2026)
+        var b = GameLogWriter.MissionId(2);
+        var direct = new GameLogWriter().Login("zzoega").AcceptedAs(b, "Rookie | DIRECT Interstellar Bulk Haul | Baijini Point > Ruin Station")
+            .Marker(b, "HaulCargo_AToB_Interstellar_Bulk_Small", "pickup_b_0", "862000000003", (-18119.9, 180393.5, -232742.7))
+            .Marker(b, "HaulCargo_AToB_Interstellar_Bulk_Small", "dropoff_b_0", "862000000004", (1000, 2000, 3000))
+            .Read();
+        job = Assert.Single(HaulJobs.Of(direct.Missions.Values, Atlas.Default));
+        Assert.Equal(("stanton/baijini-point", "Baijini Point"), (job.Pickups[0].Place?.Key, job.Pickups[0].Shown));
+        Assert.Equal(("pyro/ruin-station", "Ruin Station"), (job.Drops[0].Place?.Key, job.Drops[0].Shown));
+    }
+
+    [Fact]
     public void A_pickup_the_game_does_not_name_is_named_by_its_zone_exactly_or_only_by_the_planet()
     {
         var (a, b, c, d) = (GameLogWriter.MissionId(1), GameLogWriter.MissionId(2), GameLogWriter.MissionId(3), GameLogWriter.MissionId(4));

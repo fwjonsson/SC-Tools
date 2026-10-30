@@ -22,6 +22,7 @@ public sealed class PlanService
     readonly Whereabouts _where;
     readonly bool _free;
     PlanCore? _planCore;
+    string _hub = PyroDistances.Ruin;   // where a worker nobody can place starts (stage 3): the place most of the open batches go to (Ruin in a to-Ruin session); the old planner's is always Ruin
 
     /// <param name="free">The planner without a hub (RoutePlanner, the Route Planner (new) tab) instead of the old one (TripPlanner, the Route Planner tab): it plans the
     /// contracts to another station too, its trips start where the worker is and end where the cargo goes, and it keeps stops of its own (SessionInputs.FreeLockedTrips).</param>
@@ -128,7 +129,7 @@ public sealed class PlanService
     List<PlannedTrip> Ordered(IEnumerable<PlannedTrip> trips, Func<PlannedTrip, decimal> value, Func<string, bool> wasteAboard)
     {
         var list = Queue(trips, value, wasteAboard);
-        if (_free) RoutePlanner.Chain(list, name => _runs.ActiveRunOf(name) != null ? _runs.LoadedDestinationsOf(name)[^1] : _where.LocationOf(name, true).Id, _crew.QtOf);   // the old planner's trips all start and end at Ruin: nothing to chain
+        if (_free) RoutePlanner.Chain(list, name => _runs.ActiveRunOf(name) != null ? _runs.LoadedDestinationsOf(name)[^1] : _where.LocationOf(name, true, _hub).Id, _crew.QtOf);   // the old planner's trips all start and end at Ruin: nothing to chain
         return list;
     }
 
@@ -552,7 +553,7 @@ public sealed class PlanService
                 foreach (var c in crew.Where(x => x.Capacity > 0))
                 {
                     var run = _runs.ActiveRunOf(c.Name);
-                    var loc = _where.LocationOf(c.Name, _free).Id;   // where he is: the station of his last pickup or delivery (the logs), or the one set by hand; the planner without a hub takes the map's place in any system
+                    var loc = _where.LocationOf(c.Name, _free, _hub).Id;   // where he is: the station of his last pickup or delivery (the logs), or the one set by hand; the planner without a hub takes the map's place in any system
                     var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, LoadedScu = _runs.LoadedScuOf(c.Name), From = loc == PyroDistances.Ruin ? null : loc };
                     if (run != null) start.LoadedTo = _runs.LoadedDestinationsOf(c.Name);   // his run ends where its cargo goes (the planner without a hub)
                     // everybody who flies keeps the stops of his planned trip (Frank, 30 Oct 2026: zzoega's Megumi stop went to zzatvo's plan when zzatvo picked up at
@@ -825,6 +826,10 @@ public sealed class PlanService
         var shipFullScu = crew.Where(c => c.Capacity > 0).ToDictionary(c => c.Name, c => _crew.ShipOf(c.Name)?.Total ?? c.Capacity * 232);   // a load from Ruin may fill the ship in full
         decimal PerBatch(string id) => worth.TryGetValue(id, out var x) && x.Batches > 0 ? x.Value / x.Batches : 0;   // the average batch at that station
         decimal TripValue(PlannedTrip t) => t.Picks.Sum(p => p.Batches * PerBatch(p.Group)) + _earnings.WasteValue(t.DropKeys);   // its pickups and the waste it takes out
+        // the session's hub: where most of the open batches go (Ruin for the to-Ruin contracts; Port Tressler for a party hauling to it in Stanton). A worker the logs
+        // and the map place nowhere starts there on the Route Planner (new); the old planner starts everybody at Ruin, as it always did
+        _hub = _free ? remaining.Where(kv => kv.Value > 0).GroupBy(kv => RoutePlanner.DestinationOf(kv.Key)).OrderByDescending(g => g.Sum(kv => kv.Value)).ThenBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => g.Key).FirstOrDefault() ?? PyroDistances.Ruin : PyroDistances.Ruin;
         var core = CoreFor(crew, remaining, unknown, limits, chunks, batchScu, shipScu, shipFullScu, TripValue);
         var dropTrips = core.Trips;
         // the waste only rides along on the pickup trips: a load that none of them can take along waits (the note says so)
@@ -855,10 +860,10 @@ public sealed class PlanService
                 Drive = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : drive.Key + ", " + (drive.Speed / 1e6).ToString("0", CultureInfo.InvariantCulture) + " Mm/s",
             };
             w.RunsSoFar = _state.Trips.Count(x => SameName(x.Worker, c.Name));
-            var standing = _where.LocationOf(c.Name, _free);
+            var standing = _where.LocationOf(c.Name, _free, _hub);
             w.LocationId = standing.Id;
             w.LocationByHand = standing.ByHand;
-            w.AutoLocationId = _where.AutoLocationOf(c.Name, _free);
+            w.AutoLocationId = _where.AutoLocationOf(c.Name, _free, _hub);
             w.Rows.AddRange(RunRows(c.Name));
             // the run in progress is his Current trip (a locked stop is marked in the Route cell of a planned trip)
             var runRow = w.Rows.LastOrDefault(r => r.Level == "active");
