@@ -111,7 +111,7 @@ public sealed class Atlas
         {
             var n = m.Groups["n"].Value[0] - '1';
             var key = n >= 0 && n < StarMap.StantonPrefix.Length
-                ? StarMap.Of("stanton").FirstOrDefault(p => p.Short.Equals(StarMap.StantonPrefix[n] + "-L" + m.Groups["l"].Value, StringComparison.OrdinalIgnoreCase))?.Key
+                ? StarMap.Of("stanton").FirstOrDefault(p => p.Name.StartsWith(StarMap.StantonPrefix[n] + "-L" + m.Groups["l"].Value + " ", StringComparison.OrdinalIgnoreCase))?.Key
                 : null;
             if (key != null) return Find(key);
         }
