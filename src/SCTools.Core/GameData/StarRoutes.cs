@@ -33,10 +33,13 @@ public static class StarRoutes
         return atlas.OfPyroStation(id) ?? atlas.Find(id);
     }
 
-    /// <summary>The places to read by: the source's, else the game data's (a source that is gone, as a test server's after the test, answers nothing).</summary>
+    /// <summary>
+    /// The places to read by: the source's, else the game data's (a source that is gone, as a test server's after the test, answers nothing or no places:
+    /// its database is closed; the planner's tests that ran beside it crashed on 30 Oct 2026).
+    /// </summary>
     public static Atlas CurrentAtlas()
     {
-        try { return AtlasSource(); }
+        try { return AtlasSource() ?? Atlas.Default; }
         catch (Exception) { return Atlas.Default; }
     }
 
