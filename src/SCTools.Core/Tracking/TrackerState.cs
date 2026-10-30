@@ -32,6 +32,9 @@ public sealed class TrackerState
     /// <summary>What the site knows about the hauling jobs besides the logs (a hauler's SCU, the Mission Library, the map's places); the program has none.</summary>
     public JobBook Jobs { get; set; } = JobBook.Empty;
 
+    /// <summary>Where the map has every worker (the server puts it here every few seconds, PlannerPositions): the planner takes it where it is newer than its own pickups and deliveries (Whereabouts).</summary>
+    public IReadOnlyDictionary<string, WorkerPosition> Positions { get; set; } = new Dictionary<string, WorkerPosition>(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>While the session is worked out for one party only (Tracker.Focus): the missions that are theirs. Null: everybody's.</summary>
     public Func<Mission, bool>? Focus { get; set; }
 

@@ -17,6 +17,7 @@ public sealed class RefreshService : BackgroundService
     readonly MissionLibrary _missions;
     readonly Playtime _playtime;
     readonly FleetService _fleet;
+    readonly PlannerPositions _positions;
     readonly ILogger<RefreshService> _log;
     long _ticks, _totalMs, _slowestMs, _buildsReported;
     DateTime _reported = DateTime.UtcNow;
@@ -25,9 +26,10 @@ public sealed class RefreshService : BackgroundService
     public static readonly TimeSpan SlowTick = TimeSpan.FromSeconds(1);
 
     public RefreshService(LiveTracker live, DataStore store, ServerPaths paths, GauntletService gauntlet, MissionLibrary missions, Playtime playtime,
-        FleetService fleet, ILogger<RefreshService> log)
+        FleetService fleet, PlannerPositions positions, ILogger<RefreshService> log)
     {
         _fleet = fleet;
+        _positions = positions;
         _gauntlet = gauntlet;
         _missions = missions;
         _playtime = playtime;
@@ -89,6 +91,14 @@ public sealed class RefreshService : BackgroundService
         catch (Exception ex)
         {
             _log.LogError(ex, "Working out the logs failed");
+        }
+        try
+        {
+            _positions.Push(DateTime.UtcNow);   // where the map has everybody, for the Trip Planner's Current location
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Giving the Hauling Planner the map's places failed");
         }
         try
         {

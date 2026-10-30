@@ -163,6 +163,9 @@ public static class StarMap
 
     static readonly Dictionary<string, string> PyroIdOf = PyroStations.ToDictionary(kv => "pyro/" + kv.Value, kv => kv.Key);
 
+    /// <summary>The id of one of the Hauling Planner's Pyro stations (PyroDistances) for a place of the map, or null for any other place (or none).</summary>
+    public static string? PyroStationIdOf(Place? place) => place != null && PyroIdOf.TryGetValue(place.Key, out var id) ? id : null;
+
     /// <summary>
     /// How far a quantum jump between two places is (Gm): between two of the Hauling Planner's Pyro stations as it has it (the legs from Ruin as the game says
     /// them), else straight.

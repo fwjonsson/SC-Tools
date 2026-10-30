@@ -17,6 +17,7 @@ public sealed class LiveTracker
     int _builtStatusSeq = -1;
     string _builtStatusText = "";
     JobBook? _builtJobs;
+    IReadOnlyDictionary<string, WorkerPosition>? _builtPositions;   // the map's places data.json was made with (PlannerPositions on the server)
     DateTime _builtAt = DateTime.MinValue;
     long _builds;
     volatile LiveSnapshot _snapshot = LiveSnapshot.Empty;
@@ -61,7 +62,7 @@ public sealed class LiveTracker
     /// <summary>
     /// Works everything out again when something new was uploaded, moves the status line on, and makes data.json anew when anything in it can have changed: a
     /// new piece of log, somebody coming or going, a session starting or stopping, a save (a change on a page, the plan), the status line, the book of hauling
-    /// jobs, or half a minute gone by (MaxAge). Most ticks change nothing: then data.json stays as it is, and the page, which sends its ETag back, gets 304.
+    /// jobs, the map's places for the planner, or half a minute gone by (MaxAge). Most ticks change nothing: then data.json stays as it is, and the page, which sends its ETag back, gets 304.
     /// </summary>
     public void Refresh(DateTime nowUtc)
     {
@@ -90,7 +91,7 @@ public sealed class LiveTracker
             if (!changed)
             {
                 changed = _saves != _builtSaves || status.Seq != _builtStatusSeq || status.Text != _builtStatusText
-                    || !ReferenceEquals(Tracker.State.Jobs, _builtJobs) || nowUtc - _builtAt >= MaxAge;
+                    || !ReferenceEquals(Tracker.State.Jobs, _builtJobs) || !ReferenceEquals(Tracker.State.Positions, _builtPositions) || nowUtc - _builtAt >= MaxAge;
             }
             if (changed) Build(nowUtc);
         }
@@ -108,6 +109,7 @@ public sealed class LiveTracker
         _builtStatusSeq = Tracker.Status.Seq;
         _builtStatusText = Tracker.Status.Text;
         _builtJobs = Tracker.State.Jobs;
+        _builtPositions = Tracker.State.Positions;
         _builtAt = nowUtc;
         _snapshot = new LiveSnapshot(json, "\"" + _run + "-" + _builds.ToString(CultureInfo.InvariantCulture) + "\"");
     }
