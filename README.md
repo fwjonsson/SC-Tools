@@ -262,14 +262,23 @@ admin (done), then going live.
   the three systems with their positions from the Star Citizen Wiki API (`/api/locations/positions`, downloaded with ScApiTool on 20 Oct 2026;
   Pyro's are the same as `PyroDistances`'), drawn with the system's Y to the right and its X down, like the Trip Planner's Pyro. A moon, city or
   station within 10 pixels of its planet is drawn at the planet (its tooltip lists them; the planet's label names the cities and stations at it).
-  The log says when a player picks a destination ("Projected Start Location is Ruin Station for route to destination rs_ext_pyro5_l2") and when
-  he arrives, not when the jump starts: it is taken to start 10 seconds after the destination was picked (`MapService.JumpDelay`), and the page
+  The log says when a player picks a destination ("Projected Start Location is Ruin Station for route to destination rs_ext_pyro5_l2"), when he
+  goes from one area into another (`<Update Inventory Location> Player [zzoega] is changing location. Landing [2026442305] -> [0]. Location
+  [2026442305] -> [685899972]`: the game's numbers for the landing area and the area around him, `AreaChange`; the trackers send it from the update
+  of 31 Oct 2026) and when he arrives. A jump picked on a pad or in a hangar starts when he leaves: off the pad, then out of the station's area into
+  space a few seconds later; until then he is still at the station, "leaving for" where he picked. The next area, well into the jump, is where he
+  jumped to: he is there, a few seconds before the arrival line (`MapService.JumpTimes`). Measured on zzoega's logs: from leaving to coming in, a
+  route takes the same time to about 2 seconds (Ruin to Rod's Fuel 281 to 287 s, seven times), from the pick it varied by a minute. Picked out in
+  space there is no area to leave: it is taken to start 10 seconds after the pick (`MapService.JumpDelay`). The page
   moves him along his route by his drive (`Crew.QtOf`: his fleet's active ship, crafted as it is; the same motion as `QtDrive.Seconds`), with a
   speed meter (Mm/s, in c, against his drive's top speed; it stays at 0 Mm/s with his drive's top speed while he is not in quantum, so his card keeps its size,
   on the Trip Planner too; `top` in map.json; Frank, 29 and 30 Oct 2026). `MapService.Follow` walks his jumps: the start name sets his system and place
   (`StarMap.OfName`: "Pyro System" is the system alone; a name two systems have, like "Nyx Gateway", is the one he is in, and after a gateway the
   system it leads to), the destination is a place (`StarMap.OfQuantumTarget`: the Pyro stations, "pyro3" the third planet, "LOC_RR_S1_L2" HUR-L2,
-  "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. Coming near a
+  "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. The game's own
+  code for a Pyro station or a gateway is read in every one of those (`Atlas.OfCode`: "RR_P6_L5" and "PYR6 L5" are Megumi Refueling, planet 6 and
+  Lagrange point 5 like "rs_ext_pyro6_l5", "RR_P6_LEO" is Ruin Station in low orbit, "RR_JP_PyroStanton" the Stanton Gateway in Pyro; RR is Rest &
+  Relax's, which the game puts on every station, Frank 31 Oct 2026). Coming near a
   place puts him there too: the game names the area he is in with his inventory lines (`<RequestLocationInventory> Player[zzoii] requested inventory for
   Location[Nyx_Levski]`, `Location[RR_P6_LEO]` around Ruin Station: the space where a hangar can be called, not where he opened an inventory, Frank 30 Oct
   2026; the system by the start of the id, the place by the rest, `Atlas.OfLocation`; the trackers send these lines from their next update), also after

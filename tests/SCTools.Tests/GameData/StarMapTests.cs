@@ -42,6 +42,15 @@ public class StarMapTests
     [InlineData("pyro3", "pyro/bloom")]
     [InlineData("stanton4", "stanton/microtech")]
     [InlineData("LOC_RR_S1_L2", "stanton/hur-l2-faithful-dream-station")]
+    [InlineData("RR_P6_L5", "pyro/megumi-refueling")]
+    [InlineData("RR_P6_LEO", "pyro/ruin-station")]
+    [InlineData("RR_P3_LEO", "pyro/orbituary")]
+    [InlineData("RR_P3_L1", "pyro/starlight-service-station")]
+    [InlineData("RR_P2_L4", "pyro/checkmate")]
+    [InlineData("RR_JP_PyroStanton", "pyro/stanton-gateway")]
+    [InlineData("RR_JP_PyroNyx", "pyro/nyx-gateway")]
+    [InlineData("RR_JP_NyxPyro", "nyx/pyro-gateway")]
+    [InlineData("RR_P9_L1", null)]
     [InlineData("rs_ext_pyro-nyx_jp", "pyro/nyx-gateway")]
     [InlineData("rs_ext_nyx-pyro_jp1", "nyx/pyro-gateway")]
     [InlineData("levski_all-001", "nyx/levski")]
@@ -49,6 +58,15 @@ public class StarMapTests
     [InlineData("AsteroidCluster_Pyro_004", null)]
     public void A_quantum_destination_of_the_log_is_a_place_of_the_map(string target, string? key) =>
         Assert.Equal(key, StarMap.OfQuantumTarget(target)?.Key);
+
+    [Fact]
+    public void The_games_code_for_a_pyro_station_is_read_as_an_area_and_as_a_start_name()
+    {
+        Assert.Equal(("pyro", "pyro/patch-city"), (Atlas.Default.OfLocation("RR_P3_L3").System, Atlas.Default.OfLocation("RR_P3_L3").Place?.Key));
+        Assert.Equal("pyro/patch-city", StarMap.OfName("PYR3 L3").Place?.Key);
+        Assert.Equal("pyro/stanton-gateway", StarMap.OfName("RR_JP_PyroStanton").Place?.Key);
+        Assert.Equal((null, null), Atlas.Default.OfLocation("RR_P9_L1"));   // no such station: still on Map places
+    }
 
     [Fact]
     public void A_name_the_game_says_is_a_place_or_a_system_and_a_name_of_two_systems_is_the_one_he_is_in()
