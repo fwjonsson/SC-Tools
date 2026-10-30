@@ -160,6 +160,8 @@ should know before that happens.
      ones are there too.
    - **Activity**: only those missions count: accepted, completed, failed or abandoned (for hauling also their pickups and drop-offs; and since 30 Oct,
      while a hauling contract is still going, everybody's quantum jumps and the latest log line, after a session ended under the party on 29 Oct).
+     A hauling session never ends while a contract is still open (Frank, 30 Oct: breaks of an hour or more at a station, loadings of twenty minutes);
+     an open contract holds it for three hours after the last line in anybody's log.
    - **End**: after 1 hour without such activity, the session ends 5 minutes after the last activity. A crash, or a tracker off for more than an
      hour, ends it the same way.
    - **No buttons**: the hauling Start/Stop Session and the Gauntlet's "Start grind session" are gone ("if there are issues we will work them out");

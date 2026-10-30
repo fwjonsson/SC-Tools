@@ -67,9 +67,34 @@ public class AutoSessionsTests
             .Marker(m1, string.Format(GameLogWriter.HaulingContract, 2), "pickup_aaaa_0", "900000000101", GameLogWriter.Gaslight)
             .Minutes(40).Objective(m1, "pickup_aaaa_0", "COMPLETED")
             .Read();
-        var (starts, activity) = AutoSessions.HaulingActivity(log);
+        var (starts, activity, going) = AutoSessions.HaulingActivity(log, At(11, 0));
         Assert.Equal(new[] { At(10, 0) }, starts);
         Assert.Contains(At(10, 40), activity);
+        Assert.True(going);   // the contract is still open
+    }
+
+    [Fact]
+    public void A_session_does_not_end_while_a_contract_is_still_open()
+    {
+        // Frank, 30 Oct 2026: a break of an hour or more at a station, or a loading that takes twenty minutes, with contracts open: the session goes on.
+        // An open contract holds it for three hours after the last thing in anybody's log (somebody who went to bed with one)
+        var m1 = GameLogWriter.MissionId(22);
+        var log = new GameLogWriter().At(At(10, 0)).Login("zzoega").Accepted(m1)
+            .Marker(m1, string.Format(GameLogWriter.HaulingContract, 2), "pickup_cccc_0", "900000000301", GameLogWriter.Gaslight)
+            .Minutes(40).Objective(m1, "pickup_cccc_0", "COMPLETED").Read();
+        var sessions = new List<ManualSession>();
+        var (starts, activity, going) = AutoSessions.HaulingActivity(log, At(12, 30));
+        Assert.True(going);
+        Assert.True(AutoSessions.Apply(sessions, starts, activity, At(12, 30), going));
+        Assert.Null(Assert.Single(sessions).StopUtc);   // an hour and fifty minutes with nothing, the contract open: it runs
+        Assert.False(AutoSessions.Apply(sessions, starts, activity, At(13, 0), going));   // nothing new
+        var (_, _, stale) = AutoSessions.HaulingActivity(log, At(13, 41));   // three hours after the last log line: the contract holds nothing any more
+        Assert.False(stale);
+        Assert.True(AutoSessions.Apply(sessions, starts, activity, At(13, 41), stale));
+        Assert.Equal(At(10, 45), sessions[^1].StopUtc);   // ended 5 minutes after the pickup at 10:40
+        // a session that ended that way goes on again when a contract turns out to be open (the logs read anew, the party back from a break)
+        Assert.True(AutoSessions.Apply(sessions, starts, activity, At(13, 41), true));
+        Assert.Null(sessions[^1].StopUtc);
     }
 
     [Fact]
@@ -87,10 +112,11 @@ public class AutoSessionsTests
             for (var i = 0; i < 6; i++) w = w.Minutes(ended && i == 0 ? 15 : 25).QuantumSelected("Gaslight").Minutes(5).QuantumArrived();   // flying until 13:40
             return w;
         }
-        var (starts, activity) = AutoSessions.HaulingActivity(Hauling(false).Read());
+        var (starts, activity, _) = AutoSessions.HaulingActivity(Hauling(false).Read(), At(14, 0));
         Assert.Contains(At(11, 5), activity);   // a jump while the contract is going
         Assert.Null(Assert.Single(AutoSessions.Find(starts, activity, At(14, 0))).Stop);   // still running at 14:00: the last jump was at 13:40
-        var (done, doneActivity) = AutoSessions.HaulingActivity(Hauling(true).Read());
+        var (done, doneActivity, doneGoing) = AutoSessions.HaulingActivity(Hauling(true).Read(), At(14, 0));
+        Assert.False(doneGoing);   // nothing open
         Assert.DoesNotContain(At(11, 5), doneActivity);
         Assert.Equal(At(10, 55), Assert.Single(AutoSessions.Find(done, doneActivity, At(14, 0))).Stop);   // ended 5 minutes after the hand-in at 10:50
     }
