@@ -26,6 +26,7 @@ public class MapPageTests
         Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-2)), 0, 1000, his.Lines.ToList(), now).Ok);
         var map = JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/map/map.json")).RootElement;
         var z = Player(map, "zzoega");
+        Assert.True(z.GetProperty("top").GetDouble() > 0);   // his drive's top speed: the meter shows it while he stands still too (30 Oct 2026)
         Assert.Equal(("stanton", "jump", "stanton/aberdeen", "stanton/hur-l2-faithful-dream-station"),
             (z.GetProperty("system").GetString(), z.GetProperty("state").GetString(), z.GetProperty("from").GetString(), z.GetProperty("to").GetString()));
         Assert.InRange(z.GetProperty("dist").GetDouble(), 1.0e9, 1.5e9);

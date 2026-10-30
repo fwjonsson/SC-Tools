@@ -324,7 +324,7 @@ var SystemMap = (function () {
       const pl = data ? (data.players || []).find(function (p) { return same(p.name, m.name); }) : null;
       m.what.textContent = pl ? describe(pl) : data ? 'Not playing now (no game with a tracker running).' : '';
       if (!pl || pl.state !== 'jump') {   // standing still: the meter at 0, with his drive's top speed when the data has it
-        const top = pl && pl.motion && pl.motion.v > 0 ? pl.motion.v : 0;
+        const top = pl && pl.motion && pl.motion.v > 0 ? pl.motion.v : pl && pl.top > 0 ? pl.top : 0;   // his drive's top speed, standing still too (Frank, 30 Oct 2026)
         m.num.textContent = '0';
         m.unit.textContent = 'Mm/s · 0.00 c' + (top > 0 ? ' · top ' + (top / 1e6).toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' Mm/s' : '');
         m.fill.style.width = '0%';
