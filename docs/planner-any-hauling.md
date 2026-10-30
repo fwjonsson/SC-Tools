@@ -239,6 +239,24 @@ Collect and Deliver in the Job column, the SCU and the boxes as today, and a lin
    cargo contracts?
 8. **The Route Planner's map** with workers in two systems: a row of system tabs like the Map tool's, or one system following the viewer's own party?
 
+### Frank's answers (30 Oct 2026, on the pull request)
+
+1. He abandoned the station-to-station contract to summon another one in its place. These contracts are planned with the same priorities as before,
+   side by side with the to-Ruin contracts in the same trips: the planner has to solve that mix.
+2. He hardly hauls outside Pyro. Now and then an interstellar run from Stanton to Pyro: a Covalex master mission of about 100 SCU with several
+   drop-offs in Pyro. So after Pyro the interstellar legs (stage 3) matter more than hauling within Stanton (stage 2); the order of those two stages
+   is swapped where the work allows it.
+3. Carbon for two destinations can share a ship: they load it so that they remember where each part is. So the plan may put the same commodity for
+   two places in one ship; the rule that a trip takes at most one load from where it starts goes, the plan only keeps such loads apart in the Current
+   Route's lines so the hauler sees what goes where.
+4. 3.4 minutes for a gateway crossing is about right, the calibration included: `GateSeconds` starts at that.
+5. "Near ArcCorp" is the mission's description only; the marker has coordinates, or he fills the place in on the admin's Map places page. So a stop the
+   game does not name is placed by its marker's position where that is in the system's frame, else by a place the admin adds, and it is listed as not
+   placed until then.
+6. The log lines of an end-to-end interstellar haul and a Stanton Single-to-multi come later.
+7. A courier mission counts as hauling: it starts a session too.
+8. The Route Planner's map gets a row of system tabs like the Map tool's.
+
 Known limits that stay for now: the payout of a part delivery (`docs/partial-submits.md`), outposts and mission spots that are not places of the map
 (their planet or moon stands in), and the ships' real box sizes (the Boxes column keeps guessing 32s).
 
@@ -258,10 +276,12 @@ and "stage 4, earnings" of the Hauling of every system, split up.
   - **1b, the planner without a hub**: trips start where the worker is and end at his last drop-off, parcels to any Pyro station, the cargo aboard
     checked along the route, runs that end when the ship is empty, locks and start points by place key, the map drawing any Pyro route, the Current
     Route lines per landing. Every existing scenario keeps its plan; new ones for the station-to-station haul and a mixed session.
-- **Stage 2, the other systems**: `StarRoutes` within Stanton and Nyx, workers placed anywhere by the map, a stop named by the texts, the zones, the
-  title and the carrier's jumps, "near a planet" as a place, the Route Planner's map with the systems' row; a party hauling in Stanton gets its plan.
-- **Stage 3, interstellar legs**: routes through the gateways with the crossing's time, a mission with its ends in two systems (the drop-off named
-  "Pyro System" until arrival, taken from the title), a worker's run across systems, the legs drawn per system with the jump marked.
+- **Stage 2, interstellar legs** (before the other systems, Frank's answer 2): routes through the gateways with the crossing's time, a mission with
+  its ends in two systems (the drop-off named "Pyro System" until arrival, taken from the title; the Covalex master mission from Stanton with several
+  drop-offs in Pyro), a worker's run across systems, the Route Planner's map with the Map tool's row of system tabs and the legs drawn per system with
+  the jump marked, workers placed anywhere by the map.
+- **Stage 3, the other systems**: `StarRoutes` within Stanton and Nyx, a stop named by the texts, the zones, the title, the marker's position and the
+  admin's Map places; a party hauling in Stanton gets its plan.
 - **Stage 4, earnings and debts**: every hauling mission in the session's earnings, the runs' values, the leaderboard and the Debts tab's payouts; the
   Other hauling board goes.
 
