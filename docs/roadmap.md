@@ -31,7 +31,7 @@ All the tools track at the same time, all the time. The tracking runs on the ser
 
 1. **Hauling Planner**: live at `/hauling`, with automatic parties and automatic sessions per party (#238, #239). Its contract rewards live in the
    Mission Library. Since #266 it is the one hauling app: the hauling of every system is in it (an Other hauling board on the Session tab until 30 Oct
-   2026, rows of the Stops board since, with the SCU typed on the Current Route); `/hauling/jobs` just goes to `/hauling`. The Contracts table was a tab of its own (#269) until 30 Oct 2026, when Frank put it back on the Session
+   2026, rows of the Stops board since, with the SCU typed on the Current Route; the address `/hauling/jobs` is gone). The Contracts table was a tab of its own (#269) until 30 Oct 2026, when Frank put it back on the Session
    tab under the stops (over the whole width) and gave the two leaderboards a Leaderboard tab of their own.
 2. **Session tool** (`/session`, PR #233): playtime kept for good (`LogFiles`: old logs and live games), totals today / this week / this month / all
    time, games, crashes (no SystemQuit line), a live clock, and what the completed missions earned at the Mission Library's rewards (worked out again

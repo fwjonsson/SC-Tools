@@ -646,7 +646,6 @@ function tabOf(name) {
   name = (name || '').replace(/^#/, '');
   if (name === 'plan') name = 'planner';
   if (name === 'contracts') name = 'session';   // the contracts are on the Session tab since 30 Oct 2026
-  if (name === 'planner-new') name = 'planner';   // the Route Planner (new) of 30 Oct 2026 is the Route Planner now
   return HAVE.find(function (k) { return TABS[k] === name; });
 }
 function show(which) {

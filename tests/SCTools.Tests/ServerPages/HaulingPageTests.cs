@@ -27,7 +27,7 @@ public class HaulingPageTests
             + "<a href=\"/hauling/debts\" id=\"tabD\">Debts</a><a href=\"/hauling/history\" id=\"tabH\">History</a><a href=\"/hauling/leaderboard\" id=\"tabL\">Leaderboard</a>", page);   // no Contracts tab, a Leaderboard tab (30 Oct 2026)
         Assert.Contains("<div id=\"viewL\" class=\"hidden\">", page);
         Assert.DoesNotContain("id=\"tabN\"", page);   // the Route Planner (new) tab of 30 Oct 2026 is the Route Planner now
-        Assert.Equal(page, await visitor.GetStringAsync("/hauling/planner-new"));   // its old address: the same page, the script shows the Route Planner
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, (await visitor.GetAsync("/hauling/planner-new")).StatusCode);   // the address of the Route Planner (new) of 30 Oct 2026 is gone (Frank)
         Assert.Contains("<h2>Session leaderboard</h2><div class=\"scroll\" id=\"leaders\"></div>", page);
         Assert.Contains("<h2>All-time leaderboard</h2><div class=\"scroll\" id=\"allTime\"></div>", page);
         Assert.DoesNotContain("id=\"viewC\"", page);
@@ -63,7 +63,6 @@ public class HaulingPageTests
         var visitor = f.Browser();
         var script = await visitor.GetStringAsync("/hauling.js");
         Assert.Contains("const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history', L: 'leaderboard' };", script);   // /hauling/planner
-        Assert.Contains("if (name === 'planner-new') name = 'planner';", script);   // the old address of the Route Planner (new) opens the Route Planner
         Assert.Contains("function systemIn(d, id)", script);   // the map's data has every system (stage 2)
         Assert.Contains("function legEnds(x, y)", script);   // a leg through a gateway is drawn to the gateway on each system's map
         Assert.Contains("row.className = 'sub systems';", script);   // the row of systems over the map, when the routes are in more than one

@@ -477,7 +477,7 @@ admin (done), then going live.
     table does not know stays out of the plan, with a note.
   - **One planner** (Frank, 30 Oct 2026, evening): the new planner was tried out for a day on a tab of its own, *Route Planner (new)*, beside the old one,
     each with kept stops of its own; then Frank made it the Route Planner. The old `TripPlanner` (every trip from Ruin and back), the second tab, its tools on
-    the Tools page and the `FreeLockedTrips` column are gone; `/hauling/planner-new` opens the Route Planner. `Tracker.Plan` is the one `PlanService`.
+    the Tools page and the `FreeLockedTrips` column are gone, and so is the address `/hauling/planner-new`. `Tracker.Plan` is the one `PlanService`.
   - **Soft kept stops, 20-minute landings, the flying at a tenth** (Frank, 30 Oct 2026; the new planner only): the stop a hauler is flying to stays first in
     his trip, but its batch count is free, so he takes as many there as fit. The stops kept after it are preferred, not fixed (`RoutePlanner.KeepSeconds`, a
     third of a landing for a kept stop that leaves his trip): they give way when that saves a landing or fills the ship better, and never on a tie. His trip

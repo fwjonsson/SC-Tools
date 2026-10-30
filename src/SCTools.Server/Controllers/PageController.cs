@@ -75,7 +75,7 @@ public sealed class PageController : Controller
     [HttpGet("/hauling")]
     public IActionResult Page() => _tools.Sees(User, SiteTools.Hauling) ? View("~/Views/Hauling/Index.cshtml") : Hidden();
 
-    static readonly string[] HaulingTabs = { "session", "planner", "planner-new", "debts", "history", "leaderboard", "contracts" };   // planner-new and contracts: old links, the script shows the Route Planner and the Session tab (30 Oct 2026)
+    static readonly string[] HaulingTabs = { "session", "planner", "debts", "history", "leaderboard", "contracts" };   // contracts: an old link, the script shows the Session tab (30 Oct 2026)
 
     /// <summary>A tab of the page at its own address (/hauling/planner): the same page, which shows that tab.</summary>
     [HttpGet("/hauling/{tab}")]
