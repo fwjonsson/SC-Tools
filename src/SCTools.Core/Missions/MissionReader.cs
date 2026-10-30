@@ -47,6 +47,18 @@ public sealed class MissionReader
 
     readonly Dictionary<string, State> _missions = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// The shares he got that no accept took yet: the game's "Contract Shared" line has no mission id (all zeros) and often the contract's template for a
+    /// name ("~mission(ReputationRank) | ..."), and his "Contract Accepted" with the real mission follows a second to half a minute later (Frank's logs of
+    /// Aug-Oct 2026, three accounts). Each share is one accept.
+    /// </summary>
+    readonly List<(DateTime At, string Title)> _shares = new();
+
+    /// <summary>How long after a share his accept of it comes at the most.</summary>
+    static readonly TimeSpan ShareAccepted = TimeSpan.FromSeconds(30);
+
+    const string NoMission = "00000000-0000-0000-0000-000000000000";
+
     /// <summary>Every mission seen so far, in the order they first showed up.</summary>
     public IReadOnlyList<MissionSeen> Missions =>
         _missions.OrderBy(m => m.Value.Order)
@@ -71,13 +83,20 @@ public sealed class MissionReader
         {
             var n = Note.Match(line);
             if (!n.Success || Time(n) is not { } at) return;
-            var s = Of(n.Groups["m"].Value);
             var title = CleanTitle(n.Groups["t"].Value);
+            if (n.Groups["m"].Value == NoMission)
+            {
+                if (n.Groups["k"].Value == "Shared") _shares.Add((at, title));   // a share that names no mission: his accept of it says which
+                return;
+            }
+            var s = Of(n.Groups["m"].Value);
             // the first name counts (a share the game did not name yet has none), unless the game had not filled it in ("at ~mission(Location)") and this one is
             if (title.Length > 0 && !title.StartsWith("~mission(", StringComparison.Ordinal)) s.Title = MissionKinds.Better(s.Title, title);
             switch (n.Groups["k"].Value)
             {
                 case "Accepted":
+                    // shared with him when a share came just before (and it is not one he had already: the game says them all again at a login)
+                    if (s.Started == null && TakeShare(at, title)) s.Shared = true;
                     s.Started ??= at;
                     break;
                 case "Shared":
@@ -105,6 +124,20 @@ public sealed class MissionReader
             s.Ended = at;
         }
     }
+
+    /// <summary>A share of this contract (its name, or the template) that came in the half minute before this accept: taken by it. True when there was one.</summary>
+    bool TakeShare(DateTime at, string title)
+    {
+        _shares.RemoveAll(s => at - s.At > ShareAccepted);
+        var i = _shares.FindIndex(s => s.At <= at && (s.Title.StartsWith("~mission(", StringComparison.Ordinal) || s.Title.Length == 0
+            || string.Equals(KindName(s.Title), KindName(title), StringComparison.OrdinalIgnoreCase)));
+        if (i < 0) return false;
+        _shares.RemoveAt(i);
+        return true;
+    }
+
+    /// <summary>A name as the kinds compare it (without what a string mod adds).</summary>
+    static string KindName(string title) => MissionKinds.KindTitle(title) ?? title;
 
     static DateTime? Time(Match m) =>
         DateTime.TryParse(m.Groups["ts"].Value, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var t) ? t : null;

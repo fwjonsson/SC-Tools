@@ -142,7 +142,7 @@ public class MissionLibraryTests
         var zzoega = await f.Player(f.AddKey("zzoega"));
         var library = f.Services.GetRequiredService<MissionLibrary>();
         // 25 kinds played on 21 Oct, then a bounty taken a minute ago: the log never says which offer it is (most missions with comms do not), and one
-        // shared with him by the other account (its offer never showed in this log)
+        // shared with him by the other account (its offer never showed in this log: it is his too)
         var old = Enumerable.Range(1, 25).SelectMany(i => Mission($"{i:00000000}-1111-1111-1111-111111111111", C1, "Old Mission " + i));
         var now = DateTime.UtcNow.AddMinutes(-1).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture);
         var bounty = $"<{now}> [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Accepted: Kill the Outlaw at Bloom: \" [84] to queue. New queue size: 1, MissionId: [99999999-9999-9999-9999-999999999999], ObjectiveId: [] [Missions][Comms]";
@@ -170,7 +170,7 @@ public class MissionLibraryTests
         Assert.Contains(">21 Oct 2026<", rows.Single(r => r.Name == "Old Mission 1").Html);
         Assert.DoesNotContain("running", rows.Single(r => r.Name == "Old Mission 1").Html);
         Assert.DoesNotContain("<span class=\"now\">", await admin.GetStringAsync("/missions"));   // not the admin's play
-        Assert.DoesNotContain("Somebody Else", page);
+        Assert.Contains(library.Entries(), e => e.Shown == "Somebody Else's Job" && e.PlaysOf("zzoega") != null);   // shared with him: he plays it too (#385)
         Assert.Contains("Page 1 of ", page);
         Assert.Contains("href=\"/missions?page=2\"", page);
         Assert.Contains("Next »", page);
@@ -184,12 +184,12 @@ public class MissionLibraryTests
         Assert.Contains("Page 1 of ", WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?page=0")));   // out of range: the nearest one
         // sorted by what he completed: the completed ones first, the one he is playing (0 completed) after them, and the kinds he never played last
         var last = Rows(WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions?sort=played&dir=desc&page=2"))).Select(r => r.Name).ToList();
-        Assert.Equal("Kill the Outlaw at Bloom", last[^1]);   // after the 25 he completed
+        Assert.Contains("Kill the Outlaw at Bloom", last.TakeLast(2));   // after the 25 he completed (with the one shared with him, also going on)
         Assert.Contains("Nothing here.", await admin.GetStringAsync("/missions?mine=1"));   // the admin played nothing
         // the latest he played first: the one he plays now, then the ones of 21 Oct, then the kinds he never played
         var latest = Rows(WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions?sort=last&dir=desc"))).Select(r => r.Name).ToList();
-        Assert.Equal("Kill the Outlaw at Bloom", latest[0]);
-        Assert.StartsWith("Old Mission", latest[1]);
+        Assert.Contains("Kill the Outlaw at Bloom", latest.Take(2));   // with the one shared with him at the same time
+        Assert.StartsWith("Old Mission", latest[2]);
         Assert.Contains("/missions?sort=last&dir=asc", WebUtility.HtmlDecode(await zzoega.GetStringAsync("/missions?sort=last&dir=desc")));
     }
 

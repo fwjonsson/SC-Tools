@@ -27,8 +27,8 @@ public sealed record TrackedContract(string MissionId, string? Kind, string? Tit
 
     /// <summary>
     /// Does this player get its MG and Council scrip? The game's rule (Frank, 30 Oct 2026): the one who took it, when he still had it when it paid out; when
-    /// he abandoned it (or it failed for him), the one who accepted the share first of the ones who still had it. Nobody else, and nobody when it was
-    /// not completed.
+    /// he abandoned it (or it failed for him), the one who accepted the share first of the ones who still had it (Frank's logs: the game's "You've Earned"
+    /// line follows that one's completion). Nobody else, and nobody when it was not completed.
     /// </summary>
     public bool GetsScrip(string player)
     {
@@ -38,9 +38,14 @@ public sealed record TrackedContract(string MissionId, string? Kind, string? Tit
         // completing it, it goes on to the share accepted first
         var takers = Holders.Where(h => h.Took == true).ToList();
         if (takers.Count == 0 || takers.Any(h => h.Completed || h.Outcome == null)) return false;
-        var next = Holders.Where(h => h.Completed && h.AcceptedUtc != null).Select(h => h.AcceptedUtc).Min();
-        return next != null && me.AcceptedUtc == next;
+        // the share accepted first: the longest from his accept to the completion, both by his own PC's clock (two PCs' clocks can be seconds apart, and
+        // the two shares are often accepted within a second of each other)
+        var lead = Holders.Where(h => h.Completed && h.AcceptedUtc != null && h.EndedUtc != null).Select(Lead).DefaultIfEmpty().Max();
+        return lead != null && Lead(me) == lead;
     }
+
+    /// <summary>How long before it ended for him he accepted it (by his own clock), or null.</summary>
+    static TimeSpan? Lead(ContractHolder h) => h.EndedUtc - h.AcceptedUtc;
 
     /// <summary>How it ended: completed when anybody completed it (it paid out), else how it ended for the first who ended it; null while it goes on.</summary>
     public MissionOutcome? Outcome =>

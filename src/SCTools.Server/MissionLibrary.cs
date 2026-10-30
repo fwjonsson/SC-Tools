@@ -312,13 +312,14 @@ public sealed class MissionLibrary
             {
                 foreach (var m in missions)
                 {
-                    // a mission he took himself is in it, also when the log never says which offer it is (most missions with comms, like the bounties); a
-                    // mission shared with him whose offer never showed is the other account's (it is in the library from that log), unless the Hauling
-                    // Planner reads it
-                    if (m.ContractId == null && m.Hauling == null && (m.Shared || m.Title == null)) continue;
+                    // a mission is in it also when the log never says which offer it is (most missions, like the bounties): one he took himself, and
+                    // one shared with him (marked Shared: the contracts tracker splits it between who had it, and his own plays on the library's page
+                    // count it; until #385 it was left to the log of the one who shared it); not one without a name
+                    if (m.ContractId == null && m.Hauling == null && m.Title == null) continue;
                     var key = (player.ToLowerInvariant(), m.MissionId.ToLowerInvariant());
                     if (!pending.TryGetValue(key, out var had)) _known.TryGetValue(key, out had);
-                    var merged = had == null ? m : new MissionSeen(had.MissionId, had.ContractId ?? m.ContractId, MissionKinds.Better(had.Title, m.Title), had.Shared,
+                    // shared with him once any of his logs says so (an old log read again knows the share, the live one only the login's accept)
+                    var merged = had == null ? m : new MissionSeen(had.MissionId, had.ContractId ?? m.ContractId, MissionKinds.Better(had.Title, m.Title), had.Shared || m.Shared,
                         Earliest(had.StartedUtc, m.StartedUtc), had.EndedUtc ?? m.EndedUtc, had.Outcome ?? m.Outcome, had.Hauling ?? m.Hauling, had.Definition ?? m.Definition);
                     if (merged == had) continue;
                     var row = had == null ? null : db.Missions.Find(player, had.MissionId) ?? db.Missions.FirstOrDefault(r => r.Player == player && r.MissionId == had.MissionId);
@@ -352,9 +353,10 @@ public sealed class MissionLibrary
 
     /// <summary>
     /// What the old logs are read for (in the history folder, missions-read.txt, when they were read last): 2, the contract ids of their missions (for the Star
-    /// Citizen Wiki API). A server that read them for less reads them again once.
+    /// Citizen Wiki API); 3, which missions were shared with the player (the share line has no mission id: his accept just after it says which, #385). A
+    /// server that read them for less reads them again once.
     /// </summary>
-    public const int HistoryReadVersion = 2;
+    public const int HistoryReadVersion = 3;
 
     /// <summary>The file in the history folder that says what the old logs were read for last (HistoryReadVersion).</summary>
     public const string HistoryMarker = "missions-read.txt";

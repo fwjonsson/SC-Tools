@@ -429,11 +429,16 @@ admin (done), then going live.
   (`ContractSplit`): the aUEC evenly among the players who have the contract when it pays out (the one who took it and everybody who accepted the share
   and still had it; being in the party without it gets nothing), the MG and Council scrip only to the one who took it (when he abandoned it, to the one
   who accepted the share first of the ones who still had it: the game's rule), and a contract the planner paid
-  out keeps the planner's payout (so a past session's debts never change). **Who took it** is who accepted it first: the game never marks a share in
-  the log of the one who gets it (its "Contract Shared" line has no mission id, all zeros, and the contract's template for a name; a few seconds later
-  his log says "Contract Accepted" with the real mission, as if he took it; Frank's logs of 29-30 Oct 2026), so the first accept is the taker's and a
-  later one a share. The game also says "Contract Accepted" again for every contract when he logs in, so the Mission Library keeps the earliest
-  accept a log shows. A player's combined accounts are added up where a tool shows his totals
+  out keeps the planner's payout (so a past session's debts never change). **Who took it** is the one whose accept was not a share. The game's
+  "Contract Shared" line, only in the log of the one who gets the share, has no mission id (all zeros) and often the contract's template for a name;
+  a second to half a minute later his log says "Contract Accepted" with the real mission, as if he took it. So `MissionReader` marks an accept as a
+  share when a share came in the half minute before it (each share is one accept), and the Mission Library keeps a mission shared with a player
+  (marked Shared; before #385 it left it to the sharer's log) and keeps the mark once any of his logs says so (the old logs are read once more for it:
+  `HistoryReadVersion` 3). When the logs do not tell one taker, the one who accepted first does (the PCs' clocks can be seconds apart, so only then).
+  The game says "Contract Accepted" again for every contract at a login, so the library keeps the earliest accept. **When the taker abandoned it**,
+  its scrip goes to the share accepted first of the ones who still had it: the one with the longest from his accept to the completion, both by his
+  own PC's clock. Checked against the game's own "You've Earned: 14 Rewards" lines after the completions in Frank's, zzatvo's and zzoii's logs of
+  Aug-Oct 2026: right for 386 of 388 shared gauntlet runs (the other two were accepted within a second of each other). A player's combined accounts are added up where a tool shows his totals
   (the Companion, the Gauntlet leaderboard). It is asked by the Session tool and the Companion (`ContractTracker.Earned`), the Gauntlet Tracker (each
   run's part, `GauntletRun.Paid`) and the Hauling Planner's payouts (`Payouts.ComputePayouts` picks who is paid with `ContractSplit.PlannerPayees`).
   Worked out again on every question, so a reward typed in later counts for the past. The tests `tests/SCTools.Tests/ContractTracking` show what every

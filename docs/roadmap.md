@@ -187,10 +187,16 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       accepted it), and the Session tool and the Companion count the shared scenario for the one it was shared with too; the planner pays a player
       whose log still has the contract when it pays out, also when he was marked out of the party, and when nobody is known to have it, the one who
       took it (before: the active party).
-    - **Who took it is who accepted it first** (Frank's logs of 29-30 Oct 2026, zzoega sharing to zzatvo): the "Contract Shared" line in the log of
-      the one who gets the share has no mission id (all zeros) and the contract's template for a name; seconds later his log says "Contract Accepted"
-      with the real mission, as if he took it. So nothing marks a share, and the first accept is the taker's. The game says "Contract Accepted" again
-      for every contract on every login, so the library keeps the earliest accept. The offer line (ContractId) is in few logs (one mission in ten).
+    - **Who took it, and who gets the scrip** (#385, from the logs of all three accounts, Aug-Oct 2026): the "Contract Shared" line, only in the log
+      of the one who gets the share, has no mission id (all zeros) and often the contract's template for a name; his "Contract Accepted" with the real
+      mission follows within half a minute. That accept is marked as a share; the taker is the one whose accept was not (the first accept only when the
+      logs cannot tell: two PCs' clocks were up to 9 seconds apart). When the taker abandons it (Frank's gauntlet routine: take it on zzatvo, share it
+      to zzoega, abandon it on zzatvo to escape the cooldown), the scrip goes to the share accepted first of the ones who still had it, judged by the
+      time from each one's accept to the completion on his own clock. The game's "You've Earned: N Rewards" line after a completion agreed in 386 of
+      388 shared gauntlet runs. The game says "Contract Accepted" again for every contract on every login, so the library keeps the earliest accept.
+      The offer line (ContractId) is in few logs (one mission in ten).
+    - Not used yet, maybe later: that reward line itself (its first line has no "Mission" in it, so the trackers would need a new line kind), and the
+      game's "PlayerLeft" line in the others' logs when the taker's own log never says he left (it needs each account's player id kept).
     - Still to look at: the Gauntlet Tracker times a shared run for everybody who accepted it (the one who got the share has an accept line too), so
       the timings and the Top 10 count a shared run once per member; and which member a party's Top 10 names for it is not sure to be the taker.
 

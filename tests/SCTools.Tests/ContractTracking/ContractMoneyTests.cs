@@ -214,7 +214,8 @@ public class ContractMoneyTests
     [Fact]
     public void When_the_taker_abandons_a_shared_contract_its_scrip_goes_to_who_accepted_the_share_first()
     {
-        // zzoega takes a bounty, shares it, zzatvo accepts the share before zzoii, zzoega abandons it, the two complete it (the logs as the game writes them)
+        // zzoega takes a bounty, shares it, zzatvo accepts the share before zzoii, zzoega abandons it, the two complete it at the same moment (the logs as
+        // the game writes them)
         var now = DateTime.UtcNow;
         var at = now.AddMinutes(-40);
         const string Bounty = "7bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -222,7 +223,7 @@ public class ContractMoneyTests
         f.Upload("zzoega", new GameLogWriter().At(at).Login("zzoega").Lines
             .Append(Note(at.AddMinutes(1), "Contract Accepted", "Stop Rival Attack", Bounty)).Append(Abandon(at.AddMinutes(5), Bounty, "zzoega")).ToList(), T(at));
         f.Upload("zzatvo", new GameLogWriter().At(at).Login("zzatvo").Lines.Concat(SharedWith(at.AddMinutes(2), 10, "Stop Rival Attack", Bounty, offer: false)).ToList(), T(at));
-        f.Upload("zzoii", new GameLogWriter().At(at).Login("zzoii").Lines.Concat(SharedWith(at.AddMinutes(3), 10, "Stop Rival Attack", Bounty, offer: false)).ToList(), T(at));
+        f.Upload("zzoii", new GameLogWriter().At(at).Login("zzoii").Lines.Concat(SharedWith(at.AddMinutes(3), 9, "Stop Rival Attack", Bounty, offer: false)).ToList(), T(at));
         var library = f.Services.GetRequiredService<MissionLibrary>();
         library.Collect();
         library.Set("stop rival attack", "auec", "100000", "admin", now);
