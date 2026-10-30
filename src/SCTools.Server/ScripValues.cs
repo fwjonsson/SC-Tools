@@ -33,8 +33,7 @@ public sealed class ScripValues
                 if (_values is { } v) return v;
                 using var db = _store.Open();
                 var rows = db.SiteValues.ToDictionary(r => r.Key, r => r.Value);
-                var mg = rows.TryGetValue(MgKey, out var m) ? m
-                    : db.GauntletSettings.Where(s => s.Player == GauntletService.Everyone).Select(s => s.ScripValue).FirstOrDefault();
+                var mg = rows.GetValueOrDefault(MgKey);   // (the old Gauntlet settings' scrip value went on 30 Oct 2026: the table was empty)
                 _values = (mg, rows.GetValueOrDefault(CouncilKey));
                 return _values.Value;
             }
