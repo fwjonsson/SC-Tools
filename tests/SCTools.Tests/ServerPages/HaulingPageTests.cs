@@ -26,7 +26,8 @@ public class HaulingPageTests
         Assert.DoesNotContain("<h1>", page);   // no title of its own: the bar says where you are
         // the live dot and the time the data was made: in the top bar left of Tracker, not on every tab (30 Oct 2026); hauling.js fills them
         Assert.Contains("<span class=\"live\" id=\"live\"></span><span class=\"updated\" id=\"updated\"></span><a class=\"dl\" href=\"/tracker\">", page);
-        Assert.Contains("<div class=\"bar\"><span id=\"session\"></span></div>", page);
+        Assert.Contains("<span id=\"session\" class=\"session\"></span></nav>", page);   // the session shown: at the right end of the tabs (30 Oct 2026)
+        Assert.DoesNotContain("id=\"partyNote\"", page);   // no line saying whose session on the Session tab any more (30 Oct 2026)
         Assert.Contains("<div id=\"viewP\">", page);
         Assert.Contains("<div id=\"viewS\" class=\"hidden\">", page);
         Assert.DoesNotContain("id=\"party\"", page);   // no Party table of its own: the Party button in the top bar shows it (29 Oct 2026)

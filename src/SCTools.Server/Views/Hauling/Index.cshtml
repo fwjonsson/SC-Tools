@@ -9,8 +9,9 @@
 <link rel="stylesheet" href="~/hauling.css" asp-append-version="true">
 @section subnav {
   @* the tabs as a row under the bar in the tool's colour, like the admin's pages (Frank, 30 Oct 2026); the Trip Planner first (29 Oct). Every tab is a link to
-     its own address, and hauling.js shows the tab on the page without a reload; after the tabs, for the admin only, the party whose session the tabs show *@
-  <nav class="subnav area" style="--tool:@SiteTools.Hauling.Color"><a href="/hauling/planner" id="tabP" class="on">Trip Planner</a><a href="/hauling/session" id="tabS">Session</a><a href="/hauling/contracts" id="tabC">Contracts</a><a href="/hauling/debts" id="tabD">Debts</a><a href="/hauling/history" id="tabH">History</a><select id="partyPick" class="hidden" aria-label="Whose session"></select></nav>
+     its own address, and hauling.js shows the tab on the page without a reload; after the tabs, for the admin only, the party whose session the tabs show, and at
+     the right end the session shown (Frank, 30 Oct 2026: not a line of its own on every tab; the live dot and the time are in the top bar) *@
+  <nav class="subnav area" style="--tool:@SiteTools.Hauling.Color"><a href="/hauling/planner" id="tabP" class="on">Trip Planner</a><a href="/hauling/session" id="tabS">Session</a><a href="/hauling/contracts" id="tabC">Contracts</a><a href="/hauling/debts" id="tabD">Debts</a><a href="/hauling/history" id="tabH">History</a><select id="partyPick" class="hidden" aria-label="Whose session"></select><span id="session" class="session"></span></nav>
 }
 @* the admin gets data-admin (Razor writes a data- attribute even when its value is null, so it is written by hand) *@
 <div class="hauling" data-me="@me"@(admin ? Html.Raw(" data-admin=\"1\"") : null)>
@@ -18,11 +19,8 @@
      width). No Party table since 29 Oct 2026 (Frank): the Party button in the top bar shows it. After the tabs, for the admin only, the party whose session the tabs show -->
 <div class="top">
 <div class="main">
-@* the session shown; the live dot and the time the data was made are in the top bar (TopBar.Html), not here on every tab (Frank, 30 Oct 2026) *@
-<div class="bar"><span id="session"></span></div>
 
 <div id="viewS" class="hidden">
-  <p class="note hidden" id="partyNote"></p>
   <h2>Stops</h2><div class="scroll" id="pickups"></div>
   <div id="finishedBox"><h2>Finished stops</h2><div class="scroll" id="finished"></div></div>
   <div id="jobsBox" class="hidden"><h2>Other hauling</h2><div class="scroll" id="jobs"></div><p class="note" id="jobsNote"></p></div>
