@@ -733,6 +733,13 @@ public sealed class PlanService
             {
                 var left = r.Missions - r.Loaded;   // batches not picked up yet
                 if (left <= 0) continue;
+                if (r.Job)
+                {
+                    // a hauling job of another kind (stage 4): the planner without a hub plans it from the job itself (below, with its places in any system), the old
+                    // planner leaves it and says so
+                    if (!_free) later.Add((r.PickupName ?? _places.LocationName(r.Zone)) + " \u00d7" + left + " to " + (r.DropName ?? "another place"));
+                    continue;
+                }
                 var station = _places.StationOf(r.Zone);
                 // the batches of a contract to another station are a group of their own at the station (RoutePlanner.GroupKey): the planner takes them to that station (stage 1b)
                 var to = r.ToRuin ? PyroDistances.Ruin : r.DropZone != null ? _places.StationOf(r.DropZone) : null;

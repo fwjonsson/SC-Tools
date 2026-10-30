@@ -68,6 +68,9 @@ public sealed class TrackerState
     /// <summary>Missions whose cargo is all handed in but that never completed (see SessionBuilder.MissingCargo).</summary>
     public HashSet<string> Missing { get; set; } = new();
 
+    /// <summary>The names of the zones of the party's hauling jobs as the map has their places (zone id to name; HaulJobs, stage 4): for the tables, where the station table knows no name.</summary>
+    public Dictionary<string, string> JobZoneNames { get; set; } = new(StringComparer.Ordinal);
+
     /// <summary>True while the running game's Game.log is watched.</summary>
     public bool Live { get; set; }
 

@@ -36,6 +36,9 @@ public static class SessionBuilder
         return times.Count > 0 ? times.Max() : lastLogTime;
     }
 
+    /// <summary>A mission of the hauling sessions: a Red Wind contract to Ruin or to a station, or a hauling job of another kind (any mission with drop-offs, a courier too; stage 4 of docs/planner-any-hauling.md).</summary>
+    public static bool InSession(Mission m) => m.IsHauling || Tracking.HaulJobs.IsJob(m);
+
     /// <summary>
     /// The sessions are the ones you start and stop with the button: a mission belongs to the one that was running when it ended.
     /// A mission that is still going belongs to the session that is running now, also when you accepted it before you pressed Start
@@ -58,7 +61,7 @@ public static class SessionBuilder
                 Stop = w.StopUtc,
                 CustomKey = "manual-" + w.StartUtc.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture),
             };
-            foreach (var m in log.Missions.Values.Where(x => x.IsHauling && !x.Dead).OrderBy(MissionStart))
+            foreach (var m in log.Missions.Values.Where(x => InSession(x) && !x.Dead).OrderBy(MissionStart))
             {
                 if (claimed.Contains(m.Id)) continue;
                 if (!m.EndedAt.HasValue && running != null)
@@ -75,7 +78,7 @@ public static class SessionBuilder
                 g.Missions.Add(m);
                 claimed.Add(m.Id);
             }
-            foreach (var m in log.Missions.Values.Where(x => x.IsHauling && x.Dead))
+            foreach (var m in log.Missions.Values.Where(x => InSession(x) && x.Dead))
             {
                 if (claimed.Contains(m.Id)) continue;
                 var t = m.EndedAt ?? MissionStart(m);
@@ -242,9 +245,17 @@ public static class SessionBuilder
     /// <summary>The zone of a mission's drop-off (its first drop-off objective), or null when the log has none.</summary>
     public static string? DropZoneOf(Mission m) => m.ObjZone.Where(kv => IsDrop(kv.Key)).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Value).FirstOrDefault();
 
-    /// <summary>The drop-off's name as the game's popup says it ("Deliver 0/520 SCU of Waste to Stanton Gateway": "Stanton Gateway"), or null.</summary>
-    public static string? DropNameOf(Mission m) =>
-        m.ObjText.Where(kv => IsDrop(kv.Key)).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => SCTools.Tracking.HaulJobs.PlaceText(kv.Value)).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+    /// <summary>The drop-offs' names as the game's popups say them ("Deliver 0/520 SCU of Waste to Stanton Gateway": "Stanton Gateway"; several, for a job with several drop-offs: "Orbituary, Gaslight"), or null.</summary>
+    public static string? DropNameOf(Mission m)
+    {
+        var names = m.ObjText.Where(kv => IsDrop(kv.Key)).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => SCTools.Tracking.HaulJobs.PlaceText(kv.Value))
+            .Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
+        return names.Count > 0 ? string.Join(", ", names) : null;
+    }
+
+    /// <summary>The pickup's name as the game's popup says it ("Collect Food Supplies From Shallow Fields Station at Crusader's L4 Lagrange point"), or null.</summary>
+    static string? PickupNameOf(Mission m, string objective) =>
+        m.ObjText.TryGetValue(objective, out var text) ? SCTools.Tracking.HaulJobs.PlaceText(text) : null;
 
     /// <summary>
     /// The pickup locations of the session: a row per location and drop-off (the stops to Ruin, and the stops of a contract to another station a row of their
@@ -255,7 +266,7 @@ public static class SessionBuilder
         var zones = new Dictionary<(string Zone, string Drop), List<(Mission Mission, string Objective)>>();
         foreach (var m in g.Missions.Where(m => !openOnly || !m.Completed))
         {
-            var drop = m.ToStation ? DropZoneOf(m) ?? "" : "";   // "": Ruin
+            var drop = m.ToRuin ? "" : DropZoneOf(m) ?? "";   // "": Ruin; a contract to a station or a job of another kind: its (first) drop-off's zone
             foreach (var kv in m.ObjZone)
             {
                 if (!IsStop(kv.Key)) continue;
@@ -274,14 +285,16 @@ public static class SessionBuilder
             var infos = kv.Value.Select(i => StopInfo(i.Mission, i.Objective)).ToList();
             var lasts = infos.Where(i => i.Last.HasValue).Select(i => i.Last!.Value).ToList();
             var delivered = infos.Where(i => i.Delivered.HasValue).Select(i => i.Delivered!.Value).ToList();
-            var toStation = kv.Value[0].Mission.ToStation;
+            var toRuin = kv.Value[0].Mission.ToRuin;
 
             rows.Add(new LocationRow
             {
                 Zone = kv.Key.Zone,
-                ToRuin = !toStation,
-                DropZone = toStation ? kv.Key.Drop : null,
-                DropName = toStation ? kv.Value.Select(i => DropNameOf(i.Mission)).FirstOrDefault(n => n != null) : null,
+                ToRuin = toRuin,
+                DropZone = toRuin || kv.Key.Drop.Length == 0 ? null : kv.Key.Drop,
+                DropName = toRuin ? null : kv.Value.Select(i => DropNameOf(i.Mission)).FirstOrDefault(n => n != null),
+                PickupName = kv.Value.Select(i => PickupNameOf(i.Mission, i.Objective)).FirstOrDefault(n => n != null),
+                Job = kv.Value.All(i => Tracking.HaulJobs.IsJob(i.Mission)),
                 Missions = infos.Count,
                 Stops2 = kv.Value.Count(i => i.Mission.Multi == 2),
                 Stops3 = kv.Value.Count(i => i.Mission.Multi == 3),
