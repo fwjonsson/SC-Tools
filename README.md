@@ -32,7 +32,7 @@ or open `SCTools.slnx` in Visual Studio. The exes come from the Build workflow, 
                                side (LogUploads)
         Sessions/              which missions belong to a session, the pickup locations (SessionBuilder)
         Runs/                  the runs of every worker: pickups, deliveries, hand-ins (WorkerTripBuilder)
-        Planning/              the trip planner (TripPlanner), the loads from Ruin (DropChunk), and the plan as the tab shows it
+        Planning/              the route planner (RoutePlanner), the loads from Ruin (DropChunk), and the plan as the tab shows it
                                (PlanView, PlanRow, StopLine) with the texts of its tables (PlanText)
         GameData/              the Pyro stations and distances, quantum drives, ships
         Debts/                 who owes whom (DebtCalc)
@@ -327,7 +327,7 @@ admin (done), then going live.
   of a planned trip has its SCU and boxes on the line of the stop it goes to, and the hauler of that trip (or the admin) types the SCU there
   (`/hauling/trips/scu`, sent in the background): it is kept for that drop-off only (`AppData.TypedScu`, the same as the admin's SCU of the drop-offs on
   his Session page), not in the Mission Library, the plan is worked out again with it, and the game's own number wins once it writes it. The planner
-  leaves a station with a single batch out of the trip he is flying when it can (`TripPlanner.LoneBatchSeconds`; Frank, 30 Oct 2026: the biggest stops
+  leaves a station with a single batch out of the trip he is flying when it can (`RoutePlanner.LoneBatchSeconds`; Frank, 30 Oct 2026: the biggest stops
   first, a lone batch later, when new missions may have filled the station up). The Party button's panel in the top bar shows every member's
   ship and drive ("TS-2 S3 +20 %"); the Hauling Planner's page has no Party table of its own since 29 Oct 2026 (Frank).
 - **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with the title over a screenshot of the crew's ship and a link for every tool (`/`, `Views/Home`); the Hauling Planner's page is at
@@ -474,17 +474,9 @@ admin (done), then going live.
     it was handed in. A worker whose trips all start and end at Ruin keeps the queue order (waste first, one-stop trips, the value); one with a trip
     that ends elsewhere flies his trips in the planner's order, since each starts where the one before it ended. A contract to a station the distance
     table does not know stays out of the plan, with a note.
-  - **Two planners side by side** (Frank, 30 Oct 2026): the new planner is tried out on a tab of its own, **Route Planner (new)** (`/hauling/planner-new`,
-    `data.freePlanner`), before it replaces the old one; the **Route Planner** tab keeps the old planner (`Planning/TripPlanner`, every trip from Ruin and
-    back; it says in its note which contracts only the new one plans). The two tabs are tools of the admin's **Tools** page (`SiteTools.RoutePlanner`,
-    `RoutePlannerNew`; not cards, not in the bar), so Frank shows or hides each one for everybody; the first tab shown opens first (`HAVE`, `FIRST` in
-    hauling.js). From the evening of 30 Oct the old planner is frozen and the rules below go into the new one only. Both tabs are drawn the same way, each
-    with a map of its own, from the same session, crew, runs and loads: `Tracker.Plan` and `Tracker.FreePlan` are two `PlanService`s, the second with
-    `free`, and each keeps the stops of everybody's planned trip for him in a dictionary of its own (`SessionInputs.LockedTrips`, `FreeLockedTrips`), so
-    each plan is sticky by itself and neither binds the other. Only the old one credits the pickups no log names. What changes in the old planner
-    meanwhile is brought over to the new one (the kept stops of a worker's whole trip, 30 Oct 2026, are in both); the plan service, the boards, the runs
-    and the page are shared, so changes there reach both. `tools/PlanTest` prints the old planner's trips under the new one's where they differ (only
-    two-stop loops flown the other way round, which cost the same).
+  - **One planner** (Frank, 30 Oct 2026, evening): the new planner was tried out for a day on a tab of its own, *Route Planner (new)*, beside the old one,
+    each with kept stops of its own; then Frank made it the Route Planner. The old `TripPlanner` (every trip from Ruin and back), the second tab, its tools on
+    the Tools page and the `FreeLockedTrips` column are gone; `/hauling/planner-new` opens the Route Planner. `Tracker.Plan` is the one `PlanService`.
   - **Soft kept stops, 20-minute landings, the flying at a tenth** (Frank, 30 Oct 2026; the new planner only): the stop a hauler is flying to stays first in
     his trip, but its batch count is free, so he takes as many there as fit. The stops kept after it are preferred, not fixed (`RoutePlanner.KeepSeconds`, a
     third of a landing for a kept stop that leaves his trip): they give way when that saves a landing or fills the ship better, and never on a tie. His trip

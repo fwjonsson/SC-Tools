@@ -24,12 +24,12 @@ public class DirectLoadTests
         var open = Open();
         var batchScu = open.Keys.ToDictionary(k => k, k => 146);
         var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, Ts2) };
-        var trips = TripPlanner.Plan(open, crew, null, null, new[] { Direct("Orbituary", 650) }, batchScu, new Dictionary<string, int> { ["zzoega"] = 626 },
+        var trips = RoutePlanner.Plan(open, crew, null, null, new[] { Direct("Orbituary", 650) }, batchScu, new Dictionary<string, int> { ["zzoega"] = 626 },
             new Dictionary<string, int> { ["zzoega"] = 696 });
         var carrier = Assert.Single(trips, t => t.Drops.Count > 0);
         Assert.Equal(Id("Orbituary"), carrier.Drops[0].Id);
         Assert.Equal(Id("Orbituary"), carrier.Stops[0].Id);   // dropped there, then the pickups there
-        var without = TripPlanner.Plan(open, crew, null, null, new[] { Direct("Orbituary", 650) }, batchScu, new Dictionary<string, int> { ["zzoega"] = 626 });
+        var without = RoutePlanner.Plan(open, crew, null, null, new[] { Direct("Orbituary", 650) }, batchScu, new Dictionary<string, int> { ["zzoega"] = 626 });
         Assert.DoesNotContain(without, t => t.Drops.Count > 0);   // (what it did before: the load was over the plan's 90 %, so it waited)
     }
 
@@ -40,7 +40,7 @@ public class DirectLoadTests
         var batchScu = open.Keys.ToDictionary(k => k, k => 146);
         var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, Ts2), ("zzatvo", 3, Ts2) };
         var shipScu = new Dictionary<string, int> { ["zzoega"] = 626, ["zzatvo"] = 626 };
-        var trips = TripPlanner.Plan(open, crew, null, null, new[] { Direct("Orbituary", 300, "zzoega") }, batchScu, shipScu);
+        var trips = RoutePlanner.Plan(open, crew, null, null, new[] { Direct("Orbituary", 300, "zzoega") }, batchScu, shipScu);
         var carrier = Assert.Single(trips, t => t.Drops.Count > 0);
         Assert.Equal("zzoega", carrier.Worker);
         Assert.Equal(Id("Orbituary"), carrier.Stops.Count > 0 ? carrier.Stops[0].Id : carrier.Drops[0].Id);

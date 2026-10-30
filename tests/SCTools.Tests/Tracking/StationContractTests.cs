@@ -86,18 +86,11 @@ public class StationContractTests
         var rewards = d.GetProperty("rewards").GetProperty("rows").EnumerateArray().Select(r => r.GetProperty("cells")[0].GetString()).ToList();
         Assert.Contains(Title, rewards);
 
-        // the old planner (the Route Planner tab) plans the two batches for Ruin and says so of the other two
-        var oldPlan = t.Plan.GetPlan();
-        Assert.Equal(2, t.Plan.Core!.Batches);
-        Assert.Contains("Not planned here (the drop-off is not Ruin; the Route Planner (new) plans them): ", oldPlan.Note);
-        Assert.Contains("Gaslight \u00d71 to Rod's Fuel 'N Supplies", oldPlan.Note);
-        Assert.Contains("Patch City \u00d71 to Rod's Fuel 'N Supplies", oldPlan.Note);
-        Assert.All(t.Plan.Core.Trips.SelectMany(x => x.Picks), p => Assert.Equal(PyroDistances.Ruin, p.To));
-        // the planner without a hub (the Route Planner (new) tab) plans all four: the two for Rod's Fuel in a trip that ends there, the two for Ruin in one that ends at Ruin (stage 1b)
-        var plan = t.FreePlan.GetPlan();
-        Assert.Equal(4, t.FreePlan.Core!.Batches);
+        // the planner plans all four: the two for Rod's Fuel in a trip that ends there, the two for Ruin in one that ends at Ruin (stage 1b)
+        var plan = t.Plan.GetPlan();
+        Assert.Equal(4, t.Plan.Core!.Batches);
         Assert.DoesNotContain("Not planned", plan.Note);
-        var trips = t.FreePlan.Core.Trips;
+        var trips = t.Plan.Core.Trips;
         Assert.NotEmpty(trips.Where(x => x.Ends.Contains(PlayedSession.RodsFuel)));
         Assert.Equal(2, trips.Sum(x => x.Picks.Where(p => p.To == PlayedSession.RodsFuel).Sum(p => p.Batches)));
         Assert.Equal(2, trips.Sum(x => x.Picks.Where(p => p.To == PyroDistances.Ruin).Sum(p => p.Batches)));

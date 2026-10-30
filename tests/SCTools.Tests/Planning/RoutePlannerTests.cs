@@ -2,7 +2,7 @@ namespace SCTools.Tests.Planning;
 
 /// <summary>The trip planner on situations from real sessions (see also tools/PlanTest, which prints the whole plans).</summary>
 /// <summary>
-/// The planner without a hub (RoutePlanner, the Route Planner (new) tab): every scenario of the old planner's tests, which it has to plan the same way (its
+/// The planner without a hub (RoutePlanner, the Route Planner): every scenario of the old planner's tests, which it plans the same way (its
 /// trips to Ruin start and end at Ruin as before), and the stage 1b scenarios with contracts to another station.
 /// </summary>
 public class RoutePlannerTests

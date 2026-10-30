@@ -3,7 +3,7 @@ namespace SCTools.View;
 public sealed partial class WebSnapshot
 {
     /// <summary>
-    /// A Route Planner tab (the old planner's, or the Route Planner (new) tab of the planner without a hub): the map (Pyro, with the stations on it) and, for every
+    /// The Route Planner tab: the map (Pyro, with the stations on it) and, for every
     /// crew member, his Current Route and Queued routes tables and his planned routes.
     /// </summary>
     object Planner(PlanService service)

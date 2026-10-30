@@ -5,7 +5,7 @@ namespace SCTools.Tests.Tracking;
 
 /// <summary>
 /// A hauling job with its ends in two systems (stage 2 of docs/planner-any-hauling.md; Frank's Covalex master mission: a pickup in Stanton, several drop-offs in
-/// Pyro) is planned by the planner without a hub (the Route Planner (new) tab) with the Pyro contracts, through the gateways; the old planner leaves it to the board.
+/// Pyro) is planned with the Pyro contracts, through the gateways.
 /// </summary>
 public class InterstellarJobTests
 {
@@ -43,9 +43,9 @@ public class InterstellarJobTests
         // without a hub plans the rest of it there; the first delivery takes a parcel off the ship, the last one ends the run
         var (t, _) = Load(more: w => w.Minutes(1).Unstow().Seconds(5).Objective(Job, "pickup_ja_0", "COMPLETED"));
         Assert.Equal(new[] { PlayedSession.Gaslight, "73041", PyroDistances.Ruin }, t.Runs.LoadedDestinationsOf(PlayedSession.Player).OrderBy(x => x == PyroDistances.Ruin ? 1 : 0).ThenBy(x => x));
-        var plan = t.FreePlan.GetPlan();
+        var plan = t.Plan.GetPlan();
         Assert.Equal("", plan.Note);   // nothing is "picked up already, not followed": the run follows it
-        Assert.Equal(1, t.FreePlan.Core!.Batches);   // only the batch at Patch City is left to plan: the job is aboard
+        Assert.Equal(1, t.Plan.Core!.Batches);   // only the batch at Patch City is left to plan: the job is aboard
         var current = plan.Workers.Single().Rows.First(r => !r.Hidden);
         Assert.Equal("active", current.Level);
         Assert.Contains(current.Lines, l => l.Id == "73041" && l.Actions.Contains("Deliver"));   // the run's lines end where its cargo goes
@@ -73,19 +73,14 @@ public class InterstellarJobTests
         Assert.Equal((Pickup, 100.0, ScuFrom.Game), (job.Pickups.Single().Place?.Key, job.Scu, job.ScuFrom));
         Assert.Equal(new[] { "pyro/gaslight", "pyro/orbituary" }, job.Drops.Select(d => d.Place?.Key).OrderBy(x => x));
 
-        // the old planner (the Route Planner tab) plans the batch to Ruin alone
-        t.Plan.GetPlan();
-        Assert.Equal(1, t.Plan.Core!.Batches);
-        Assert.Contains("Not planned here (the drop-off is not Ruin; the Route Planner (new) plans them): Shallow Fields Station at Crusader's L4 Lagrange point ×1 to Orbituary, Gaslight.", t.Plan.GetPlan().Note);   // the job is in the session since stage 4: the old planner says so
-
-        // the planner without a hub plans the two parcels too: from CRU-L4 to Orbituary and to Gaslight, through the Stanton and Pyro gateways
-        var plan = t.FreePlan.GetPlan();
-        Assert.Equal(3, t.FreePlan.Core!.Batches);
+        // the planner plans the two parcels too: from CRU-L4 to Orbituary and to Gaslight, through the Stanton and Pyro gateways
+        var plan = t.Plan.GetPlan();
+        Assert.Equal(3, t.Plan.Core!.Batches);
         Assert.Equal("", plan.Note);
-        var picks = t.FreePlan.Core.Trips.SelectMany(x => x.Picks).Where(p => p.Id == Pickup).ToList();
+        var picks = t.Plan.Core.Trips.SelectMany(x => x.Picks).Where(p => p.Id == Pickup).ToList();
         Assert.Equal(new[] { PlayedSession.Gaslight, "73041" }, picks.Select(p => p.To).OrderBy(x => x));
         Assert.All(picks, p => Assert.Equal(1, p.Batches));
-        var trip = t.FreePlan.Core.Trips.Single(x => x.Picks.Any(p => p.Id == Pickup));
+        var trip = t.Plan.Core.Trips.Single(x => x.Picks.Any(p => p.Id == Pickup));
         Assert.Contains(Pickup, trip.Places());
         Assert.Equal(StarRoutes.PathGm(trip.Places()), trip.Distance, 3);   // the legs through the gateways, the crossing's time in the seconds
         Assert.Equal(StarRoutes.PathSeconds(t.Crew.QtOf(PlayedSession.Player), trip.Places()), trip.Seconds, 3);
@@ -98,7 +93,7 @@ public class InterstellarJobTests
         Assert.True(into.Seconds > StarRoutes.GateSeconds);
 
         // the page's data: every system's map, and the places of the routes with their system
-        var d = JsonDocument.Parse(WebSnapshot.Json(t, new WebSnapshotOptions())).RootElement.GetProperty("freePlanner");
+        var d = JsonDocument.Parse(WebSnapshot.Json(t, new WebSnapshotOptions())).RootElement.GetProperty("planner");
         Assert.Equal(new[] { "pyro", "stanton", "nyx" }, d.GetProperty("maps").EnumerateArray().Select(m => m.GetProperty("id").GetString()));
         var place = d.GetProperty("places").EnumerateArray().Single(p => p.GetProperty("id").GetString() == Pickup);
         Assert.Equal((Pickup, "CRU-L4 Shallow Fields Station", "stanton"), (place.GetProperty("key").GetString(), place.GetProperty("name").GetString(), place.GetProperty("system").GetString()));
@@ -109,8 +104,8 @@ public class InterstellarJobTests
     public void A_job_with_a_stop_the_map_has_no_place_for_stays_out_with_a_note()
     {
         var (t, _) = Load(unplaced: true);
-        var plan = t.FreePlan.GetPlan();
-        Assert.Equal(3, t.FreePlan.Core!.Batches);   // the placed job is planned, the other is not
+        var plan = t.Plan.GetPlan();
+        Assert.Equal(3, t.Plan.Core!.Batches);   // the placed job is planned, the other is not
         Assert.Contains("Not planned (the map has no place for a stop): Covalex Haul (", plan.Note);
         Assert.DoesNotContain("Master Hauler", plan.Note);
     }

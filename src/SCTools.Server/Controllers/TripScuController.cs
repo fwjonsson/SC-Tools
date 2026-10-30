@@ -61,7 +61,7 @@ public sealed class TripScuController : Controller
         {
             _live.Edit(t =>
             {
-                if (me != null && !t.Plans.Any(plan => plan.GetPlan().Workers.Any(w => PlayerNames.SameName(w.Name, me) && w.Rows.Any(r => r.Lines.Any(l => l.Typable && l.Keys.Contains(key))))))   // the trip may be his on either planner tab
+                if (me != null && !t.Plan.GetPlan().Workers.Any(w => PlayerNames.SameName(w.Name, me) && w.Rows.Any(r => r.Lines.Any(l => l.Typable && l.Keys.Contains(key)))))
                     said = "Only the hauler whose trip goes there (or the admin) types the SCU.";
                 else said = Edits.SetScu(t, key, scu);
             }, DateTime.UtcNow);

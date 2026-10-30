@@ -130,7 +130,7 @@ public sealed class LiveTracker
         {
             change(Tracker);
             Tracker.State.Save();
-            foreach (var plan in Tracker.Plans) plan.Invalidate();
+            Tracker.Plan.Invalidate();
             _version = -1;
             Refresh(nowUtc);
         }
@@ -160,7 +160,7 @@ public sealed class LiveTracker
         Tracker.State.Parties = parties;
         if (!AutoParty.Apply(data, parties, nowUtc) && !joined) return false;
         Tracker.State.Save();
-        foreach (var plan in Tracker.Plans) plan.Invalidate();
+        Tracker.Plan.Invalidate();
         return true;
     }
 
@@ -174,7 +174,7 @@ public sealed class LiveTracker
         var (starts, activity, going) = AutoSessions.HaulingActivity(log, nowUtc);
         if (!AutoSessions.Apply(Tracker.State.Data.ManualSessions, starts, activity, nowUtc, going)) return false;
         Tracker.State.Save();
-        foreach (var plan in Tracker.Plans) plan.Invalidate();
+        Tracker.Plan.Invalidate();
         return true;
     }
 

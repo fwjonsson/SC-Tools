@@ -22,7 +22,6 @@ public sealed class Tracker
         Payouts = new Payouts(State, Crew, Contracts, Earnings, Runs, Places);
         Leaderboard = new Leaderboard(State, Places, Payouts, Figures);
         Plan = new PlanService(State, Places, Crew, Contracts, Earnings, DropOffs, Runs, Whereabouts);
-        FreePlan = new PlanService(State, Places, Crew, Contracts, Earnings, DropOffs, Runs, Whereabouts, free: true);
         Status = new StatusFeed(State, Places, Crew, Earnings, Runs);
     }
 
@@ -38,8 +37,6 @@ public sealed class Tracker
     public Payouts Payouts { get; }
     public Leaderboard Leaderboard { get; }
     public PlanService Plan { get; }
-    public PlanService FreePlan { get; }   // the planner without a hub, tried out beside the old one (the Route Planner (new) tab)
-    public IEnumerable<PlanService> Plans => new[] { Plan, FreePlan };   // both: what makes one plan stale makes the other stale too
     public StatusFeed Status { get; }
 
     /// <summary>

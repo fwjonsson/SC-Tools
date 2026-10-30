@@ -31,8 +31,7 @@ public sealed class ToolsController : Controller
             return LocalRedirect("/admin/tools");
         }
         _tools.SetPublic(tool, value);
-        var tab = tool == SiteTools.RoutePlanner || tool == SiteTools.RoutePlannerNew;   // a tab of the Hauling Planner (30 Oct 2026)
-        TempData["Message"] = value ? tool.Name + (tool == SiteTools.Party ? " is in the top bar for everybody now." : tab ? " is on the Hauling Planner for everybody now." : " is on the front page for everybody now.")
+        TempData["Message"] = value ? tool.Name + (tool == SiteTools.Party ? " is in the top bar for everybody now." : " is on the front page for everybody now.")
             : tool.Name + " is only for you now.";
         return LocalRedirect("/admin/tools");
     }
