@@ -8,10 +8,10 @@
    and map (systemmap.js, the one map engine). Every tab has its own address (/hauling/<tab>, PageController) and the script shows that tab. *@
 <link rel="stylesheet" href="~/hauling.css" asp-append-version="true">
 @section subnav {
-  @* the tabs as a row under the bar in the tool's colour, like the admin's pages (Frank, 30 Oct 2026); the Trip Planner first (29 Oct). Every tab is a link to
+  @* the tabs as a row under the bar in the tool's colour, like the admin's pages (Frank, 30 Oct 2026); the Route Planner (Trip Planner until 30 Oct 2026) first (29 Oct). Every tab is a link to
      its own address, and hauling.js shows the tab on the page without a reload; after the tabs, for the admin only, the party whose session the tabs show, and at
      the right end the session shown (Frank, 30 Oct 2026: not a line of its own on every tab; the live dot and the time are in the top bar) *@
-  <nav class="subnav area" style="--tool:@SiteTools.Hauling.Color"><a href="/hauling/planner" id="tabP" class="on">Trip Planner</a><a href="/hauling/session" id="tabS">Session</a><a href="/hauling/contracts" id="tabC">Contracts</a><a href="/hauling/debts" id="tabD">Debts</a><a href="/hauling/history" id="tabH">History</a><select id="partyPick" class="hidden" aria-label="Whose session"></select><span id="session" class="session"></span></nav>
+  <nav class="subnav area" style="--tool:@SiteTools.Hauling.Color"><a href="/hauling/planner" id="tabP" class="on">Route Planner</a><a href="/hauling/session" id="tabS">Session</a><a href="/hauling/contracts" id="tabC">Contracts</a><a href="/hauling/debts" id="tabD">Debts</a><a href="/hauling/history" id="tabH">History</a><select id="partyPick" class="hidden" aria-label="Whose session"></select><span id="session" class="session"></span></nav>
 }
 @* the admin gets data-admin (Razor writes a data- attribute even when its value is null, so it is written by hand) *@
 <div class="hauling" data-me="@me"@(admin ? Html.Raw(" data-admin=\"1\"") : null)>

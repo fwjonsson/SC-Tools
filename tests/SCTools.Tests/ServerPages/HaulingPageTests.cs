@@ -22,7 +22,7 @@ public class HaulingPageTests
         Assert.True(page.IndexOf("systemmap.js?v=", StringComparison.Ordinal) < page.IndexOf("src=\"/hauling.js?v=", StringComparison.Ordinal));
         Assert.Contains("<div class=\"hauling\" data-me=\"\">", page);   // a watcher: nobody
         // the tabs: a row under the bar in the tool's colour, like the admin's pages (30 Oct 2026), every tab a link to its address; the Trip Planner first (29 Oct)
-        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#4682ff\"><a href=\"/hauling/planner\" id=\"tabP\" class=\"on\">Trip Planner</a><a href=\"/hauling/session\" id=\"tabS\">Session</a>", page);
+        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#4682ff\"><a href=\"/hauling/planner\" id=\"tabP\" class=\"on\">Route Planner</a><a href=\"/hauling/session\" id=\"tabS\">Session</a>", page);
         Assert.DoesNotContain("<h1>", page);   // no title of its own: the bar says where you are
         // the live dot and the time the data was made: in the top bar left of Tracker, not on every tab (30 Oct 2026); hauling.js fills them
         Assert.Contains("<span class=\"live\" id=\"live\"></span><span class=\"updated\" id=\"updated\"></span><a class=\"dl\" href=\"/tracker\">", page);
@@ -53,6 +53,7 @@ public class HaulingPageTests
         Assert.Contains("'/hauling/' + TABS[which]", script);
         Assert.Contains("|| tabOf(location.hash) || 'P');", script);   // /hauling opens the Trip Planner
         Assert.Contains("function lostPicks", script);   // the admin's Lost Cargo pick in the Cargo runs
+        Assert.Contains("if (pick && ownCard && (w.name || '').toLowerCase() === ME) h.appendChild(pick);", script);   // the choice in his own route card (30 Oct 2026)
         Assert.Contains("function renderPlanner", script);
         Assert.Contains("function paymentTicks", script);
         Assert.Contains("PAGE.dataset.me", script);   // who is looking, from the page
