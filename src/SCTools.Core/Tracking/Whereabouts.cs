@@ -97,6 +97,9 @@ public sealed class Whereabouts
         // waste there, the Ruin "Collect Waste" row and the "Deliver Waste" of the Patch City row vanished until he had delivered)
         if (run == null && _runs.WasteTakenOut(name) == null && MapPosition(name) is { AtStation: { } at, Since: { } since } && since > LastMoveOf(name)) return at;
         if (run?.From != null && (drop == null || run.Value.Last >= drop.Value.Time)) return run.Value.From!;
+        // he handed a run in at another station (a contract to that station, stage 1b) and did nothing since: he is there
+        if (run == null && _runs.LastHandInOf(name) is { } handed && handed.Station != PyroDistances.Ruin && (drop == null || handed.Time > drop.Value.Time)
+            && _s.Log != null && _s.Log.LastTime - handed.Time <= CargoRuns.StaleLeg) return handed.Station;
         return drop?.Station ?? PyroDistances.Ruin;
     }
 

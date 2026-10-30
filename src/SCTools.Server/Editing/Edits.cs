@@ -23,7 +23,7 @@ public static class Edits
         if ((location ?? "") != (byHand ? now : ""))
         {
             t.Whereabouts.SetLocation(name, location);
-            t.Plan.ReleaseLock(name);
+            foreach (var plan in t.Plans) plan.ReleaseLock(name);
             changed.Add("location");
         }
         if (color != ColorOf(t, name))

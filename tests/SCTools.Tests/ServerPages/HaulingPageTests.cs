@@ -23,9 +23,11 @@ public class HaulingPageTests
         Assert.True(page.IndexOf("systemmap.js?v=", StringComparison.Ordinal) < page.IndexOf("src=\"/hauling.js?v=", StringComparison.Ordinal));
         Assert.Contains("<div class=\"hauling\" data-me=\"\">", page);   // a watcher: nobody
         // the tabs: a row under the bar in the tool's colour, like the admin's pages (30 Oct 2026), every tab a link to its address; the Trip Planner first (29 Oct)
-        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#4682ff\"><a href=\"/hauling/planner\" id=\"tabP\" class=\"on\">Route Planner</a><a href=\"/hauling/session\" id=\"tabS\">Session</a>"
+        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#4682ff\"><a href=\"/hauling/planner\" id=\"tabP\" class=\"on\">Route Planner</a><a href=\"/hauling/planner-new\" id=\"tabN\">Route Planner (new)</a><a href=\"/hauling/session\" id=\"tabS\">Session</a>"
             + "<a href=\"/hauling/debts\" id=\"tabD\">Debts</a><a href=\"/hauling/history\" id=\"tabH\">History</a><a href=\"/hauling/leaderboard\" id=\"tabL\">Leaderboard</a>", page);   // no Contracts tab, a Leaderboard tab (30 Oct 2026)
         Assert.Contains("<div id=\"viewL\" class=\"hidden\">", page);
+        Assert.Contains("<div id=\"viewN\" class=\"hidden\">\n  <div id=\"planNoteN\" class=\"empty\"></div>\n  <div id=\"planBodyN\"></div>", page.Replace("\r\n", "\n"));   // the Route Planner (new) tab, drawn like the Route Planner (30 Oct 2026)
+        Assert.Equal(page, await visitor.GetStringAsync("/hauling/planner-new"));
         Assert.Contains("<h2>Session leaderboard</h2><div class=\"scroll\" id=\"leaders\"></div>", page);
         Assert.Contains("<h2>All-time leaderboard</h2><div class=\"scroll\" id=\"allTime\"></div>", page);
         Assert.DoesNotContain("id=\"viewC\"", page);
@@ -60,17 +62,18 @@ public class HaulingPageTests
         using var f = new ServerFactory();
         var visitor = f.Browser();
         var script = await visitor.GetStringAsync("/hauling.js");
-        Assert.Contains("const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history', L: 'leaderboard' };", script);   // /hauling/planner
+        Assert.Contains("const TABS = { S: 'session', P: 'planner', N: 'planner-new', D: 'debts', H: 'history', L: 'leaderboard' };", script);   // /hauling/planner, /hauling/planner-new
+        Assert.Contains("function plannerKey(tab) { return tab === 'N' ? 'freePlanner' : 'planner'; }", script);   // the two planner tabs are drawn from data.planner and data.freePlanner
         Assert.Contains("if (name === 'contracts') name = 'session';", script);   // the old Contracts tab's address opens the Session tab (30 Oct 2026)
         Assert.Contains("function leaderWidths", script);   // the Session tables line up without the leaderboard on the same tab
         Assert.Contains("function missionsTable", script);   // the Active Contracts of the Session tab, from the map's data (30 Oct 2026)
         Assert.Contains("function submitButton", script);   // the Submit button of a Current Route (30 Oct 2026)
-        Assert.Contains("(shownTab !== 'P' && shownTab !== 'S')", script);
+        Assert.Contains("(shownTab !== 'P' && shownTab !== 'N' && shownTab !== 'S')", script);   // the map is polled on both planner tabs and the Session tab
         Assert.True(script.IndexOf("section(el, 'h2', 'Saved sessions', d.saved);", StringComparison.Ordinal) < script.IndexOf("best.textContent = d.best", StringComparison.Ordinal));   // the best session line under the saved sessions (30 Oct 2026)
         Assert.Contains("'/hauling/' + TABS[which]", script);
         Assert.Contains("|| tabOf(location.hash) || 'P');", script);   // /hauling opens the Trip Planner
         Assert.Contains("function lostPicks", script);   // the admin's Lost Cargo pick in the Cargo runs
-        Assert.Contains("function renderPlanner() { keepScroll(document.getElementById('planBody'), buildPlanner); }", script);   // the page does not jump up when the planner is drawn anew (30 Oct 2026)
+        Assert.Contains("function renderPlanner(tab) { keepScroll(document.getElementById('planBody' + tab), function () { buildPlanner(tab); }); }", script);   // the page does not jump up when the planner is drawn anew (30 Oct 2026)
         Assert.Contains("function sinceText", script);   // the map's line in the route card's heading, not under it (30 Oct 2026)
         Assert.Contains("if (pick && ownCard && (w.name || '').toLowerCase() === ME) h.appendChild(pick);", script);   // the choice in his own route card (30 Oct 2026)
         Assert.Contains("function renderPlanner", script);

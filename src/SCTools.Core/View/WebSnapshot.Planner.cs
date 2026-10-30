@@ -2,10 +2,13 @@ namespace SCTools.View;
 
 public sealed partial class WebSnapshot
 {
-    /// <summary>The Trip Planner tab: the map (Pyro, with the stations on it) and, for every crew member, his Current Route and Queued routes tables and his planned routes.</summary>
-    object Planner()
+    /// <summary>
+    /// A Route Planner tab (the old planner's, or the Route Planner (new) tab of the planner without a hub): the map (Pyro, with the stations on it) and, for every
+    /// crew member, his Current Route and Queued routes tables and his planned routes.
+    /// </summary>
+    object Planner(PlanService service)
     {
-        var plan = _t.Plan.GetPlan();
+        var plan = service.GetPlan();
         var widest = 0;   // the Job column as wide as its longest text needs (like in the program), so a line does not wrap
 
         // a tick stays with the word before it (" ✓" never starts a line of its own)
@@ -58,6 +61,7 @@ public sealed partial class WebSnapshot
                 {
                     label = (r.Label.Length > 0 && char.IsDigit(r.Label[0]) ? "Trip " : "") + r.Label + "  " + Gm(r.Gm),
                     stops = r.Stops,
+                    places = r.Places,   // every place of the route in order, the start and the ends included: the map draws these (stage 1b)
                     from = r.From,
                     passed = r.Passed,
                     solid = r.Solid,

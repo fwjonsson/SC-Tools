@@ -183,7 +183,7 @@ public static class WorkerTripBuilder
         var periods = ActivePeriods(g);   // the stretches with at least one mission going: the clock of a run starts with the first mission accepted in one
 
         var pickups = new List<(string Worker, string Zone, string Mission, DateTime Time)>();
-        var drops = new List<(string Mission, DateTime Time, string? Actor)>();
+        var drops = new List<(string Mission, DateTime Time, string? Actor, string Zone)>();
         foreach (var m in g.Missions.Concat(g.Failed))
         {
             string? handInActor = null;   // who the logs show handing this mission in
@@ -198,7 +198,7 @@ public static class WorkerTripBuilder
                     var station = m.IsHauling ? PyroDistances.Ruin : StationOfZone(m.ObjZone.GetValueOrDefault(kv.Key));
                     var actor = ActorAt(log, false, e.Time, m.Holders, station);
                     handInActor ??= actor;
-                    drops.Add((m.Id, e.Time, actor));
+                    drops.Add((m.Id, e.Time, actor, m.ObjZone.GetValueOrDefault(kv.Key) ?? ""));   // where it was handed in (the drop-off's zone)
                 }
             }
             foreach (var kv in m.ObjZone)
@@ -268,7 +268,7 @@ public static class WorkerTripBuilder
                 {
                     // the logs name who did the hand-in: it ends only his run, whatever missions it was for
                     if (string.Equals(d.Actor, worker, StringComparison.OrdinalIgnoreCase))
-                        events.Add((d.Time, false, d.Mission, "", true, null, null));
+                        events.Add((d.Time, false, d.Mission, d.Zone, true, null, null));
                     continue;
                 }
 
@@ -277,7 +277,7 @@ public static class WorkerTripBuilder
                 if (!carriers.TryGetValue(d.Mission, out var cs) || !cs.Contains(worker)) continue;
                 var someoneWithoutLog = cs.Any(c => !logPlayers.Contains(c));
                 if (someoneWithoutLog && logPlayers.Contains(worker)) continue;
-                events.Add((d.Time, false, d.Mission, "", false, null, null));
+                events.Add((d.Time, false, d.Mission, d.Zone, false, null, null));
             }
             foreach (var me in manual)
             {
@@ -322,6 +322,7 @@ public static class WorkerTripBuilder
                     var trip = NewTrip(worker, number++, runStart, e.Time, runPickups, runCollects, runDrops, isManual && e.Mission != SubmittedMission ? 0 : carried.Count, failedIds, acceptedAt, periods);
                     trip.Manual = e.Mission == ManualMission;
                     trip.Left = e.Mission == LeftMission;
+                    trip.EndZone = !isManual && e.Zone.Length > 0 ? e.Zone : null;   // where it was handed in
                     trip.Submitted = e.Mission == SubmittedMission;
                     result.Add(trip);
                     last = trip;

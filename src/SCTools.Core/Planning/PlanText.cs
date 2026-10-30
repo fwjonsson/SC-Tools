@@ -18,8 +18,9 @@ public static class PlanText
     };
 
     /// <summary>
-    /// The route of a planned trip as a short tag for the Queued routes table: just the stations, with Ruin as the first and the last stop
-    /// (<c>Ruin → Rod's Fuel → Endgame → Ruin</c>). A trip that continues from a station (<c>From</c>) starts there. What is done at every stop is in the Current Route table.
+    /// The route of a planned trip as a short tag for the Queued routes table: just the stations, from where it starts to where it ends
+    /// (<c>Ruin → Rod's Fuel → Endgame → Ruin</c>; a trip with cargo for another station ends there: <c>Ruin → Gaslight → Orbituary</c>). A trip that
+    /// continues from a station (<c>From</c>) starts there. What is done at every stop is in the Current Route table.
     /// </summary>
     public static string RouteText(PlannedTrip trip)
     {
@@ -31,9 +32,16 @@ public static class PlanText
         else if (firstStop != trip.From) parts.Add(PyroDistances.NameOf(trip.From));   // where he is now
         if (hasDrop && firstStop != drop.Id) parts.Add(PyroDistances.NameOf(drop.Id));   // a stop with only the drop-off
         foreach (var (id, _) in trip.Stops) parts.Add(PyroDistances.NameOf(id));
-        parts.Add("Ruin");
+        foreach (var end in EndsOf(trip)) parts.Add(PlaceName(end));
         return string.Join("  \u2192  ", parts);
     }
+
+    /// <summary>The places a trip delivers at, in order: its ends; Ruin for a trip the planner gave none (nothing to deliver but a load, which ends where the load goes).</summary>
+    public static IReadOnlyList<string> EndsOf(PlannedTrip trip) =>
+        trip.Ends.Count > 0 ? trip.Ends : trip.Drops.Count > 0 && trip.Stops.Count == 0 ? Array.Empty<string>() : new[] { PyroDistances.Ruin };
+
+    /// <summary>A place in the route tables: "Ruin" for Ruin Station (as the tables always had it), else the station's name.</summary>
+    public static string PlaceName(string id) => id == PyroDistances.Ruin ? "Ruin" : PyroDistances.NameOf(id);
 
     /// <summary>How many batches, for the Boxes column: "1 Batch", "3 Batches".</summary>
     public static string BatchText(int n, double scu = 0) => n + (n == 1 ? " Batch" : " Batches") + (scu >= 1 ? " (~" + Math.Round(scu).ToString(CultureInfo.InvariantCulture) + " SCU)" : "");   // the SCU is an estimate: mission SCU / its stops

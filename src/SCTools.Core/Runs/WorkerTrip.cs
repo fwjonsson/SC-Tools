@@ -17,6 +17,7 @@ public sealed class WorkerTrip
     public bool Submitted;      // the run was ended with the Submit button: counted as it is, with what it picked up (30 Oct 2026)
     public List<TripCollect> Collects = new();   // from-Ruin cargo (waste) he took out at Ruin in this run
     public List<TripDrop> Drops = new();         // from-Ruin cargo he delivered to stations in this run
+    public string? EndZone;                      // the location id of the drop-off the run was handed in at (null: not handed in, or the log did not say; Ruin for the contracts to Ruin)
 
     /// <summary>Stable key for saving things you tick on the run.</summary>
     public string Key => Worker + "|" + (KeyTime == default ? Start : KeyTime).ToString("yyyyMMddHHmmss");

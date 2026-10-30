@@ -6,7 +6,7 @@ namespace SCTools.Tests.Tracking;
 /// <summary>
 /// A Red Wind contract from 2 to 4 stations to a station other than Ruin (stage 1a of docs/planner-any-hauling.md; zzoega's "Master | Stellar Large Haul |
 /// to Stanton Gateway" of 26 Oct 2026): the planner's own contract, in the session, on the Stops board with its station as the drop-off, in the Contracts
-/// tab and the runs, and named in the Route Planner's note until the planner without a hub (stage 1b) plans it.
+/// tab and the runs, and planned by the Route Planner with the to-Ruin contracts: a trip with its batches ends at its station (stage 1b).
 /// </summary>
 public class StationContractTests
 {
@@ -65,7 +65,7 @@ public class StationContractTests
     }
 
     [Fact]
-    public void Its_stops_are_rows_of_their_own_with_the_station_as_the_drop_off_and_the_planner_names_them_in_its_note()
+    public void Its_stops_are_rows_of_their_own_with_the_station_as_the_drop_off_and_the_planner_takes_its_batches_to_the_station()
     {
         var t = Load(Writer());
         Assert.Equal(new[] { ToRuin, ToStation }, t.State.Current!.Missions.Select(m => m.Id).OrderBy(x => x));   // both are in the session
@@ -86,10 +86,29 @@ public class StationContractTests
         var rewards = d.GetProperty("rewards").GetProperty("rows").EnumerateArray().Select(r => r.GetProperty("cells")[0].GetString()).ToList();
         Assert.Contains(Title, rewards);
 
-        // the planner plans the two batches to Ruin, and says the other two wait for stage 1b
-        var plan = t.Plan.GetPlan();
+        // the old planner (the Route Planner tab) plans the two batches for Ruin and says so of the other two
+        var oldPlan = t.Plan.GetPlan();
         Assert.Equal(2, t.Plan.Core!.Batches);
-        Assert.Contains("Not planned yet (the drop-off is not Ruin): Gaslight ×1 to Rod's Fuel 'N Supplies, Patch City ×1 to Rod's Fuel 'N Supplies.", plan.Note);
+        Assert.Contains("Not planned here (the drop-off is not Ruin; the Route Planner (new) plans them): ", oldPlan.Note);
+        Assert.Contains("Gaslight \u00d71 to Rod's Fuel 'N Supplies", oldPlan.Note);
+        Assert.Contains("Patch City \u00d71 to Rod's Fuel 'N Supplies", oldPlan.Note);
+        Assert.All(t.Plan.Core.Trips.SelectMany(x => x.Picks), p => Assert.Equal(PyroDistances.Ruin, p.To));
+        // the planner without a hub (the Route Planner (new) tab) plans all four: the two for Rod's Fuel in a trip that ends there, the two for Ruin in one that ends at Ruin (stage 1b)
+        var plan = t.FreePlan.GetPlan();
+        Assert.Equal(4, t.FreePlan.Core!.Batches);
+        Assert.DoesNotContain("Not planned", plan.Note);
+        var trips = t.FreePlan.Core.Trips;
+        Assert.NotEmpty(trips.Where(x => x.Ends.Contains(PlayedSession.RodsFuel)));
+        Assert.Equal(2, trips.Sum(x => x.Picks.Where(p => p.To == PlayedSession.RodsFuel).Sum(p => p.Batches)));
+        Assert.Equal(2, trips.Sum(x => x.Picks.Where(p => p.To == PyroDistances.Ruin).Sum(p => p.Batches)));
+        Assert.All(trips, x => Assert.Equal(x.Picks.Select(p => p.To).Distinct().OrderBy(s => s), x.Ends.OrderBy(s => s)));   // a trip ends where its cargo goes
+        Assert.All(trips, x => Assert.Equal(x.Picks.Sum(p => p.Batches), x.Batches));
+        var worker = Assert.Single(plan.Workers);
+        var shown = worker.Rows.Where(r => !r.Hidden).ToList();
+        Assert.Contains(shown, r => r.Route.Contains("Rod's Fuel 'N Supplies", StringComparison.Ordinal));
+        Assert.All(shown, r => Assert.Equal(r.Places[^1], r.Lines[^1].Id));   // the last line of the Current Route is where the trip ends
+        var station = shown.First(r => r.Trip != null && r.Trip.Ends.Contains(PlayedSession.RodsFuel));
+        Assert.Contains("Deliver", station.Lines.Last(l => l.Id == PlayedSession.RodsFuel).Actions);
         Assert.Equal("Gaslight,  Patch City", t.Contracts.ContractStopsText(t.State.Log!.Missions[ToStation]));
     }
 
@@ -102,8 +121,10 @@ public class StationContractTests
             .Minutes(15).LoadingPlatform().Seconds(5).Objective(ToStation, "dropoff_s_0", "COMPLETED").Seconds(1).MissionEnded(ToStation, "COMPLETED");
         var t = Load(w);
         var run = Assert.Single(t.State.Trips);
-        Assert.Equal((PlayedSession.Player, 1, true), (run.Worker, run.HandedIn, run.End.HasValue));
+        Assert.Equal((PlayedSession.Player, 1, true, RodsZone), (run.Worker, run.HandedIn, run.End.HasValue, run.EndZone));   // handed in at the station
         Assert.Equal(new[] { GaslightZone, PatchZone }, run.Pickups.OrderBy(p => p.Time).Select(p => p.Zone));
+        Assert.Equal(PlayedSession.RodsFuel, t.Whereabouts.AutoLocationOf(PlayedSession.Player));   // and he is there now: his next trip starts there
+        Assert.Equal(RoutePlanner.PathGm(new[] { PyroDistances.Ruin, PlayedSession.Gaslight, PlayedSession.PatchCity, PlayedSession.RodsFuel }), CargoRuns.RunDistance(run, t.Places.StationOf), 3);
         Assert.Equal(2, t.State.PickupRows.Count);   // the completed contract left the boards; the to-Ruin stops are still waiting
         Assert.All(t.State.PickupRows, r => Assert.True(r.ToRuin));
         Assert.Equal(Earnings.DefaultReward2, t.Earnings.Earned());   // the contract paid like a 2-stop contract (the library would say otherwise by its name)

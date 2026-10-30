@@ -4,9 +4,11 @@ using static SCTools.Planning.PlanText;
 namespace SCTools.Tracking;
 
 /// <summary>
-/// The plan of the session shown (the Trip Planner): it divides the open batches over the crew (the active party, each with his ship) with TripPlanner, keeps the
-/// next stop of everybody when the stops are locked, credits the pickups no log names, and makes the rows and lines the tab and the web page show.
-/// The trips are only worked out again when the batches, the crew or the locks change.
+/// The plan of the session shown (the Route Planner): it divides the open batches over the crew (the active party, each with his ship) with a planner, keeps
+/// the stops of everybody's planned trip for him, credits the pickups no log names, and makes the rows and lines the tab and the web page show.
+/// The trips are only worked out again when the batches, the crew or the kept stops change. There are two of these while the planner without a hub is tried
+/// out (docs/planner-any-hauling.md): Tracker.Plan with the old planner (TripPlanner, the Route Planner tab) and Tracker.FreePlan with the new one (RoutePlanner,
+/// the Route Planner (new) tab), each with kept stops of its own; only the first one credits the pickups.
 /// </summary>
 public sealed class PlanService
 {
@@ -18,10 +20,14 @@ public sealed class PlanService
     readonly DropOffs _dropOffs;
     readonly CargoRuns _runs;
     readonly Whereabouts _where;
+    readonly bool _free;
     PlanCore? _planCore;
 
-    public PlanService(TrackerState state, Places places, Crew crew, Contracts contracts, Earnings earnings, DropOffs dropOffs, CargoRuns runs, Whereabouts where)
+    /// <param name="free">The planner without a hub (RoutePlanner, the Route Planner (new) tab) instead of the old one (TripPlanner, the Route Planner tab): it plans the
+    /// contracts to another station too, its trips start where the worker is and end where the cargo goes, and it keeps stops of its own (SessionInputs.FreeLockedTrips).</param>
+    public PlanService(TrackerState state, Places places, Crew crew, Contracts contracts, Earnings earnings, DropOffs dropOffs, CargoRuns runs, Whereabouts where, bool free = false)
     {
+        _free = free;
         _state = state;
         _places = places;
         _crew = crew;
@@ -33,6 +39,28 @@ public sealed class PlanService
     }
 
     AppData _data => _state.Data;
+
+    /// <summary>True for the planner without a hub (the Route Planner (new) tab); false for the old planner, whose trips all start and end at Ruin.</summary>
+    public bool Free => _free;
+
+    /// <summary>The stops kept for every worker by this planner (the two planners keep their own, so each plan is sticky by itself). Empty while no session is shown.</summary>
+    Dictionary<string, List<LockedStop>> Locks => (_free ? _state.Inputs?.FreeLockedTrips : _state.Inputs?.LockedTrips) ?? new Dictionary<string, List<LockedStop>>();
+
+    /// <summary>
+    /// The trips of this service's planner. The old planner knows nothing of groups and ends (every trip is from Ruin and back), so its trips get their Picks from their
+    /// Stops (every batch to Ruin), which is what the tables, the kept stops and the map read.
+    /// </summary>
+    List<PlannedTrip> PlanTrips(IReadOnlyDictionary<string, int> remaining, IReadOnlyList<(string Name, int Capacity, QtDrive Drive)> crew, IReadOnlyList<WorkerStart> starts,
+        IReadOnlyDictionary<string, List<(string[] Workers, int Batches)>> limits, IReadOnlyList<DropChunk> chunks, IReadOnlyDictionary<string, int> batchScu, IReadOnlyDictionary<string, int> shipScu, IReadOnlyDictionary<string, int> shipFullScu)
+    {
+        if (_free) return RoutePlanner.Plan(remaining, crew, starts, limits, chunks, batchScu, shipScu, shipFullScu);
+        var trips = TripPlanner.Plan(remaining, crew, starts, limits, chunks, batchScu, shipScu, shipFullScu);
+        foreach (var t in trips)
+        {
+            if (t.Picks.Count == 0) t.Picks.AddRange(t.Stops.Select(x => (x.Id, x.Id, PyroDistances.Ruin, x.Batches)));
+        }
+        return trips;
+    }
 
     /// <summary>The trips of the last plan, or null when none is worked out (yet, or since Invalidate).</summary>
     public PlanCore? Core => _planCore;
@@ -49,7 +77,7 @@ public sealed class PlanService
     public void ReleaseLock(string name)
     {
         var lockKey = LockKey(name);
-        if (lockKey != null) _state.Inputs!.LockedTrips.Remove(lockKey);
+        if (lockKey != null) Locks.Remove(lockKey);
         _planCore = null;
     }
 
@@ -73,14 +101,35 @@ public sealed class PlanService
         var list = trips.ToList();
         var workers = list.Select(t => t.Worker).Distinct().ToList();
         var aboard = workers.Where(n => wasteAboard?.Invoke(n) == true).ToHashSet();
+        // a worker whose trips all start and end at Ruin (his first one where he is) can fly them in any order: the order above. One with a trip that ends at
+        // another station keeps the planner's order, where every trip starts where the one before it ended (stage 1b)
+        var free = workers.Where(n => list.Where(t => t.Worker == n).All(t => (t.End == PyroDistances.Ruin || t.Stops.Count == 0) && (t.Special || t.From == null))).ToHashSet();
+        var planned = list.Select((t, i) => (t, i)).ToDictionary(x => x.t, x => x.i);
         return list
             .OrderBy(t => workers.IndexOf(t.Worker))
-            .ThenBy(t => t.Special ? 0 : t.Drops.Count > 0 && aboard.Contains(t.Worker) ? 1 : 2)
-            .ThenBy(t => Landings(t) >= 3 ? 1 : 0)   // three stops or more: the last resort
-            .ThenBy(t => t.Drops.Count > 0 ? 0 : 1)
-            .ThenBy(t => Landings(t) <= 1 ? 0 : 1)
-            .ThenByDescending(value)
+            .ThenBy(t => t.Special ? 0 : free.Contains(t.Worker) && t.Drops.Count > 0 && aboard.Contains(t.Worker) ? 1 : 2)
+            .ThenBy(t => free.Contains(t.Worker) ? Landings(t) >= 3 ? 1 : 0 : 0)   // three stops or more: the last resort
+            .ThenBy(t => free.Contains(t.Worker) ? t.Drops.Count > 0 ? 0 : 1 : 0)
+            .ThenBy(t => free.Contains(t.Worker) ? Landings(t) <= 1 ? 0 : 1 : 0)
+            .ThenByDescending(t => free.Contains(t.Worker) ? value(t) : 0)
+            .ThenBy(t => planned[t])
             .ToList();
+    }
+
+    /// <summary>The first stop of a trip as the lock keeps it: the group of its batches (RoutePlanner.GroupKey) and how many.</summary>
+    public static (string Group, int Batches) FirstPick(PlannedTrip t)
+    {
+        var first = t.Stops[0];
+        var pick = t.Picks.FirstOrDefault(p => p.Id == first.Id);
+        return pick.Group != null ? (pick.Group, pick.Batches) : (first.Id, first.Batches);
+    }
+
+    /// <summary>The trips in the order they are flown (Queue), each starting where the one before it ends (RoutePlanner.Chain): a run in progress ends where its cargo goes, else the worker's location.</summary>
+    List<PlannedTrip> Ordered(IEnumerable<PlannedTrip> trips, Func<PlannedTrip, decimal> value, Func<string, bool> wasteAboard)
+    {
+        var list = Queue(trips, value, wasteAboard);
+        if (_free) RoutePlanner.Chain(list, name => _runs.ActiveRunOf(name) != null ? _runs.LoadedDestinationsOf(name)[^1] : _where.LocationOf(name).Id, _crew.QtOf);   // the old planner's trips all start and end at Ruin: nothing to chain
+        return list;
     }
 
     /// <summary>The stations a trip lands at before Ruin (its stops): where it drops off the waste and where it picks up (waste and pickups at the same station is one stop).</summary>
@@ -90,7 +139,7 @@ public sealed class PlanService
     WorkerTrip? WasteTakenOut(string name) => _runs.WasteTakenOut(name);
 
     /// <summary>The name a worker has in the locked trips of this session, or null when he has none.</summary>
-    public string? LockKey(string name) => _state.Inputs?.LockedTrips.Keys.FirstOrDefault(k => SameName(k, name));
+    public string? LockKey(string name) => Locks.Keys.FirstOrDefault(k => SameName(k, name));
 
     /// <summary>
     /// A pickup that no log names (a member without a log) is credited to somebody once, and the credit is saved, so it never changes again (not when
@@ -137,8 +186,8 @@ public sealed class PlanService
             {
                 var lk = LockKey(n);
                 if (lk == null) continue;
-                var stored = _state.Inputs.LockedTrips[lk];
-                if (stored.Count == 0 || stored[0].Id != group.Key) continue;
+                var stored = Locks[lk];
+                if (stored.Count == 0 || RoutePlanner.OriginOf(stored[0].Id) != group.Key) continue;
                 for (var i = 0; i < stored[0].Batches; i++) locked.Add(n);
             }
             // 2. whose planned trip expects a batch here, in the order of the plan
@@ -182,9 +231,9 @@ public sealed class PlanService
 
     /// <summary>
     /// The stops of a planned trip one by one, for the Current Route table: where it starts (Ruin, collecting the load from Ruin if there is one, or the station he is at),
-    /// what is done at every stop, and the way back to Ruin. Every line has the leg that leads to it, so the legs add up to the whole route.
+    /// what is done at every stop, and the places it delivers at (Ruin, or another station: stage 1b). Every line has the leg that leads to it, so the legs add up to the whole route.
     /// </summary>
-    List<StopLine> LinesOf(PlannedTrip trip, string worker, Func<string, decimal> perBatch, Func<string, double> scuPerBatch, string? at = null)
+    List<StopLine> LinesOf(PlannedTrip trip, string worker, Func<string, decimal> perGroup, Func<string, double> scuPerGroup, string? at = null)
     {
         var drive = _crew.QtOf(worker);
         var lines = new List<StopLine>();
@@ -193,6 +242,8 @@ public sealed class PlanService
         var drop = hasDrop ? trip.Drops[0] : default;
         var cargo = trip.DropCargo ?? "cargo";
         var firstStop = trip.Stops.Count > 0 ? trip.Stops[0].Id : null;
+        decimal ValueAt(string id) => trip.Picks.Where(p => p.Id == id).Sum(p => p.Batches * perGroup(p.Group));   // every group picked up there
+        double ScuAt(string id) => trip.Picks.Where(p => p.Id == id).Sum(p => p.Batches * scuPerGroup(p.Group));
 
         StopLine Add(string id, string name, bool stop, IEnumerable<string> actions, int batches = 0, decimal value = 0, double scu = 0)
         {
@@ -237,11 +288,16 @@ public sealed class PlanService
                 dropShown = true;
             }
             if (batches > 0) actions.Add("Collect");
-            var line = Add(id, PyroDistances.NameOf(id), true, actions, batches, batches * perBatch(id), batches * scuPerBatch(id));
+            var line = Add(id, PyroDistances.NameOf(id), true, actions, batches, ValueAt(id), ScuAt(id));
             line.Count = batches;
             if (actions.Count > 0 && actions[0].StartsWith("Deliver", StringComparison.Ordinal)) Load(line, trip);   // the drop-off here: its SCU and boxes
         }
-        Add(PyroDistances.Ruin, "Ruin", false, trip.Batches > 0 ? new[] { "Deliver" } : Array.Empty<string>());   // everything on board is handed in (the SCU column says how much where it is collected)
+        // the places it delivers at: everything on board for each is handed in there (the SCU column says how much where it is collected)
+        foreach (var end in EndsOf(trip))
+        {
+            var going = trip.Picks.Where(p => p.To == end).Sum(p => p.Batches);
+            Add(end, PlaceName(end), false, going > 0 || (trip.Batches > 0 && trip.Ends.Count == 0) ? new[] { "Deliver" } : Array.Empty<string>());
+        }
         return lines;
     }
 
@@ -255,7 +311,7 @@ public sealed class PlanService
     }
 
     /// <summary>Puts what the plan still collects at a station after the lines of a run in progress (at the station where the last pickup was it joins that line).</summary>
-    void AddCollectLine(List<StopLine> lines, string worker, string id, int batches, decimal perBatch, double scuPerBatch)
+    void AddCollectLine(List<StopLine> lines, string worker, string id, int batches, decimal value, double scu)
     {
         var last = lines.Count > 0 ? lines[^1] : null;
         if (last != null && last.Id == id)
@@ -264,26 +320,29 @@ public sealed class PlanService
             last.Pending = true;   // the colour stays here until this is collected too
             last.Count += batches;
             last.Batches += batches;
-            last.Value += batches * perBatch;
-            last.Scu += batches * scuPerBatch;
+            last.Value += value;
+            last.Scu += scu;
             return;
         }
         var prev = lines.LastOrDefault(l => l.Id.Length > 0)?.Id ?? PyroDistances.Ruin;
         var gm = PyroDistances.Between(prev, id);
-        var line = new StopLine { Id = id, Name = PyroDistances.NameOf(id), Batches = batches, Value = batches * perBatch, Scu = batches * scuPerBatch, Gm = gm, Seconds = gm > 0 ? _crew.QtOf(worker).Seconds(gm) : 0 };
+        var line = new StopLine { Id = id, Name = PyroDistances.NameOf(id), Batches = batches, Value = value, Scu = scu, Gm = gm, Seconds = gm > 0 ? _crew.QtOf(worker).Seconds(gm) : 0 };
         line.Actions.Add("Collect");
         line.Count = batches;
         lines.Add(line);
     }
 
-    /// <summary>The last line of a run in progress: back at Ruin, where everything on board is handed in.</summary>
-    void AddRuinLine(List<StopLine> lines, string worker, int batches)
+    /// <summary>The last lines of a run in progress: the places its cargo goes to (Ruin, or another station since stage 1b), where everything on board for each is handed in.</summary>
+    void AddEndLines(List<StopLine> lines, string worker, int batches, IEnumerable<string> ends)
     {
-        var prev = lines.LastOrDefault(l => l.Id.Length > 0)?.Id ?? PyroDistances.Ruin;
-        var gm = PyroDistances.Between(prev, PyroDistances.Ruin);
-        var line = new StopLine { Id = PyroDistances.Ruin, Name = "Ruin", Stop = false, Gm = gm, Seconds = gm > 0 ? _crew.QtOf(worker).Seconds(gm) : 0 };
-        if (batches > 0) line.Actions.Add("Deliver");   // the SCU column only says how much where it is collected
-        lines.Add(line);
+        foreach (var end in ends)
+        {
+            var prev = lines.LastOrDefault(l => l.Id.Length > 0)?.Id ?? PyroDistances.Ruin;
+            var gm = PyroDistances.Between(prev, end);
+            var line = new StopLine { Id = end, Name = PlaceName(end), Stop = false, Gm = gm, Seconds = gm > 0 ? _crew.QtOf(worker).Seconds(gm) : 0 };
+            if (batches > 0) line.Actions.Add("Deliver");   // the SCU column only says how much where it is collected
+            lines.Add(line);
+        }
     }
 
     /// <summary>
@@ -430,12 +489,13 @@ public sealed class PlanService
                 Lines = lines,
                 Batches = level == "All" ? "failed" : t.Left ? "left" : t.End.HasValue ? t.HandedIn.ToString(CultureInfo.InvariantCulture) : picked.ToString(CultureInfo.InvariantCulture),
                 BatchCount = picked,
-                Gm = stops.Count > 0 ? PyroDistances.Run(stops) : 0,
+                Gm = stops.Count > 0 ? RoutePlanner.PathGm(new[] { PyroDistances.Ruin }.Concat(stops).Concat(_runs.LoadedDestinationsOf(name))) : 0,
                 Seconds = t.End.HasValue ? Math.Max(0, (t.End.Value - t.Start).TotalSeconds) : 0,
                 Level = level == "All" ? "all" : level == "Little" ? "little" : t.End.HasValue ? "done" : "active",
                 Stops = stops,
+                Places = new[] { PyroDistances.Ruin }.Concat(stops).Concat(_runs.LoadedDestinationsOf(name)).ToList(),
                 Value = _earnings.RunValue(t),
-                Flight = _runs.FlightOf(name, stops),
+                Flight = _runs.FlightOf(name, stops, _runs.LoadedDestinationsOf(name)),
             });
         }
         return rows;
@@ -451,7 +511,8 @@ public sealed class PlanService
             foreach (var p in t.Pickups.Where(p => since == null || p.Time > since))
             {
                 picked = true;
-                if (keptIds.Contains(_places.StationOf(p.Zone) ?? "")) return true;   // he picked up at one of his kept stops: he follows the plan
+                var at = _places.StationOf(p.Zone);
+                if (at != null && keptIds.Any(k => RoutePlanner.OriginOf(k) == at)) return true;   // he picked up at one of his kept stops (their groups' stations): he follows the plan
             }
         }
         return !picked;   // no pickup since: he is still on his way
@@ -481,9 +542,9 @@ public sealed class PlanService
             {
                 var changed = false;
                 // somebody who left the party (or does not fly) has no kept stops: his batches go back to the others
-                foreach (var gone in _state.Inputs.LockedTrips.Keys.Where(k => !crew.Any(c => c.Capacity > 0 && SameName(c.Name, k))).ToList())
+                foreach (var gone in Locks.Keys.Where(k => !crew.Any(c => c.Capacity > 0 && SameName(c.Name, k))).ToList())
                 {
-                    _state.Inputs.LockedTrips.Remove(gone);
+                    Locks.Remove(gone);
                     changed = true;
                 }
                 foreach (var c in crew.Where(x => x.Capacity > 0))
@@ -491,20 +552,21 @@ public sealed class PlanService
                     var run = _runs.ActiveRunOf(c.Name);
                     var loc = _where.LocationOf(c.Name).Id;   // where he is: the station of his last pickup or delivery (the logs), or the one set by hand
                     var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, LoadedScu = _runs.LoadedScuOf(c.Name), From = loc == PyroDistances.Ruin ? null : loc };
+                    if (run != null) start.LoadedTo = _runs.LoadedDestinationsOf(c.Name);   // his run ends where its cargo goes (the planner without a hub)
                     // everybody who flies keeps the stops of his planned trip (Frank, 30 Oct 2026: zzoega's Megumi stop went to zzatvo's plan when zzatvo picked up at
                     // Endgame): they are planned first, in their order, as long as their batches are there and fit; a pickup of his somewhere else lets them go
                     var lockKey = LockKey(c.Name);
                     if (lockKey == null)
                     {
-                        _state.Inputs.LockedTrips[c.Name] = new List<LockedStop>();
+                        Locks[c.Name] = new List<LockedStop>();
                         lockKey = c.Name;
                         changed = true;
                     }
-                    var stored = _state.Inputs.LockedTrips[lockKey];
+                    var stored = Locks[lockKey];
                     if (stored.Count > 0 && run != null && !FollowsLock(c.Name, stored.Select(x => x.Id).ToList(), stored[0].Since))
                     {
                         stored = new List<LockedStop>();   // he picked up somewhere else: his trips are free again
-                        _state.Inputs.LockedTrips[lockKey] = stored;
+                        Locks[lockKey] = stored;
                         changed = true;
                     }
                     // a kept stop whose batches are picked up (by him or by somebody else) or gone is done with; the others keep what is still there
@@ -516,7 +578,7 @@ public sealed class PlanService
                     }
                     if (!SameStops(stored, keep))
                     {
-                        _state.Inputs.LockedTrips[lockKey] = stored = keep;
+                        Locks[lockKey] = stored = keep;
                         changed = true;
                     }
                     if (stored.Count > 0)
@@ -535,14 +597,14 @@ public sealed class PlanService
                         }
                         else
                         {
-                            _state.Inputs.LockedTrips[lockKey] = new List<LockedStop>();   // no room for his first kept stop: a new trip is planned for him
+                            Locks[lockKey] = new List<LockedStop>();   // no room for his first kept stop: a new trip is planned for him
                             changed = true;
                         }
                     }
                     if (start.FirstId == null && (run == null || start.LoadedScu < shipScu.GetValueOrDefault(c.Name))) waiting.Add(c.Name);   // a run with room left keeps the stops of its continuation too
                     // his own log shows the station he is flying to (or has arrived at) since his last pickup or delivery: what he can take there stays his,
                     // locked or not, so planning again for somebody else never takes it away from him while he is on his way or about to load
-                    var heading = start.FirstId == null ? _where.HeadingFor(c.Name) : null;
+                    var heading = start.FirstId == null ? GroupAt(remaining, _where.HeadingFor(c.Name)) : null;
                     if (heading != null && remaining.GetValueOrDefault(heading) > 0)
                     {
                         var notHis = limits.TryGetValue(heading, out var hl) ? hl.Where(x => !x.Workers.Contains(c.Name)).Sum(x => x.Batches) : 0;
@@ -554,10 +616,9 @@ public sealed class PlanService
                             remaining[heading] -= take;
                         }
                     }
-                    if (start.FirstId == null && run == null && start.From != null && remaining.GetValueOrDefault(start.From) > 0)
+                    if (start.FirstId == null && run == null && start.From != null && GroupAt(remaining, start.From) is { } here && remaining.GetValueOrDefault(here) > 0)
                     {
                         // he said where he is: what is left at that station is right there, so his first trip takes it first (what only the others have is left to them)
-                        var here = start.From;
                         var onlyOthers = limits.TryGetValue(here, out var gl) ? gl.Where(x => !x.Workers.Contains(c.Name)).Sum(x => x.Batches) : 0;
                         var take = Math.Min(Math.Min(remaining[here] - onlyOthers, remaining[here]), RoomAt(c.Name, here, 0));
                         if (take > 0)
@@ -578,10 +639,10 @@ public sealed class PlanService
                 + "#" + string.Join("|", unknown)
                 + "#" + string.Join("|", chunks.Select(x => x.Station + ":" + x.Batches + ":" + x.Scu + ":" + x.Cargo + ":" + string.Join(",", x.Allowed)))
                 + "#" + string.Join("|", limits.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + "=" + string.Join(";", kv.Value.Select(g => string.Join(",", g.Workers) + "x" + g.Batches))))
-                + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "+" + string.Join(",", t.Keep.Select(k => k.Id + "x" + k.Batches)) + "/" + t.Loaded + "/" + t.LoadedScu + "@" + t.From));
+                + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "+" + string.Join(",", t.Keep.Select(k => k.Id + "x" + k.Batches)) + "/" + t.Loaded + "/" + t.LoadedScu + "@" + t.From + ">" + string.Join(",", t.LoadedTo)));
             if (_planCore != null && _planCore.Key == key && waiting.All(n => _planCore.Settled.Contains(n)))
             {
-                _planCore.Trips = Queue(_planCore.Trips, value, WasteAboard);   // the same trips; what they are worth can be typed again in the rewards table
+                _planCore.Trips = Ordered(_planCore.Trips, value, WasteAboard);   // the same trips; what they are worth can be typed again in the rewards table
                 return _planCore;
             }
 
@@ -591,7 +652,7 @@ public sealed class PlanService
             var core = new PlanCore
             {
                 Key = key,
-                Trips = Queue(TripPlanner.Plan(remaining, crew, starts, limits, chunks, batchScu, shipScu, shipFullScu), value, WasteAboard),
+                Trips = Ordered(PlanTrips(remaining, crew, starts, limits, chunks, batchScu, shipScu, shipFullScu), value, WasteAboard),
                 Batches = remaining.Where(kv => kv.Value > 0).Sum(kv => kv.Value) + starts.Sum(t => t.FirstBatches + t.Keep.Sum(k => k.Batches)),
                 Note = note,
                 Settled = settled,
@@ -609,26 +670,31 @@ public sealed class PlanService
                 if (lockKey == null || !seen.Add(name)) continue;
                 var next = core.Trips.FirstOrDefault(t => t.Worker == name);
                 var flying = _runs.ActiveRunOf(name);
-                var stored = _state.Inputs.LockedTrips[lockKey];
+                var stored = Locks[lockKey];
                 if (next == null || NothingToLock(next))
                 {
                     if (waiting.Contains(name)) settled.Add(name);
-                    if (flying == null && stored.Count == 0) _state.Inputs.LockedTrips.Remove(lockKey);   // with a run in progress the marker stays: his next trip is kept once the run is handed in
+                    if (flying == null && stored.Count == 0) Locks.Remove(lockKey);   // with a run in progress the marker stays: his next trip is kept once the run is handed in
                     continue;
                 }
                 var since = stored.Count > 0 ? stored[0].Since : flying?.Last;
                 var kept = new List<LockedStop>(stored);
-                foreach (var (id, batches) in next.Stops)
+                foreach (var (group, _, _, batches) in next.Picks)   // by group (a station's batches to Ruin, or to another station): the keys the kept stops have
                 {
-                    var had = kept.FirstOrDefault(x => x.Id == id);
-                    if (had == null) kept.Add(new LockedStop { Id = id, Batches = batches, Since = since });
+                    var had = kept.FirstOrDefault(x => x.Id == group);
+                    if (had == null) kept.Add(new LockedStop { Id = group, Batches = batches, Since = since });
                     else if (batches > had.Batches) had.Batches = batches;   // the planner filled the stop up: that is his too
                 }
-                if (!SameStops(stored, kept)) _state.Inputs.LockedTrips[lockKey] = kept;
+                if (!SameStops(stored, kept)) Locks[lockKey] = kept;
             }
             _state.Save();
         }
     }
+
+    /// <summary>The group of batches at a station with the most left (RoutePlanner.GroupKey: a station's batches to Ruin, or to another station), or null.</summary>
+    static string? GroupAt(IReadOnlyDictionary<string, int> remaining, string? station) =>
+        station == null ? null : remaining.Where(kv => kv.Value > 0 && RoutePlanner.OriginOf(kv.Key) == station).OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key, StringComparer.Ordinal)
+            .Select(kv => kv.Key).FirstOrDefault();
 
     static bool SameStops(List<LockedStop> a, List<LockedStop> b) => a.Count == b.Count && a.Zip(b).All(p => p.First.Id == p.Second.Id && p.First.Batches == p.Second.Batches);
 
@@ -642,19 +708,22 @@ public sealed class PlanService
         var volume = new Dictionary<string, (double Scu, int Stops)>();   // station -> the SCU of its open stops together (a guess, see StopScu) and how many stops that is
         var limits = new Dictionary<string, List<(string[] Workers, int Batches)>>();   // station -> batches that only some of the crew can take (they have those missions running, the others do not)
         var flyers = crew.Where(c => c.Capacity > 0).Select(c => c.Name).ToList();
-        var later = new List<string>();   // the stops of the contracts to another station: the planner without a hub (stage 1b) plans those
+        var later = new List<string>();   // the stops of the contracts to a station the distance table does not know: not planned
         if (_state.Inputs != null)
         {
             foreach (var r in _state.OpenRows)
             {
                 var left = r.Missions - r.Loaded;   // batches not picked up yet
                 if (left <= 0) continue;
-                if (!r.ToRuin)
+                var station = _places.StationOf(r.Zone);
+                // the batches of a contract to another station are a group of their own at the station (RoutePlanner.GroupKey): the planner takes them to that station (stage 1b)
+                var to = r.ToRuin ? PyroDistances.Ruin : r.DropZone != null ? _places.StationOf(r.DropZone) : null;
+                if (!r.ToRuin && (to == null || !_free))   // the old planner only plans the contracts to Ruin
                 {
                     later.Add(_places.LocationName(r.Zone) + " \u00d7" + left + " to " + (r.DropName ?? (r.DropZone != null ? _places.LocationName(r.DropZone) : "another station")));
                     continue;
                 }
-                var id = _places.StationOf(r.Zone);
+                var id = station == null ? null : RoutePlanner.GroupKey(station, to!);
                 if (id != null && r.Missions > 0)
                 {
                     var was = worth.GetValueOrDefault(id);
@@ -705,7 +774,7 @@ public sealed class PlanService
         var shipScu = crew.Where(c => c.Capacity > 0).ToDictionary(c => c.Name, c => (int)((_crew.ShipOf(c.Name)?.Total ?? c.Capacity * 232) * PlanFill));
         var shipFullScu = crew.Where(c => c.Capacity > 0).ToDictionary(c => c.Name, c => _crew.ShipOf(c.Name)?.Total ?? c.Capacity * 232);   // a load from Ruin may fill the ship in full
         decimal PerBatch(string id) => worth.TryGetValue(id, out var x) && x.Batches > 0 ? x.Value / x.Batches : 0;   // the average batch at that station
-        decimal TripValue(PlannedTrip t) => t.Stops.Sum(s => s.Batches * PerBatch(s.Id)) + _earnings.WasteValue(t.DropKeys);   // its pickups and the waste it takes out
+        decimal TripValue(PlannedTrip t) => t.Picks.Sum(p => p.Batches * PerBatch(p.Group)) + _earnings.WasteValue(t.DropKeys);   // its pickups and the waste it takes out
         var core = CoreFor(crew, remaining, unknown, limits, chunks, batchScu, shipScu, shipFullScu, TripValue);
         var dropTrips = core.Trips;
         // the waste only rides along on the pickup trips: a load that none of them can take along waits (the note says so)
@@ -720,7 +789,7 @@ public sealed class PlanService
         if (waits.Count > 0) dropNote = (dropNote + "  Waiting to go along on a pickup trip: " + string.Join(", ", waits) + ".").Trim();
         double ScuPerBatch(string id) => volume.TryGetValue(id, out var y) && y.Stops > 0 ? y.Scu / y.Stops : 0;   // the average stop at that station, in SCU
 
-        var laterNote = later.Count > 0 ? "Not planned yet (the drop-off is not Ruin): " + string.Join(", ", later) + "." : "";
+        var laterNote = later.Count == 0 ? "" : (_free ? "Not planned (the drop-off is not in the distance table): " : "Not planned here (the drop-off is not Ruin; the Route Planner (new) plans them): ") + string.Join(", ", later) + ".";
         var plan = new PlanView { Note = (core.Note + "  " + dropNote + "  " + laterNote).Trim() };
         var flying = crew.Where(c => c.Capacity > 0).ToList();
         for (var i = 0; i < flying.Count; i++)
@@ -765,6 +834,7 @@ public sealed class PlanService
                     Flight = mine[k].Seconds,
                     Level = "plan",
                     Stops = mine[k].Drops.Select(d => d.Id).Concat(mine[k].Stops.Select(s => s.Id)).Aggregate(new List<string>(), (l, id) => { if (l.Count == 0 || l[^1] != id) l.Add(id); return l; }),
+                    Places = mine[k].Places(),
                     From = mine[k].From,
                     Trip = mine[k],
                     Lines = LinesOf(mine[k], c.Name, PerBatch, ScuPerBatch, k == 0 && runRow == null ? w.LocationId : null),
@@ -775,13 +845,17 @@ public sealed class PlanService
             {
                 var cont = mine[0];
                 runRow.BatchCount += cont.Batches;
-                runRow.Value += cont.Stops.Sum(s => s.Batches * PerBatch(s.Id));
+                runRow.Value += cont.Picks.Sum(p => p.Batches * PerBatch(p.Group));
                 runRow.Batches = runRow.BatchCount.ToString(CultureInfo.InvariantCulture);
                 runRow.Stops = runRow.Stops.Concat(cont.Stops.Select(s => s.Id)).ToList();
-                runRow.Gm = PyroDistances.Run(runRow.Stops);
-                runRow.Flight = _runs.FlightOf(c.Name, runRow.Stops);   // the whole run, Ruin to Ruin
-                foreach (var (stopId, stopBatches) in cont.Stops) AddCollectLine(runRow.Lines, c.Name, stopId, stopBatches, PerBatch(stopId), ScuPerBatch(stopId));
+                var ends = EndsOf(cont);
+                runRow.Places = new[] { PyroDistances.Ruin }.Concat(runRow.Stops).Concat(ends).ToList();
+                runRow.Gm = RoutePlanner.PathGm(runRow.Places);
+                runRow.Flight = _runs.FlightOf(c.Name, runRow.Stops, ends);   // the whole run, from Ruin to where its cargo goes
+                foreach (var (stopId, stopBatches) in cont.Stops)
+                    AddCollectLine(runRow.Lines, c.Name, stopId, stopBatches, cont.Picks.Where(p => p.Id == stopId).Sum(p => p.Batches * PerBatch(p.Group)), cont.Picks.Where(p => p.Id == stopId).Sum(p => p.Batches * ScuPerBatch(p.Group)));
                 w.Rows.First(r => r.Trip == cont).Hidden = true;
+                runRow.Ends = ends.ToList();
             }
             else if (runRow != null && runRow.Stops.Count > 0)
             {
@@ -794,7 +868,7 @@ public sealed class PlanService
             }
             if (runRow != null && runRow.Lines.Count > 0)
             {
-                AddRuinLine(runRow.Lines, c.Name, runRow.BatchCount);   // the run ends at Ruin
+                AddEndLines(runRow.Lines, c.Name, runRow.BatchCount, runRow.Ends.Count > 0 ? runRow.Ends : _runs.LoadedDestinationsOf(c.Name));   // the run ends where its cargo goes
                 runRow.Route = string.Join("  \u2192  ", runRow.Lines.Select(l => l.Name));
             }
             // he has taken the waste out at Ruin already (his run has nothing else in it yet): the Ruin line of his first trip says so. "Collecting Waste" while he is

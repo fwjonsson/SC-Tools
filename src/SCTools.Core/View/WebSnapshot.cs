@@ -84,7 +84,8 @@ public sealed partial class WebSnapshot
             runsLive = runs.Live,    // runs on the way: when each started (UTC), the page counts its Time up from that by its own clock (null: not running)
             runKeys = runs.Keys,     // the runs' keys, for the admin's Lost Cargo pick (RunsLost)
             runsLost = _o.RunsLost,
-            planner = Planner(),
+            planner = Planner(_t.Plan),
+            freePlanner = Planner(_t.FreePlan),   // the Route Planner (new) tab: the planner without a hub, tried out beside the old one (30 Oct 2026)
             debts = Debts(),
             debtsPay = _o.DebtsPay,
             history = History(),

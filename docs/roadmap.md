@@ -114,6 +114,14 @@ All the tools track at the same time, all the time. The tracking runs on the ser
     - **Stage 1a of the design** (30 Oct; `docs/planner-any-hauling.md`): the Pyro station-to-station contracts (`_StationToStation_…`, "Master |
       Stellar Large Haul | to Stanton Gateway") are the planner's own: in the sessions, on the Stops board with their station as the drop-off (a row
       of their own), in the Contracts tab and the runs; the planner names them in its note until stage 1b (the planner without a hub) plans them.
+    - **Stage 1b of the design** (30 Oct): the planner without a hub for Pyro: a batch is cargo at a station for a place, a trip starts where the
+      worker is (or where his trip before it ended) and ends at the last place it delivers at, the contracts to another station are planned in the
+      same trips as the to-Ruin ones (Frank's answer 1), a run ends where it is handed in, the map draws every route from its start to its end. The
+      to-Ruin plans are unchanged scenario for scenario.
+    - **Two planners side by side** (Frank, 30 Oct): the new planner (`RoutePlanner`) is on a tab of its own, *Route Planner (new)*, with kept stops of
+      its own; the *Route Planner* tab keeps the old planner (`TripPlanner`) and stays the default until Frank has tested the new one and decides whether
+      it replaces the old one. Every rule the old planner gets meanwhile is brought over to the new one (so far: the kept stops of a worker's whole trip).
+      When the new one takes over: the Route Planner tab shows it, the old class, the second tab and `FreeLockedTrips` go.
     - **Wiki API** (#264; #265 for every mission of the library): the log's `contract [...]` and `contractDefinitionId[...]` are the API's
       `debug_name` and `uuid` (Frank confirmed with `701271ba-…` = `Iasi_HaulCargo_AtoB_Small_PartySupplies`), so a string mod's names do not matter.
       The contract ids are kept on the Missions rows (the old logs re-read once); the server asks `api.star-citizen.wiki/api/missions/{uuid}` about

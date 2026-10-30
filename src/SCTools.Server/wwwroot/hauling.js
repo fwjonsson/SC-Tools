@@ -168,20 +168,19 @@ const NS = 'http://www.w3.org/2000/svg';
 const K = SystemMap.W / 520;   // the map is drawn in 760 px and shown in about 520: the lines are a little thicker so they look as they did
 // The waves on the map move with the clock of the page, not with an SVG animation (that would start again every time the map is drawn anew).
 const WAVE_LEN = 28 * K, WAVE_SPEED = 20 * K;   // px from one dark band to the next, px per second
-let waveGrads = [];
 function slideWave(w, now) {
   const shift = (now / 1000 * WAVE_SPEED) % WAVE_LEN;
   w.el.setAttribute('gradientTransform', 'translate(' + (w.ux * shift).toFixed(2) + ' ' + (w.uy * shift).toFixed(2) + ')');
 }
-function plannerOn() { return !document.getElementById('viewP').classList.contains('hidden'); }
 function moveWaves(now) {
-  if (waveGrads.length && !document.hidden && plannerOn()) waveGrads.forEach(function (w) { slideWave(w, now); });
+  const pm = planMaps[shownTab];   // the waves of the planner tab shown (each planner tab has a map of its own)
+  if (pm && pm.waves.length && !document.hidden) pm.waves.forEach(function (w) { slideWave(w, now); });
   requestAnimationFrame(moveWaves);
 }
 requestAnimationFrame(moveWaves);
 
 let mapData = null, mapOff = false;   // the Map tool's Pyro (its players and objectives) fetched last; off: this page has no map.json (the program's own)
-let planMap = null;   // the map on the Trip Planner tab now: its engine, how to draw the routes again, and whose players it shows
+const planMaps = {};   // the map on each planner tab (P: the Route Planner, N: the Route Planner (new)): its engine, how to draw the routes again, whose players it shows, its waves
 function pyroOf(d) { return d && (d.systems || []).find(function (s) { return s.id === 'pyro'; }); }
 
 function darker(hex, f) {
@@ -191,10 +190,10 @@ function darker(hex, f) {
 }
 
 // The map in its box: the legend (who flies which route) above it, then the Map tool's Pyro with the routes on it. names: the workers shown (their players
-// and objectives are drawn, nobody else's).
-function mapSvg(el, p, routes, names) {
+// and objectives are drawn, nobody else's). tab: the planner tab it is on (its map is live while that tab is shown).
+function mapSvg(el, p, routes, names, tab) {
   el.textContent = '';
-  waveGrads = [];
+  const waves = [];
   const legend = routes.filter(function (r) { return r.label; });
   if (legend.length) {
     const lg = document.createElement('div'); lg.className = 'maplegend';
@@ -211,7 +210,7 @@ function mapSvg(el, p, routes, names) {
     el.appendChild(lg);
   }
   const box = document.createElement('div'); box.className = 'mapsvg'; el.appendChild(box);
-  const map = SystemMap.create(box, { active: plannerOn });
+  const map = SystemMap.create(box, { active: function () { return shownTab === tab; } });
   const keep = function (name) { return among(names, name || ''); };
 
   // the routes, in the engine's own layer (between the system and the objectives), at the places of the planner's stations on it
@@ -219,7 +218,7 @@ function mapSvg(el, p, routes, names) {
     const g = map.layer();
     if (!g) return;
     g.textContent = '';
-    waveGrads = [];
+    waves.length = 0;
     const pos = {};
     p.stations.forEach(function (s) { if (s.key) pos[s.id] = map.at(s.key); });
     function add(tag, attrs) { return map.el(tag, attrs, g); }
@@ -227,7 +226,7 @@ function mapSvg(el, p, routes, names) {
     function wave(a, b, ux, uy, len, color, width) {
       const ALPHA = 215 / 255, INSET = 8 * K;   // how dark the middle of a band is, and clear of the stations at both ends of the leg
       if (len <= 2 * INSET + 2) return;   // a leg that short is hardly more than its two stations
-      const id = 'wave' + waveGrads.length, shade = darker(color, 0.18);
+      const id = 'wave' + tab + waves.length, shade = darker(color, 0.18);   // the tab in the id: the two planner tabs' maps are in the same document
       // one wave goes from a to a + WAVE_LEN along the leg and repeats all along it; moveWaves() slides the pattern on towards the end of the leg
       const grad = add('linearGradient', { id: id, gradientUnits: 'userSpaceOnUse', x1: a[0], y1: a[1], x2: a[0] + ux * WAVE_LEN, y2: a[1] + uy * WAVE_LEN, spreadMethod: 'repeat' });
       for (let k = 0; k <= 8; k++) {
@@ -238,15 +237,15 @@ function mapSvg(el, p, routes, names) {
         stop.setAttribute('stop-opacity', (ALPHA * (1 - Math.cos(2 * Math.PI * t)) / 2).toFixed(3));   // clear, dark in the middle, clear again
         grad.appendChild(stop);
       }
-      waveGrads.push({ el: grad, ux: ux, uy: uy });
-      slideWave(waveGrads[waveGrads.length - 1], performance.now());
+      waves.push({ el: grad, ux: ux, uy: uy });
+      slideWave(waves[waves.length - 1], performance.now());
       add('line', { x1: a[0] + ux * INSET, y1: a[1] + uy * INSET, x2: b[0] - ux * INSET, y2: b[1] - uy * INSET, stroke: 'url(#' + id + ')', 'stroke-width': width });
     }
     const n = routes.length;
     [false, true].forEach(function (boldPass) {
       routes.forEach(function (r, i) {
         if (!!r.bold !== boldPass) return;
-        const ids = [r.from || 'Ruin'].concat(r.stops, ['Ruin']);
+        const ids = r.places || [r.from || 'Ruin'].concat(r.stops, ['Ruin']);   // the route's places from its start to its end (a trip ends where its cargo goes, stage 1b)
         const shift = (i - (n - 1) / 2) * 3.5 * K;
         let waved = false;   // the waves run on one leg only: the first, or the one after the stops of a run that are done
         for (let s = 0; s + 1 < ids.length; s++) {
@@ -276,7 +275,7 @@ function mapSvg(el, p, routes, names) {
     // a ring around every station a route touches (where it starts, stops or ends): no station looks special, Ruin neither (Frank, 29 Oct 2026: the
     // planner is to work with every kind of hauling and lose its Ruin bias, so the map knows no home station)
     const used = {};
-    routes.forEach(function (r) { [r.from || 'Ruin', 'Ruin'].concat(r.stops).forEach(function (id) { used[id] = true; }); });
+    routes.forEach(function (r) { (r.places || [r.from || 'Ruin', 'Ruin'].concat(r.stops)).forEach(function (id) { used[id] = true; }); });
     p.stations.forEach(function (s) {
       const q = pos[s.id];
       if (q && used[s.id]) add('circle', { cx: q[0], cy: q[1], r: 7, fill: 'none', stroke: '#ecece8', 'stroke-opacity': 0.7, 'stroke-width': 1.5 });
@@ -285,7 +284,7 @@ function mapSvg(el, p, routes, names) {
   map.show(pyroOf(mapData) || p.map);
   drawRoutes();
   if (mapData) map.draw(mapData, keep);
-  planMap = { map: map, drawRoutes: drawRoutes, keep: keep };
+  planMaps[tab] = { map: map, drawRoutes: drawRoutes, keep: keep, waves: waves };
   return map;
 }
 
@@ -314,16 +313,17 @@ function renderActive() {
 }
 
 async function refreshMap() {
-  if (document.hidden || mapOff || (shownTab !== 'P' && shownTab !== 'S')) return;   // the Session tab wants the map's Active Contracts (30 Oct 2026)
+  if (document.hidden || mapOff || (shownTab !== 'P' && shownTab !== 'N' && shownTab !== 'S')) return;   // the Session tab wants the map's Active Contracts (30 Oct 2026)
   try {
     const res = await fetch('/hauling/map.json', { cache: 'no-store' });
     if (res.status === 404) { mapOff = true; return; }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     mapData = await res.json();
     if (shownTab === 'S') renderActive();
-    if (planMap && last && last.planner) {
-      if (planMap.map.show(pyroOf(mapData) || last.planner.map)) planMap.drawRoutes();   // the places changed (the admin's Map places): drawn anew
-      planMap.map.draw(mapData, planMap.keep);
+    const pm = planMaps[shownTab], pd = last && last[plannerKey(shownTab)];
+    if (pm && pd) {
+      if (pm.map.show(pyroOf(mapData) || pd.map)) pm.drawRoutes();   // the places changed (the admin's Map places): drawn anew
+      pm.map.draw(mapData, pm.keep);
     }
   } catch (e) {
     // the next poll tries again
@@ -364,18 +364,21 @@ function keepScroll(part, build) {
   }
 }
 
-function renderPlanner() { keepScroll(document.getElementById('planBody'), buildPlanner); }
-function buildPlanner() {
-  const p = last.planner;
-  document.getElementById('planNote').textContent = '';   // no line above the map (like in the program): the tables get the room
-  const body = document.getElementById('planBody');
+// The two planner tabs (30 Oct 2026): P is the Route Planner (the old planner, data.planner), N the Route Planner (new) with the planner without a hub
+// (data.freePlanner, docs/planner-any-hauling.md), tried out beside it until it takes over. Both are drawn the same way, each with a map of its own.
+function plannerKey(tab) { return tab === 'N' ? 'freePlanner' : 'planner'; }
+function renderPlanner(tab) { keepScroll(document.getElementById('planBody' + tab), function () { buildPlanner(tab); }); }
+function buildPlanner(tab) {
+  const p = last[plannerKey(tab)];
+  document.getElementById('planNote' + tab).textContent = '';   // no line above the map (like in the program): the tables get the room
+  const body = document.getElementById('planBody' + tab);
   body.textContent = '';
   const choices = planChoices(p);
   const names = planNames(p, choices);
   let pick = null;   // the choice (Everyone, a party, Only me): in the logged in player's own route card, top right (Frank, 30 Oct 2026); at the top when he has no card shown
   if (choices.length > 1) {
     pick = document.createElement('div'); pick.className = 'sub';
-    tabButtons(pick, choices, planShown, function (key) { planShown = key; remember('plan', key); renderPlanner(); fitHeaders(); });
+    tabButtons(pick, choices, planShown, function (key) { planShown = key; remember('plan', key); renderPlanner(tab); fitHeaders(); });
   }
   const shown = function (name) { return !names || among(names, name || ''); };
   const workers = p.workers.filter(function (w) { return shown(w.name); });
@@ -389,10 +392,10 @@ function buildPlanner() {
   left.appendChild(mapBox); wrap.appendChild(left); wrap.appendChild(tables); body.appendChild(wrap);
   const routes = [];
   workers.forEach(function (w) {
-    w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, passed: r.passed || 0, bold: !!r.solid, dashed: !r.solid }); });
+    w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, places: r.places, from: r.from, passed: r.passed || 0, bold: !!r.solid, dashed: !r.solid }); });
   });
-  mapSvg(mapBox, p, routes, workers.map(function (w) { return w.name || ''; }));
-  renderStatus(mapBox);
+  mapSvg(mapBox, p, routes, workers.map(function (w) { return w.name || ''; }), tab);
+  renderStatus(tab, mapBox);
   workers.forEach(function (w) {
     const frame = document.createElement('div'); frame.className = 'planworker'; tables.appendChild(frame);   // every worker in his own frame
     const h = document.createElement('h2'); frame.appendChild(h);
@@ -402,7 +405,7 @@ function buildPlanner() {
     // the map's line for him (where he is, what he does) and his speed meter: the line goes into the heading after the location, not under it (Frank,
     // 30 Oct 2026: not the place twice): "At Ruin Station since 01:49" becomes "since 01:49" when it is the station of the heading, anything else
     // (in quantum, off the grid, elsewhere) comes after a dot. The map keeps the line itself up to date every frame, so a watcher follows it
-    const meter = planMap.map.meter(w.name || '');
+    const meter = planMaps[tab].map.meter(w.name || '');
     frame.appendChild(meter);
     const what = meter.querySelector('.what');
     if (what) {
@@ -435,9 +438,9 @@ function buildPlanner() {
 
 // The small team status line under the map: it fades in only when the text really changed. It is drawn on its own, so a new line (every few seconds while
 // somebody plays) does not draw the map and the tables anew.
-function renderStatus(mapBox) {
-  const p = last.planner;
-  mapBox = mapBox || document.querySelector('#planBody .mapbox');
+function renderStatus(tab, mapBox) {
+  const p = last[plannerKey(tab)];
+  mapBox = mapBox || document.querySelector('#planBody' + tab + ' .mapbox');
   if (!mapBox) return;
   let st = mapBox.querySelector('.status');
   if (!p || !p.status) { if (st) st.remove(); return; }
@@ -599,10 +602,10 @@ function buildHistory() {
 // Every tab has its own address: /hauling/session, /hauling/planner, /hauling/debts, /hauling/history, /hauling/leaderboard on the site; the program's
 // own page (at /) keeps them after a # (#planner). The old #plan links still open the Trip Planner, and /hauling/contracts the Session tab, where the
 // contracts are since 30 Oct 2026 (Frank; the Leaderboard tab is new that day: the Session leaderboard and the All-time leaderboard).
-const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history', L: 'leaderboard' };
+const TABS = { S: 'session', P: 'planner', N: 'planner-new', D: 'debts', H: 'history', L: 'leaderboard' };
 const ON_SITE = /^\/hauling(\/|$)/.test(location.pathname);
 // Only the tab shown is drawn when data comes; the others are drawn when they are shown (dirty: the tabs with data they have not shown yet).
-const dirty = { S: true, P: true, D: true, H: true, L: true };
+const dirty = { S: true, P: true, N: true, D: true, H: true, L: true };
 let shownTab = 'P';   // the Trip Planner first (Frank, 29 Oct 2026)
 function tabOf(name) {
   name = (name || '').replace(/^#/, '');
@@ -612,7 +615,7 @@ function tabOf(name) {
 }
 function show(which) {
   shownTab = which;
-  if (which === 'P' || which === 'S') refreshMap();   // the map's players (and the Session tab's Active Contracts) at once, not at the next poll
+  if (which === 'P' || which === 'N' || which === 'S') refreshMap();   // the map's players (and the Session tab's Active Contracts) at once, not at the next poll
   Object.keys(TABS).forEach(function (k) {
     document.getElementById('view' + k).classList.toggle('hidden', k !== which);
     document.getElementById('tab' + k).classList.toggle('on', k === which);
@@ -760,12 +763,13 @@ function renderTab(k) {
     // the Leaderboard tab (Frank, 30 Oct 2026): the Session leaderboard of the party shown, and the All-time leaderboard of every saved session
     if (changed('leaders', v.leaders)) { table(document.getElementById('leaders'), v.leaders); alignColumns(); }
     if (d.history && changed('allTime', d.history.allTime)) table(document.getElementById('allTime'), d.history.allTime);
-  } else if (k === 'P') {
-    if (!d.planner) return;
-    const rest = Object.assign({}, d.planner);
+  } else if (k === 'P' || k === 'N') {
+    const pd = d[plannerKey(k)];
+    if (!pd) return;
+    const rest = Object.assign({}, pd);
     delete rest.status; delete rest.statusKey;   // the status line is drawn on its own
-    if (changed('planner', [rest, d.planRuns || d.runs, d.parties, planShown])) renderPlanner();
-    else renderStatus();
+    if (changed(plannerKey(k), [rest, d.planRuns || d.runs, d.parties, planShown])) renderPlanner(k);
+    else renderStatus(k);
   } else if (k === 'D') {
     if (d.debts && changed('debts', d.debts)) renderDebts();
   } else if (k === 'H') {
