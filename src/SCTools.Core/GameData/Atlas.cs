@@ -103,6 +103,7 @@ public sealed class Atlas
         var (said, place) = AliasOf(target);
         if (said) return place;
         if (OfPyroStation(PyroDistances.IdOfQuantumTarget(target)) is { } station) return station;
+        if (OfCode(target) is { } coded) return coded;
         var m = StarMap.Planet.Match(target);
         if (m.Success)
         {
@@ -134,6 +135,19 @@ public sealed class Atlas
             .Where(x => x.Name != null)
             .OrderByDescending(x => x.Place.System == system).ThenByDescending(x => x.Name!.Length)
             .Select(x => x.Place).FirstOrDefault();
+    }
+
+    /// <summary>
+    /// The place the game's own code for a station or a gateway is ("RR_P6_L5" and "PYR6 L5" are Megumi Refueling, "RR_JP_PyroStanton" is the Stanton Gateway
+    /// in Pyro), or null.
+    /// </summary>
+    Place? OfCode(string text)
+    {
+        var t = text.Trim();
+        var m = StarMap.PyroStop.Match(t);
+        if (m.Success) return OfPyroStation(PyroDistances.IdOfQuantumTarget("rs_ext_pyro" + m.Groups["n"].Value + "_" + m.Groups["l"].Value));
+        m = StarMap.RestStopGate.Match(t);
+        return m.Success ? Find(m.Groups["a"].Value.ToLowerInvariant() + "/" + m.Groups["b"].Value.ToLowerInvariant() + "-gateway") : null;
     }
 
     static readonly System.Text.RegularExpressions.Regex LocationId = new(@"^(?<s>Stanton|Pyro|Nyx)\d*[a-z]?_(?<r>.+)$",
@@ -171,6 +185,7 @@ public sealed class Atlas
         if (n.Length == 0) return (null, null);
         var (said, place) = AliasOf(name);
         if (said) return place == null ? (null, null) : (place.System, place);
+        if (OfCode(name) is { } coded) return (coded.System, coded);
         foreach (var s in StarMap.Systems)
             if (n == StarMap.Letters(s.Name + " system") || n == StarMap.Letters(s.Name)) return (s.Id, null);
         var all = Places.Where(p => p.Kind != PlaceKind.Star && Names(p).Contains(n)).ToList();
