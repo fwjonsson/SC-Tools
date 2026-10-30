@@ -68,7 +68,7 @@ public sealed class GauntletController : Controller
 
         // the game session: from the start of the game, for a party from the first of their games (everybody in a party is playing now)
         var gameStart = members.Select(m => _uploads.GameStart(m)).Where(s => s != null).Min();
-        var sessions = _gauntlet.GrindSessions(members, now);   // newest first; they start and stop by themselves
+        var sessions = _gauntlet.GrindSessions(members, runs, now);   // newest first; they start and stop by themselves (the runs read once)
         GrindLine Line(SCTools.Sessions.AutoSessions.Window s) => new(GauntletStats.Session(runs, s.Start, s.Stop ?? now, rewards, value), s.Stop == null);
         var scenarios = GauntletStats.Scenarios(runs, rewards, value);
         var running = sessions.FirstOrDefault(s => s.Stop == null);

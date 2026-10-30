@@ -21,6 +21,9 @@ public sealed class TrackerKeys
     public void Reload(IEnumerable<TrackerKeyRow> rows) =>
         _keys = rows.Where(r => !string.IsNullOrWhiteSpace(r.Player)).Select(r => (Convert.FromHexString(r.KeyHash), r.Player.Trim())).ToList();
 
+    /// <summary>The players who have a key (once each, in the order of the keys).</summary>
+    public IReadOnlyList<string> Players => _keys.Select(k => k.Player).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
     /// <summary>A new key: 48 hex characters, made from 24 random bytes.</summary>
     public static string NewKey() => Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
 

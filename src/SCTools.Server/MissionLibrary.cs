@@ -353,7 +353,8 @@ public sealed class MissionLibrary
             using var db = _store.Open();
             Prepare(db);
             _known ??= db.Missions.AsNoTracking().AsEnumerable().ToDictionary(r => (r.Player.ToLowerInvariant(), r.MissionId.ToLowerInvariant()), Seen);
-            var kinds = db.MissionKinds.ToDictionary(k => k.Key, StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, MissionKindRow>? kinds = null;   // read only when a mission is written (most ticks write none)
+            var pending = new Dictionary<(string, string), MissionSeen>();   // noted once the database took them: a write that fails is tried again
             var written = 0;
             foreach (var (player, missions) in found)
             {
@@ -364,7 +365,7 @@ public sealed class MissionLibrary
                     // Planner reads it
                     if (m.ContractId == null && m.Hauling == null && (m.Shared || m.Title == null)) continue;
                     var key = (player.ToLowerInvariant(), m.MissionId.ToLowerInvariant());
-                    _known.TryGetValue(key, out var had);
+                    if (!pending.TryGetValue(key, out var had)) _known.TryGetValue(key, out had);
                     var merged = had == null ? m : new MissionSeen(had.MissionId, had.ContractId ?? m.ContractId, MissionKinds.Better(had.Title, m.Title), had.Shared,
                         had.StartedUtc ?? m.StartedUtc, had.EndedUtc ?? m.EndedUtc, had.Outcome ?? m.Outcome, had.Hauling ?? m.Hauling, had.Definition ?? m.Definition);
                     if (merged == had) continue;
@@ -380,15 +381,17 @@ public sealed class MissionLibrary
                     row.Kind = MissionKinds.KeyOf(merged.Title, merged.Hauling);
                     if (row.Kind != null)
                     {
+                        kinds ??= db.MissionKinds.ToDictionary(k => k.Key, StringComparer.OrdinalIgnoreCase);
                         KindOf(db, kinds, row.Kind, MissionKinds.IsHauling(row.Kind) ? MissionKinds.HaulingTitle(merged.Hauling!) : MissionKinds.KindTitle(merged.Title)!);
                     }
-                    _known[key] = merged;
+                    pending[key] = merged;
                     written++;
                 }
             }
             if (written > 0)
             {
                 db.SaveChanges();
+                foreach (var (key, seen) in pending) _known[key] = seen;
                 Changed();
             }
             return written;

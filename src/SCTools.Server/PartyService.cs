@@ -20,8 +20,11 @@ public sealed class PartyService
     readonly FleetService _fleet;
     readonly TrackerVersions _versions;
 
-    public PartyService(DataStore store, LogUploads uploads, LiveTracker live, FleetService fleet, TrackerVersions versions)
+    readonly TrackerKeys _keys;
+
+    public PartyService(DataStore store, LogUploads uploads, LiveTracker live, FleetService fleet, TrackerVersions versions, TrackerKeys keys)
     {
+        _keys = keys;
         _store = store;
         _uploads = uploads;
         _live = live;
@@ -39,7 +42,7 @@ public sealed class PartyService
         {
             if (!string.IsNullOrWhiteSpace(n) && !names.Any(x => Same(x, n))) names.Add(n.Trim());
         }
-        foreach (var k in _store.TrackerKeys()) Add(k.Player);
+        foreach (var p in _keys.Players) Add(p);   // in memory (the admin's Keys page reloads them): this runs for every page the admin opens
         foreach (var p in _fleet.Players()) Add(p);
         lock (_uploads.Sync)
             foreach (var log in _uploads.Logs) Add(log.Player ?? log.Uploader);
