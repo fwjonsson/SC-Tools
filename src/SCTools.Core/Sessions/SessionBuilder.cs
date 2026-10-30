@@ -239,19 +239,30 @@ public static class SessionBuilder
     public static List<(string Zone, bool PickedUp)> StopsOf(Mission m) =>
         m.ObjZone.Where(kv => IsStop(kv.Key)).Select(kv => (kv.Value, StopInfo(m, kv.Key).State.StartsWith("loaded"))).ToList();
 
-    /// <summary>The pickup locations of the session. openOnly leaves out the missions that are already completed.</summary>
+    /// <summary>The zone of a mission's drop-off (its first drop-off objective), or null when the log has none.</summary>
+    public static string? DropZoneOf(Mission m) => m.ObjZone.Where(kv => IsDrop(kv.Key)).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Value).FirstOrDefault();
+
+    /// <summary>The drop-off's name as the game's popup says it ("Deliver 0/520 SCU of Waste to Stanton Gateway": "Stanton Gateway"), or null.</summary>
+    public static string? DropNameOf(Mission m) =>
+        m.ObjText.Where(kv => IsDrop(kv.Key)).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => SCTools.Tracking.HaulJobs.PlaceText(kv.Value)).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+
+    /// <summary>
+    /// The pickup locations of the session: a row per location and drop-off (the stops to Ruin, and the stops of a contract to another station a row of their
+    /// own, since stage 1a of docs/planner-any-hauling.md). openOnly leaves out the missions that are already completed.
+    /// </summary>
     public static List<LocationRow> Locations(SessionGroup g, bool openOnly = false, ISet<string>? missing = null)
     {
-        var zones = new Dictionary<string, List<(Mission Mission, string Objective)>>();
+        var zones = new Dictionary<(string Zone, string Drop), List<(Mission Mission, string Objective)>>();
         foreach (var m in g.Missions.Where(m => !openOnly || !m.Completed))
         {
+            var drop = m.ToStation ? DropZoneOf(m) ?? "" : "";   // "": Ruin
             foreach (var kv in m.ObjZone)
             {
                 if (!IsStop(kv.Key)) continue;
-                if (!zones.TryGetValue(kv.Value, out var list))
+                if (!zones.TryGetValue((kv.Value, drop), out var list))
                 {
                     list = new List<(Mission, string)>();
-                    zones[kv.Value] = list;
+                    zones[(kv.Value, drop)] = list;
                 }
                 list.Add((m, kv.Key));
             }
@@ -263,10 +274,14 @@ public static class SessionBuilder
             var infos = kv.Value.Select(i => StopInfo(i.Mission, i.Objective)).ToList();
             var lasts = infos.Where(i => i.Last.HasValue).Select(i => i.Last!.Value).ToList();
             var delivered = infos.Where(i => i.Delivered.HasValue).Select(i => i.Delivered!.Value).ToList();
+            var toStation = kv.Value[0].Mission.ToStation;
 
             rows.Add(new LocationRow
             {
-                Zone = kv.Key,
+                Zone = kv.Key.Zone,
+                ToRuin = !toStation,
+                DropZone = toStation ? kv.Key.Drop : null,
+                DropName = toStation ? kv.Value.Select(i => DropNameOf(i.Mission)).FirstOrDefault(n => n != null) : null,
                 Missions = infos.Count,
                 Stops2 = kv.Value.Count(i => i.Mission.Multi == 2),
                 Stops3 = kv.Value.Count(i => i.Mission.Multi == 3),
@@ -285,6 +300,7 @@ public static class SessionBuilder
         return rows
             .OrderByDescending(r => r.Missions)
             .ThenBy(r => r.Zone, StringComparer.Ordinal)
+            .ThenBy(r => r.ToRuin ? 0 : 1)
             .ToList();
     }
 }

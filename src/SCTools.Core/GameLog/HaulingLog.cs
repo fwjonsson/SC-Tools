@@ -4,9 +4,9 @@ using System.Text.RegularExpressions;
 namespace SCTools.GameLog;
 
 /// <summary>
-/// Reads Star Citizen Game.log lines one at a time and collects the hauling missions.
-/// Only Station -> Ruin hauling contracts are kept. Ruin -> Station contracts are ignored.
-/// All times are UTC.
+/// Reads Star Citizen Game.log lines one at a time and collects the missions: the Red Wind hauling contracts (to Ruin, from Ruin, and since stage 1a of
+/// docs/planner-any-hauling.md the ones to another station) with their cargo and stops, and every other mission with its objectives (the Other hauling
+/// board and the map read those). All times are UTC.
 /// </summary>
 public sealed class HaulingLog
 {
@@ -134,6 +134,12 @@ public sealed class HaulingLog
 
     static readonly Regex HaulingContract = new(
         @"_StationToRuin_(?<cargo>[A-Za-z]+)_CargoHauling_Multi(?<n>\d)ToSingle",
+        RegexOptions.Compiled);
+
+    // to another station: "RedWind_Pyro_BulkGrade_Solar_CFP_StationToStation_Waste_CargoHauling_Multi4ToSingle" ("Master | Stellar Large Haul | to Stanton
+    // Gateway", with "Deliver 0/520 SCU of Waste to Stanton Gateway"; zzoega, 26 Oct 2026): the same shape as the to-Ruin ones
+    static readonly Regex StationContract = new(
+        @"_StationToStation_(?<cargo>[A-Za-z]+)_CargoHauling_Multi(?<n>\d)ToSingle",
         RegexOptions.Compiled);
 
     // from Ruin: "..._RuinToStation_Waste_CargoHauling_SingleToMulti2" (2 to 4 drop-offs), or a direct one ("DIRECT Stellar Large Haul", one drop-off):
@@ -273,6 +279,7 @@ public sealed class HaulingLog
                     res.Missions[m.Id] = t;
                 }
                 t.Cargo ??= m.Cargo;
+                t.ToStation |= m.ToStation;
                 t.OutCargo ??= m.OutCargo;
                 if (t.OutDrops == 0) t.OutDrops = m.OutDrops;
                 foreach (var kv in m.ObjScu) t.ObjScu.TryAdd(kv.Key, kv.Value);
@@ -601,10 +608,12 @@ public sealed class HaulingLog
         {
             var m = Get(x.Groups["m"].Value);
             var c = HaulingContract.Match(x.Groups["c"].Value);
+            var toStation = !c.Success && (c = StationContract.Match(x.Groups["c"].Value)).Success;
             if (c.Success)
             {
                 m.Cargo = c.Groups["cargo"].Value;
                 m.Multi = int.Parse(c.Groups["n"].Value, CultureInfo.InvariantCulture);
+                m.ToStation = toStation;
             }
             else
             {

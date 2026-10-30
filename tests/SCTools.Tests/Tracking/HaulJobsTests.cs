@@ -95,7 +95,7 @@ public class HaulJobsTests
     [Fact]
     public void Without_anybody_s_SCU_a_job_has_the_middle_of_the_Wiki_s_hauling_orders_for_its_contract()
     {
-        const string master = "RedWind_Pyro_BulkGrade_Solar_CFP_StationToStation_Potassium_CargoHauling_Multi4ToSingle";
+        const string master = "HaulCargo_Multi4ToSingle_Interstellar_Large_preIce_AggSup_Scr_FreFoo";   // (the Pyro station-to-station contracts are the planner's own since stage 1a)
         const string uuid = "26e80306-6190-447f-a214-634d8ed8ca7d";   // the Star Citizen Wiki API's mission (the log's contractDefinitionId)
         var m = GameLogWriter.MissionId(1);
         var w = new GameLogWriter().Login("zzoega").AcceptedAs(m, "Master Hauler Needed for Large Shipment");
