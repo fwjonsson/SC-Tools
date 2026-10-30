@@ -29,11 +29,12 @@
     if (box.children.length !== d.systems.length) {   // made once, so a tab keeps the focus
       box.textContent = '';
       d.systems.forEach(function (s) {
-        const b = document.createElement('button');
-        b.type = 'button';
+        // a link like the tabs of the other tools (the same row; Frank, 30 Oct 2026): #stanton in the address opens that system too
+        const b = document.createElement('a');
+        b.href = '#' + s.id;
         b.setAttribute('role', 'tab');
         b.dataset.sys = s.id;
-        b.addEventListener('click', function () { show(s.id, true); });
+        b.addEventListener('click', function (e) { e.preventDefault(); show(s.id, true); });
         box.appendChild(b);
       });
     }
