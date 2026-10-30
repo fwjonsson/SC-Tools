@@ -53,6 +53,7 @@ public class HaulingPageTests
         Assert.Contains("'/hauling/' + TABS[which]", script);
         Assert.Contains("|| tabOf(location.hash) || 'P');", script);   // /hauling opens the Trip Planner
         Assert.Contains("function lostPicks", script);   // the admin's Lost Cargo pick in the Cargo runs
+        Assert.Contains("function sinceText", script);   // the map's line in the route card's heading, not under it (30 Oct 2026)
         Assert.Contains("if (pick && ownCard && (w.name || '').toLowerCase() === ME) h.appendChild(pick);", script);   // the choice in his own route card (30 Oct 2026)
         Assert.Contains("function renderPlanner", script);
         Assert.Contains("function paymentTicks", script);

@@ -355,7 +355,19 @@ function renderPlanner() {
     const nm = document.createElement('span'); nm.textContent = w.heading || w.name || ''; if (w.color) nm.style.color = w.color; h.appendChild(nm);   // his name in capitals, in his colour
     h.appendChild(document.createTextNode(w.title));
     if (pick && ownCard && (w.name || '').toLowerCase() === ME) h.appendChild(pick);   // his own card: the choice at its right end, the name and the location stay left (Frank, 30 Oct 2026)
-    frame.appendChild(planMap.map.meter(w.name || ''));   // the map's line for him (where he is, what he does) and his speed meter while he is in quantum
+    // the map's line for him (where he is, what he does) and his speed meter: the line goes into the heading after the location, not under it (Frank,
+    // 30 Oct 2026: not the place twice): "At Ruin Station since 01:49" becomes "since 01:49" when it is the station of the heading, anything else
+    // (in quantum, off the grid, elsewhere) comes after a dot. The map keeps the line itself up to date every frame, so a watcher follows it
+    const meter = planMap.map.meter(w.name || '');
+    frame.appendChild(meter);
+    const what = meter.querySelector('.what');
+    if (what) {
+      const since = document.createElement('span'); since.className = 'since';
+      h.insertBefore(since, pick && pick.parentNode === h ? pick : null);
+      const follow = function () { since.textContent = sinceText(what.textContent, w.location || ''); };
+      new MutationObserver(follow).observe(what, { childList: true, characterData: true, subtree: true });
+      follow();
+    }
     if (!w.current) return;   // nothing to do for him
     const pair = document.createElement('div'); pair.className = 'planpair'; frame.appendChild(pair);
     [['plancur', 'Current Route', w.current], ['planque', 'Queued routes', w.queued]].forEach(function (x) {
@@ -468,6 +480,14 @@ function tripScuFields(box, w, url) {
     });
     cell.appendChild(input);
   });
+}
+
+// The map's line for a worker, shortened for the heading of his route card: "At Ruin Station since 01:49" is " since 01:49" when Ruin Station is
+// the heading's station; at another place, in quantum or off the grid, the whole line comes after a dot; nothing when the map has nothing.
+function sinceText(line, station) {
+  const m = /^At (.+?) since (\S+)(.*)$/.exec(line || '');
+  if (m && m[1] === station) return ' since ' + m[2] + m[3];
+  return line ? ' · ' + line.charAt(0).toLowerCase() + line.slice(1) : '';
 }
 
 // The Lost Cargo column of the Cargo runs: the admin picks None, Little or All right here (sent at once in the background, as the SCU field) instead of

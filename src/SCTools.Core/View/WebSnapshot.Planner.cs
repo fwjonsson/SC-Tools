@@ -48,6 +48,7 @@ public sealed partial class WebSnapshot
                 color = ViewPalette.Hex(WorkerColor(w.Name)),
                 heading = w.Name.ToUpperInvariant(),   // his name in capitals, shown in his colour
                 title = "   –   Current location: " + PyroDistances.NameOf(w.LocationId) + (w.LocationByHand ? " (set by hand)" : ""),
+                location = PyroDistances.NameOf(w.LocationId),   // the station alone: the page adds the map's "since" to the title when the map has him there (30 Oct 2026)
                 current = shown.Count > 0 ? CurrentGrid(w, shown[0]) : null,
                 // the lines of the Current Route: the drop-offs on each (their keys), and whether the hauler types the SCU there (a planned trip's drop-off stop)
                 lines = shown.Count > 0 ? shown[0].Lines.Select(l => new { keys = l.Keys, typable = l.Typable, scu = l.Parts.Count > 0 ? l.Parts.Sum() : 0 }).ToList() : null,

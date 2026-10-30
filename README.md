@@ -296,7 +296,8 @@ admin (done), then going live.
   name fits the class best; a class that is not in his fleet shows by the game's name ("Crusader C2 Hercules Starlifter"). The Hauling Planner flies the active ship: its name (when it is a hauler the planner knows: a name like "Crusader C2
   Hercules Starlifter" is the C2), its drive and how much faster the drive is (`AppData.DriveSpeedBonus`, `Crew.QtOf`) go to the planner every few
   seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Trip Planner, called **Route Planner** on the page since 30 Oct 2026, is the first tab (Frank, 29 Oct
-  2026: `/hauling` opens it; its choice of Everyone, a party or Only me sits at the top right of the logged in player's own route card), and the tabs are a row under the top bar in the tool's colour like the admin's pages (30 Oct 2026; the Gauntlet
+  2026: `/hauling` opens it; its choice of Everyone, a party or Only me sits at the right end of the logged in player's own route card, and a card's heading says where he
+  is once, with the map's "since" or his jump after the station, instead of the map's line under the name), and the tabs are a row under the top bar in the tool's colour like the admin's pages (30 Oct 2026; the Gauntlet
   Tracker's tabs and the Map's systems too, through the layout's `subnav` section; the tools' pages have no title of their own, the bar says where you are; the live dot and the time the page's data was made sit in the top bar, left of Tracker, the session shown at the right end of the
   tabs' row, and the Session tab has no line saying whose session any more, 30 Oct 2026), the Σ line of its Current Route table is like the Queued routes' total, and the Time of a run on the way counts up under
   the map too. The clocks count up from when they started (`runsLive`, `since` in the data: UTC) by the browser's clock, like the Session
