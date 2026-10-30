@@ -174,6 +174,59 @@ public class TripPlannerTests
         Assert.True(first.Fill >= 0.75, "the first trip fills only " + first.Fill.ToString("P0"));
     }
 
+    /// <summary>
+    /// Stage 1b: a contract to another station (Gaslight and Patch City to Orbituary, 2 batches each) beside the to-Ruin contracts at the same stations, one
+    /// worker at Ruin. A trip with batches for Orbituary ends there; the trip after it starts there; the batches for Ruin end at Ruin.
+    /// </summary>
+    static List<PlannedTrip> MixedDestinations()
+    {
+        var toOrbituary = TripPlanner.GroupKey(Id("Gaslight"), Id("Orbituary"));
+        var patchToOrbituary = TripPlanner.GroupKey(Id("Patch City"), Id("Orbituary"));
+        var open = new Dictionary<string, int> { [Id("Gaslight")] = 2, [Id("Patch City")] = 2, [toOrbituary] = 2, [patchToOrbituary] = 2, [Id("Endgame")] = 2 };
+        var batchScu = open.Keys.ToDictionary(k => k, k => 150);
+        var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, Ts2) };
+        var shipScu = new Dictionary<string, int> { ["zzoega"] = 741 };
+        return TripPlanner.Plan(open, crew, null, null, null, batchScu, shipScu);
+    }
+
+    [Fact]
+    public void A_trip_ends_where_its_cargo_goes_and_the_next_one_starts_there()
+    {
+        var trips = MixedDestinations();
+        Assert.Equal(10, trips.Sum(t => t.Batches));   // every batch is planned
+        Assert.All(trips, t => Assert.Equal(t.Picks.Select(p => p.To).Distinct().OrderBy(x => x), t.Ends.OrderBy(x => x)));   // the ends are where the batches go
+        Assert.All(trips, t => Assert.Equal(t.Picks.Sum(p => p.Batches), t.Batches));
+        Assert.Contains(trips, t => t.Ends.Contains(Id("Orbituary")));
+        // the chain: every trip of the worker starts where the one before it ended (Ruin at first)
+        var prev = PyroDistances.Ruin;
+        foreach (var t in trips)
+        {
+            Assert.Equal(prev, t.Start);
+            Assert.Equal(TripPlanner.PathGm(t.Places()), t.Distance, 3);
+            prev = t.End;
+        }
+        // a batch for Orbituary and one for Ruin picked up at the same station share the landing: the stops name the station once, with every group's batches
+        Assert.All(trips, t => Assert.Equal(t.Stops.Count, t.Stops.Select(s => s.Id).Distinct().Count()));
+        Assert.Equal(new[] { Id("Gaslight"), Id("Patch City") }, trips.SelectMany(t => t.Picks).Where(p => p.To == Id("Orbituary")).Select(p => p.Id).Distinct().OrderBy(x => x));
+    }
+
+    [Fact]
+    public void A_locked_first_stop_is_kept_by_its_group()
+    {
+        var toOrbituary = TripPlanner.GroupKey(Id("Gaslight"), Id("Orbituary"));
+        Assert.Equal((Id("Gaslight"), Id("Orbituary")), (TripPlanner.OriginOf(toOrbituary), TripPlanner.DestinationOf(toOrbituary)));
+        Assert.Equal((Id("Gaslight"), PyroDistances.Ruin), (TripPlanner.OriginOf(Id("Gaslight")), TripPlanner.DestinationOf(Id("Gaslight"))));
+        var open = new Dictionary<string, int> { [Id("Endgame")] = 2 };   // the locked batch is not among the open ones (PlanService takes it out first)
+        var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, Ts2) };
+        var starts = new List<WorkerStart> { new() { Worker = "zzoega", FirstId = toOrbituary, FirstBatches = 1 } };
+        var trips = TripPlanner.Plan(open, crew, starts);
+        var first = trips.First(t => t.Special);
+        Assert.True(first.Locked);
+        Assert.Equal(Id("Gaslight"), first.Stops[0].Id);
+        Assert.Contains(Id("Orbituary"), first.Ends);
+        Assert.Equal(3, trips.Sum(t => t.Batches));
+    }
+
     [Fact]
     public void No_ship_is_planned_over_its_room()
     {

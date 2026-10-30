@@ -177,30 +177,59 @@ public sealed class CargoRuns
         return (value / (decimal)span.TotalHours).ToString("N0");
     }
 
-    /// <summary>Gm flown in one run: Ruin, the stations it went to (waste delivered, pickups) in the order they were visited, and back to Ruin. Locations missing from the table are skipped.</summary>
+    /// <summary>Gm flown in one run: Ruin, the stations it went to (waste delivered, pickups) in the order they were visited, and the station it was handed in at (Ruin, or the station of a contract to another station). Locations missing from the table are skipped.</summary>
     public static double RunDistance(WorkerTrip t, Func<string, string?> stationOf) =>
-        PyroDistances.Run(t.VisitedZones().Select(z => stationOf(z)).OfType<string>());
+        TripPlanner.PathGm(new[] { PyroDistances.Ruin }.Concat(t.VisitedZones().Select(z => stationOf(z)).OfType<string>()).Append(EndStation(t, stationOf)));
 
-    /// <summary>The estimated flying time of Ruin, these stations and back to Ruin with the drive of the worker.</summary>
-    public double FlightOf(string name, IEnumerable<string> stops)
+    /// <summary>Where a run was (or is to be) handed in: the station of its hand-in's drop-off, else Ruin.</summary>
+    public static string EndStation(WorkerTrip t, Func<string, string?> stationOf) => (t.EndZone != null ? stationOf(t.EndZone) : null) ?? PyroDistances.Ruin;
+
+    /// <summary>The estimated flying time of Ruin, these stations and then the ends (Ruin when none are given) with the drive of the worker.</summary>
+    public double FlightOf(string name, IEnumerable<string> stops, IEnumerable<string>? ends = null)
     {
-        var drive = _crew.QtOf(name);
-        var from = PyroDistances.Ruin;
-        double seconds = 0;
-        foreach (var id in stops)
-        {
-            seconds += drive.Seconds(PyroDistances.Between(from, id));
-            from = id;
-        }
-        return seconds + drive.Seconds(PyroDistances.Between(from, PyroDistances.Ruin));
+        var places = new List<string> { PyroDistances.Ruin };
+        places.AddRange(stops);
+        var last = (ends ?? Array.Empty<string>()).ToList();
+        places.AddRange(last.Count > 0 ? last : new List<string> { PyroDistances.Ruin });
+        return TripPlanner.PathSeconds(_crew.QtOf(name), places);
     }
 
-    /// <summary>The estimated flying time of a run on the Cargo Runs board: Ruin, the stations it went to (waste delivered, pickups) in order, and back to Ruin.</summary>
+    /// <summary>The estimated flying time of a run on the Cargo Runs board: Ruin, the stations it went to (waste delivered, pickups) in order, and where it was handed in.</summary>
     public string RunFlightText(WorkerTrip t)
     {
         var stops = t.VisitedZones().Select(z => _places.StationOf(z)).Where(id => id != null).Select(id => id!).ToList();
-        var seconds = stops.Count > 0 ? FlightOf(t.Worker, stops) : 0;
+        var seconds = stops.Count > 0 ? FlightOf(t.Worker, stops, new[] { EndStation(t, _places.StationOf) }) : 0;
         return seconds <= 0 ? "" : "~" + FlightSpan(seconds);
+    }
+
+    /// <summary>
+    /// Where the cargo a worker carries in his run in progress goes (stage 1b): the stations of the contracts to another station he picked up for, then Ruin
+    /// when he carries anything for Ruin (or nothing at all: his run ends at Ruin). The order he would deliver in is the planner's; this is the set.
+    /// </summary>
+    public List<string> LoadedDestinationsOf(string name)
+    {
+        var places = new List<string>();
+        var toRuin = false;
+        var missions = (_s.Current?.Missions ?? new List<Mission>()).Concat(_s.Current?.Failed ?? new List<Mission>()).ToDictionary(m => m.Id, m => m);
+        foreach (var p in _s.Trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue).SelectMany(t => t.Pickups))
+        {
+            foreach (var id in p.MissionIds)
+            {
+                if (!missions.TryGetValue(id, out var m)) continue;
+                var to = m.ToStation ? _places.StationOf(SessionBuilder.DropZoneOf(m) ?? "") : PyroDistances.Ruin;
+                if (to == null || to == PyroDistances.Ruin) toRuin = true;
+                else if (!places.Contains(to)) places.Add(to);
+            }
+        }
+        if (toRuin || places.Count == 0) places.Add(PyroDistances.Ruin);
+        return places;
+    }
+
+    /// <summary>The latest run of a worker that was handed in at a station the table knows: the station and when, or null.</summary>
+    public (string Station, DateTime Time)? LastHandInOf(string name)
+    {
+        var run = _s.Trips.Where(t => SameName(t.Worker, name) && t.End.HasValue && t.EndZone != null && _places.StationOf(t.EndZone) != null).OrderBy(t => t.End).LastOrDefault();
+        return run == null ? null : (_places.StationOf(run.EndZone!)!, run.End!.Value);
     }
 
     // ------------------------------------------------------------------ the run a worker is flying now

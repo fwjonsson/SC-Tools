@@ -238,7 +238,7 @@ function mapSvg(el, p, routes, names) {
     [false, true].forEach(function (boldPass) {
       routes.forEach(function (r, i) {
         if (!!r.bold !== boldPass) return;
-        const ids = [r.from || 'Ruin'].concat(r.stops, ['Ruin']);
+        const ids = r.places || [r.from || 'Ruin'].concat(r.stops, ['Ruin']);   // the route's places from its start to its end (a trip ends where its cargo goes, stage 1b)
         const shift = (i - (n - 1) / 2) * 3.5 * K;
         let waved = false;   // the waves run on one leg only: the first, or the one after the stops of a run that are done
         for (let s = 0; s + 1 < ids.length; s++) {
@@ -268,7 +268,7 @@ function mapSvg(el, p, routes, names) {
     // a ring around every station a route touches (where it starts, stops or ends): no station looks special, Ruin neither (Frank, 29 Oct 2026: the
     // planner is to work with every kind of hauling and lose its Ruin bias, so the map knows no home station)
     const used = {};
-    routes.forEach(function (r) { [r.from || 'Ruin', 'Ruin'].concat(r.stops).forEach(function (id) { used[id] = true; }); });
+    routes.forEach(function (r) { (r.places || [r.from || 'Ruin', 'Ruin'].concat(r.stops)).forEach(function (id) { used[id] = true; }); });
     p.stations.forEach(function (s) {
       const q = pos[s.id];
       if (q && used[s.id]) add('circle', { cx: q[0], cy: q[1], r: 7, fill: 'none', stroke: '#ecece8', 'stroke-opacity': 0.7, 'stroke-width': 1.5 });
@@ -358,7 +358,7 @@ function buildPlanner() {
   left.appendChild(mapBox); wrap.appendChild(left); wrap.appendChild(tables); body.appendChild(wrap);
   const routes = [];
   workers.forEach(function (w) {
-    w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, from: r.from, passed: r.passed || 0, bold: !!r.solid, dashed: !r.solid }); });
+    w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, places: r.places, from: r.from, passed: r.passed || 0, bold: !!r.solid, dashed: !r.solid }); });
   });
   mapSvg(mapBox, p, routes, workers.map(function (w) { return w.name || ''; }));
   renderStatus(mapBox);

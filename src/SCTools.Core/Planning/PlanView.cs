@@ -12,7 +12,9 @@ public sealed class PlanRow
     public double Gm;
     public double Seconds;           // a run: the time it really took; a planned trip: the estimated flight time
     public string Level = "plan";    // done, little, all, active, plan
-    public List<string> Stops = new();   // station ids in flying order
+    public List<string> Stops = new();   // station ids in flying order (the pickup stops)
+    public List<string> Places = new();  // every place of the route in flying order, the start and the ends included (the map draws these; stage 1b)
+    public List<string> Ends = new();    // a run in progress: the places its cargo goes to, as the plan continues it
     public PlannedTrip? Trip;
     public bool Locked;              // a planned trip that is locked to its worker (his Current)
     public bool First;               // the trip the worker is flying right now (his run in progress, or his first planned trip when he has none): the whole row has his colour

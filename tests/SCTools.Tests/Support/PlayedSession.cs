@@ -14,6 +14,7 @@ static class PlayedSession
     public const string Player = "Pilot_A";
     public const string Gaslight = "69936";     // the station ids (PyroDistances)
     public const string PatchCity = "70120";
+    public const string RodsFuel = "72645";
 
     /// <summary>The time of the last pickup (the second mission at Gaslight).</summary>
     public static readonly DateTime LastPickup = GameLogWriter.Start + TimeSpan.FromMinutes(1 + 19 + 15 + 15 + 1 + 19) + TimeSpan.FromSeconds(5 + 5 + 5 + 1 + 5);

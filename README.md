@@ -440,8 +440,18 @@ admin (done), then going live.
     than Ruin (`_StationToStation_…_Multi<n>ToSingle`, *Master | Stellar Large Haul | to Stanton Gateway*; `Mission.ToStation`) are the planner's own
     contracts, not jobs of this board: they are in the session, on the Stops board with their station in the Drop-off Location column (a row of their
     own beside the to-Ruin stops of the same location, `LocationRow.ToRuin`, `DropZone`, `DropName` from the "Deliver 0/520 SCU of Waste to Stanton
-    Gateway" popup), in the Contracts tab (*2 To Station*) and in the Cargo runs (the hand-in at the station ends the run). The Route Planner does not
-    plan them yet: its note says "Not planned yet (the drop-off is not Ruin): …" until the planner without a hub (stage 1b).
+    Gateway" popup), in the Contracts tab (*2 To Station*) and in the Cargo runs (the hand-in at the station ends the run, `WorkerTrip.EndZone`, and he
+    is at that station then, `Whereabouts`).
+  - **The planner without a hub** (stage 1b, 30 Oct 2026): the Route Planner plans these contracts with the to-Ruin ones. A batch is cargo at a
+    station for a place (`TripPlanner.GroupKey`: a station id alone is "to Ruin", `station>destination` is to another station; the saved locks keep the
+    same keys), a trip starts where the worker is (his run in progress, where he stands, or where his trip before it ended: `TripPlanner.Chain`) and
+    ends at the last place it delivers at (`PlannedTrip.Ends`; Ruin for the contracts to Ruin, so their plans are what they were, scenario for
+    scenario), its route is the cheapest way through its stations and then its ends, and a station where batches for two places wait is one landing.
+    The Current Route has a line per place it delivers at, the Queued routes say where each trip ends (*Ruin → Gaslight → Orbituary*), the map draws
+    every route from its start to its end (`places` in data.json), and a run's distance and flight go to where it was handed in. A worker whose trips
+    all start and end at Ruin keeps the queue order (waste first, one-stop trips, the value); one with a trip that ends elsewhere flies his trips in the
+    planner's order, since each starts where the one before it ended. A contract to a station the distance table does not know stays out of the plan,
+    with a note.
   - **Stops:** one per objective group (`pickup_<guid>_0.._2` is one stop with three commodities), ✓ when every objective of it is completed.
   - **Names:** from the objectives' texts ("Deliver 0/4 SCU of Distilled Spirits to Port Tressler", "Collect … From Shallow Fields Station at
     Crusader's L4 Lagrange point" is CRU-L4, "… on microTech", the spaceports: NB Int. is New Babbage, Teasa Lorville, Riker Memorial Area18, August

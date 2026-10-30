@@ -13,7 +13,8 @@ static void Show(string title, List<PlannedTrip> trips)
     {
         var drop = t.Drops.Count > 0 ? "  [waste for " + Name(t.Drops[0].Id) + "]" : "";
         var from = t.From != null ? Name(t.From) + " -> " : "Ruin -> ";
-        Console.WriteLine($"{t.Worker,-8} {(t.Special ? "NOW " : "    ")}{from}{string.Join(" -> ", t.Stops.Select(s => Name(s.Id) + " x" + s.Batches))} -> Ruin  fill {t.Fill:P0}  {t.Seconds / 60:0.0} min{drop}");
+        var ends = string.Join(" -> ", PlanText.EndsOf(t).Select(e => e == PyroDistances.Ruin ? "Ruin" : Name(e)));   // where the trip ends: Ruin, or the station its cargo goes to (stage 1b)
+        Console.WriteLine($"{t.Worker,-8} {(t.Special ? "NOW " : "    ")}{from}{string.Join(" -> ", t.Stops.Select(s => Name(s.Id) + " x" + s.Batches))} -> {ends}  fill {t.Fill:P0}  {t.Seconds / 60:0.0} min{drop}");
     }
     Console.WriteLine();
 }
@@ -81,4 +82,18 @@ var ts2 = QuantumDrives.Find("TS-2") ?? QuantumDrives.Assumed;
         new() { Worker = "zzatvo", Loaded = 5, LoadedScu = 707, From = Id("Orbituary") },
     };
     Show("Checkmate run in progress, Patch City has 5 batches (more than a ship)", TripPlanner.Plan(open, crew, starts, null, null, batchScu, shipScu));
+}
+
+// Stage 1b (30 Oct): a contract from Gaslight and Patch City to Orbituary (2 batches each) beside the to-Ruin batches at the same stations and at Endgame, one
+// worker at Ruin. The batches for Orbituary go in trips that end at Orbituary; the trip after one of those starts there.
+{
+    var open = new Dictionary<string, int>
+    {
+        [Id("Gaslight")] = 2, [Id("Patch City")] = 2, [Id("Endgame")] = 2,
+        [TripPlanner.GroupKey(Id("Gaslight"), Id("Orbituary"))] = 2, [TripPlanner.GroupKey(Id("Patch City"), Id("Orbituary"))] = 2,
+    };
+    var batchScu = open.Keys.ToDictionary(k => k, k => 150);
+    var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, ts2) };
+    var shipScu = new Dictionary<string, int> { ["zzoega"] = 741 };
+    Show("A contract to Orbituary beside the to-Ruin contracts", TripPlanner.Plan(open, crew, null, null, null, batchScu, shipScu));
 }

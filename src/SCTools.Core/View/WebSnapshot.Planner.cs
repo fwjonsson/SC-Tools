@@ -57,6 +57,7 @@ public sealed partial class WebSnapshot
                 {
                     label = (r.Label.Length > 0 && char.IsDigit(r.Label[0]) ? "Trip " : "") + r.Label + "  " + Gm(r.Gm),
                     stops = r.Stops,
+                    places = r.Places,   // every place of the route in order, the start and the ends included: the map draws these (stage 1b)
                     from = r.From,
                     passed = r.Passed,
                     solid = r.Solid,
