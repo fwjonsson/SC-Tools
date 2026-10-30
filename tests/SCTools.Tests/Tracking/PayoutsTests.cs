@@ -53,6 +53,35 @@ public class PayoutsTests
     }
 
     [Fact]
+    public void A_payout_is_split_between_the_party_members_who_have_the_mission_when_it_pays_out()
+    {
+        // Frank, 30 Oct 2026: the game pays a mission evenly to everyone in the party who has it active when it completes. Pilot_B is in the party when Pilot_A's
+        // first mission pays out; nobody can read his game, so he is taken to have it (the box on the Contracts tab says otherwise when he does not)
+        var data = PlayedSession.Data();
+        data.Party.Add("Pilot_B");
+        var (t, _) = PlayedSession.Load(data);
+        var m1 = t.State.Log!.Missions[PlayedSession.M1];
+        var (_, received) = t.Payouts.ComputePayouts(t.State.Current!, t.State.Inputs!);
+        Assert.Equal(Earnings.DefaultReward2 / 2, received[PlayedSession.Player]);
+        Assert.Equal(Earnings.DefaultReward2 / 2, received["Pilot_B"]);
+        // the Contracts tab says Pilot_B does not have it: the whole payout is Pilot_A's, and the Mission Payouts list says so
+        t.Contracts.SetHolder(m1, "Pilot_B", false);
+        (_, received) = t.Payouts.ComputePayouts(t.State.Current!, t.State.Inputs!);
+        Assert.Equal(Earnings.DefaultReward2, received[PlayedSession.Player]);
+        Assert.False(received.ContainsKey("Pilot_B"));
+        t.Payouts.UpdateSnapshots();
+        Assert.Equal(new[] { PlayedSession.Player }, Assert.Single(t.State.Data.Payouts).Members);
+        // a member who left the party before the payout (the party follows the game) gets nothing either
+        data = PlayedSession.Data();
+        data.Party.Add("Pilot_B");
+        data.PartyChanges.Add(new PartyChange { Name = "Pilot_B", TimeUtc = GameLogWriter.Start.AddMinutes(30), Active = false });
+        (t, _) = PlayedSession.Load(data);
+        (_, received) = t.Payouts.ComputePayouts(t.State.Current!, t.State.Inputs!);
+        Assert.Equal(Earnings.DefaultReward2, received[PlayedSession.Player]);
+        Assert.False(received.ContainsKey("Pilot_B"));
+    }
+
+    [Fact]
     public void A_payout_typed_by_hand_is_what_the_mission_paid()
     {
         var (t, _) = PlayedSession.Load();
