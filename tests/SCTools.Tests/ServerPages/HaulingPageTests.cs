@@ -62,6 +62,7 @@ public class HaulingPageTests
         Assert.Contains("const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history', L: 'leaderboard' };", script);   // /hauling/planner
         Assert.Contains("if (name === 'contracts') name = 'session';", script);   // the old Contracts tab's address opens the Session tab (30 Oct 2026)
         Assert.Contains("function leaderWidths", script);   // the Session tables line up without the leaderboard on the same tab
+        Assert.True(script.IndexOf("section(el, 'h2', 'Saved sessions', d.saved);", StringComparison.Ordinal) < script.IndexOf("best.textContent = d.best", StringComparison.Ordinal));   // the best session line under the saved sessions (30 Oct 2026)
         Assert.Contains("'/hauling/' + TABS[which]", script);
         Assert.Contains("|| tabOf(location.hash) || 'P');", script);   // /hauling opens the Trip Planner
         Assert.Contains("function lostPicks", script);   // the admin's Lost Cargo pick in the Cargo runs

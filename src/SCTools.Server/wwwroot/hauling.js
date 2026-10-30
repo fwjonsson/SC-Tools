@@ -546,9 +546,9 @@ function buildHistory() {
   const el = document.getElementById('viewH');
   el.textContent = '';
   const d = last.history;
-  // the All-time leaderboard is on the Leaderboard tab (Frank, 30 Oct 2026); the best session line stays with the saved sessions
-  const best = document.createElement('div'); best.className = 'empty'; best.textContent = d.best || ''; el.appendChild(best);
+  // the All-time leaderboard is on the Leaderboard tab (Frank, 30 Oct 2026); the best session line is under the saved sessions (Frank, the same day)
   section(el, 'h2', 'Saved sessions', d.saved);
+  const best = document.createElement('div'); best.className = 'empty'; best.textContent = d.best || ''; el.appendChild(best);
 }
 
 // Every tab has its own address: /hauling/session, /hauling/planner, /hauling/debts, /hauling/history, /hauling/leaderboard on the site; the program's
