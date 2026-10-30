@@ -44,7 +44,7 @@ public sealed class GauntletController : Controller
     public IActionResult Index(string? tab, int scenario = 1)
     {
         if (!_tools.Sees(User, SiteTools.Gauntlet)) return Hidden();
-        if (tab == "ranking") return LocalRedirect("/gauntlet/history");   // the Earnings ranking tab is History since 29 Oct 2026: old links
+        if (tab == "ranking") return LocalRedirect("/gauntlet/stats");   // the Earnings ranking tab was History from 29 Oct 2026, the ranking is on Stats since 30 Oct: old links
         tab = Tabs.Contains(tab) ? tab! : "session";
         _gauntlet.Collect();
         var who = Me;
