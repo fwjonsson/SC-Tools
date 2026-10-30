@@ -18,6 +18,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the whole history: the tracker's version is the last commit of main that changed it
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
@@ -28,10 +30,25 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
           restore-keys: nuget-${{ runner.os }}-
 
-      - name: Build and publish the SC Tools Tracker (the tracker on the gaming PCs)
-        run: dotnet publish src/SCTools.Tracker/SCTools.Tracker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:InformationalVersion=release-${{ github.sha }} -o publish-sender
+      # The tracker's version: the last commit of main (first parent: the merge of a pull request) that changed what the tracker is made of. A merge that
+      # changed only the site leaves it as it is, so the trackers on the gaming PCs do not download 45 MB and restart for nothing (half the merges did).
+      - name: The versions of the tracker and the API tool
+        shell: bash
+        run: |
+          echo "TRACKER_SHA=$(git log --first-parent -1 --format=%H -- src/SCTools.Tracker src/SCTools.Core/GameLog src/SCTools.Core/Persistence src/SCTools.Core/Updates src/SCTools.Core/SCTools.Core.csproj .github/workflows/build.yml)" >> "$GITHUB_ENV"
+          api=$(git log --first-parent -1 --format=%H -- src/ScApiTool)
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then build=true
+          elif [ "$GITHUB_EVENT_NAME" = pull_request ]; then git diff --quiet ${{ github.event.pull_request.base.sha }} HEAD -- src/ScApiTool && build=false || build=true
+          elif [ "$api" = "$GITHUB_SHA" ]; then build=true
+          else build=false; fi
+          echo "API_BUILD=$build" >> "$GITHUB_ENV"
 
+      - name: Build and publish the SC Tools Tracker (the tracker on the gaming PCs)
+        run: dotnet publish src/SCTools.Tracker/SCTools.Tracker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:InformationalVersion=release-${{ env.TRACKER_SHA }} -o publish-sender
+
+      # the API tool (a small tool Frank runs by hand now and then) only when it changed, or by hand (Run workflow)
       - name: Build and publish the API tool
+        if: env.API_BUILD == 'true'
         run: dotnet publish src/ScApiTool/ScApiTool.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish-api
 
       - name: Zip the exes
@@ -40,7 +57,7 @@ jobs:
           # (the copies under the names from before the rename, HaulingTracker.zip and HaulingTrackerSender.zip, went with the Windows program on 30 Oct 2026:
           # every tracker runs as SCToolsTracker since the rename)
           Compress-Archive -Path publish-sender/SCToolsTracker.exe -DestinationPath SCToolsTracker.zip
-          Compress-Archive -Path publish-api/ScApiTool.exe -DestinationPath ScApiTool.zip
+          if (Test-Path publish-api/ScApiTool.exe) { Compress-Archive -Path publish-api/ScApiTool.exe -DestinationPath ScApiTool.zip }
 
       # the tracker (the API tool goes to the release only: 45 MB, kept for 90 days per run)
       - name: Keep the exe of this run
@@ -57,6 +74,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # The release is made again only when the tracker changed (its version, TRACKER_SHA, is not the one in the release's notes). Otherwise only a new API
+          # tool goes into it, when there is one.
+          $notes = gh release view latest --json body --jq .body 2>$null
+          if ($notes -match "build: $env:TRACKER_SHA") {
+            if (Test-Path ScApiTool.zip) { gh release upload latest ScApiTool.zip --clobber }
+            echo "::notice title=Release::The tracker did not change (still ${env:TRACKER_SHA}): the release stays as it is."
+            exit 0
+          }
+          # The API tool was not built (it did not change): the one in the release goes into the new one
+          if (-not (Test-Path ScApiTool.zip)) { gh release download latest --pattern ScApiTool.zip 2>$null }
           # Remove the old release, and any half-made draft left behind by an earlier run (a draft has no tag, so the updater cannot find it)
           gh release delete latest --cleanup-tag --yes 2>$null
           foreach ($id in (gh api "repos/${{ github.repository }}/releases" --paginate --jq '.[] | select(.draft) | .id')) {
@@ -65,8 +92,9 @@ jobs:
           gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/latest" 2>$null
           # The release is made without its files first, so it is published at once (with files, gh makes a draft, uploads and publishes it at the end, and
           # GitHub has left that draft unpublished: a draft has no public tag, so the updater said it could not read the newest version). The files come after.
-          gh release create latest --target ${{ github.sha }} --latest --title "Latest build" --notes "Newest build of main. SCToolsTracker.zip is the SC Tools Tracker every player runs on his gaming PC: it sends the lines of his Game.log the tools read to sc-tools.fwjonsson.dev (it needs a key from Frank; the download and the steps are on sc-tools.fwjonsson.dev/tracker). ScApiTool.zip is the small tool that downloads data from the Star Citizen Wiki API. The tracker checks this release to update itself. build: ${{ github.sha }}"
-          gh release upload latest SCToolsTracker.zip ScApiTool.zip --clobber
+          gh release create latest --target ${{ github.sha }} --latest --title "Latest build" --notes "Newest build of main. SCToolsTracker.zip is the SC Tools Tracker every player runs on his gaming PC: it sends the lines of his Game.log the tools read to sc-tools.fwjonsson.dev (it needs a key from Frank; the download and the steps are on sc-tools.fwjonsson.dev/tracker). ScApiTool.zip is the small tool that downloads data from the Star Citizen Wiki API. The tracker checks this release to update itself. build: ${{ env.TRACKER_SHA }}"
+          gh release upload latest SCToolsTracker.zip --clobber
+          if (Test-Path ScApiTool.zip) { gh release upload latest ScApiTool.zip --clobber }
           # The tracker finds the release by its tag: check a few times that it is published, has the tag and the exe; publish it when it is a draft, and fail loudly if that does not help
           $ok = $false
           for ($i = 0; $i -lt 6; $i++) {

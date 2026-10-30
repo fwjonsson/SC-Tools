@@ -185,11 +185,16 @@ admin (done), then going live.
   3 seconds it uploads what is new in the Game.log, and the backup logs of the last day, from where the server is, so nothing is sent twice (also after a
   restart of the tracker or the game). When the server cannot be reached it waits longer between tries, twice as long after every failure in a row (6, 12,
   24 seconds... up to two minutes), and a minute when the server does not know the key, until a try works or the settings change (`RetryDelay`; the menu
-  says how long). A tick with nothing new opens one file, the Game.log: a backup log sent to its end is never opened again. It only sends the lines the
+  says how long). A tick with nothing new opens one file, the Game.log, and reads nothing from it: a backup log sent to its end is never opened again.
+  While the game is closed (its Game.log has not grown for 3 minutes) it looks every 15 seconds, and every 3 again at the game's first new line; the
+  ticks run off the tray's thread. It only sends the lines the
   tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money transfers, the freight elevator and the loading platform); the rest
   of the game's log stays on the PC. It can start with Windows, and it updates itself (it looks when it starts and every half hour, so a new kind of line
   the site reads comes from every tracker soon after it is merged); the download of an update is removed once the new exe is in place, and the downloads
-  of earlier updates still in Temp go when the tracker starts (`Updater.RemoveOldDownloads`).
+  of earlier updates still in Temp go when the tracker starts (`Updater.RemoveOldDownloads`); an update that fails leaves nothing behind either. The
+  release is made again only when the tracker changed: its version is the last merge to main that changed `src/SCTools.Tracker` or the Core folders it is
+  made of (GameLog, Persistence, Updates), so a merge that changed only the site does not make every tracker download 45 MB and restart. The API tool is
+  built when it changed, or by hand (Run workflow).
   Every request says its version (`X-Tracker-Version`: the commit it was built from), so the site knows whether it updated: the `/tracker` page shows a
   logged in player his own tracker's version (the newest or not, and when it was last in touch), the admin's Keys page everybody's (`TrackerVersions`;
   the newest build is the "latest" release on GitHub, asked at most every 10 minutes).

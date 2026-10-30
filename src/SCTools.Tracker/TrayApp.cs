@@ -140,7 +140,9 @@ sealed class TrayApp : ApplicationContext
         {
             await SendOnceAsync();
             using var wake = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token, _wake.Token);
-            try { await Task.Delay(_delay.Next, wake.Token); }
+            // while the game is closed (its Game.log has not grown for a few minutes) it looks every 15 seconds, and every 3 again at its first new line
+            var wait = _sender == null ? _delay.Next : _delay.NextFor(_sender.QuietFor(DateTime.UtcNow));
+            try { await Task.Delay(wait, wake.Token); }
             catch (TaskCanceledException) { if (_stop.IsCancellationRequested) return; }
         }
     }
@@ -170,7 +172,8 @@ sealed class TrayApp : ApplicationContext
                     return;
                 }
             }
-            await _sender.TickAsync(_stop.Token);
+            var sender = _sender;
+            await Task.Run(() => sender.TickAsync(_stop.Token));   // off the tray's thread: a slow disk or network folder never freezes the menu
             _delay.Worked();
             if (_sender.LiveFile == null)
             {
@@ -293,7 +296,15 @@ sealed class TrayApp : ApplicationContext
             }
             _version.Text = "Version " + Version + ", updating to " + latest[..7] + "...";
             var exe = await Updater.DownloadAsync(AppName.Tracker.Zip, AppName.Tracker.Exe);
-            Updater.ReplaceAndStart(exe, "--updated");   // the new tracker waits for this one to close, and says it was updated
+            try
+            {
+                Updater.ReplaceAndStart(exe, "--updated");   // the new tracker waits for this one to close, and says it was updated
+            }
+            catch
+            {
+                Updater.Discard(exe);   // not put in place (the exe was locked): the 45 MB download does not stay in Temp
+                throw;
+            }
             ExitThread();
         }
         catch (Exception ex)
