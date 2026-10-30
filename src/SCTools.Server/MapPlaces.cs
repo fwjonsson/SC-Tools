@@ -5,16 +5,16 @@ using SCTools.Server.Data;
 namespace SCTools.Server;
 
 /// <summary>
-/// A destination, a start name or an inventory location of the logs that the map does not know: what it is, how often and when last, by whom, and in which
+/// A destination, a start name or an area of the logs that the map does not know: what it is, how often and when last, by whom, and in which
 /// system (when known).
 /// </summary>
 public sealed record UnknownPlace(string Text, MapService.UnknownKind Kind, int Seen, DateTime LastUtc, IReadOnlyList<string> Players, string? System)
 {
-    /// <summary>"Quantum destination", "Start name", "Inventory location".</summary>
+    /// <summary>"Quantum destination", "Start name", "Area" (the game's area tag, "RR_P6_LEO", that comes with the inventory lines: the space around a place; Frank, 30 Oct 2026).</summary>
     public string KindText => Kind switch
     {
         MapService.UnknownKind.Start => "Start name",
-        MapService.UnknownKind.Location => "Inventory location",
+        MapService.UnknownKind.Location => "Area",
         _ => "Quantum destination",
     };
 }
@@ -268,7 +268,7 @@ public sealed class MapPlaces
         }
     }
 
-    /// <summary>The destinations, start names and inventory locations in the logs (on the server now) that the map does not know, the latest first.</summary>
+    /// <summary>The destinations, start names and areas in the logs (on the server now) that the map does not know, the latest first.</summary>
     public List<UnknownPlace> Unknown()
     {
         var atlas = Atlas;
