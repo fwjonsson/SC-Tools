@@ -25,9 +25,10 @@ public sealed class HistorySender
 {
     /// <summary>
     /// The version of what an old log on the server holds. One more when the tracker reads more kinds of lines: the server then asks for them again.
-    /// 2: the quit line (crashes).
+    /// 2: the quit line (crashes); 3: what a completed mission paid ("You've Earned", for the contracts tracker: the old contracts get it too). The tracker
+    /// says its version with every piece, so a tracker that did not update yet sends what it reads and is asked again once it has.
     /// </summary>
-    public const int Version = 2;
+    public const int Version = 3;
 
     /// <summary>The most lines in one piece.</summary>
     public int PieceLines { get; init; } = 10_000;

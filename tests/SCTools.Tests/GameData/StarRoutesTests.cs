@@ -61,4 +61,20 @@ public class StarRoutesTests
         var leg = Assert.Single(StarRoutes.Legs(PyroDistances.Ruin, "nowhere"));   // a place the map does not know: a leg of nothing, so a table never fails on it
         Assert.Equal((0.0, false), (leg.Gm, leg.Gate));
     }
+
+    [Fact]
+    public void A_place_source_that_has_no_places_any_more_reads_the_game_data()
+    {
+        // a test server that is going away answers no places (its database is closed): the routes read the game data's, not nothing
+        var was = StarRoutes.AtlasSource;
+        try
+        {
+            StarRoutes.AtlasSource = () => null!;
+            Assert.NotNull(StarRoutes.PlaceOf(Id("Gaslight")));
+        }
+        finally
+        {
+            StarRoutes.AtlasSource = was;
+        }
+    }
 }

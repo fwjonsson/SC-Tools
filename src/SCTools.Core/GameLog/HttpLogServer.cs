@@ -29,7 +29,7 @@ public sealed class HttpLogServer : ILogServer, IHistoryServer, IDisposable
     sealed record Piece(string file, long from, long to, IReadOnlyList<string> lines, DateTime? last);
     sealed record Files(IReadOnlyList<string> files);
     sealed record Missing(List<string>? missing);
-    sealed record OldPiece(string file, long from, IReadOnlyList<string> lines, bool done, DateTime? last, string? build);
+    sealed record OldPiece(string file, long from, IReadOnlyList<string> lines, bool done, DateTime? last, string? build, int version);
 
     /// <summary>The player of this key, or null when the server does not know it.</summary>
     public async Task<string?> PlayerAsync(CancellationToken ct)
@@ -77,7 +77,7 @@ public sealed class HttpLogServer : ILogServer, IHistoryServer, IDisposable
 
     public async Task<UploadResult> HistoryAsync(string file, long from, IReadOnlyList<string> lines, bool done, DateTime? last, string? build, CancellationToken ct)
     {
-        using var resp = await _http.PostAsJsonAsync("api/history", new OldPiece(file, from, lines, done, last, build), ct);
+        using var resp = await _http.PostAsJsonAsync("api/history", new OldPiece(file, from, lines, done, last, build, HistorySender.Version), ct);
         if (resp.StatusCode == HttpStatusCode.Conflict) return new UploadResult(false, (await resp.Content.ReadFromJsonAsync<At>(ct))?.at ?? from);
         Check(resp);
         return new UploadResult(true, (await resp.Content.ReadFromJsonAsync<At>(ct))?.at ?? from + lines.Count);
