@@ -52,7 +52,7 @@ public class GauntletPageTests
         var old = await player.GetAsync("/gauntlet/ranking");   // the old address
         Assert.Equal(HttpStatusCode.Redirect, old.StatusCode);
         Assert.Equal("/gauntlet/history", old.Headers.Location?.OriginalString);
-        Assert.Contains("Your own runs (you are not in a party now", page);
+        Assert.DoesNotContain("Your own runs (you are not in a party now", page);
         Assert.Contains("Earlier grind sessions", page);   // his run of 30 Sep was a grind session by itself
         Assert.DoesNotContain("Start grind session", page);   // no buttons: they start and stop by themselves
         Assert.DoesNotContain("name=\"player\"", page);   // his own page only: nobody else's to pick
@@ -112,7 +112,7 @@ public class GauntletPageTests
 
         var zzoega = await f.Player(f.AddKey("zzoega"));
         var page = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet/history"));
-        Assert.Contains("Your party: zzatvo, zzoega", page);
+        Assert.DoesNotContain("Your party:", page);   // the tabs say nothing about whose runs they show any more (30 Oct 2026): the numbers are the party's
         Assert.Contains("250,750 aUEC", page);   // #7 (227,750) and #1 (23,000) together
         Assert.Contains("<td class=\"right\">2</td>", page);   // completed
         var stats = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet/stats?scenario=1"));
@@ -124,7 +124,7 @@ public class GauntletPageTests
 
         var bileh = await f.Player(f.AddKey("bileh123"));
         var his = WebUtility.HtmlDecode(await bileh.GetStringAsync("/gauntlet/history"));
-        Assert.Contains("Your own runs (you are not in a party now", his);
+        Assert.DoesNotContain("Your own runs (you are not in a party now", his);
         Assert.Contains("36,000 aUEC", his);   // #2 alone
         Assert.DoesNotContain("250,750", his);
         Assert.DoesNotContain("<th>Who</th>", WebUtility.HtmlDecode(await bileh.GetStringAsync("/gauntlet/stats?scenario=2")));

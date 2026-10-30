@@ -25,19 +25,7 @@
   </nav>
 }
 
-@* whose runs the tabs show: the viewer's in-game party now (from the logs), or his own when he is alone or not playing *@
-@if (Model.Tab != "leaderboard")
-{
-  @if (Model.InParty)
-  {
-    <p class="hint party">Your party: @string.Join(", ", Model.Party). Session, Stats and History are the party's runs together (a mission shared in the party
-      counts for everybody who has it, as on the Leaderboard).</p>
-  }
-  else
-  {
-    <p class="hint party">Your own runs (you are not in a party now; in one, the party's runs are shown together).</p>
-  }
-}
+@* the tabs say nothing about whose runs they show (Frank, 30 Oct 2026): the Party panel in the top bar says who plays with whom *@
 
 @if (Model.RunCount == 0 && Model.Tab != "leaderboard")
 {
@@ -183,10 +171,7 @@ else if (Model.Tab == "history")
 }
 else
 {
-  <h2>Leaderboard</h2>
-  <p class="hint">Everybody with a gauntlet mission, the most earned first. Total is aUEC plus MG scrip at @Money(Model.ScripValue) aUEC each. Per hour is over the
-    runs that were timed (from accepting to completing), so a mission shared to you without a start does not count for it.@if (Model.IsAdmin) { <text> The
-    rewards are the Combat Gauntlet scenarios on <a href="/admin/missions?q=combat%20gauntlet">Edit Mission Info</a>, the scrip value on <a href="/admin/scrip">Scrip</a>.</text> }</p>
+  @* no heading and no text over the ranking (Frank, 30 Oct 2026): the tab says Leaderboard; the rewards are the Combat Gauntlet scenarios on Edit Mission Info, the scrip value on Scrip *@
   @if (Model.Leaderboard.Count == 0)
   {
     <p class="muted">Nobody has a gauntlet mission yet.</p>
