@@ -559,8 +559,18 @@ namespace SCTools.Server.Data.Migrations
                     b.Property<string>("Kind")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Members")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Outcome")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("PlayerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Rewards")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("Shared")
                         .HasColumnType("INTEGER");
