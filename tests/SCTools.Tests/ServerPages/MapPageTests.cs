@@ -193,14 +193,21 @@ public class MapPageTests
     }
 
     [Fact]
-    public async Task The_players_stand_beside_the_map_and_the_objectives_beside_them()
+    public async Task The_players_stand_beside_the_map_the_objectives_beside_them_and_the_missions_under_the_map_and_the_players()
     {
         using var f = new ServerFactory();
         var page = await (await f.Admin()).GetStringAsync("/map");
         var players = page.IndexOf("<div class=\"mapside players\">", StringComparison.Ordinal);
         var objectives = page.IndexOf("<div class=\"mapside objectives\">", StringComparison.Ordinal);
-        Assert.True(page.IndexOf("<div class=\"mapbox\">", StringComparison.Ordinal) < players && players < objectives);   // three columns of .maptool
-        Assert.Contains(".mapside.objectives { flex:1 1 320px; }", await f.Browser().GetStringAsync("/site.css"));
+        var missions = page.IndexOf("<div class=\"mapmissions\">", StringComparison.Ordinal);
+        Assert.True(page.IndexOf("<div class=\"mapbox\">", StringComparison.Ordinal) < players && players < objectives && objectives < missions);   // the four cells of the grid
+        var css = await f.Browser().GetStringAsync("/site.css");
+        Assert.Contains(".mapside.objectives { grid-column:3; grid-row:1; }", css);
+        Assert.Contains(".mapmissions { grid-column:1 / span 3; grid-row:2;", css);   // from the map's left edge to the objectives' right edge
+        // the objectives list says where and who, not which mission (the Active missions table says that)
+        var script = await f.Browser().GetStringAsync("/map.js");
+        Assert.Contains("const text = (o.where || '') + (o.system && !here(o.system)", script);
+        Assert.DoesNotContain("o.title + ' · '", script);
     }
 
     [Fact]

@@ -93,9 +93,9 @@
     const objs = document.getElementById('objectives');
     objs.textContent = '';
     const list = document.createElement('ul'); list.className = 'objs';
-    const lines = {};   // the same objective of a mission at the same place once, with how many
+    const lines = {};   // the same place with the same people once, with how many objectives; no mission names (Frank, 29 Oct 2026: the Active missions table has them)
     d.objectives.forEach(function (o) {
-      const text = o.title + ' · ' + (o.where || '') + (o.system && !here(o.system) ? ' · ' + nameOfSystem(o.system) : '') + ' (' + (o.who || [o.player]).join(', ') + ')';
+      const text = (o.where || '') + (o.system && !here(o.system) ? ' · ' + nameOfSystem(o.system) : '') + ' (' + (o.who || [o.player]).join(', ') + ')';
       lines[text] = (lines[text] || 0) + 1;
     });
     Object.keys(lines).forEach(function (text) {
