@@ -232,8 +232,8 @@ admin (done), then going live.
   The log says when a player picks a destination ("Projected Start Location is Ruin Station for route to destination rs_ext_pyro5_l2") and when
   he arrives, not when the jump starts: it is taken to start 10 seconds after the destination was picked (`MapService.JumpDelay`), and the page
   moves him along his route by his drive (`Crew.QtOf`: his fleet's active ship, crafted as it is; the same motion as `QtDrive.Seconds`), with a
-  speed meter (Mm/s, in c, against his drive's top speed; it stays at 0 Mm/s while he is not in quantum, so his card keeps its size, on the Trip
-  Planner too; Frank, 29 Oct 2026). `MapService.Follow` walks his jumps: the start name sets his system and place
+  speed meter (Mm/s, in c, against his drive's top speed; it stays at 0 Mm/s with his drive's top speed while he is not in quantum, so his card keeps its size,
+  on the Trip Planner too; `top` in map.json; Frank, 29 and 30 Oct 2026). `MapService.Follow` walks his jumps: the start name sets his system and place
   (`StarMap.OfName`: "Pyro System" is the system alone; a name two systems have, like "Nyx Gateway", is the one he is in, and after a gateway the
   system it leads to), the destination is a place (`StarMap.OfQuantumTarget`: the Pyro stations, "pyro3" the third planet, "LOC_RR_S1_L2" HUR-L2,
   "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. Coming near a

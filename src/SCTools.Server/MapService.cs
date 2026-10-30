@@ -422,6 +422,7 @@ public sealed class MapService
     /// heading somewhere the jump cannot be drawn to (only where to); at a mission's objective the map cannot place; or not known (the system, when that is;
     /// after a jump somewhere the map does not know, since when).
     /// </summary>
+    /// <summary>A player for the page: where he is or where he flies, his colour, ship and drive, and the drive's top speed (top, m/s: the meter shows it while he stands still too, Frank 30 Oct 2026).</summary>
     object Player(string name, Whereabouts w, DateTime nowUtc, bool byPlanner = false)
     {
         var (color, drive, driveText) = _live.Read(t => (ViewPalette.Hex(Edits.ColorOf(t, name)), t.Crew.QtOf(name), t.Crew.DriveTextOf(name)));
@@ -429,7 +430,7 @@ public sealed class MapService
         var shown = driveText.Length > 0 ? driveText : drive.Label + " (assumed)";
         static string AtMission(MissionPoint p) => "the mission: " + p.Text;
         object At(Place place, DateTime? since, MissionPoint? mission) =>
-            new { name, color, ship, drive = shown, system = place.System, state = "at", at = place.Key, atName = mission != null ? AtMission(mission) : place.Name,
+            new { name, color, ship, drive = shown, top = drive.Speed, system = place.System, state = "at", at = place.Key, atName = mission != null ? AtMission(mission) : place.Name,
                 mission = mission?.Title, since, via = byPlanner ? "the Hauling Planner" : null };
 
         if (w.Picked is { } picked && (w.To != null || w.ToMission != null))
@@ -443,7 +444,7 @@ public sealed class MapService
                 if (nowUtc > start + TimeSpan.FromSeconds(seconds) + LateArrival) return At(to, start + TimeSpan.FromSeconds(seconds), w.ToMission);   // long over: he is there
                 return new
                 {
-                    name, color, ship, drive = shown,
+                    name, color, ship, drive = shown, top = drive.Speed,
                     system = to.System,
                     state = "jump",
                     from = from.Key,
@@ -456,14 +457,14 @@ public sealed class MapService
                     motion = new { v = drive.Speed, a1 = drive.Accel1, a2 = drive.Accel2, sw = drive.SwitchSpeed },
                 };
             }
-            return new { name, color, ship, drive = shown, system = w.To?.System ?? w.ToMission?.System ?? w.System, state = "heading", to = w.To?.Key, toName,
+            return new { name, color, ship, drive = shown, top = drive.Speed, system = w.To?.System ?? w.ToMission?.System ?? w.System, state = "heading", to = w.To?.Key, toName,
                 mission = w.ToMission?.Title, since = (DateTime?)picked.Time };
         }
         if (w.At is { } at) return At(at, w.Since, w.AtMission);
         if (w.AtMission is { } am)
-            return new { name, color, ship, drive = shown, system = am.System ?? w.System, state = "mission", atName = AtMission(am), mission = am.Title, since = w.Since };
+            return new { name, color, ship, drive = shown, top = drive.Speed, system = am.System ?? w.System, state = "mission", atName = AtMission(am), mission = am.Title, since = w.Since };
         // not known: off the grid after a jump the map cannot follow (with the last place it had him at), or no signal yet
-        return new { name, color, ship, drive = shown, system = w.System, state = "unknown", off = w.Jumped, since = w.Jumped ? w.Since : null,
+        return new { name, color, ship, drive = shown, top = drive.Speed, system = w.System, state = "unknown", off = w.Jumped, since = w.Jumped ? w.Since : null,
             lastPing = w.Jumped ? w.LastPing?.Name : null };
     }
 }
