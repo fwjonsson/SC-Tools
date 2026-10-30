@@ -50,8 +50,8 @@ public sealed partial class WebSnapshot
                 name = w.Name,
                 color = ViewPalette.Hex(WorkerColor(w.Name)),
                 heading = w.Name.ToUpperInvariant(),   // his name in capitals, shown in his colour
-                title = "   –   Current location: " + PyroDistances.NameOf(w.LocationId) + (w.LocationByHand ? " (set by hand)" : ""),
-                location = PyroDistances.NameOf(w.LocationId),   // the station alone: the page adds the map's "since" to the title when the map has him there (30 Oct 2026)
+                title = "   –   Current location: " + StarRoutes.NameOf(w.LocationId) + (w.LocationByHand ? " (set by hand)" : ""),
+                location = StarRoutes.NameOf(w.LocationId),   // the station alone: the page adds the map's "since" to the title when the map has him there (30 Oct 2026)
                 current = shown.Count > 0 ? CurrentGrid(w, shown[0]) : null,
                 running = w.Rows.Any(r => r.Level == "active"),   // a run on the way: the Submit button ends it (30 Oct 2026)
                 // the lines of the Current Route: the drop-offs on each (their keys), and whether the hauler types the SCU there (a planned trip's drop-off stop)
@@ -78,9 +78,11 @@ public sealed partial class WebSnapshot
             status = _t.Status.Text,
             statusKey = _t.Status.Seq,
             palette = ViewPalette.MapPalette.Select(ViewPalette.Hex).ToArray(),
-            // the map: Pyro as the map engine draws it (the same places as the Map tool, from the game data), and the planner's stations with their place on it
-            map = Atlas.Default.SystemData(StarMap.Systems[0]),
-            stations = PyroDistances.Points.Select(p => new { id = p.Id, name = p.Name, key = Atlas.Default.OfPyroStation(p.Id)?.Key }).ToList(),
+            // the map: every system as the map engine draws it (the same places as the Map tool), and every place the routes and the workers touch, with its key
+            // on the map and its system (stage 2: a route may cross a gateway; the page draws each system's part on that system's tab)
+            maps = StarMap.Systems.Select(s => StarRoutes.CurrentAtlas().SystemData(s)).ToList(),
+            places = PyroDistances.Points.Select(p => p.Id).Concat(plan.Workers.SelectMany(w => w.MapRows.SelectMany(r => r.Places).Append(w.LocationId))).Distinct()
+                .Select(id => new { id, key = StarRoutes.KeyOf(id), name = StarRoutes.NameOf(id), system = StarRoutes.SystemOf(id) }).ToList(),
             workers,
             actionWidth = widest + 16,
         };

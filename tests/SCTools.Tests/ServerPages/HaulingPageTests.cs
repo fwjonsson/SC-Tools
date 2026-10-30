@@ -64,6 +64,9 @@ public class HaulingPageTests
         var script = await visitor.GetStringAsync("/hauling.js");
         Assert.Contains("const TABS = { S: 'session', P: 'planner', N: 'planner-new', D: 'debts', H: 'history', L: 'leaderboard' };", script);   // /hauling/planner, /hauling/planner-new
         Assert.Contains("function plannerKey(tab) { return tab === 'N' ? 'freePlanner' : 'planner'; }", script);   // the two planner tabs are drawn from data.planner and data.freePlanner
+        Assert.Contains("function systemIn(d, id)", script);   // the map's data has every system (stage 2)
+        Assert.Contains("function legEnds(x, y)", script);   // a leg through a gateway is drawn to the gateway on each system's map
+        Assert.Contains("row.className = 'sub systems';", script);   // the row of systems over the map, when the routes are in more than one
         Assert.Contains("if (name === 'contracts') name = 'session';", script);   // the old Contracts tab's address opens the Session tab (30 Oct 2026)
         Assert.Contains("function leaderWidths", script);   // the Session tables line up without the leaderboard on the same tab
         Assert.Contains("function missionsTable", script);   // the Active Contracts of the Session tab, from the map's data (30 Oct 2026)

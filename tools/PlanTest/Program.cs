@@ -3,7 +3,7 @@ using SCTools.Planning;
 
 // Scenarios from real sessions: the open batches, the crew and what they carry, and the plan the planner makes for them.
 
-static string Name(string id) => PyroDistances.NameOf(id);
+static string Name(string id) => StarRoutes.NameOf(id);   // a Pyro station, or a place of another system (stage 2)
 static string Id(string name) => PyroDistances.Points.First(p => p.Name == name).Id;
 
 // The plan of the planner without a hub (RoutePlanner, the Route Planner (new) tab); where the old planner (TripPlanner, the Route Planner tab) plans the same
@@ -106,4 +106,19 @@ var ts2 = QuantumDrives.Find("TS-2") ?? QuantumDrives.Assumed;
     var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, ts2) };
     var shipScu = new Dictionary<string, int> { ["zzoega"] = 741 };
     Show("A contract to Orbituary beside the to-Ruin contracts", RoutePlanner.Plan(open, crew, null, null, null, batchScu, shipScu));   // the old planner knows no contracts to another station
+}
+
+// Stage 2 (30 Oct): Frank's interstellar run, a Covalex master mission of about 100 SCU picked up in Stanton (Covalex Shipping Hub Gundo at Daymar) with
+// three drop-offs in Pyro, beside the to-Ruin batches of a session, one worker at Ruin. The legs go through the Stanton and Pyro gateways (3.4 min a crossing).
+{
+    const string gundo = "stanton/covalex-shipping-hub-gundo";
+    var open = new Dictionary<string, int>
+    {
+        [Id("Gaslight")] = 2, [Id("Patch City")] = 2, [Id("Endgame")] = 2,
+        [RoutePlanner.GroupKey(gundo, Id("Orbituary"))] = 1, [RoutePlanner.GroupKey(gundo, Id("Patch City"))] = 1, [RoutePlanner.GroupKey(gundo, Id("Gaslight"))] = 1,
+    };
+    var batchScu = open.Keys.ToDictionary(k => k, k => k.StartsWith(gundo, StringComparison.Ordinal) ? 34 : 150);
+    var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, ts2) };
+    var shipScu = new Dictionary<string, int> { ["zzoega"] = 741 };
+    Show("A Covalex mission from Stanton with three drop-offs in Pyro, beside the to-Ruin contracts", RoutePlanner.Plan(open, crew, null, null, null, batchScu, shipScu));
 }

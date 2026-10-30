@@ -181,7 +181,7 @@ requestAnimationFrame(moveWaves);
 
 let mapData = null, mapOff = false;   // the Map tool's Pyro (its players and objectives) fetched last; off: this page has no map.json (the program's own)
 const planMaps = {};   // the map on each planner tab (P: the Route Planner, N: the Route Planner (new)): its engine, how to draw the routes again, whose players it shows, its waves
-function pyroOf(d) { return d && (d.systems || []).find(function (s) { return s.id === 'pyro'; }); }
+function systemIn(d, id) { return d && (d.systems || []).find(function (s) { return s.id === id; }); }   // a system of the map's data (map.json has every system since stage 2)
 
 function darker(hex, f) {
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
@@ -189,11 +189,18 @@ function darker(hex, f) {
   return '#' + [1, 2, 3].map(function (k) { return Math.round(parseInt(m[k], 16) * f).toString(16).padStart(2, '0'); }).join('');
 }
 
-// The map in its box: the legend (who flies which route) above it, then the Map tool's Pyro with the routes on it. names: the workers shown (their players
-// and objectives are drawn, nobody else's). tab: the planner tab it is on (its map is live while that tab is shown).
+// The map in its box: the legend (who flies which route) above it, a row of the systems the routes touch when there is more than one (stage 2: a route
+// through a gateway is drawn on both systems' tabs, each part to or from the gateway), then the Map tool's system with the routes on it. names: the workers
+// shown (their players and objectives are drawn, nobody else's). tab: the planner tab it is on (its map is live while that tab is shown).
 function mapSvg(el, p, routes, names, tab) {
   el.textContent = '';
   const waves = [];
+  const places = p.places || [];
+  const systems = (p.maps || []).filter(function (s) { return places.some(function (pl) { return pl.system === s.id; }); });
+  const prev = planMaps[tab];
+  let shownSys = prev && prev.system && systems.some(function (s) { return s.id === prev.system; }) ? prev.system
+    : systems.length === 0 || systems.some(function (s) { return s.id === 'pyro'; }) ? 'pyro' : systems[0].id;   // the system looked at stays; Pyro first
+  function sysData(id) { return systemIn(mapData, id) || (p.maps || []).find(function (s) { return s.id === id; }); }
   const legend = routes.filter(function (r) { return r.label; });
   if (legend.length) {
     const lg = document.createElement('div'); lg.className = 'maplegend';
@@ -209,9 +216,13 @@ function mapSvg(el, p, routes, names, tab) {
     });
     el.appendChild(lg);
   }
+  let row = null;   // the systems' row, like the Map tool's (Frank's answer 8 of 30 Oct 2026), only when the routes are in more than one
+  if (systems.length > 1) { row = document.createElement('div'); row.className = 'sub systems'; el.appendChild(row); }
   const box = document.createElement('div'); box.className = 'mapsvg'; el.appendChild(box);
   const map = SystemMap.create(box, { active: function () { return shownTab === tab; } });
   const keep = function (name) { return among(names, name || ''); };
+  const sysOf = {}, nameOf = {};
+  places.forEach(function (pl) { sysOf[pl.id] = pl.system; nameOf[pl.id] = pl.name; });
 
   // the routes, in the engine's own layer (between the system and the objectives), at the places of the planner's stations on it
   function drawRoutes() {
@@ -220,7 +231,17 @@ function mapSvg(el, p, routes, names, tab) {
     g.textContent = '';
     waves.length = 0;
     const pos = {};
-    p.stations.forEach(function (s) { if (s.key) pos[s.id] = map.at(s.key); });
+    places.forEach(function (pl) { if (pl.system === shownSys) pos[pl.id] = map.at(pl.key); });   // the places on this system's map
+    const usedGates = {};
+    function gateTo(other) { const key = shownSys + '/' + other + '-gateway'; usedGates[key] = true; return map.at(key); }
+    // the two ends of a leg on this map: both places here, or the gateway that leads to (or comes from) the other system, with the far end's name on the way out
+    function legEnds(x, y) {
+      const a = pos[x], b = pos[y], sa = sysOf[x], sb = sysOf[y];
+      if (a && b) return { a: a, b: b, label: null };
+      if (a && !b && sb && sb !== shownSys) { const gb = gateTo(sb); return gb ? { a: a, b: gb, label: '\u21e2 ' + (nameOf[y] || y) } : null; }
+      if (!a && b && sa && sa !== shownSys) { const ga = gateTo(sa); return ga ? { a: ga, b: b, label: null } : null; }
+      return null;
+    }
     function add(tag, attrs) { return map.el(tag, attrs, g); }
     // Darker waves that run along one leg of a solid route (from where he is to his next stop), in the direction of the arrow.
     function wave(a, b, ux, uy, len, color, width) {
@@ -251,8 +272,9 @@ function mapSvg(el, p, routes, names, tab) {
         for (let s = 0; s + 1 < ids.length; s++) {
           if (ids[s] === ids[s + 1]) continue;
           if (r.bold && !r.dashed && s < (r.passed || 0)) continue;   // a leg to a stop that is done is gone: the run starts at the leg he is flying now
-          let a = pos[ids[s]], b = pos[ids[s + 1]];
-          if (!a || !b) continue;
+          const ends = legEnds(ids[s], ids[s + 1]);
+          if (!ends) continue;   // a leg in another system: on that system's tab
+          let a = ends.a, b = ends.b;
           const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.sqrt(dx * dx + dy * dy);
           if (len < 1) continue;
           const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
@@ -269,6 +291,7 @@ function mapSvg(el, p, routes, names, tab) {
             [cx - ux * z * 0.7 - nx * z * 0.6, cy - uy * z * 0.7 - ny * z * 0.6]
           ].map(function (q) { return q[0] + ',' + q[1]; }).join(' ');
           add('polygon', { points: pts, fill: r.color });
+          if (ends.label) map.el('text', { x: b[0] + 10, y: b[1] + 4, fill: r.color, 'font-size': 11, 'font-weight': 700, stroke: '#111', 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, g, ends.label);
         }
       });
     });
@@ -276,15 +299,26 @@ function mapSvg(el, p, routes, names, tab) {
     // planner is to work with every kind of hauling and lose its Ruin bias, so the map knows no home station)
     const used = {};
     routes.forEach(function (r) { (r.places || [r.from || 'Ruin', 'Ruin'].concat(r.stops)).forEach(function (id) { used[id] = true; }); });
-    p.stations.forEach(function (s) {
-      const q = pos[s.id];
-      if (q && used[s.id]) add('circle', { cx: q[0], cy: q[1], r: 7, fill: 'none', stroke: '#ecece8', 'stroke-opacity': 0.7, 'stroke-width': 1.5 });
+    places.forEach(function (pl) {
+      const q = pos[pl.id];
+      if (q && used[pl.id]) add('circle', { cx: q[0], cy: q[1], r: 7, fill: 'none', stroke: '#ecece8', 'stroke-opacity': 0.7, 'stroke-width': 1.5 });
+    });
+    Object.keys(usedGates).forEach(function (key) {   // and the gateways the routes go through
+      const q = map.at(key);
+      if (q) add('circle', { cx: q[0], cy: q[1], r: 7, fill: 'none', stroke: '#ecece8', 'stroke-opacity': 0.7, 'stroke-width': 1.5 });
     });
   }
-  map.show(pyroOf(mapData) || p.map);
-  drawRoutes();
-  if (mapData) map.draw(mapData, keep);
-  planMaps[tab] = { map: map, drawRoutes: drawRoutes, keep: keep, waves: waves };
+  // the system on the map: the one picked in the row (or the one looked at before); its routes, then the map's players and objectives in it
+  function showSystem(id) {
+    shownSys = id;
+    if (planMaps[tab]) planMaps[tab].system = id;
+    if (row) tabButtons(row, systems.map(function (s) { return { key: s.id, text: s.name }; }), shownSys, showSystem);
+    map.show(sysData(id));
+    drawRoutes();
+    if (mapData) map.draw(mapData, keep);
+  }
+  planMaps[tab] = { map: map, drawRoutes: drawRoutes, keep: keep, waves: waves, system: shownSys, sysData: sysData };
+  showSystem(shownSys);
   return map;
 }
 
@@ -322,7 +356,7 @@ async function refreshMap() {
     if (shownTab === 'S') renderActive();
     const pm = planMaps[shownTab], pd = last && last[plannerKey(shownTab)];
     if (pm && pd) {
-      if (pm.map.show(pyroOf(mapData) || pd.map)) pm.drawRoutes();   // the places changed (the admin's Map places): drawn anew
+      if (pm.map.show(pm.sysData(pm.system))) pm.drawRoutes();   // the places changed (the admin's Map places): drawn anew
       pm.map.draw(mapData, pm.keep);
     }
   } catch (e) {

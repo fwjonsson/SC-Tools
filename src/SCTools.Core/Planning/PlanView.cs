@@ -44,7 +44,8 @@ public sealed class StopLine
     public int Batches;              // batches collected, or still to collect, here
     public decimal Value;
     public double Gm;                // the leg from the line before it
-    public double Seconds;           // the estimated flying time of that leg
+    public double Seconds;           // the estimated flying time of that leg (a gateway crossing's time included)
+    public bool Gate;                // the leg crosses a gateway into another system (stage 2): the Distance column says so
     public List<int> Parts = new();      // the loads from Ruin on this line (delivered here, or collected here on a run in progress), the SCU of each (0 = not known)
     public List<string> Keys = new();    // the drop-offs of those loads ("mission id|objective id"), in the same order
     public bool Typable;                 // a planned trip's drop-off stop: the hauler (or the admin) types the SCU going there on the page (Frank, 29 Oct 2026), kept for that drop-off only

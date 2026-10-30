@@ -87,7 +87,8 @@ public sealed class Whereabouts
     /// Where the logs say the worker is: at the station of his last pickup (a run in progress), or of the last load of a from-Ruin mission he delivered, whichever
     /// is later; else at Ruin Station (nothing yet, or his run is handed in).
     /// </summary>
-    public string AutoLocationOf(string name)
+    /// <param name="anyPlace">The map's place for him may be in any system (the planner without a hub, stage 2); else only one of the Pyro stations counts (the old planner's table).</param>
+    public string AutoLocationOf(string name, bool anyPlace = false)
     {
         var run = _runs.ActiveRunOf(name);
         var drop = _drops.DropStartOf(name);
@@ -95,7 +96,8 @@ public sealed class Whereabouts
         // area named on Map places, a mission's objective: TrackerState.Positions), but not in the middle of a run: his trip is planned from the station of his
         // last pickup, and the waste he has taken out at Ruin is planned from Ruin (Frank, 30 Oct 2026: with the map saying Patch City while he flew the
         // waste there, the Ruin "Collect Waste" row and the "Deliver Waste" of the Patch City row vanished until he had delivered)
-        if (run == null && _runs.WasteTakenOut(name) == null && MapPosition(name) is { AtStation: { } at, Since: { } since } && since > LastMoveOf(name)) return at;
+        if (run == null && _runs.WasteTakenOut(name) == null && MapPosition(name) is { AtStation: { } at, Since: { } since } && since > LastMoveOf(name)
+            && (anyPlace || PyroDistances.Points.Any(s => s.Id == at))) return at;
         if (run?.From != null && (drop == null || run.Value.Last >= drop.Value.Time)) return run.Value.From!;
         // he handed a run in at another station (a contract to that station, stage 1b) and did nothing since: he is there
         if (run == null && _runs.LastHandInOf(name) is { } handed && handed.Station != PyroDistances.Ruin && (drop == null || handed.Time > drop.Value.Time)
@@ -126,7 +128,7 @@ public sealed class Whereabouts
     /// delivery from Ruin, every hand-in). A station set by hand (for example at the start of a session, or when the logs miss something) holds until the logs
     /// show him doing something after that, then the logs take over again.
     /// </summary>
-    public (string Id, bool ByHand) LocationOf(string name)
+    public (string Id, bool ByHand) LocationOf(string name, bool anyPlace = false)
     {
         var kv = _s.Data.StartPoints.FirstOrDefault(k => SameName(k.Key, name));
         if (kv.Value != null)
@@ -141,7 +143,7 @@ public sealed class Whereabouts
                 return (kv.Value.Id, true);
             }
         }
-        return (AutoLocationOf(name), false);
+        return (AutoLocationOf(name, anyPlace), false);
     }
 
     /// <summary>Sets (or, with null, clears) where a worker is by hand. The same station as the logs say is no choice at all; Ruin Station by hand is one.</summary>

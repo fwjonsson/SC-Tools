@@ -106,7 +106,7 @@ public sealed class PageController : Controller
     {
         if (!_tools.Sees(User, SiteTools.Hauling)) return StatusCode(StatusCodes.Status403Forbidden);
         Response.Headers.CacheControl = "no-store";
-        return Json(_map.Snapshot(DateTime.UtcNow, "pyro"));
+        return Json(_map.Snapshot(DateTime.UtcNow));   // every system since stage 2 (the Route Planner (new) draws routes through the gateways)
     }
 
 }

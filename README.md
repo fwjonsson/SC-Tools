@@ -483,6 +483,20 @@ admin (done), then going live.
     meanwhile is brought over to the new one (the kept stops of a worker's whole trip, 30 Oct 2026, are in both); the plan service, the boards, the runs
     and the page are shared, so changes there reach both. `tools/PlanTest` prints the old planner's trips under the new one's where they differ (only
     two-stop loops flown the other way round, which cost the same).
+  - **Interstellar legs** (stage 2, 30 Oct 2026; `GameData/StarRoutes`): the planner without a hub flies between any two places of the map. A place is a
+    planner id: a Pyro station's id, or a place key of the map (`stanton/baijini-point`). Within a system a leg is one jump (between two Pyro stations the
+    distance table's, as the game reads it, so nothing changes there); between two systems it is the jump to the gateway that leads to the other system,
+    the crossing, and the jump from the arrival gateway (`StarRoutes.Legs`); a crossing takes 3.4 minutes (`GateSeconds`, the middle of 80 crossings in
+    zzoega's logs, Frank's answer 4), counted in the flight time, "+ jump" in the Distance column, a dashed arrow (⇢) in the route. The **hauling jobs of
+    the Other hauling board** whose stops the map has places for are planned on the Route Planner (new) tab with the Pyro contracts (`PlanService.JobParcels`):
+    a parcel per pickup to the one drop-off, or per drop-off from the one pickup (Frank's Covalex master mission: one pickup in Stanton, several drop-offs in
+    Pyro), each a batch of its own group with the stop's SCU and a share of the mission's reward (the library's, else the Wiki's), only for those who have
+    the mission. A job with a stop the map has no place for (or only the planet) stays out with a note; one whose cargo is picked up already is noted and
+    left to stage 4 (the runs do not follow jobs yet); several pickups to several drop-offs are not planned (the game does not say which goes where). The
+    map's place for a worker in any system is where his trip starts (`Whereabouts.LocationOf(name, anyPlace)`; the old planner keeps to the Pyro stations).
+    The map on the planner tabs gets a **row of systems** like the Map tool's when the routes touch more than one (Frank's answer 8; `data.freePlanner.maps`,
+    `places` with the system of every place); a leg through a gateway is drawn to the gateway on the system it leaves, with the far end's name, and from the
+    gateway on the system it enters; `/hauling/map.json` has every system.
   - **Stops:** one per objective group (`pickup_<guid>_0.._2` is one stop with three commodities), ✓ when every objective of it is completed.
   - **Names:** from the objectives' texts ("Deliver 0/4 SCU of Distilled Spirits to Port Tressler", "Collect … From Shallow Fields Station at
     Crusader's L4 Lagrange point" is CRU-L4, "… on microTech", the spaceports: NB Int. is New Babbage, Teasa Lorville, Riker Memorial Area18, August
