@@ -53,11 +53,12 @@ public static class TopBar
             .Append("<a class=\"dl\" href=\"/tracker\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M12 3v12M7 10l5 5 5-5M4 20h16\"/></svg>Tracker</a>");
         if (user.Identity?.IsAuthenticated == true)
         {
+            var token = context.RequestServices.GetRequiredService<IAntiforgery>().GetAndStoreTokens(context);
             html.Append("<span>").Append(E(user.Identity.Name ?? "")).Append("</span>");
+            if (user.IsInRole(Roles.Admin)) html.Append(ViewAs(context, token));   // the admin looks at the tools as a player (Frank, 30 Oct 2026)
             if (tools.Sees(user, SiteTools.Party)) html.Append(PartyButton(path.StartsWithSegments(SiteTools.Party.Path!)));
             if (user.IsInRole(Roles.Player)) html.Append(Link("/me", "My page", MeColor, path.StartsWithSegments("/me"), "area"));
             if (user.IsInRole(Roles.Admin)) html.Append(Link("/admin", "Admin", AdminColor, InAdmin(context), "area"));
-            var token = context.RequestServices.GetRequiredService<IAntiforgery>().GetAndStoreTokens(context);
             html.Append("<form method=\"post\" action=\"/logout\" class=\"inline\"><input type=\"hidden\" name=\"").Append(E(token.FormFieldName)).Append("\" value=\"")
                 .Append(E(token.RequestToken ?? "")).Append("\"><button type=\"submit\" class=\"link\">Log out</button></form>");
         }
@@ -78,6 +79,25 @@ public static class TopBar
     static string PartyButton(bool on) =>
         "<details class=\"party\" style=\"--tool:" + SiteTools.Party.Color + "\" ontoggle=\"partyPanel(this)\"><summary class=\"area" + (on ? " on" : "") + "\""
         + (on ? " aria-current=\"page\"" : "") + ">Party</summary><div class=\"panel\"><p class=\"muted\"><a href=\"/party\">Open the Party page</a></p></div></details>";
+
+    /// <summary>
+    /// The admin's pick of a player to look at the site as (Frank, 30 Oct 2026: the tools from anybody's point of view): a form that sets the sct-pov cookie
+    /// (PovController, PointOfView) and comes back to this page; "Your own view" clears it. The players are everybody the site knows (PartyService.Players).
+    /// </summary>
+    static string ViewAs(HttpContext context, AntiforgeryTokenSet token)
+    {
+        static string E(string s) => WebUtility.HtmlEncode(s);
+        var pov = PointOfView.Of(context);
+        var players = context.RequestServices.GetRequiredService<PartyService>().Players();
+        var html = new System.Text.StringBuilder("<form method=\"post\" action=\"/admin/pov\" class=\"inline pov\"><input type=\"hidden\" name=\"")
+            .Append(E(token.FormFieldName)).Append("\" value=\"").Append(E(token.RequestToken ?? "")).Append("\"><input type=\"hidden\" name=\"back\" value=\"")
+            .Append(E(context.Request.Path + context.Request.QueryString)).Append("\">")
+            .Append("<select name=\"name\" aria-label=\"View as\" title=\"Look at the tools as this player sees them\" onchange=\"this.form.submit()\">")
+            .Append("<option value=\"\">Your own view</option>");
+        foreach (var p in players)
+            html.Append("<option value=\"").Append(E(p)).Append('"').Append(pov != null && string.Equals(pov, p, StringComparison.OrdinalIgnoreCase) ? " selected" : "").Append('>').Append(E(p)).Append("</option>");
+        return html.Append("</select></form>").ToString();
+    }
 
     /// <summary>
     /// The panel of the Party button is fetched every time it opens (so it is what the logs say now), and an open panel closes on a click anywhere else. The

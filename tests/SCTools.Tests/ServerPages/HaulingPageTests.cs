@@ -31,7 +31,6 @@ public class HaulingPageTests
         Assert.Contains("<div id=\"viewP\">", page);
         Assert.Contains("<div id=\"viewS\" class=\"hidden\">", page);
         Assert.DoesNotContain("id=\"party\"", page);   // no Party table of its own: the Party button in the top bar shows it (29 Oct 2026)
-        Assert.Contains("<select id=\"partyPick\" class=\"hidden\"", page);
         Assert.DoesNotContain("<style>", page);   // nothing inline any more
         Assert.Equal(page, await visitor.GetStringAsync("/hauling/planner"));   // a tab's address: the same page, the script shows the tab
         Assert.Equal(HttpStatusCode.NotFound, (await visitor.GetAsync("/hauling/nothing")).StatusCode);

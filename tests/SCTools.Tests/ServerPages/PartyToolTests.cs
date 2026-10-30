@@ -37,7 +37,8 @@ public class PartyToolTests
         // not a card on the landing page: the Party button beside the name in the top bar, on the tools' own pages too, and its panel (fetched when it opens)
         var home = await admin.GetStringAsync("/");
         Assert.DoesNotContain("<span class=\"tool-name\">Party</span>", home);
-        Assert.Contains("<span>admin</span><details class=\"party\" style=\"--tool:#b77fdb\" ontoggle=\"partyPanel(this)\"><summary class=\"area\">Party</summary>", home);
+        Assert.Contains("<details class=\"party\" style=\"--tool:#b77fdb\" ontoggle=\"partyPanel(this)\"><summary class=\"area\">Party</summary>", home);   // after the name and the admin's View as pick (30 Oct 2026)
+        Assert.Contains("<span>admin</span><form method=\"post\" action=\"/admin/pov\" class=\"inline pov\">", home);
         Assert.Contains("function partyPanel(d)", home);
         Assert.Contains("<details class=\"party\"", await admin.GetStringAsync("/hauling"));
         Assert.Contains("<summary class=\"area on\" aria-current=\"page\">Party</summary>", await admin.GetStringAsync("/party/zzoega"));   // on the Party pages: marked

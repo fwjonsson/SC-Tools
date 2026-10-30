@@ -539,41 +539,19 @@ show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash)
 
 // Whose session the Session and Contracts tabs show: with one party, the whole session is theirs; with more than one (the ones in the game, then the ones
 // that hauled in this session and are not playing now), a player sees his own party by itself (its stops, contracts, session, leaderboard and runs: the
-// missions its players have by their own logs, and their runs), and all of them together when he is in none (or not logged in). The admin picks whose
-// session the tabs show in the list after the tabs (Frank, 29 Oct 2026): All parties, or one of them; his own party first. The line under the tabs says
-// whose it is; the Trip Planner has its own choice (Everyone, a party, Only me).
-let partyText = '';   // whose session is shown, for the Session and Contracts tabs
-let partyShown = null;   // the admin's pick: the leader of the party shown, '' for All
+// missions its players have by their own logs, and their runs), and all of them together when he is in none (or not logged in). The admin looks as a
+// player through the top bar's pick (30 Oct 2026, PointOfView: the page is that player's then) and sees everything together in his own view; the Route
+// Planner has its own choice (Everyone, a party, Only me).
+let partyText = '';   // whose session is shown, for the Contracts tab
 function partyView() {
-  const pick = document.getElementById('partyPick');
   const parties = last.parties || [];
   const several = parties.length > 1;
-  pick.classList.toggle('hidden', !ADMIN || !several);
-  let shown = null;
-  if (ADMIN && several) {
-    // the admin's list is made again only when the parties change, so a list that is open stays open while the page updates
-    if (partyShown === null) { const kept = remembered('party'); partyShown = kept !== null ? kept : ((myParty() || {}).leader || ''); }
-    if (!parties.some(function (p) { return p.leader === partyShown; })) partyShown = '';
-    const choices = [{ key: '', text: 'All parties' }].concat(parties.map(function (p) { return { key: p.leader, text: p.title + (p.playing === false ? ' (not playing now)' : '') }; }));
-    const key = JSON.stringify(choices);
-    if (pick.dataset.choices !== key) {
-      pick.textContent = '';
-      choices.forEach(function (c) { const o = document.createElement('option'); o.value = c.key; o.textContent = c.text; pick.appendChild(o); });
-      pick.dataset.choices = key;
-      pick.onchange = function () { partyShown = pick.value; remember('party', pick.value); render(); };
-    }
-    if (pick.value !== partyShown) pick.value = partyShown;
-    shown = parties.find(function (p) { return p.leader === partyShown && p.view; }) || null;
-    partyText = shown ? shown.title + ' (' + shown.names.join(', ') + ')' + (shown.playing === false ? ', not playing now' : '') + ': picked after the tabs.'
-      : 'All parties together: ' + parties.map(function (p) { return p.title; }).join(', ') + ' (pick one after the tabs).';
-  } else {
-    const mine = several ? myParty() : null;
-    shown = mine && mine.view ? mine : null;
-    partyText = !several ? ''
-      : shown ? 'Your party: ' + shown.title + ' (' + shown.names.join(', ') + ')' + (shown.playing === false ? ', not playing now' : '') + '. The others haul in this session too.'
-      : 'All parties together: ' + parties.map(function (p) { return p.title; }).join(', ') + (ME ? ' (you are in none of them).' : ' (log in to see your own).');
-  }
-  return shown ? shown.view : last;   // the line saying whose session went from the Session tab (Frank, 30 Oct 2026); the Contracts tab still says whose
+  const mine = several ? myParty() : null;
+  const shown = mine && mine.view ? mine : null;
+  partyText = !several ? ''
+    : shown ? 'Your party: ' + shown.title + ' (' + shown.names.join(', ') + ')' + (shown.playing === false ? ', not playing now' : '') + '. The others haul in this session too.'
+    : 'All parties together: ' + parties.map(function (p) { return p.title; }).join(', ') + (ME ? ' (you are in none of them).' : ' (log in to see your own).');
+  return shown ? shown.view : last;
 }
 
 // ------------------------------------------------------------------ the SCU field of the Other hauling board
@@ -645,6 +623,8 @@ function changed(key, value) {
 // are shown.
 function render() {
   Object.keys(dirty).forEach(function (k) { dirty[k] = true; });
+  const v = partyView();   // whose session: the viewer's party; the session line in the tabs' row on every tab, not only the Session tab (30 Oct 2026)
+  document.getElementById('session').textContent = v.session || last.session || '';
   renderTab(shownTab);
 }
 
@@ -654,7 +634,6 @@ function renderTab(k) {
   const v = k === 'S' || k === 'C' ? partyView() : null;
   if (k === 'S') {
     let measure = false;   // a table that lines up with the others was drawn anew: line them up again
-    document.getElementById('session').textContent = v.session || d.session || '';
     if (changed('pickups', v.pickups)) { table(document.getElementById('pickups'), v.pickups); measure = true; }
     document.getElementById('finishedBox').classList.toggle('hidden', !v.finished || !v.finished.rows || v.finished.rows.length === 0);
     if (changed('finished', v.finished)) { table(document.getElementById('finished'), v.finished); measure = true; }
