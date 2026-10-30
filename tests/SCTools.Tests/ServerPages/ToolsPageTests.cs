@@ -27,7 +27,7 @@ public class ToolsPageTests
         Assert.All(SiteTools.Cards, t => Assert.Contains(Card(t.Name), home));
         Assert.DoesNotContain(Card("Party"), home);   // the Party is a button in the top bar, not a card
         Assert.DoesNotContain("href=\"/party\" style=", home);   // and not in the row of tools
-        Assert.Equal(4, home.Split("Only you see this").Length - 1);   // the four hidden links say so
+        Assert.Equal(5, home.Split("Only you see this").Length - 1);   // the five hidden links say so (the Companion too, #380)
         var page = await admin.GetStringAsync("/admin/tools");
         Assert.Contains("value=\"gauntlet\"", page);
 

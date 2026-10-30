@@ -6,26 +6,16 @@
   @* the systems as a row under the bar in the tool's colour, like the admin's pages (Frank, 30 Oct 2026); map.js fills it with a button per system *@
   <nav class="subnav area" id="systems" role="tablist" aria-label="Star system" style="--tool:@SiteTools.Map.Color"></nav>
 }
-<div class="maptool">
+<div class="maptool maponly">
   <div class="mapbox">
     <div id="map"></div>
     <p class="hint">Positions: the <a href="https://api.star-citizen.wiki" rel="noopener">Star Citizen Wiki API</a>. A moon, a city or a station close
       to a planet is drawn at the planet (point at it for what is there).</p>
   </div>
-  @* beside the map the players, and beside them the objectives (Frank, 29 Oct 2026: not under the players); under the map on a narrow window *@
+  @* beside the map the players; the objectives list and the Active Contracts went to the Companion (#380), and the map got the room *@
   <div class="mapside players">
     <h2>Players</h2>
     <div id="players"><p class="muted">Loading…</p></div>
-  </div>
-  <div class="mapside objectives">
-    <h2>Objectives</h2>
-    <div id="objectives"></div>
-  </div>
-  @* under the map, the players and the objectives, over the whole width (Frank, 29 Oct 2026): the missions going on, with the Mission column taking the room *@
-  <div class="mapmissions">
-    <h2>Active Contracts</h2>
-    <div id="missions"><p class="muted">Loading…</p></div>
-    <p class="hint">Every contract going on, with who has it, how many of its objectives are still open, and what the <a href="/missions">Mission Library</a> says about it.</p>
   </div>
 </div>
 <p class="hint" id="mapState"></p>

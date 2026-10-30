@@ -10,6 +10,9 @@ namespace SCTools.Server;
 /// <summary>How one player played a kind of mission; Running: one of his missions of it was taken in the last hours and did not end yet.</summary>
 public sealed record PlayCount(int Taken, int Completed, int Failed, int Abandoned, DateTime? LastPlayed, bool Running);
 
+/// <summary>A mission one player ended (completed, failed or abandoned), for the Companion's Completed Contracts: its kind is its entry in the library.</summary>
+public sealed record EndedMission(string Player, string MissionId, string? Title, string? Kind, DateTime EndedUtc, MissionOutcome Outcome);
+
 /// <summary>
 /// A kind of mission in the library, with how it was played by everybody (Taken... Running) and by each player (Plays, by his name in small letters: the
 /// library's page shows the viewer his own).
@@ -492,6 +495,21 @@ public sealed class MissionLibrary
                     return new SCTools.Play.EarnedMission(m.EndedUtc!.Value, m.Kind ?? m.ContractId, m.Shared, auec, r?.MgScrip, r?.CouncilScrip);
                 })
                 .OrderBy(m => m.EndedUtc).ToList();
+        }
+    }
+
+    /// <summary>The missions these players ended between these times (any capitals), the newest first.</summary>
+    public List<EndedMission> Ended(IReadOnlyCollection<string> players, DateTime fromUtc, DateTime toUtc)
+    {
+        var wanted = new HashSet<string>(players, StringComparer.OrdinalIgnoreCase);
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            Prepare(db);
+            return db.Missions.AsNoTracking().Where(m => m.Outcome != null && m.EndedUtc != null && m.EndedUtc >= fromUtc && m.EndedUtc <= toUtc).ToList()
+                .Where(m => wanted.Contains(m.Player) && Enum.TryParse<MissionOutcome>(m.Outcome, out _))
+                .Select(m => new EndedMission(m.Player, m.MissionId, m.Title, m.Kind, m.EndedUtc!.Value, Enum.Parse<MissionOutcome>(m.Outcome!)))
+                .OrderByDescending(m => m.EndedUtc).ToList();
         }
     }
 

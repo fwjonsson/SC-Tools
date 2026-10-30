@@ -153,8 +153,10 @@ main:has(.maptool) { max-width:1900px; }
 .mapside.players { grid-column:2; grid-row:1; }
 .mapside.objectives { grid-column:3; grid-row:1; }
 .mapmissions { grid-column:1 / span 3; grid-row:2; min-width:0; }
+/* the Map tool alone has the map and the players since the Companion took the objectives and the contracts (#380): the map gets a little bigger */
+.maptool.maponly { grid-template-columns:minmax(0, 1060px) minmax(260px, 340px); }
 @media (max-width:1200px) {
-  .maptool { grid-template-columns:minmax(0, 1fr); }
+  .maptool, .maptool.maponly { grid-template-columns:minmax(0, 1fr); }
   .mapbox, .mapside.players, .mapside.objectives, .mapmissions { grid-column:1; grid-row:auto; }
 }
 .mapmissions table { max-width:none; }   /* the missions going on, with the library's columns; the Mission column takes the room */
@@ -173,6 +175,14 @@ main:has(.maptool) { max-width:1900px; }
 .speed .bar span { display:block; height:100%; background:linear-gradient(90deg, #2f7dd1, #7fd3ff); }
 .speed .num { font-variant-numeric:tabular-nums; font-size:20px; font-weight:700; }
 .speed .unit { color:var(--muted); font-size:12px; margin-left:4px; }
+/* the Companion (#380): the Map tool's grid, with the game session over the objectives in the third column, and the Completed Contracts under the Active ones */
+.companion table.play.session { width:100%; }
+.companion .mapmissions .scroll { overflow-x:auto; }   /* the contracts' columns (and the admin's fields) scroll on a narrow window, the page does not */
+.companion .playnow p { font-size:14px; margin:4px 0 8px; }
+.companion .mapmissions h2 { margin-top:14px; }
+.companion table.missions input.name { width:100%; min-width:260px; }
+.companion table.missions input.giver { width:170px; }
+.companion table.missions tr.failed td:nth-child(4) { color:#ff9b9b; }   /* failed or abandoned */
 ul.objs { list-style:none; margin:0; padding:0; font-size:13px; }
 ul.objs li { padding:3px 0; border-bottom:1px solid var(--line); }
 /* the Party tool: a card per party */

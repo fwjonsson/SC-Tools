@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using SCTools.Missions;
@@ -403,17 +402,16 @@ public sealed class MapService
     /// </summary>
     List<object> Missions(Dictionary<string, GoingMission> going)
     {
-        var entries = _library == null ? new Dictionary<string, LibraryEntry>(StringComparer.OrdinalIgnoreCase)
-            : _library.Entries().GroupBy(e => e.Row.Key, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-        static string N(long? v) => v?.ToString("N0", CultureInfo.InvariantCulture) ?? "";
+        var entries = ContractInfo.ByKey(_library);
         return going.Values.OrderBy(g => g.Title, StringComparer.OrdinalIgnoreCase).Select(g =>
         {
             var e = MissionKinds.TitleKey(g.Title) is { } key && entries.TryGetValue(key, out var found) ? found : null;
+            var i = ContractInfo.Of(e, g.Title);
             return (object)new
             {
-                title = e?.Shown ?? g.Title, who = g.Who.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList(), open = g.Open,
-                faction = e?.FactionShown ?? "", category = e?.Category ?? "", scu = N(e?.ScuShown), reward = e == null ? "" : e.Row.Auec != null ? N(e.Row.Auec) : e.Wiki?.RewardText ?? "",
-                mg = N(e?.Row.MgScrip), council = N(e?.Row.CouncilScrip), xp = N(e?.Xp), legality = e?.Legality ?? "",
+                title = i.Title, who = g.Who.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList(), open = g.Open,
+                faction = i.Faction, category = i.Category, scu = i.Scu, reward = i.Reward, mg = i.Mg, council = i.Council, xp = i.Xp, legality = i.Legality,
+                key = e?.Row.Key,   // its kind in the library: the Companion gives the admin its fields by it
             };
         }).ToList();
     }
