@@ -21,7 +21,7 @@ public class WebSnapshotTests
     public void Every_tab_is_in_it_and_every_row_has_a_cell_and_colours_for_every_column()
     {
         var d = Snapshot();
-        foreach (var key in new[] { "updated", "session", "theme", "summary", "rewards", "pickups", "finished", "leaders", "runs", "planRuns", "runsLive", "planner", "debts", "history" })
+        foreach (var key in new[] { "updated", "session", "summary", "rewards", "pickups", "finished", "leaders", "runs", "planRuns", "runsLive", "planner", "debts", "history" })
             Assert.True(d.TryGetProperty(key, out _), key + " is missing");
 
         var tables = 0;
@@ -221,14 +221,6 @@ public class WebSnapshotTests
         Assert.False(planner.TryGetProperty("backdrop", out _));
         Assert.False(planner.TryGetProperty("stations", out _));
         Assert.False(planner.TryGetProperty("map", out _));
-    }
-
-    [Fact]
-    public void The_light_theme_has_light_colours()
-    {
-        var d = Snapshot(dark: false);
-        Assert.Equal("#ffffff", d.GetProperty("theme").GetProperty("bg").GetString());
-        Assert.Equal("#000000", d.GetProperty("theme").GetProperty("fg").GetString());
     }
 
     [Fact]

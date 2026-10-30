@@ -26,12 +26,6 @@ public sealed record ViewPalette(
     /// <summary>"#1e1e20".</summary>
     public static string Hex(int rgb) => "#" + (rgb & 0xFFFFFF).ToString("x6", CultureInfo.InvariantCulture);
 
-    /// <summary>A worker's colour half faded into the table colour (a member who is not active, a trip that is not the next one).</summary>
-    public int Faded(int c) => Rgb(
-        (((c >> 16) & 255) * 55 + ((Cell >> 16) & 255) * 45) / 100,
-        (((c >> 8) & 255) * 55 + ((Cell >> 8) & 255) * 45) / 100,
-        ((c & 255) * 55 + (Cell & 255) * 45) / 100);
-
     /// <summary>
     /// How different two colours look (0xRRGGBB): the distance in the Lab colour space (CIE76), where about 2 is just noticeable. Two members whose colours are
     /// closer than TooClose are easily mixed up on the map and in the tables.

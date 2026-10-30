@@ -64,17 +64,6 @@ public sealed class Earnings
         data != null && data.DefaultRewards.TryGetValue(line.Contract, out var typed) && typed > 0 ? typed : DefaultReward(line.Stops);
 
     /// <summary>
-    /// The reward of a contract line was typed: the session (when there is one) gets it, and so does every new session from now on (0 = the built-in reward
-    /// again).
-    /// </summary>
-    public static void SetReward(AppData data, SessionInputs? inp, RewardLine line, decimal reward)
-    {
-        if (reward > 0) data.DefaultRewards[line.Contract] = reward;
-        else data.DefaultRewards.Remove(line.Contract);
-        if (inp != null) line.Set(inp, reward > 0 ? reward : DefaultReward(line.Stops));
-    }
-
-    /// <summary>
     /// What the Mission Library says a contract pays, by the contract's own kind (its name as the game shows it, MissionKinds.TitleKey): the aUEC typed in
     /// there, else the Star Citizen Wiki's reward for the contract (by its id, whatever a string mod calls it); null when neither is known, or without a
     /// library (the program). The site gives the tracker the library as its JobBook (Frank, 29 Oct 2026: an Experienced 3-stop contract is not a Senior one).

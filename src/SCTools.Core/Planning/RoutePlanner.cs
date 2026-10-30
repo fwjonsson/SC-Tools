@@ -148,13 +148,6 @@ public static class RoutePlanner
         return (best, order);
     }
 
-    /// <summary>The cheapest way from a start through these stations and back to Ruin (exact for up to 12 stations): the cost in Gm and the order (indexes into ids). The planner before stage 1b; kept for the tests.</summary>
-    internal static (double Cost, int[] Order) Cheapest(string start, IReadOnlyList<string> ids)
-    {
-        var (cost, order) = Path(start, ids, new[] { PyroDistances.Ruin });
-        return (cost, order.Where(o => o < ids.Count).ToArray());
-    }
-
     /// <summary>The Gm of a route: every leg between the places in order (the same place twice in a row is no leg).</summary>
     public static double PathGm(IEnumerable<string> places)
     {

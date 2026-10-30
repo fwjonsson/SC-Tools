@@ -36,7 +36,7 @@ public sealed class LiveTracker
     public LiveTracker(AppData data, Action<AppData>? save, LogUploads uploads, WebSnapshotOptions? view = null, bool followParty = false, bool followSessions = false)
     {
         Uploads = uploads;
-        var inner = save ?? SCTools.Persistence.Storage.Save;
+        var inner = save ?? (_ => { });   // no save given (the tests): nothing is written
         Tracker = new Tracker(data, d => { _saves++; inner(d); });   // every save is counted: data.json is made again after one
         Tracker.State.Live = true;   // the logs are followed while the games write them: the clocks run
         _view = view ?? new WebSnapshotOptions();

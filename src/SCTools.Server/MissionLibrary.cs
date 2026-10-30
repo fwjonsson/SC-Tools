@@ -99,45 +99,13 @@ public sealed class MissionLibrary
         lock (_lock)
         {
             using var db = _store.Open();
-            var missions = db.HaulScu.AsNoTracking().ToDictionary(r => r.MissionId.ToLowerInvariant(), r => r.Scu, StringComparer.Ordinal);
+            // (the SCU a hauler typed for one mission on the Other hauling board, HaulScu, went with the board on 30 Oct 2026: it is typed on the Current Route now)
+            var missions = new Dictionary<string, long>(StringComparer.Ordinal);
             var kinds = db.MissionKinds.AsNoTracking().ToList()
                 .ToDictionary(k => k.Key, k => new JobKind(k.Scu, k.ScuSuggested, k.ScuSuggestedBy, k.Auec), StringComparer.OrdinalIgnoreCase);
             var places = _places;
             _live.Tracker.State.Jobs = new JobBook(missions, kinds, () => places?.Current ?? Atlas.Default, WikiMissions.Known(db));
         }
-    }
-
-    /// <summary>The SCU a hauler set for a mission as a sentence for the page, or null when it is not a whole number.</summary>
-    public string? SetMissionScu(string missionId, string? title, string? value, string who, DateTime nowUtc)
-    {
-        value = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-        long? scu = null;
-        if (value != null)
-        {
-            if (!long.TryParse(value.Replace(" ", "").Replace(",", "").Replace(".", ""), out var n) || n <= 0) return null;
-            scu = n;
-        }
-        if (string.IsNullOrWhiteSpace(missionId)) return null;
-        var id = missionId.Trim().ToLowerInvariant();
-        lock (_lock)
-        {
-            using var db = _store.Open();
-            Prepare(db);
-            var row = db.HaulScu.Find(id);
-            if (scu == null)
-            {
-                if (row != null) db.HaulScu.Remove(row);
-            }
-            else
-            {
-                if (row == null) db.HaulScu.Add(row = new HaulScuRow { MissionId = id });
-                (row.Scu, row.By, row.Utc) = (scu.Value, who, nowUtc);
-                Suggest(db, title, scu.Value, who, nowUtc);   // his number helps the next one: the library's suggestion for the kind
-            }
-            db.SaveChanges();
-            Changed();
-        }
-        return scu == null ? "Saved: the mission has the game's or the library's SCU again." : "Saved: " + scu.Value.ToString("N0") + " SCU for this mission, and suggested in the Mission Library.";
     }
 
     /// <summary>The SCU suggested last for the kind of a mission with this title (made when it is not there yet). True when it changed.</summary>

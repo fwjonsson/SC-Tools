@@ -95,15 +95,6 @@ public sealed class LibraryRow
     public string? WikiCurrency { get; set; }
 }
 
-/// <summary>The SCU a hauler typed in for one mission (Hauling jobs): only that mission has it; the game's SCU, when it comes, wins.</summary>
-public sealed class HaulScuRow
-{
-    public string MissionId { get; set; } = "";
-    public long Scu { get; set; }
-    public string By { get; set; } = "";
-    public DateTime Utc { get; set; }
-}
-
 /// <summary>
 /// What the Star Citizen Wiki API said about a mission (WikiMissions): its uuid (the log's contractDefinitionId), whether the API knows it, when it was
 /// asked, its debug name, title and hauling orders ("100-150;100-150": the SCU of every order), its reward, and what the Wiki shows besides (the faction,

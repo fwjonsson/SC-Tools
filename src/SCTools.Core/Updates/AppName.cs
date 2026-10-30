@@ -11,9 +11,6 @@ public sealed record AppName(string Title, string Name, string OldName)
     /// <summary>The SC Tools Tracker on the gaming PCs: it sends what every tool of the site needs. It was HaulingTrackerSender.</summary>
     public static readonly AppName Tracker = new("SC Tools Tracker", "SCToolsTracker", "HaulingTrackerSender");
 
-    /// <summary>The Hauling Planner, the Windows program. It was HaulingTracker.</summary>
-    public static readonly AppName Planner = new("Hauling Planner", "HaulingPlanner", "HaulingTracker");
-
     public string Exe => Name + ".exe";
     public string Zip => Name + ".zip";
     public string OldExe => OldName + ".exe";

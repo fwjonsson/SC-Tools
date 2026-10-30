@@ -25,12 +25,3 @@ public sealed class GauntletSettingsRow
     /// <summary>Scenario to MG scrip, only for the scenarios he changed.</summary>
     public Dictionary<int, long> RewardScrip { get; set; } = new();
 }
-
-/// <summary>A grind session a player started with the button and (when stopped) ended.</summary>
-public sealed class GauntletSessionRow
-{
-    public int Id { get; set; }
-    public string Player { get; set; } = "";
-    public DateTime StartedUtc { get; set; }
-    public DateTime? EndedUtc { get; set; }
-}

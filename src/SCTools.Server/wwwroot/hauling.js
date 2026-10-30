@@ -186,7 +186,7 @@ function moveWaves(now) {
 }
 function startWaves() { if (!wavesRunning) { wavesRunning = true; requestAnimationFrame(moveWaves); } }
 
-let mapData = null, mapOff = false;   // the Map tool's Pyro (its players and objectives) fetched last; off: this page has no map.json (the program's own)
+let mapData = null;   // the Map tool's Pyro (its players and objectives) fetched last
 const planMaps = {};   // the map of the planner tab (P: the Route Planner): its engine, how to draw the routes again, whose players it shows, its waves
 function systemIn(d, id) { return d && (d.systems || []).find(function (s) { return s.id === id; }); }   // a system of the map's data (map.json has every system since stage 2)
 
@@ -355,10 +355,9 @@ function renderActive() {
 }
 
 async function refreshMap() {
-  if (document.hidden || mapOff || (shownTab !== 'P' && shownTab !== 'S')) return;   // the Session tab wants the map's Active Contracts (30 Oct 2026)
+  if (document.hidden || (shownTab !== 'P' && shownTab !== 'S')) return;   // the Session tab wants the map's Active Contracts (30 Oct 2026)
   try {
     const res = await fetch('/hauling/map.json', { cache: 'no-store' });
-    if (res.status === 404) { mapOff = true; return; }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     mapData = await res.json();
     mapData.clockOffset = Date.parse(mapData.updated) - Date.now();   // the server's clock against this browser's, when the data came (not when it is drawn)
@@ -428,7 +427,6 @@ function keepScroll(part, build) {
 function renderPlanner(tab) { keepScroll(document.getElementById('planBody' + tab), function () { buildPlanner(tab); }); }
 function buildPlanner(tab) {
   const p = last.planner;
-  document.getElementById('planNote' + tab).textContent = '';   // no line above the map (like in the program): the tables get the room
   const body = document.getElementById('planBody' + tab);
   body.textContent = '';
   const choices = planChoices(p);
@@ -678,7 +676,6 @@ function buildHistory() {
 // own page (at /) keeps them after a # (#planner). The old #plan links still open the Trip Planner, and /hauling/contracts the Session tab, where the
 // contracts are since 30 Oct 2026 (Frank; the Leaderboard tab is new that day: the Session leaderboard and the All-time leaderboard).
 const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history', L: 'leaderboard' };
-const ON_SITE = /^\/hauling(\/|$)/.test(location.pathname);
 // Only the tab shown is drawn when data comes; the others are drawn when they are shown (dirty: the tabs with data they have not shown yet).
 const dirty = { S: true, P: true, D: true, H: true, L: true };
 const HAVE = Object.keys(TABS).filter(function (k) { return !!document.getElementById('tab' + k); });   // the tabs on this page
@@ -701,12 +698,12 @@ function show(which) {
   // the Session tab has more than its view: the session beside the tabs, the contracts and the runs under both
   document.getElementById('sideS').classList.toggle('hidden', which !== 'S');
   document.getElementById('belowS').classList.toggle('hidden', which !== 'S');
-  try { history.replaceState(null, '', ON_SITE ? '/hauling/' + TABS[which] : '#' + TABS[which]); } catch (e) { }
+  try { history.replaceState(null, '', '/hauling/' + TABS[which]); } catch (e) { }
   if (last && dirty[which]) renderTab(which);
   layout();   // the tables of a tab that was hidden could not be measured
 }
 HAVE.forEach(function (k) { document.getElementById('tab' + k).onclick = function (e) { if (e && e.preventDefault) e.preventDefault(); show(k); }; });   // a link to the tab's address: shown here, no reload
-show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || FIRST);
+show(tabOf(location.pathname.split('/')[2]) || tabOf(location.hash) || FIRST);
 
 // Whose session the Session and Leaderboard tabs show: with one party, the whole session is theirs; with more than one (the ones in the game, then the ones
 // that hauled in this session and are not playing now), a player sees his own party by itself (its stops, contracts, session, leaderboard and runs: the
@@ -723,15 +720,6 @@ function partyView() {
     : shown ? 'Your party: ' + shown.title + ' (' + shown.names.join(', ') + ')' + (shown.playing === false ? ', not playing now' : '') + '. The others haul in this session too.'
     : 'All parties together: ' + parties.map(function (p) { return p.title; }).join(', ') + (ME ? ' (you are in none of them).' : ' (log in to see your own).');
   return shown ? shown.view : last;
-}
-
-// ------------------------------------------------------------------ the SCU field of the Other hauling board
-// A hauler logged in types the SCU of a mission the game gave none of (its row's field): sent at once in the background (as on the Mission Library), it
-// counts for that mission only, and the library gets it as the suggestion for its kind. Until the board brings it back, the field keeps what he typed.
-
-function typingIn(box) {
-  const a = document.activeElement;
-  return document.hasFocus() && a && box.contains(a) && a.tagName === 'INPUT';
 }
 
 
