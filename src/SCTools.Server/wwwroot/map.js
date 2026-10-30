@@ -94,7 +94,7 @@
     const objs = document.getElementById('objectives');
     objs.textContent = '';
     const list = document.createElement('ul'); list.className = 'objs';
-    const lines = {};   // the same place with the same people once, with how many objectives; no mission names (Frank, 29 Oct 2026: the Active missions table has them)
+    const lines = {};   // the same place with the same people once, with how many objectives; no mission names (Frank, 29 Oct 2026: the Active Contracts table has them)
     d.objectives.forEach(function (o) {
       const text = (o.where || '') + (o.system && !here(o.system) ? ' · ' + nameOfSystem(o.system) : '') + ' (' + (o.who || [o.player]).join(', ') + ')';
       lines[text] = (lines[text] || 0) + 1;
@@ -111,7 +111,8 @@
         (d.unplaced === 1 ? 'it is.' : 'they are.') : '');
     if (note.textContent) objs.appendChild(note);
 
-    // under the map: the missions going on, with who has them and what the Mission Library says about them
+    // under the map: the missions going on (Active Contracts, Frank, 30 Oct 2026; Active missions before), with who has them and what the Mission Library says
+    // about them; the Hauling Planner's Session tab shows the same table (hauling.js, missionsTable)
     const mis = document.getElementById('missions');
     mis.textContent = '';
     if (!d.missions || d.missions.length === 0) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'No missions going on.'; mis.appendChild(p); }

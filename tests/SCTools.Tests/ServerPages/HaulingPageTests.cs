@@ -29,6 +29,7 @@ public class HaulingPageTests
         Assert.Contains("<h2>Session leaderboard</h2><div class=\"scroll\" id=\"leaders\"></div>", page);
         Assert.Contains("<h2>All-time leaderboard</h2><div class=\"scroll\" id=\"allTime\"></div>", page);
         Assert.DoesNotContain("id=\"viewC\"", page);
+        Assert.Contains("<h2>Active Contracts</h2><div id=\"active\">", page);   // the map's missions going on, above the contracts (30 Oct 2026)
         var contracts = "<h2>Contracts</h2><p class=\"note\" id=\"rewardsParty\"></p><div class=\"scroll\" id=\"rewards\"></div>";   // the contracts under the Session tab's stops, over the whole width
         Assert.True(page.IndexOf("id=\"belowS\"", StringComparison.Ordinal) < page.IndexOf(contracts, StringComparison.Ordinal));
         Assert.True(page.IndexOf(contracts, StringComparison.Ordinal) < page.IndexOf("<h2>Cargo runs</h2>", StringComparison.Ordinal));
@@ -62,6 +63,8 @@ public class HaulingPageTests
         Assert.Contains("const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history', L: 'leaderboard' };", script);   // /hauling/planner
         Assert.Contains("if (name === 'contracts') name = 'session';", script);   // the old Contracts tab's address opens the Session tab (30 Oct 2026)
         Assert.Contains("function leaderWidths", script);   // the Session tables line up without the leaderboard on the same tab
+        Assert.Contains("function missionsTable", script);   // the Active Contracts of the Session tab, from the map's data (30 Oct 2026)
+        Assert.Contains("(shownTab !== 'P' && shownTab !== 'S')", script);
         Assert.True(script.IndexOf("section(el, 'h2', 'Saved sessions', d.saved);", StringComparison.Ordinal) < script.IndexOf("best.textContent = d.best", StringComparison.Ordinal));   // the best session line under the saved sessions (30 Oct 2026)
         Assert.Contains("'/hauling/' + TABS[which]", script);
         Assert.Contains("|| tabOf(location.hash) || 'P');", script);   // /hauling opens the Trip Planner
