@@ -18,6 +18,7 @@ public class HaulingPageTests
         Assert.Contains("<footer class=\"sitefoot\">", page);
         Assert.Contains("href=\"/site.css?v=", page);
         Assert.Contains("href=\"/hauling.css?v=", page);
+        Assert.Contains(".hauling .side h2 { margin-top:22px; }", await visitor.GetStringAsync("/hauling.css"));   // the Session table level with the Stops table (30 Oct 2026)
         Assert.Contains("src=\"/systemmap.js?v=", page);   // the map engine, then the page's own script
         Assert.True(page.IndexOf("systemmap.js?v=", StringComparison.Ordinal) < page.IndexOf("src=\"/hauling.js?v=", StringComparison.Ordinal));
         Assert.Contains("<div class=\"hauling\" data-me=\"\">", page);   // a watcher: nobody
