@@ -11,11 +11,11 @@ public static class WorkerTripBuilder
     /// Who did a step of a from-Ruin contract. A shared mission is in the log of everyone who has it, and every one of them gets the update when somebody takes cargo out or
     /// delivers it, but only the player who did it has the elevator / loading platform lines of it. Several times (the same update in the logs of two players, a few seconds apart) are all tried.
     /// </summary>
-    public static string? OutActor(HaulingLog log, bool pickup, IEnumerable<DateTime> times)
+    public static string? OutActor(HaulingLog log, bool pickup, IEnumerable<DateTime> times, IReadOnlyCollection<string>? holders = null)
     {
         foreach (var t in times.OrderBy(x => x))
         {
-            var who = ActorAt(log, pickup, t);
+            var who = ActorAt(log, pickup, t, holders);
             if (who != null) return who;
         }
         return null;
@@ -33,7 +33,7 @@ public static class WorkerTripBuilder
                 if (!pickup && !kv.Key.StartsWith("dropoff_", StringComparison.Ordinal)) continue;
                 var times = kv.Value.Where(e => e.State == "COMPLETED").Select(e => e.Time).OrderBy(t => t).ToList();
                 if (times.Count == 0) continue;
-                steps.Add(new OutStep { Mission = m, Objective = kv.Key, Pickup = pickup, Worker = OutActor(log, pickup, times), Time = times[0] });
+                steps.Add(new OutStep { Mission = m, Objective = kv.Key, Pickup = pickup, Worker = OutActor(log, pickup, times, m.Holders), Time = times[0] });
             }
         }
         return steps;
@@ -42,9 +42,11 @@ public static class WorkerTripBuilder
     /// <summary>
     /// Who did it, taken from the logs: only the player who takes cargo out of a freight elevator (pickup)
     /// or uses the loading platform (hand-in) has those lines in his own log, a few seconds before the mission update.
-    /// Returns null when no log shows it (for example a party member whose log we do not have).
+    /// Returns null when no log shows it (for example a party member whose log we do not have). With the mission's holders given, only one of them can
+    /// be it: two players at loading platforms at the same moment are told apart by who has the mission (29 Oct 2026: zzatvo handed his own direct haul
+    /// in at Gaslight while zzoega loaded at Orbituary, and the delivery went to zzoega, who the map then put at Gaslight).
     /// </summary>
-    public static string? ActorAt(HaulingLog log, bool pickup, DateTime time)
+    public static string? ActorAt(HaulingLog log, bool pickup, DateTime time, IReadOnlyCollection<string>? holders = null)
     {
         var source = pickup ? log.UnstowByPlayer : log.PlatformByPlayer;
         var from = time - TimeSpan.FromSeconds(pickup ? 20 : 30);
@@ -54,6 +56,7 @@ public static class WorkerTripBuilder
         var bestGap = TimeSpan.MaxValue;
         foreach (var kv in source)
         {
+            if (holders is { Count: > 0 } && !holders.Contains(kv.Key, StringComparer.OrdinalIgnoreCase)) continue;   // not his mission: not his delivery
             foreach (var x in kv.Value)
             {
                 if (x < from || x > to) continue;
@@ -122,7 +125,7 @@ public static class WorkerTripBuilder
                 if (!m.Events.TryGetValue(kv.Key, out var ev) || ev.Count == 0) continue;
                 var first = ev.Min(e => e.Time);
                 if (since.HasValue && first < since.Value) continue;   // pickups of an earlier set of missions do not count
-                var actor = ActorAt(log, true, first);
+                var actor = ActorAt(log, true, first, m.Holders);
                 if (actor != null && (bestTime == null || first < bestTime))
                 {
                     bestTime = first;
@@ -169,7 +172,7 @@ public static class WorkerTripBuilder
                 if (!kv.Key.StartsWith("dropoff_")) continue;
                 foreach (var e in kv.Value)
                 {
-                    var actor = ActorAt(log, false, e.Time);
+                    var actor = ActorAt(log, false, e.Time, m.Holders);
                     handInActor ??= actor;
                     drops.Add((m.Id, e.Time, actor));
                 }
@@ -183,7 +186,7 @@ public static class WorkerTripBuilder
                 if (plan.HasValue && first >= plan.Value.Since)
                 {
                     // the log names who unloaded the cargo, else the Trip Planner decided (saved), else who handed the mission in
-                    who = ActorAt(log, true, first)
+                    who = ActorAt(log, true, first, m.Holders)
                         ?? (plan.Value.Claims.TryGetValue(m.Id + "|" + kv.Key, out var claimed) ? claimed : null)   // once decided it stays
                         ?? handInActor ?? "Unassigned";
                 }
@@ -191,7 +194,7 @@ public static class WorkerTripBuilder
                 {
                     // the Assigned Worker of the location comes first, the logs only fill in where nobody is assigned
                     var assigned = workerOfZone(kv.Value, first);
-                    who = assigned != "Unassigned" ? assigned : (ActorAt(log, true, first) ?? "Unassigned");
+                    who = assigned != "Unassigned" ? assigned : (ActorAt(log, true, first, m.Holders) ?? "Unassigned");
                 }
                 pickups.Add((who, kv.Value, m.Id, first));
             }
