@@ -79,8 +79,9 @@ else if (Model.Tab == "stats")
   </table>
   </div>
   <div>
+  @* the scenario to pick right of the title (Frank, 30 Oct 2026); data-autosave: picking one shows it (autosave.js), the page comes back here *@
+  <div class="titled">
   <h2 id="top10">Top 10 fastest</h2>
-  @* data-autosave: picking a scenario shows it (autosave.js); the page comes back here *@
   <form method="get" action="/gauntlet/stats#top10" class="line" data-autosave>
     <label for="scenario">Scenario</label>
     <select id="scenario" name="scenario">
@@ -91,6 +92,7 @@ else if (Model.Tab == "stats")
     </select>
     <noscript><button type="submit">Show</button></noscript>
   </form>
+  </div>
   @if (top.Count == 0)
   {
     <p class="muted">No timed runs of scenario #@Model.Selected yet.</p>
