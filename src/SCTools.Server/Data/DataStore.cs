@@ -12,7 +12,16 @@ namespace SCTools.Server.Data;
 public sealed class DataStore
 {
     readonly DbContextOptions<TrackerDb> _options;
+    readonly object _saveLock = new();
     volatile bool _changed;
+
+    /// <summary>
+    /// What the last save wrote, table by table: every row's key and the row as JSON (and the row, to delete it by). Only this store writes these tables, so
+    /// it is what the database has: the next save compares with it and writes the rows that differ, instead of reading every row of every table to find
+    /// them (Frank's history only grows: that read grew with it, under the lock the uploads wait for). Null until the first save after the start, which
+    /// compares with the database itself.
+    /// </summary>
+    Dictionary<string, Dictionary<string, (string Json, object Row)>>? _written;
     DateTime _backedUp;
 
     public DataStore(DbContextOptions<TrackerDb> options) => _options = options;
@@ -99,45 +108,85 @@ public sealed class DataStore
 
     /// <summary>
     /// Writes the data: every table gets the rows of the data (a row that is the same is left alone, a changed one is updated, a new one added, one that is
-    /// gone deleted), all in one transaction. Called with the lock of the data held, so nothing changes it meanwhile.
+    /// gone deleted), all in one transaction. Called with the lock of the data held, so nothing changes it meanwhile. The first save after the start compares
+    /// with the database; every save after it with what the save before wrote (_written), so only the rows that changed are written and nothing is read.
     /// </summary>
     public void Save(AppData data)
     {
-        var rows = DataRows.From(data);
-        using var db = Open();
-        Sync(db, db.Settings, new[] { rows.Settings }, r => r.Id);
-        Sync(db, db.Members, rows.Members, r => r.Name);
-        Sync(db, db.PartyChanges, rows.PartyChanges, r => r.Position);
-        Sync(db, db.ManualSessions, rows.ManualSessions, r => r.Position);
-        Sync(db, db.Sessions, rows.Sessions, r => r.Key);
-        Sync(db, db.Transfers, rows.Transfers, r => r.Position);
-        Sync(db, db.Payouts, rows.Payouts, r => r.Position);
-        Sync(db, db.MissionHolders, rows.MissionHolders, r => (r.MissionId, r.Member));
-        Sync(db, db.PayoutOverrides, rows.PayoutOverrides, r => r.MissionId);
-        Sync(db, db.DroppedMissions, rows.DroppedMissions, r => r.MissionId);
-        Sync(db, db.TypedScu, rows.TypedScu, r => r.Objective);
-        Sync(db, db.PairAdjust, rows.PairAdjust, r => r.Pair);
-        Sync(db, db.LocationNames, rows.LocationNames, r => r.LocationId);
-        db.SaveChanges();
+        lock (_saveLock)
+        {
+            var rows = DataRows.From(data);
+            using var db = Open();
+            var first = _written == null;
+            var written = new Dictionary<string, Dictionary<string, (string Json, object Row)>>();
+            void Table<TRow, TKey>(string name, DbSet<TRow> table, IEnumerable<TRow> wanted, Func<TRow, TKey> key) where TRow : class where TKey : notnull =>
+                written[name] = first ? Sync(db, table, wanted, key) : Diff(db, table, wanted, key, _written![name]);
+            Table("Settings", db.Settings, new[] { rows.Settings }, r => r.Id);
+            Table("Members", db.Members, rows.Members, r => r.Name);
+            Table("PartyChanges", db.PartyChanges, rows.PartyChanges, r => r.Position);
+            Table("ManualSessions", db.ManualSessions, rows.ManualSessions, r => r.Position);
+            Table("Sessions", db.Sessions, rows.Sessions, r => r.Key);
+            Table("Transfers", db.Transfers, rows.Transfers, r => r.Position);
+            Table("Payouts", db.Payouts, rows.Payouts, r => r.Position);
+            Table("MissionHolders", db.MissionHolders, rows.MissionHolders, r => (r.MissionId, r.Member));
+            Table("PayoutOverrides", db.PayoutOverrides, rows.PayoutOverrides, r => r.MissionId);
+            Table("DroppedMissions", db.DroppedMissions, rows.DroppedMissions, r => r.MissionId);
+            Table("TypedScu", db.TypedScu, rows.TypedScu, r => r.Objective);
+            Table("PairAdjust", db.PairAdjust, rows.PairAdjust, r => r.Pair);
+            Table("LocationNames", db.LocationNames, rows.LocationNames, r => r.LocationId);
+            db.SaveChanges();
+            _written = written;   // only once the database took it: a save that failed compares with the save before again
+        }
     }
 
-    static void Sync<TRow, TKey>(TrackerDb db, DbSet<TRow> table, IEnumerable<TRow> wanted, Func<TRow, TKey> key)
+    static string Fingerprint(object row) => JsonSerializer.Serialize(row, row.GetType());
+
+    static string KeyText<TKey>(TKey key) => Convert.ToString(key, CultureInfo.InvariantCulture) ?? "";
+
+    /// <summary>The first save after the start: the table as it is in the database, made like the rows of the data. Returns what was written.</summary>
+    static Dictionary<string, (string Json, object Row)> Sync<TRow, TKey>(TrackerDb db, DbSet<TRow> table, IEnumerable<TRow> wanted, Func<TRow, TKey> key)
         where TRow : class
         where TKey : notnull
     {
         var have = table.ToList().ToDictionary(key);
         var kept = new HashSet<TKey>();
+        var written = new Dictionary<string, (string Json, object Row)>(StringComparer.Ordinal);
         foreach (var row in wanted)
         {
             var k = key(row);
             if (!kept.Add(k)) continue;   // the same key twice (a name twice in the party list): the first one counts
             if (have.TryGetValue(k, out var old)) db.Entry(old).CurrentValues.SetValues(row);
             else table.Add(row);
+            written[KeyText(k)] = (Fingerprint(row), row);
         }
         foreach (var (k, old) in have)
         {
             if (!kept.Contains(k)) table.Remove(old);
         }
+        return written;
+    }
+
+    /// <summary>A save after the first: the rows that are new are added, the ones that differ from the last save updated, the ones gone deleted; nothing is read.</summary>
+    static Dictionary<string, (string Json, object Row)> Diff<TRow, TKey>(TrackerDb db, DbSet<TRow> table, IEnumerable<TRow> wanted, Func<TRow, TKey> key,
+        Dictionary<string, (string Json, object Row)> before)
+        where TRow : class
+        where TKey : notnull
+    {
+        var written = new Dictionary<string, (string Json, object Row)>(StringComparer.Ordinal);
+        foreach (var row in wanted)
+        {
+            var k = KeyText(key(row));
+            if (written.ContainsKey(k)) continue;   // the same key twice: the first one counts
+            var json = Fingerprint(row);
+            written[k] = (json, row);
+            if (!before.TryGetValue(k, out var was)) table.Add(row);
+            else if (was.Json != json) table.Update(row);
+        }
+        foreach (var (k, was) in before)
+        {
+            if (!written.ContainsKey(k)) table.Remove((TRow)was.Row);
+        }
+        return written;
     }
 
     /// <summary>The save of the tracker: remembers that the data changed (Flush writes it).</summary>
