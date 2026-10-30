@@ -25,6 +25,28 @@ public sealed record TrackedContract(string MissionId, string? Kind, string? Tit
     public bool TookIt(string player) =>
         HolderOf(player) is { } h && (h.Took == true || (h.Took == null && Taker is { } t && SameName(t, player)));
 
+    /// <summary>
+    /// Does this player get its MG and Council scrip? The game's rule (Frank, 30 Oct 2026): the one who took it, when he still had it when it paid out; when
+    /// he abandoned it (or it failed for him), the one who accepted the share first of the ones who still had it (Frank's logs: the game's "You've Earned"
+    /// line follows that one's completion). Nobody else, and nobody when it was not completed.
+    /// </summary>
+    public bool GetsScrip(string player)
+    {
+        if (HolderOf(player) is not { Completed: true } me) return false;
+        if (TookIt(player)) return true;
+        // the takers (whose log says they accepted it first): when one of them completed it, the scrip is his; when they all ended it without
+        // completing it, it goes on to the share accepted first
+        var takers = Holders.Where(h => h.Took == true).ToList();
+        if (takers.Count == 0 || takers.Any(h => h.Completed || h.Outcome == null)) return false;
+        // the share accepted first: the longest from his accept to the completion, both by his own PC's clock (two PCs' clocks can be seconds apart, and
+        // the two shares are often accepted within a second of each other)
+        var lead = Holders.Where(h => h.Completed && h.AcceptedUtc != null && h.EndedUtc != null).Select(Lead).DefaultIfEmpty().Max();
+        return lead != null && Lead(me) == lead;
+    }
+
+    /// <summary>How long before it ended for him he accepted it (by his own clock), or null.</summary>
+    static TimeSpan? Lead(ContractHolder h) => h.EndedUtc - h.AcceptedUtc;
+
     /// <summary>How it ended: completed when anybody completed it (it paid out), else how it ended for the first who ended it; null while it goes on.</summary>
     public MissionOutcome? Outcome =>
         Holders.Any(h => h.Completed) ? MissionOutcome.Complete : Holders.Where(h => h.Outcome != null).OrderBy(h => h.EndedUtc ?? DateTime.MaxValue).FirstOrDefault()?.Outcome;

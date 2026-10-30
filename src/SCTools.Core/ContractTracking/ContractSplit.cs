@@ -6,7 +6,8 @@ namespace SCTools.ContractTracking;
 /// <item>the aUEC is split evenly among the players who have that same contract when it pays out: the one who took it and everybody who accepted the share
 /// and still had it. Being in the party without accepting the share gets nothing. Two copies of the same contract taken separately are two contracts (two
 /// missions), each paying its own player in full;</item>
-/// <item>the MG scrip and the Council scrip go only to the player who took it;</item>
+/// <item>the MG scrip and the Council scrip go only to the player who took it; when he abandoned it, to the one who accepted the share first of the
+/// ones who still had it when it paid out (TrackedContract.GetsScrip);</item>
 /// <item>a contract the Hauling Planner paid out keeps the planner's split (its payout record, kept with the session: who it paid and how much each; the
 /// admin's payout override on the Debts tab is in it), so a past session's debts never change afterwards.</item>
 /// </list>
@@ -23,8 +24,9 @@ public static class ContractSplit
     /// <summary>
     /// This player's part of what the contract pays (whole: what it pays, by default its Reward), or null when he gets none of it: he did not complete it
     /// and the planner did not pay him a share. The aUEC is his even share (the planner's Each for a contract it paid out: 0 when he had it but was not
-    /// paid); the scrip is all his when he took it, else none (0 when its value is known, so a known reward is not "not known"). A planner payout he had
-    /// without the contract in his own log has no scrip (null).
+    /// paid); the scrip is all his when he gets it (TrackedContract.GetsScrip: he took it, or the taker abandoned it and his share was accepted first),
+    /// else none (0 when its value is known, so a known reward is not "not known"). A planner payout he had without the contract in his own log has no
+    /// scrip (null).
     /// </summary>
     public static ContractReward? PartOf(TrackedContract c, string player, ContractReward? whole = null)
     {
@@ -44,8 +46,8 @@ public static class ContractSplit
             auec = whole.Auec == null ? null : Even(whole.Auec.Value, Payees(c).Count);
         }
         if (!completed) return new ContractReward(auec, null, null);
-        var took = c.TookIt(player);
-        long? Scrip(long? v) => took || v == null ? v : 0;
+        var gets = c.GetsScrip(player);
+        long? Scrip(long? v) => gets || v == null ? v : 0;
         return new ContractReward(auec, Scrip(whole.Mg), Scrip(whole.Council));
     }
 

@@ -51,6 +51,26 @@ public class ContractSplitTests
     }
 
     [Fact]
+    public void When_the_taker_abandons_it_the_scrip_goes_to_the_share_accepted_first()
+    {
+        // the game's rule (Frank, 30 Oct 2026): zzoega took it and abandoned it, zzatvo accepted the share before zzoii, both completed it
+        ContractHolder Had(string p, bool took, int acceptedAfter, MissionOutcome outcome) => new(p, took, outcome, At, At.AddSeconds(-600 + acceptedAfter));
+        var c = new TrackedContract("m1", null, null,
+            new[] { Had("zzoega", true, 0, MissionOutcome.Abandon), Had("zzoii", false, 10, MissionOutcome.Complete), Had("zzatvo", false, 5, MissionOutcome.Complete) }, Pays);
+        Assert.Null(c.PartOf("zzoega"));
+        Assert.Equal(new ContractReward(45_000, 9, 3), c.PartOf("zzatvo"));
+        Assert.Equal(new ContractReward(45_000, 0, 0), c.PartOf("zzoii"));
+
+        // zzatvo abandoned it too: it goes on to zzoii
+        c = c with { Holders = new[] { Had("zzoega", true, 0, MissionOutcome.Abandon), Had("zzatvo", false, 5, MissionOutcome.Abandon), Had("zzoii", false, 10, MissionOutcome.Complete) } };
+        Assert.Equal(new ContractReward(90_000, 9, 3), c.PartOf("zzoii"));
+
+        // the taker's log never said how it ended for him: he may still have had it, so nobody else gets the scrip
+        c = c with { Holders = new[] { new ContractHolder("zzoega", true, null, null, At.AddSeconds(-600)), Had("zzatvo", false, 5, MissionOutcome.Complete) } };
+        Assert.Equal(new ContractReward(90_000, 0, 0), c.PartOf("zzatvo"));
+    }
+
+    [Fact]
     public void The_planner_s_payout_wins_and_pays_a_member_without_the_contract_in_his_log()
     {
         var payout = new PayoutRecord { MissionId = "h1", Time = At, Contract = "Carbon, 2 stops", Payout = 90_000, Members = { "zzoega", "zzoii" }, Each = 45_000 };

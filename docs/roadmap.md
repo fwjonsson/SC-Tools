@@ -179,16 +179,26 @@ All the tools track at the same time, all the time. The tracking runs on the ser
     every contract (who took it, who accepted the share, how and when it ended for each, what it pays) and every tool gets its money from it.
     **The split rule (decided):** the aUEC is split evenly among the players who have that same contract when it pays out (the one who took it plus
     everyone who accepted the share and still had it); being in the party without accepting the share gets nothing; two copies of the same contract
-    accepted separately are two contracts, each paying its own player in full. MG and Council scrip go only to the one who took it. Combined accounts
+    accepted separately are two contracts, each paying its own player in full. MG and Council scrip go only to the one who took it; when he abandoned
+    it, to the one who accepted the share first of the ones who still had it when it paid out (the game's rule, Frank 30 Oct 2026). Combined accounts
     are added up where a tool shows a player's totals. The admin's payout overrides on the Debts tab still win, and a payout already kept with a
     session keeps its members (debts are real money between friends: a past session's numbers do not change).
     - What changed with it: the Gauntlet Tracker counts a scenario shared in the party once (each member his share of the aUEC, the scrip to who
       accepted it), and the Session tool and the Companion count the shared scenario for the one it was shared with too; the planner pays a player
       whose log still has the contract when it pays out, also when he was marked out of the party, and when nobody is known to have it, the one who
       took it (before: the active party).
-    - Later, maybe: the Mission Library keeps a mission shared with a player only when his log showed its offer (or the planner reads it), so a
-      bounty shared without the offer in the sharer's log is counted in full for the one who took it; the tracker would split it once those rows are
-      kept (it changes the library's counts, so Frank decides).
+    - **Who took it, and who gets the scrip** (#385, from the logs of all three accounts, Aug-Oct 2026): the "Contract Shared" line, only in the log
+      of the one who gets the share, has no mission id (all zeros) and often the contract's template for a name; his "Contract Accepted" with the real
+      mission follows within half a minute. That accept is marked as a share; the taker is the one whose accept was not (the first accept only when the
+      logs cannot tell: two PCs' clocks were up to 9 seconds apart). When the taker abandons it (Frank's gauntlet routine: take it on zzatvo, share it
+      to zzoega, abandon it on zzatvo to escape the cooldown), the scrip goes to the share accepted first of the ones who still had it, judged by the
+      time from each one's accept to the completion on his own clock. The game's "You've Earned: N Rewards" line after a completion agreed in 386 of
+      388 shared gauntlet runs. The game says "Contract Accepted" again for every contract on every login, so the library keeps the earliest accept.
+      The offer line (ContractId) is in few logs (one mission in ten).
+    - Not used yet, maybe later: that reward line itself (its first line has no "Mission" in it, so the trackers would need a new line kind), and the
+      game's "PlayerLeft" line in the others' logs when the taker's own log never says he left (it needs each account's player id kept).
+    - Still to look at: the Gauntlet Tracker times a shared run for everybody who accepted it (the one who got the share has an accept line too), so
+      the timings and the Top 10 count a shared run once per member; and which member a party's Top 10 names for it is not sure to be the taker.
 
 Later, maybe: a party/crew board (who is on which shard, in which jurisdiction, in whose ship) and crash/server statistics.
 

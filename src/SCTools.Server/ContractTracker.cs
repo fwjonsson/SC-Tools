@@ -106,8 +106,8 @@ public sealed class ContractTracker
         new() { MissionId = p.MissionId, Time = p.Time, Contract = p.Contract, Payout = p.Payout, Members = p.Members.ToList(), Each = p.Each };
 
     /// <summary>
-    /// One contract from everybody's rows of its mission: a player with a row in the Mission Library and a run in the Gauntlet Tracker is one holder (he
-    /// took it when either says so).
+    /// One contract from everybody's rows of its mission: a player with a row in the Mission Library and a run in the Gauntlet Tracker is one holder; the
+    /// one who took it is the one who accepted it first.
     /// </summary>
     static TrackedContract Contract(string id, List<MissionRow> missions, List<GauntletRunRow> runs, PayoutRecord? planner, Dictionary<string, decimal> overrides,
         Dictionary<string, ContractReward> rewards)
@@ -129,12 +129,29 @@ public sealed class ContractTracker
         foreach (var m in missions)
             Add(new ContractHolder(m.Player, !m.Shared, Enum.TryParse<MissionOutcome>(m.Outcome, out var o) ? o : null, m.EndedUtc));
         foreach (var r in runs)
-            Add(new ContractHolder(r.Player, r.AcceptedUtc != null ? true : null, r.Outcome switch
+            Add(new ContractHolder(r.Player, null, r.Outcome switch
             {
                 nameof(GauntletOutcome.Complete) => MissionOutcome.Complete,
                 nameof(GauntletOutcome.Fail) => MissionOutcome.Fail,
                 _ => MissionOutcome.Abandon,
             }, r.EndedUtc));
+        // when each of them accepted it or the share: the earliest any of his logs says (the game says every contract he has "Contract Accepted" again
+        // when he logs in)
+        var acceptedOf = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (p, t) in missions.Select(m => (m.Player, m.StartedUtc)).Concat(runs.Select(r => (r.Player, r.AcceptedUtc))))
+            if (t != null && (!acceptedOf.TryGetValue(p, out var was) || t < was)) acceptedOf[p] = t.Value;
+        // who took it: the one whose accept was not a share. The game's "Contract Shared" line has no mission id, so the Mission Library marks an accept
+        // as a share when it came just after one in the same log (MissionReader; Frank's logs of Aug-Oct 2026: right in 383 of 385 shared gauntlet runs).
+        // When the logs do not tell one taker (none marked, or a share line missing), the one who accepted first of the others did: across the PCs the
+        // clocks can be seconds apart, so that is only the last resort.
+        var could = holders.Where(h => h.Took != false && acceptedOf.ContainsKey(h.Player)).Select(h => h.Player).ToList();
+        var first = could.Count > 0 ? could.Min(p => acceptedOf[p]) : (DateTime?)null;
+        holders = holders.Select(h => h with
+        {
+            Took = could.Contains(h.Player, StringComparer.OrdinalIgnoreCase) ? acceptedOf[h.Player] == first : h.Took,
+            AcceptedUtc = acceptedOf.TryGetValue(h.Player, out var a) ? a : null,
+        }).ToList();
+
         var kind = missions.Select(m => m.Kind).FirstOrDefault(k => k != null)
             ?? (runs.Count > 0 ? GauntletService.LibraryKey(runs[0].Scenario) : null)
             ?? missions.Select(m => m.ContractId).FirstOrDefault(c => !string.IsNullOrEmpty(c));

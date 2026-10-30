@@ -60,4 +60,29 @@ public class MissionReaderTests
         Assert.Null(seen[1].ContractId);
         Assert.Null(seen[2].ContractId);
     }
+
+    [Fact]
+    public void A_share_has_no_mission_id_and_the_accept_just_after_it_is_the_shared_one()
+    {
+        // zzatvo's log of 29 Oct 2026: three shares from zzoega (no mission id, the contract's template for a name), then his three accepts with the real
+        // missions; then a contract he took himself. The share's own mission (all zeros) is no mission
+        const string Zero = "00000000-0000-0000-0000-000000000000";
+        const string M4 = "5787bf8b-1111-4111-8111-111111111111";
+        var template = "~mission(ReputationRank) | ~mission(CargoRouteToken) ~mission(CargoGradeToken) Haul | to ~mission(Destination|name)";
+        var r = new MissionReader();
+        foreach (var line in new[]
+        {
+            Note("19:59:24.318", "Shared", template, Zero), Note("19:59:26.009", "Shared", template, Zero), Note("19:59:27.573", "Shared", template, Zero),
+            Note("19:59:29.152", "Accepted", " Senior | Stellar Large Haul | to Ruin Station", M1),
+            Note("19:59:29.269", "Accepted", " Senior | Stellar Large Haul | to Ruin Station", M2),
+            Note("19:59:29.367", "Accepted", " Senior | Stellar Large Haul | to Ruin Station", M3),
+            Note("20:01:23.135", "Accepted", " Experienced | Stellar Large Haul | to Ruin Station", M4),
+            Note("20:30:00.000", "Accepted", " Senior | Stellar Large Haul | to Ruin Station", M1),   // the game says it again at a login
+        })
+            r.ProcessLine(line);
+        var seen = r.Missions;
+        Assert.Equal(new[] { M1, M2, M3, M4 }, seen.Select(m => m.MissionId));
+        Assert.Equal(new[] { true, true, true, false }, seen.Select(m => m.Shared));
+        Assert.Equal(new DateTime(2026, 10, 21, 19, 59, 29, 152, DateTimeKind.Utc), seen[0].StartedUtc);   // its first accept
+    }
 }
