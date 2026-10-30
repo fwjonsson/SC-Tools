@@ -53,6 +53,8 @@ table.narrow { max-width:720px; }
 /* two tables side by side, together as wide as a wide table (the Gauntlet Tracker, Frank, 30 Oct 2026); under each other on a narrow screen */
 .pair { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
 .pair > div { flex:1 1 420px; min-width:0; }
+.titled { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }   /* a title with a small form right of it (the Gauntlet's Top 10 and its scenario, Frank, 30 Oct 2026) */
+.titled form.line { margin:14px 0 0; }
 td input, td select { width:100%; padding:4px 6px; }
 td input[type=checkbox] { width:auto; }
 td input[type=color] { width:46px; height:30px; }

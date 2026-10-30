@@ -43,7 +43,10 @@ public class GauntletPageTests
         // Stats (Frank, 30 Oct 2026): the earnings (Lifetime before) top left, the top 10 top right, the earnings per scenario (Earnings ranking before) with
         // Scrip/h under them, the times by scenario last; History has the earlier grind sessions, which were on the Session tab
         Assert.Contains("<div class=\"pair\">\n  <div>\n  <h2>Earnings</h2>", stats.Replace("\r\n", "\n"));
+        Assert.Contains("<div class=\"titled\">", stats);   // the scenario to pick right of the title (30 Oct 2026)
         Assert.Contains("<h2 id=\"top10\">Top 10 fastest</h2>", stats);
+        Assert.True(stats.IndexOf("<div class=\"titled\">", StringComparison.Ordinal) < stats.IndexOf("<h2 id=\"top10\">", StringComparison.Ordinal));
+        Assert.True(stats.IndexOf("<h2 id=\"top10\">", StringComparison.Ordinal) < stats.IndexOf("action=\"/gauntlet/stats#top10\"", StringComparison.Ordinal));
         Assert.Contains("<h2>Earnings per scenario</h2>", stats);
         Assert.Contains("<th>Scrip/h</th>", stats);
         Assert.Contains("<td class=\"right\">192.0</td>", stats);   // 16 scrip in 5 minutes
