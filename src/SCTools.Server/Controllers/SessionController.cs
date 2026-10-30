@@ -8,21 +8,23 @@ namespace SCTools.Server.Controllers;
 
 /// <summary>
 /// The Session tool: your own play. The time played today, this week, this month and in all (from every game your tracker saw, the old logs included),
-/// the games and the crashes, the missions you completed and what they earned (aUEC, MG and Council scrip as the Mission Library says they pay, the scrip
-/// at the admin's value), per hour; and the clock of the game you play now. Worked out again on every visit, so a reward typed in later counts for the past.
+/// the games and the crashes, the missions you completed and what they earned (your part, from the contracts tracker: aUEC, MG and Council scrip as the
+/// Mission Library says they pay, the scrip at the admin's value), per hour; and the clock of the game you play now. Worked out again on every visit, so a reward typed in later counts for the past.
 /// </summary>
 [Route("/session")]
 public sealed class SessionController : Controller
 {
     readonly Playtime _playtime;
     readonly MissionLibrary _missions;
+    readonly ContractTracker _contracts;
     readonly ScripValues _scrip;
     readonly ToolAccess _tools;
 
-    public SessionController(Playtime playtime, MissionLibrary missions, ScripValues scrip, ToolAccess tools)
+    public SessionController(Playtime playtime, MissionLibrary missions, ContractTracker contracts, ScripValues scrip, ToolAccess tools)
     {
         _playtime = playtime;
         _missions = missions;
+        _contracts = contracts;
         _scrip = scrip;
         _tools = tools;
     }
@@ -37,7 +39,7 @@ public sealed class SessionController : Controller
         var now = DateTime.UtcNow;
         _missions.Collect();
         var games = _playtime.Games(me, now);
-        var earned = _missions.Earned(me);
+        var earned = _contracts.Earned(me);
         long mg = _scrip.Mg, council = _scrip.Council;
         var periods = PlayStats.Periods(now, TimeZoneInfo.Local).Select(p => new PeriodLine(p.Name, PlayStats.For(p, games, earned, mg, council))).ToList();
         var lines = games.Take(30).Select(g => new GameLine(g, PlayStats.For(g.StartUtc, g.EndUtc.AddSeconds(1), Array.Empty<PlayedGame>(), earned, mg, council))).ToList();

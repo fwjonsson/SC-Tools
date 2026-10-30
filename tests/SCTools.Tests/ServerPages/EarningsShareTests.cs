@@ -7,7 +7,7 @@ using SCTools.Tests.Support;
 namespace SCTools.Tests.ServerPages;
 
 /// <summary>
-/// What a player earned from his completed missions (MissionLibrary.Earned: the Session tool and the Companion), by Frank's rules of 30 Oct 2026: the aUEC
+/// What a player earned from his completed missions (ContractTracker.Earned: the Session tool and the Companion), by Frank's rules of 30 Oct 2026: the aUEC
 /// split evenly among the players who completed the same mission, a Hauling Planner contract as its payout split (the Debts tab's), the scrip only for the
 /// player who took the contract; and on the Companion, a player's combined accounts added up over his own game session.
 /// </summary>
@@ -68,18 +68,18 @@ public class EarningsShareTests
         using var f = Played(now);
         var library = f.Services.GetRequiredService<MissionLibrary>();
 
-        var zzoega = library.Earned("zzoega");
+        var zzoega = f.Services.GetRequiredService<ContractTracker>().Earned("zzoega");
         var rival = Assert.Single(zzoega, m => m.Kind == "stop rival attack");
         Assert.Equal((50_000L, 10L), (rival.Auec!.Value, rival.Mg!.Value));   // half of it (zzatvo completed it too), and the MG scrip: he took it
         Assert.Equal(30_000, Assert.Single(zzoega, m => m.Kind == "haul the carbon").Auec);   // the planner's payout split, as on the Debts tab
 
-        var zzatvo = library.Earned("zzatvo");
+        var zzatvo = f.Services.GetRequiredService<ContractTracker>().Earned("zzatvo");
         var shared = Assert.Single(zzatvo, m => m.Kind == "stop rival attack");
         Assert.Equal((50_000L, 0L), (shared.Auec!.Value, shared.Mg!.Value));   // shared with him: his half of the aUEC, no scrip
         Assert.True(shared.HasReward);
         Assert.Equal(30_000, Assert.Single(zzatvo, m => m.Kind == "Carbon, 2 stops").Auec);   // a payout he shared without the contract in his own log
 
-        Assert.Equal(30_000, Assert.Single(library.Earned("zzoii")).Auec);
+        Assert.Equal(30_000, Assert.Single(f.Services.GetRequiredService<ContractTracker>().Earned("zzoii")).Auec);
     }
 
     [Fact]

@@ -74,9 +74,10 @@ public sealed class Payouts
 
     /// <summary>
     /// What every worker carried (the batches of completed missions in finished runs) and what every worker received:
-    /// the payout of each completed mission is split equally between the party members who were active at the moment it
-    /// paid out. Someone who joined after a mission paid out, or left before it, gets no share of it.
-    /// Missions that paid out before the party table started to track times (or in a session with a typed Session Party) use the whole session party.
+    /// the payout of each completed mission is split equally between the players who have it when it paid out (ContractSplit.PlannerPayees: who took
+    /// it and who accepted the share and still had it; a party member without it gets nothing). The ones looked at are the party members who were active at
+    /// the moment it paid out (for a logless member that is what tells), and everybody whose log has it.
+    /// Missions that paid out before the party table started to track times (or in a session with a typed Session Party) look at the whole session party.
     /// </summary>
     /// <param name="groups">gets the parties of the session as the payouts went: who carried a mission and who shared its payout are in one</param>
     public (Dictionary<string, decimal> Carried, Dictionary<string, decimal> Received) ComputePayouts(SessionGroup g, SessionInputs inp, List<PayoutRecord>? records = null,
@@ -143,14 +144,16 @@ public sealed class Payouts
                 members = _crew.PartyAt(m.EndedAt.Value);
                 if (members.Count == 0) members = kv.Value.Keys.ToList();   // nobody was marked active: the ones who carried it share it
             }
-            // the ones who have the mission share it (what the logs say about who took part, or what was ticked on the Contracts tab);
+            // the ones who have the mission when it pays out share it (ContractSplit, Frank's rule of 30 Oct 2026): the party members who have it, and anybody
+            // else whose log has it (what the logs say about who took part, or what was ticked on the Contracts tab), not a party member without it;
             // a mission that already has its payout kept keeps its members, so earlier sessions do not change
             var kept = Data.Payouts.FirstOrDefault(x => x.MissionId == m.Id);
             if (kept != null) members = kept.Members.Count > 0 ? new List<string>(kept.Members) : members;
             else
             {
-                var holders = members.Where(n => _contracts.HasMission(m, n, m.EndedAt)).ToList();
-                if (holders.Count > 0) members = holders;
+                var ticked = Data.MissionHolders.TryGetValue(m.Id, out var t) ? t.Where(x => x.Value).Select(x => x.Key) : Enumerable.Empty<string>();
+                var candidates = members.Concat(m.Holders.Order(StringComparer.OrdinalIgnoreCase)).Concat(ticked);
+                members = ContractSplit.PlannerPayees(candidates, n => _contracts.HasMission(m, n, m.EndedAt), m.Taker, kv.Value.Keys);
             }
             together.Join(kv.Value.Keys.Concat(members));
             var share = pool / members.Count;

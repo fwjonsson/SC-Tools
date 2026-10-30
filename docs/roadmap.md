@@ -58,7 +58,7 @@ All the tools track at the same time, all the time. The tracking runs on the ser
      is linked to the Wiki's mission by its name.
 4. **Gauntlet Tracker** (`/gauntlet`, PRs #224, #226): everybody sees only his own runs; a Leaderboard of everybody (total earned, aUEC/h over timed
    runs, completion rate, fastest run, favourite and best scenario, last played). Rewards from the Mission Library (typed on Edit Mission Info; the
-   admin's `/admin/gauntlet` page went on 29 Oct, with his Contracts page). Top 10 fastest: picking a scenario shows it at once (no Show button). Since 29 Oct (Frank): the Session, Stats and History tabs are
+   admin's `/admin/gauntlet` page went on 29 Oct, with his Contracts page); each run earns its player his part (the contracts tracker, #383). Top 10 fastest: picking a scenario shows it at once (no Show button). Since 29 Oct (Frank): the Session, Stats and History tabs are
    the viewer's in-game party's runs together (alone: his own); the Earnings ranking tab is **History**, with the lifetime totals moved there from
    Session and a Scrip/h column in the ranking. Since 30 Oct 2026 (Frank): Stats has the Earnings (the lifetime totals) and the Top 10 side by side,
    the Earnings per scenario (the ranking) and the times under them; History has the earlier grind sessions; Session has the game session and the
@@ -172,7 +172,23 @@ All the tools track at the same time, all the time. The tracking runs on the ser
     - **Earnings are your part** (Frank, 30 Oct 2026, after the Companion showed 18,501,500 aUEC for a session he hauled with zzatvo: every member
       counted every shared contract in full): the aUEC is split evenly among the players who completed the same mission, a Hauling Planner contract
       pays its payout split (the Debts tab's), and the scrip goes only to the one who took the contract; the Session tool counts the same way. With
-      combined accounts the Companion adds them up over the viewer's own game session, per hour of his own time played (Frank's answer).
+      combined accounts the Companion adds them up over the viewer's own game session, per hour of his own time played (Frank's answer). Since #383
+      it asks the contracts tracker (13).
+13. **Contracts tracker** (#383, Frank 30 Oct 2026): contract money was worked out in four places with different rules (the planner's payouts by the
+    party at payout time, the Session tool and the Companion by who completed it, the Gauntlet Tracker in full for every member). Now one place knows
+    every contract (who took it, who accepted the share, how and when it ended for each, what it pays) and every tool gets its money from it.
+    **The split rule (decided):** the aUEC is split evenly among the players who have that same contract when it pays out (the one who took it plus
+    everyone who accepted the share and still had it); being in the party without accepting the share gets nothing; two copies of the same contract
+    accepted separately are two contracts, each paying its own player in full. MG and Council scrip go only to the one who took it. Combined accounts
+    are added up where a tool shows a player's totals. The admin's payout overrides on the Debts tab still win, and a payout already kept with a
+    session keeps its members (debts are real money between friends: a past session's numbers do not change).
+    - What changed with it: the Gauntlet Tracker counts a scenario shared in the party once (each member his share of the aUEC, the scrip to who
+      accepted it), and the Session tool and the Companion count the shared scenario for the one it was shared with too; the planner pays a player
+      whose log still has the contract when it pays out, also when he was marked out of the party, and when nobody is known to have it, the one who
+      took it (before: the active party).
+    - Later, maybe: the Mission Library keeps a mission shared with a player only when his log showed its offer (or the planner reads it), so a
+      bounty shared without the offer in the sharer's log is counted in full for the one who took it; the tracker would split it once those rows are
+      kept (it changes the library's counts, so Frank decides).
 
 Later, maybe: a party/crew board (who is on which shard, in which jurisdiction, in whose ship) and crash/server statistics.
 
@@ -228,7 +244,7 @@ should know before that happens.
    - **No buttons**: the hauling Start/Stop Session and the Gauntlet's "Start grind session" are gone ("if there are issues we will work them out");
      `SCTools:FollowSessions=false` brings the hauling button back. The Windows program went on 30 Oct 2026.
 3. Done: fleet (#240), Party tool (#241), Map tool (#242).
-   Done (30 Oct): the Companion (#380).
+   Done (30 Oct): the Companion (#380), the contracts tracker (#383).
 4. Done (28–29 Oct): the map's tabs (#243), Map places (#244), everything up to #268: the Wiki API for every mission of the library (#265), one
    Hauling Planner (#266), the read-only Mission Library and Edit Mission Info (#267, #268). In review: the Contracts tab (#269).
 5. Hauling of every system: the Route Planner for every hauling mission, by the stages of `docs/planner-any-hauling.md` (the design, 30 Oct):

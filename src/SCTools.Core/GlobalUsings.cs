@@ -1,4 +1,5 @@
 // The areas of the core, usable everywhere in it without a using line in every file.
+global using SCTools.ContractTracking;
 global using SCTools.Debts;
 global using SCTools.GameData;
 global using SCTools.GameLog;
