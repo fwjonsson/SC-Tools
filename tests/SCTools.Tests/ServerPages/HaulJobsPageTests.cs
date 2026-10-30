@@ -72,8 +72,6 @@ public class HaulJobsPageTests
         Assert.Equal(1, library.SuggestFromGame(DateTime.UtcNow));
         Assert.Equal(60L, library.Entries().Single(e => e.Row.Title == Title).Row.ScuSuggested);
 
-        // the old board's address goes to the Hauling Planner
-        var old = await player.GetAsync("/hauling/jobs");
-        Assert.Equal((System.Net.HttpStatusCode.Redirect, "/hauling"), (old.StatusCode, old.Headers.Location?.OriginalString));
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, (await player.GetAsync("/hauling/jobs")).StatusCode);   // the old board's address is gone (Frank, 30 Oct 2026)
     }
 }
