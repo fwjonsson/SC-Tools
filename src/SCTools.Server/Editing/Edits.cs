@@ -183,21 +183,6 @@ public static class Edits
 
     // ------------------------------------------------------------------ the stops and the runs
 
-    /// <summary>Your own name for a pickup location; nothing (or the name the program knows) gives it back the program's name.</summary>
-    public static string RenameStop(Tracker t, string zone, string name)
-    {
-        name = name.Trim();
-        var reverted = t.Places.Rename(zone, name);
-        return reverted ? "The location has the name the program knows: " + t.Places.LocationName(zone) + "." : "The location is called " + name + " now.";
-    }
-
-    public static string SetNotes(Tracker t, string zone, string notes)
-    {
-        if (t.State.Inputs == null) return "There is no session.";
-        t.State.RowOf(zone).Notes = notes.Trim();
-        return "The notes are saved.";
-    }
-
     /// <summary>Lost Cargo of a run: None, Little or All (All = the run failed: one still on the way ends, and picking something else brings it back).</summary>
     public static string SetLost(Tracker t, string runKey, string level)
     {

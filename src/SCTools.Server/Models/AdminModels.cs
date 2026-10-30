@@ -17,7 +17,6 @@ public sealed class AdminSessionModel
 
     public bool Locked { get; set; }
     public string StartTime { get; set; } = "";
-    public List<StopInput> Stops { get; set; } = new();
     public List<RunInput> Runs { get; set; } = new();
     public List<ScuInput> Scu { get; set; } = new();
 
@@ -36,8 +35,6 @@ public sealed class AdminSessionModel
         };
         if (inp == null) return m;
 
-        m.Stops = s.OpenRows.Select(r => new StopInput(
-            r.Zone, t.Places.LocationName(r.Zone), inp.Rows.TryGetValue(r.Zone, out var row) ? row.Notes : "", BoardTexts.MissionsText(r))).ToList();
         m.Runs = s.Trips.Select(r => new RunInput(
             r.Key, r.Number, r.Worker,
             r.Start.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture),
@@ -54,7 +51,6 @@ public sealed class AdminSessionModel
     }
 }
 
-public sealed record StopInput(string Zone, string Name, string Notes, string Batches);
 public sealed record RunInput(string Key, int Number, string Worker, string Started, string Completed, string Places, string Lost);
 public sealed record ScuInput(string Key, string Label, int Scu);
 

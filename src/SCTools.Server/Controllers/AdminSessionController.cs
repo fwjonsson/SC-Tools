@@ -6,7 +6,7 @@ namespace SCTools.Server.Controllers;
 
 /// <summary>
 /// The admin's Session page: the session (it starts and stops by itself; Start / Stop Session only when SCTools:FollowSessions is off), Next Stops, the start
-/// time, the names and notes of the stops, the lost cargo of the runs (Register lost cargo), and the SCU of the from-Ruin drop-offs the game did not tell.
+/// time, the lost cargo of the runs (Register lost cargo), and the SCU of the from-Ruin drop-offs the game did not tell.
 /// The rewards are the Mission Library's (Edit Mission Info), not here any more (Frank, 29 Oct 2026).
 /// </summary>
 [Route("/admin")]
@@ -36,16 +36,6 @@ public sealed class AdminSessionController : AdminControllerBase
 
     [HttpPost("start-time")]
     public IActionResult StartTime(string? startTime) => Change(t => Edits.SetStartTime(t, startTime), Back);
-
-    [HttpPost("stop")]
-    public IActionResult Stop(string zone, string? name, string? notes) => Change(t =>
-    {
-        var said = new List<string>();
-        if ((name ?? "").Trim() != t.Places.LocationName(zone)) said.Add(Edits.RenameStop(t, zone, name ?? ""));
-        var now = t.State.Inputs != null && t.State.Inputs.Rows.TryGetValue(zone, out var row) ? row.Notes : "";
-        if ((notes ?? "").Trim() != now) said.Add(Edits.SetNotes(t, zone, notes ?? ""));
-        return said.Count == 0 ? "Nothing changed." : string.Join(" ", said);
-    }, Back);
 
     [HttpPost("run")]
     public IActionResult Run(string key, string level) => Change(t => Edits.SetLost(t, key, level), Back);

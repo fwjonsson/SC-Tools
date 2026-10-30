@@ -44,11 +44,11 @@
 .hauling .plantables h2:first-child { margin-top:0; }
 .hauling .plantables table { table-layout:fixed; }
 /* Current Route: #, Stops, Drop/Collect, SCU, Boxes (takes the rest), Value, Distance, In flight */
-.hauling .plancur th:nth-child(1) { width:36px; } .hauling .plancur th:nth-child(2) { width:120px; } .hauling .plancur th:nth-child(3) { width:200px; } .hauling .plancur th:nth-child(4) { width:84px; }
+.hauling .plancur th:nth-child(1) { width:36px; } .hauling .plancur th:nth-child(2) { width:210px; } .hauling .plancur th:nth-child(3) { width:200px; } .hauling .plancur th:nth-child(4) { width:62px; }   /* Stops: the full names ("Starlight Service Station"); SCU: four figures and a ~ (Frank, 30 Oct 2026) */
 .hauling .plancur th:nth-child(6) { width:80px; } .hauling .plancur th:nth-child(7) { width:80px; } .hauling .plancur th:nth-child(8) { width:70px; }
 .hauling .plancur td:nth-child(3), .hauling .plancur td:nth-child(5) { white-space:normal; }
 .hauling .plancur td:nth-child(4):has(.scuin) { padding:2px 4px; }   /* the hauler's SCU to a stop: the field fills the cell (it ran over into Boxes; Frank, 30 Oct 2026) */
-.hauling .plancur .scuin { width:100%; min-width:4em; box-sizing:border-box; text-align:right; }
+.hauling .plancur .scuin { width:100%; min-width:3.5em; box-sizing:border-box; text-align:right; }
 /* Queued routes: #, Route (takes the rest), Stops (how many), Batches, SCU, Value, Distance, In flight */
 .hauling .planque th:nth-child(1) { width:36px; } .hauling .planque th:nth-child(3) { width:64px; } .hauling .planque th:nth-child(4) { width:84px; } .hauling .planque th:nth-child(5) { width:64px; }
 .hauling .planque th:nth-child(6) { width:80px; } .hauling .planque th:nth-child(7) { width:80px; } .hauling .planque th:nth-child(8) { width:70px; }
@@ -69,7 +69,7 @@
 @media (max-width:1600px) {
   .hauling .planleft { flex:0 0 520px; }
   .hauling .plancur table, .hauling .planque table { min-width:0; }
-  .hauling .plancur th:nth-child(2) { width:96px; } .hauling .plancur th:nth-child(3) { width:150px; } .hauling .plancur th:nth-child(4) { width:56px; } .hauling .plancur th:nth-child(6) { width:84px; }
+  .hauling .plancur th:nth-child(2) { width:150px; } .hauling .plancur th:nth-child(3) { width:150px; } .hauling .plancur th:nth-child(4) { width:52px; } .hauling .plancur th:nth-child(6) { width:84px; }
   .hauling .plancur th:nth-child(7), .hauling .planque th:nth-child(7) { width:72px; } .hauling .plancur th:nth-child(8), .hauling .planque th:nth-child(8) { width:62px; }
   .hauling .planque th:nth-child(3) { width:52px; } .hauling .planque th:nth-child(4) { width:66px; } .hauling .planque th:nth-child(5) { width:56px; } .hauling .planque th:nth-child(6) { width:84px; }
   .hauling .plantables th, .hauling .plantables td { padding:4px 5px; }

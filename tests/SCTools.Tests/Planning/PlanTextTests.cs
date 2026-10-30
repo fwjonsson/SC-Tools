@@ -9,13 +9,13 @@ public class PlanTextTests
     public void A_route_goes_from_Ruin_over_its_stations_back_to_Ruin()
     {
         var trip = new PlannedTrip { Stops = { (RodsFuel, 2), (Endgame, 1) } };
-        Assert.Equal("Ruin  →  Rod's Fuel  →  Endgame  →  Ruin", PlanText.RouteText(trip));
+        Assert.Equal("Ruin  →  Rod's Fuel 'N Supplies  →  Endgame  →  Ruin", PlanText.RouteText(trip));
 
         var continued = new PlannedTrip { From = PatchCity, Stops = { (RodsFuel, 1) } };   // continues a run in progress from where he is
-        Assert.Equal("Patch City  →  Rod's Fuel  →  Ruin", PlanText.RouteText(continued));
+        Assert.Equal("Patch City  →  Rod's Fuel 'N Supplies  →  Ruin", PlanText.RouteText(continued));
 
         var withWaste = new PlannedTrip { Stops = { (RodsFuel, 2) }, Drops = { (Endgame, 1) } };   // the load from Ruin goes to Endgame first
-        Assert.Equal("Ruin  →  Endgame  →  Rod's Fuel  →  Ruin", PlanText.RouteText(withWaste));
+        Assert.Equal("Ruin  →  Endgame  →  Rod's Fuel 'N Supplies  →  Ruin", PlanText.RouteText(withWaste));
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public class PlanTextTests
         var lines = new List<StopLine>
         {
             new() { Name = "Ruin", Stop = false, WasteScu = 89 },
-            new() { Name = "Rod's Fuel", Batches = 3, Scu = 375, Value = 1_000_000m, Gm = 30, Seconds = 100 },
+            new() { Name = "Rod's Fuel 'N Supplies", Batches = 3, Scu = 375, Value = 1_000_000m, Gm = 30, Seconds = 100 },
             new() { Name = "Endgame", Batches = 3, Scu = 375, Value = 500_000m, Gm = 10, Seconds = 50 },
             new() { Name = "Ruin", Stop = false, Gm = 30, Seconds = 100 },
         };
@@ -51,7 +51,7 @@ public class PlanTextTests
         Assert.Equal(new[] { "1", "2", "3", "4" }, cells.Select(c => c[0]));   // every line has its number, the Ruin lines too
         Assert.All(cells, c => Assert.Equal(PlanText.CurrentColumns.Count, c.Length));
         // the SCU and the Boxes of a line are two columns (Frank, 29 Oct 2026): a pickup stop guesses its SCU and counts its batches, a drop-off has its load
-        var rods = new StopLine { Name = "Rod's Fuel", Count = 3, Scu = 375 };
+        var rods = new StopLine { Name = "Rod's Fuel 'N Supplies", Count = 3, Scu = 375 };
         Assert.Equal(("~375", "3 Batches"), (rods.ScuText, rods.BoxesText));
         var drop = new StopLine { Name = "Patch City", Parts = { 152 }, Keys = { "m|dropoff_0" } };
         Assert.Equal(("152", "4×32 + 24"), (drop.ScuText, drop.BoxesText));

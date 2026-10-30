@@ -14,7 +14,7 @@ public class DirectLoadTests
 
     static Dictionary<string, int> Open() => new()
     {
-        [Id("Orbituary")] = 2, [Id("Rod's Fuel")] = 2, [Id("Gaslight")] = 4, [Id("Patch City")] = 3, [Id("Nyx GW")] = 2,
+        [Id("Orbituary")] = 2, [Id("Rod's Fuel 'N Supplies")] = 2, [Id("Gaslight")] = 4, [Id("Patch City")] = 3, [Id("Nyx Gateway")] = 2,
     };
 
     [Fact]
