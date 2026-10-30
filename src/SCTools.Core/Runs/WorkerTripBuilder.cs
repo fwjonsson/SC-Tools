@@ -24,6 +24,21 @@ public static class WorkerTripBuilder
     /// <summary>Every finished step (cargo taken out at Ruin, cargo delivered at a station) of the from-Ruin contracts in the log, with who did it. Missions marked as gone are left out.</summary>
     public static List<OutStep> OutSteps(HaulingLog log)
     {
+        // the same merged log gives the same steps: kept with the log until it reads another line or a mission is marked gone (the plan asked for them about
+        // a dozen times per flyer, each a walk through the whole log)
+        var dropped = log.Missions.Values.Count(m => m.Dropped);
+        if (OutStepsKept.TryGetValue(log, out var kept) && kept.Version == log.Version && kept.Dropped == dropped) return kept.Steps;
+        var steps = MakeOutSteps(log);
+        OutStepsKept.AddOrUpdate(log, new KeptSteps(log.Version, dropped, steps));
+        return steps;
+    }
+
+    sealed record KeptSteps(int Version, int Dropped, List<OutStep> Steps);
+
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<HaulingLog, KeptSteps> OutStepsKept = new();
+
+    static List<OutStep> MakeOutSteps(HaulingLog log)
+    {
         var steps = new List<OutStep>();
         foreach (var m in log.Missions.Values.Where(x => x.IsOut && !x.Dropped))
         {
@@ -140,7 +155,7 @@ public static class WorkerTripBuilder
         {
             foreach (var kv in m.ObjZone)
             {
-                if (kv.Value != zone || !kv.Key.StartsWith("pickup_") || !StopId.IsMatch(kv.Key)) continue;
+                if (kv.Value != zone || !kv.Key.StartsWith("pickup_", StringComparison.Ordinal) || !StopId.IsMatch(kv.Key)) continue;
                 if (!m.Events.TryGetValue(kv.Key, out var ev) || ev.Count == 0) continue;
                 var first = ev.Min(e => e.Time);
                 if (since.HasValue && first < since.Value) continue;   // pickups of an earlier set of missions do not count
@@ -167,7 +182,7 @@ public static class WorkerTripBuilder
     const string LeftMission = "~left";
 
     /// <summary>True for the objective of a pickup stop of a mission.</summary>
-    public static bool IsPickupStop(string objective) => objective.StartsWith("pickup_") && StopId.IsMatch(objective);
+    public static bool IsPickupStop(string objective) => objective.StartsWith("pickup_", StringComparison.Ordinal) && StopId.IsMatch(objective);
 
     /// <param name="plan">
     /// From plan.Since on there is no Assigned Worker. The worker of a pickup is the one the log shows unloading the cargo, else the one who handed
@@ -193,7 +208,7 @@ public static class WorkerTripBuilder
             bool LastDrop(DateTime at) => !several || dropStops.All(stop => m.Events.Any(kv => kv.Key.StartsWith(stop, StringComparison.Ordinal) && kv.Value.Any(e => e.State == "COMPLETED" && e.Time <= at)));
             foreach (var kv in m.Events)
             {
-                if (!kv.Key.StartsWith("dropoff_")) continue;
+                if (!kv.Key.StartsWith("dropoff_", StringComparison.Ordinal)) continue;
                 foreach (var e in kv.Value)
                 {
                     if (!LastDrop(e.Time)) continue;   // a parcel delivered, more aboard: the run goes on to the next drop-off
@@ -208,7 +223,7 @@ public static class WorkerTripBuilder
             }
             foreach (var kv in m.ObjZone)
             {
-                if (!kv.Key.StartsWith("pickup_") || !StopId.IsMatch(kv.Key)) continue;
+                if (!kv.Key.StartsWith("pickup_", StringComparison.Ordinal) || !StopId.IsMatch(kv.Key)) continue;
                 if (!m.Events.TryGetValue(kv.Key, out var ev) || ev.Count == 0) continue;
                 var first = ev.Min(e => e.Time);
                 string who;

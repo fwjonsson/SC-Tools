@@ -8,8 +8,8 @@ public static class SessionBuilder
     public static readonly TimeSpan ClockIdleLimit = TimeSpan.FromHours(1);
     static readonly Regex StopId = new(@"_\d+$", RegexOptions.Compiled);
 
-    static bool IsStop(string objective) => objective.StartsWith("pickup_") && StopId.IsMatch(objective);
-    static bool IsDrop(string objective) => objective.StartsWith("dropoff_");
+    static bool IsStop(string objective) => objective.StartsWith("pickup_", StringComparison.Ordinal) && StopId.IsMatch(objective);
+    static bool IsDrop(string objective) => objective.StartsWith("dropoff_", StringComparison.Ordinal);
 
     static DateTime MissionStart(Mission m) => m.Accepted ?? m.FirstSeen ?? DateTime.MinValue;
 
@@ -236,11 +236,11 @@ public static class SessionBuilder
     /// Is this objective a pickup stop of the mission whose cargo is picked up, as the planner counts it (any pickup signal, COMPLETED or INPROGRESS)? The
     /// map takes the objective off the map by this too, so the diamond goes when the planner credits the pickup.
     /// </summary>
-    public static bool PickedUp(Mission m, string objective) => IsStop(objective) && StopInfo(m, objective).State.StartsWith("loaded");
+    public static bool PickedUp(Mission m, string objective) => IsStop(objective) && StopInfo(m, objective).State.StartsWith("loaded", StringComparison.Ordinal);
 
     /// <summary>The pickup stops of a mission (their zone and whether the cargo there is picked up), in the order the game made them.</summary>
     public static List<(string Zone, bool PickedUp)> StopsOf(Mission m) =>
-        m.ObjZone.Where(kv => IsStop(kv.Key)).Select(kv => (kv.Value, StopInfo(m, kv.Key).State.StartsWith("loaded"))).ToList();
+        m.ObjZone.Where(kv => IsStop(kv.Key)).Select(kv => (kv.Value, StopInfo(m, kv.Key).State.StartsWith("loaded", StringComparison.Ordinal))).ToList();
 
     /// <summary>The zone of a mission's drop-off (its first drop-off objective), or null when the log has none.</summary>
     public static string? DropZoneOf(Mission m) => m.ObjZone.Where(kv => IsDrop(kv.Key)).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Value).FirstOrDefault();
@@ -299,11 +299,11 @@ public static class SessionBuilder
                 Stops2 = kv.Value.Count(i => i.Mission.Multi == 2),
                 Stops3 = kv.Value.Count(i => i.Mission.Multi == 3),
                 Stops4 = kv.Value.Count(i => i.Mission.Multi == 4),
-                Loaded = infos.Count(i => i.State.StartsWith("loaded")),
+                Loaded = infos.Count(i => i.State.StartsWith("loaded", StringComparison.Ordinal)),
                 Partial = infos.Count(i => i.State == "partial"),
                 Delivered = delivered.Count,
                 Missing = missing == null ? 0 : kv.Value.Count(i => missing.Contains(i.Mission.Id)),
-                OpenMissions = kv.Value.Where((i, k) => !infos[k].State.StartsWith("loaded")).Select(i => i.Mission).ToList(),
+                OpenMissions = kv.Value.Where((i, k) => !infos[k].State.StartsWith("loaded", StringComparison.Ordinal)).Select(i => i.Mission).ToList(),
                 StopMissions = kv.Value.Select(i => i.Mission).ToList(),
                 LoadedTime = lasts.Count > 0 ? lasts.Max() : (DateTime?)null,
                 DeliveredTime = delivered.Count == infos.Count && delivered.Count > 0 ? delivered.Max() : (DateTime?)null,

@@ -77,9 +77,7 @@ public sealed class Leaderboard
         var current = _s.Current;
         if (inp == null || current == null) return new List<StatLine>();
 
-        var carried = _payouts.ComputeCarried(current, inp);
-        var confirmed = _payouts.ComputeCarried(current, inp, CarryMode.Confirmed);
-        var failedNow = _payouts.ComputeCarried(current, inp, CarryMode.Failed);
+        var (carried, confirmed, failedNow) = _payouts.ComputeCarriedAll(current, inp);   // one build of the runs for the three
         var settled = _s.Summary?.End is DateTime lastActivity && DateTime.UtcNow - lastActivity > SettleTime;   // still running: the rest is only queued
 
         var hours = _figures.Elapsed()?.TotalSeconds ?? 0;

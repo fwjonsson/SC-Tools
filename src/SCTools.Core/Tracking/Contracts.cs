@@ -49,7 +49,7 @@ public sealed class Contracts
         // a hauling job of another kind (stage 4): its pickups as the map has them, with their SCU
         if (HaulJobs.IsJob(m) && HaulJobs.Open(_s).FirstOrDefault(j => j.Mission.Id == m.Id) is { } job) return HaulJobs.StopsText(job.Pickups);
         if (!m.IsOut) return string.Join(",  ", SessionBuilder.StopsOf(m).Select(s => _places.LocationName(s.Zone) + (s.PickedUp ? " ✓" : "")));
-        return string.Join(",  ", m.ObjZone.Where(kv => kv.Key.StartsWith("dropoff_")).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv =>
+        return string.Join(",  ", m.ObjZone.Where(kv => kv.Key.StartsWith("dropoff_", StringComparison.Ordinal)).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv =>
         {
             var scu = m.ObjScu.GetValueOrDefault(kv.Key);
             var delivered = m.Events.TryGetValue(kv.Key, out var ev) && ev.Any(e => e.State == "COMPLETED");

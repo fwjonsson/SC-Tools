@@ -174,12 +174,17 @@ function slideWave(w, now) {
   const shift = (now / 1000 * WAVE_SPEED) % WAVE_LEN;
   w.el.setAttribute('gradientTransform', 'translate(' + (w.ux * shift).toFixed(2) + ' ' + (w.uy * shift).toFixed(2) + ')');
 }
+// The loop runs only while there are waves to move on the tab shown: with none it rests (a loop that runs for nothing keeps the browser drawing 60 times
+// a second), and starts again when waves are drawn or the tab is shown (startWaves).
+let wavesRunning = false;
 function moveWaves(now) {
   const pm = planMaps[shownTab];   // the waves of the planner tab shown (each planner tab has a map of its own)
-  if (pm && pm.waves.length && !document.hidden) pm.waves.forEach(function (w) { slideWave(w, now); });
-  requestAnimationFrame(moveWaves);
+  if (pm && pm.waves.length && !document.hidden) {
+    pm.waves.forEach(function (w) { slideWave(w, now); });
+    requestAnimationFrame(moveWaves);
+  } else wavesRunning = false;
 }
-requestAnimationFrame(moveWaves);
+function startWaves() { if (!wavesRunning) { wavesRunning = true; requestAnimationFrame(moveWaves); } }
 
 let mapData = null, mapOff = false;   // the Map tool's Pyro (its players and objectives) fetched last; off: this page has no map.json (the program's own)
 const planMaps = {};   // the map of the planner tab (P: the Route Planner): its engine, how to draw the routes again, whose players it shows, its waves
@@ -262,6 +267,7 @@ function mapSvg(el, p, routes, names, tab) {
       }
       waves.push({ el: grad, ux: ux, uy: uy });
       slideWave(waves[waves.length - 1], performance.now());
+      startWaves();
       add('line', { x1: a[0] + ux * INSET, y1: a[1] + uy * INSET, x2: b[0] - ux * INSET, y2: b[1] - uy * INSET, stroke: 'url(#' + id + ')', 'stroke-width': width });
     }
     const n = routes.length;
@@ -686,6 +692,7 @@ function tabOf(name) {
 }
 function show(which) {
   shownTab = which;
+  startWaves();
   if (which === 'P' || which === 'S') refreshMap();   // the map's players (and the Session tab's Active Contracts) at once, not at the next poll
   HAVE.forEach(function (k) {
     document.getElementById('view' + k).classList.toggle('hidden', k !== which);
@@ -813,6 +820,6 @@ async function refresh() {
     live.textContent = '● connection lost, trying again'; live.className = 'live bad';
   }
 }
-document.addEventListener('visibilitychange', function () { if (!document.hidden) { refresh(); refreshMap(); refreshStatus(); tickClocks(); } });
+document.addEventListener('visibilitychange', function () { if (!document.hidden) { refresh(); refreshMap(); refreshStatus(); tickClocks(); startWaves(); } });
 refresh();
 setInterval(refresh, 3000);

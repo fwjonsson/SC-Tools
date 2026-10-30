@@ -302,6 +302,7 @@ var SystemMap = (function () {
       }
       Object.keys(meters).forEach(function (key) { if (meters[key].what.isConnected) bind(meters[key]); else delete meters[key]; });
       move();
+      wake();   // somebody in quantum: the loop moves him from now on
     }
 
     // The line and the speed meter of a player, by his name: what he does (describe) and, while he is in quantum, his speed every frame (Mm/s, in c, against
@@ -360,14 +361,18 @@ var SystemMap = (function () {
       m.unit.textContent = 'Mm/s · ' + (q.v / C).toFixed(2) + ' c · top ' + (q.p.top / 1e6).toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' Mm/s';
       m.fill.style.width = (pl.motion.v > 0 ? Math.min(100, q.v / pl.motion.v * 100) : 0).toFixed(1) + '%';
     }
-    let wasOnPage = false;
+    // The loop runs only while somebody is in quantum on a map that is shown: with nobody to move it rests (a loop that runs for nothing keeps the browser
+    // drawing 60 times a second), and every draw (every few seconds, and when the map is shown) wakes it again when there is somebody.
+    let wasOnPage = false, running = false;
     function loop() {
       if (box.isConnected) wasOnPage = true;
-      else if (wasOnPage) return;   // the box was taken off the page (the Trip Planner tab was drawn anew): this map is done
-      if (movers.length && !document.hidden && (!opts.active || opts.active())) move();
-      requestAnimationFrame(loop);
+      else if (wasOnPage) { running = false; return; }   // the box was taken off the page (the Trip Planner tab was drawn anew): this map is done
+      if (movers.length && !document.hidden && (!opts.active || opts.active())) {
+        move();
+        requestAnimationFrame(loop);
+      } else running = false;
     }
-    requestAnimationFrame(loop);
+    function wake() { if (!running && movers.length) { running = true; requestAnimationFrame(loop); } }
 
     return {
       show: show,

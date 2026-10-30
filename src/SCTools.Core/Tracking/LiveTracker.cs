@@ -12,6 +12,11 @@ public sealed class LiveTracker
     readonly WebSnapshotOptions _view;
     readonly string _run = Guid.NewGuid().ToString("N")[..8];   // this run of the server: an ETag from the run before never matches by chance
     int _version = -1;
+    long _autoPieces = -1;
+    DateTime _autoAt = DateTime.MinValue;
+
+    /// <summary>The party and the sessions are worked out from the logs again at least this often when nothing came in (else at every piece that does).</summary>
+    public static readonly TimeSpan AutoEvery = TimeSpan.FromSeconds(30);
     int _saves;   // how many times the tracker's data was saved (a change on a page, the plan crediting a pickup, a payout...)
     int _builtSaves = -1;
     JobBook? _builtJobs;
@@ -74,15 +79,22 @@ public sealed class LiveTracker
                 Show();
                 changed = true;
             }
-            if (FollowParty && Party(nowUtc))   // somebody came or went: the payouts and the runs are worked out again
+            var pieces = Uploads.Pieces;
+            var auto = changed || pieces != _autoPieces || nowUtc - _autoAt >= AutoEvery || nowUtc < _autoAt;
+            if (auto)
             {
-                Show();
-                changed = true;
-            }
-            if (FollowSessions && Sessions(nowUtc))   // a session started or stopped: the newest is shown
-            {
-                Show();
-                changed = true;
+                _autoPieces = pieces;
+                _autoAt = nowUtc;
+                if (FollowParty && Party(nowUtc))   // somebody came or went: the payouts and the runs are worked out again
+                {
+                    Show();
+                    changed = true;
+                }
+                if (FollowSessions && Sessions(nowUtc))   // a session started or stopped: the newest is shown
+                {
+                    Show();
+                    changed = true;
+                }
             }
             Tracker.Status.Advance(nowUtc);   // the status line has an address of its own (/hauling/status.json): it is no reason to make data.json again
             if (!changed)

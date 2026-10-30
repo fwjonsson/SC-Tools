@@ -35,6 +35,7 @@ public sealed class ViewTable
 {
     readonly ViewPalette _p;
     readonly ViewColumn[] _columns;
+    string? _back, _fore;   // the cells' colours as #rrggbb, made once per table
 
     public ViewTable(ViewPalette palette, params ViewColumn[] columns)
     {
@@ -52,12 +53,13 @@ public sealed class ViewTable
     /// </summary>
     public ViewRow Add(params string[] cells)
     {
-        var row = new ViewRow
-        {
-            Cells = cells,
-            Back = _columns.Select(_ => ViewPalette.Hex(_p.Calc)).ToArray(),
-            Fore = _columns.Select(_ => ViewPalette.Hex(_p.Text)).ToArray(),
-        };
+        _back ??= ViewPalette.Hex(_p.Calc);
+        _fore ??= ViewPalette.Hex(_p.Text);
+        var back = new string[_columns.Length];
+        var fore = new string[_columns.Length];
+        Array.Fill(back, _back);
+        Array.Fill(fore, _fore);
+        var row = new ViewRow { Cells = cells, Back = back, Fore = fore };
         Rows.Add(row);
         return row;
     }
