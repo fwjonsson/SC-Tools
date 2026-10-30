@@ -55,6 +55,7 @@ builder.Services.AddSingleton<FleetService>();
 builder.Services.AddSingleton<PartyService>();
 builder.Services.AddSingleton<MapPlaces>();
 builder.Services.AddSingleton<MapService>();
+builder.Services.AddSingleton<PlannerPositions>();
 builder.Services.AddSingleton<HistoryStore>();
 builder.Services.AddSingleton<MissionLibrary>();
 builder.Services.AddSingleton<WikiMissions>();

@@ -20,6 +20,29 @@ public class WhereaboutsTests
     }
 
     [Fact]
+    public void The_maps_place_counts_when_it_is_newer_than_what_the_planner_saw_him_do()
+    {
+        // the map and the planner learn from each other (Frank, 29 Oct 2026): the server gives the planner where the map has everybody (a crew member's jump
+        // through the pilot's log, a destination or an area named on Map places), and it counts when it is newer than his last pickup or delivery
+        var (t, _) = PlayedSession.Load();
+        var positions = new Dictionary<string, WorkerPosition>(StringComparer.OrdinalIgnoreCase);
+        t.State.Positions = positions;
+        positions[PlayedSession.Player] = new WorkerPosition(PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(10), null, null);
+        Assert.Equal(PlayedSession.PatchCity, t.Whereabouts.AutoLocationOf(PlayedSession.Player));
+        Assert.Equal((PlayedSession.PatchCity, false), t.Whereabouts.LocationOf(PlayedSession.Player));
+        positions[PlayedSession.Player] = new WorkerPosition(PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(-10), null, null);   // older than his pickup: the pickup wins
+        Assert.Equal(PlayedSession.Gaslight, t.Whereabouts.AutoLocationOf(PlayedSession.Player));
+        positions[PlayedSession.Player] = new WorkerPosition(null, null, PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(5));   // on his way, by the map
+        Assert.Equal(PlayedSession.PatchCity, t.Whereabouts.HeadingFor(PlayedSession.Player));
+        Assert.Equal(PlayedSession.Gaslight, t.Whereabouts.AutoLocationOf(PlayedSession.Player));
+        // a station set by hand gives way when the map sees him arrive somewhere after it
+        t.Whereabouts.SetLocation(PlayedSession.Player, PlayedSession.PatchCity);
+        Assert.Equal((PlayedSession.PatchCity, true), t.Whereabouts.LocationOf(PlayedSession.Player));
+        positions[PlayedSession.Player] = new WorkerPosition(PyroDistances.Ruin, DateTime.UtcNow.AddMinutes(1), null, null);
+        Assert.Equal((PyroDistances.Ruin, false), t.Whereabouts.LocationOf(PlayedSession.Player));
+    }
+
+    [Fact]
     public void A_station_set_by_hand_holds_until_the_logs_show_him_moving()
     {
         var setAt = PlayedSession.LastPickup.AddMinutes(1);

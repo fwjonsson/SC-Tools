@@ -282,7 +282,10 @@ admin (done), then going live.
   is "Off the grid: out of comm-array range" since then, with the last place the map had him at ("last ping at Levski"). A player the map has not
   placed yet has "No signal yet"; an area the map does not know (a mission's spot) leaves him where it had him (Frank, 29 Oct 2026: zzatvo
   fell to "No signal yet" at Ruin). The Hauling Planner's pickups, deliveries and hand-ins place a member of its party too (`Whereabouts.AutoLocationOf`,
-  `LastMoveOf`), when they are newer than anything his jumps say; his card says so ("the Hauling Planner"). The players' cards stand beside the map and
+  `LastMoveOf`), when they are newer than anything his jumps say; his card says so ("the Hauling Planner"). The other way too (Frank's list of 29 Oct 2026: the map and the planner learn from each other): every six
+  seconds the server gives the planner where the map has everybody (`PlannerPositions`, `TrackerState.Positions`), and a worker's Current location and
+  the station he is flying to take the map's place when it is newer than his last pickup or delivery (`Whereabouts`): a crew member's jumps through the
+  pilot's log, a destination or an area named on Map places, a mission's objective. The players' cards stand beside the map and
   the objectives beside them, three columns on a wide screen (Frank, 29 Oct 2026; under each other on a narrow one); an objective line says the place
   and who, not the mission. Under all three, from the map's left edge to the objectives' right edge, **Active missions**: every
   mission going on with who has it, its open objectives and the Mission Library's columns for its kind (faction, category, SCU, reward, scrip, XP,

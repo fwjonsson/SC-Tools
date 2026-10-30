@@ -258,6 +258,44 @@ public sealed class MapService
         return place != null && (system == null || place.System == system) ? place : null;
     }
 
+    /// <summary>Everybody playing (a game running, by the trackers' logs), with copies of his lists (the tracker adds to them meanwhile).</summary>
+    List<(HaulingLog Log, string Name, List<QtEvent> Qt, List<LocationSeen> Seen, List<MissionBeacon> Beacons, Dictionary<string, Mission> Missions)> Playing(DateTime nowUtc)
+    {
+        var games = _uploads.Games();
+        List<HaulingLog> logs;
+        lock (_uploads.Sync) logs = _uploads.Logs.ToList();
+        var playing = new List<(HaulingLog Log, string Name, List<QtEvent> Qt, List<LocationSeen> Seen, List<MissionBeacon> Beacons, Dictionary<string, Mission> Missions)>();
+        foreach (var log in logs)
+        {
+            var name = log.Player ?? log.Uploader;
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (!(games.TryGetValue(log.Uploader ?? name, out var runs) && runs.Any(r => !r.Quit && nowUtc - r.Run.Last < AutoParty.Quiet))) continue;
+            lock (_uploads.Sync) playing.Add((log, name, log.Qt.ToList(), log.Locations.ToList(), log.Beacons.ToList(), new Dictionary<string, Mission>(log.Missions)));
+        }
+        return playing;
+    }
+
+    /// <summary>
+    /// Where the map has everybody playing, for the Hauling Planner (TrackerState.Positions, pushed by PlannerPositions): the place he is at and since when, and
+    /// the one he is flying to and since when he picked it, as the planner's stations (null for a place that is not one of them). From the jumps alone (a crew
+    /// member's through the pilot's log, WithPilots), the areas and the mission objectives: not from the planner's own pickups and deliveries, which it knows
+    /// itself (and which the map takes from it in Snapshot).
+    /// </summary>
+    public Dictionary<string, WorkerPosition> PlannerPositions(DateTime nowUtc)
+    {
+        var atlas = _places.Atlas;
+        var playing = Playing(nowUtc);
+        var positions = new Dictionary<string, WorkerPosition>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in playing)
+        {
+            var others = playing.Where(o => !ReferenceEquals(o.Log, p.Log)).Select(o => (IReadOnlyList<QtEvent>)o.Qt).ToList();
+            var points = Points(p.Beacons.Where(b => b.Time >= nowUtc - MissionAge), p.Missions, m => m.Title ?? "A mission", atlas);
+            var w = Follow(WithPilots(p.Qt, others), atlas, null, p.Seen, points);
+            positions[p.Name] = new WorkerPosition(StarMap.PyroStationIdOf(w.At), w.At != null ? w.Since : null, StarMap.PyroStationIdOf(w.To), w.To != null ? w.Picked?.Time : null);
+        }
+        return positions;
+    }
+
     /// <summary>Everything the page draws, now: the systems (one of them when system is given: the Trip Planner's Pyro), the players, the objectives, the missions.</summary>
     public object Snapshot(DateTime nowUtc, string? system = null)
     {
@@ -269,18 +307,7 @@ public sealed class MapService
         var placed = new Dictionary<(string, string), MapObjective>();
         var unplaced = 0;
         var going = new Dictionary<string, GoingMission>(StringComparer.OrdinalIgnoreCase);   // the missions going on, by id (shared: once), for the table under the map
-        List<HaulingLog> logs;
-        lock (_uploads.Sync) logs = _uploads.Logs.ToList();
-
-        // everybody playing, with copies of his lists (the tracker adds to them meanwhile)
-        var playing = new List<(HaulingLog Log, string Name, List<QtEvent> Qt, List<LocationSeen> Seen, List<MissionBeacon> Beacons, Dictionary<string, Mission> Missions)>();
-        foreach (var log in logs)
-        {
-            var name = log.Player ?? log.Uploader;
-            if (string.IsNullOrWhiteSpace(name)) continue;
-            if (!(games.TryGetValue(log.Uploader ?? name, out var runs) && runs.Any(r => !r.Quit && nowUtc - r.Run.Last < AutoParty.Quiet))) continue;
-            lock (_uploads.Sync) playing.Add((log, name, log.Qt.ToList(), log.Locations.ToList(), log.Beacons.ToList(), new Dictionary<string, Mission>(log.Missions)));
-        }
+        var playing = Playing(nowUtc);
 
         // an objective one holder's log says is done is done for everybody with the mission (a shared contract's pickup is credited once; the Hauling Planner
         // reads the logs merged the same way), whichever log the map happens to place it from
