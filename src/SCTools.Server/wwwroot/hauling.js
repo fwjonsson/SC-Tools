@@ -541,7 +541,6 @@ show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash)
 let partyText = '';   // whose session is shown, for the Session and Contracts tabs
 let partyShown = null;   // the admin's pick: the leader of the party shown, '' for All
 function partyView() {
-  const el = document.getElementById('partyNote');
   const pick = document.getElementById('partyPick');
   const parties = last.parties || [];
   const several = parties.length > 1;
@@ -570,9 +569,7 @@ function partyView() {
       : shown ? 'Your party: ' + shown.title + ' (' + shown.names.join(', ') + ')' + (shown.playing === false ? ', not playing now' : '') + '. The others haul in this session too.'
       : 'All parties together: ' + parties.map(function (p) { return p.title; }).join(', ') + (ME ? ' (you are in none of them).' : ' (log in to see your own).');
   }
-  el.textContent = partyText;
-  el.classList.toggle('hidden', partyText === '');
-  return shown ? shown.view : last;
+  return shown ? shown.view : last;   // the line saying whose session went from the Session tab (Frank, 30 Oct 2026); the Contracts tab still says whose
 }
 
 // ------------------------------------------------------------------ the SCU field of the Other hauling board
