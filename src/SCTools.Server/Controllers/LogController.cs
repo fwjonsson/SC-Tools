@@ -13,7 +13,8 @@ public sealed record LogPiece(string File, long From, long To, List<string>? Lin
 public sealed record HistoryList(List<string>? Files);
 
 /// <summary>A piece of an old log (HistorySender): its lines from line number From on; the last piece is Done, with the time of the log's last line and its build.</summary>
-public sealed record HistoryPiece(string File, long From, List<string>? Lines, bool Done, DateTime? Last = null, string? Build = null);
+/// <param name="Version">the tracker's HistorySender.Version: what kinds of lines it sends (a tracker from before 31 Oct 2026 says none: 2)</param>
+public sealed record HistoryPiece(string File, long From, List<string>? Lines, bool Done, DateTime? Last = null, string? Build = null, int? Version = null);
 
 /// <summary>
 /// Where the trackers upload their logs. Every request has the tracker's key in the X-Tracker-Key header: it says whose log it is. A tracker asks how far a
@@ -92,7 +93,8 @@ public sealed class LogController : ControllerBase
         if (string.IsNullOrWhiteSpace(piece.File) || piece.From < 0) return BadRequest();
         try
         {
-            var result = _history.Add(player, piece.File, piece.From, piece.Lines ?? new List<string>(), piece.Done, piece.Last?.ToUniversalTime(), piece.Build, DateTime.UtcNow);
+            var result = _history.Add(player, piece.File, piece.From, piece.Lines ?? new List<string>(), piece.Done, piece.Last?.ToUniversalTime(), piece.Build, DateTime.UtcNow,
+                piece.Version ?? 2);
             return result.Ok ? Ok(new { at = result.At }) : Conflict(new { at = result.At });
         }
         catch (ArgumentException)

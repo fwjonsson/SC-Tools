@@ -30,8 +30,9 @@ public class HistoryTests
         return JsonDocument.Parse(await r.Content.ReadAsStringAsync()).RootElement.GetProperty("missing").EnumerateArray().Select(e => e.GetString()!).ToArray();
     }
 
-    static Task<HttpResponseMessage> Piece(HttpClient tracker, string file, long from, string[] lines, bool done, string? last = null, string? build = null) =>
-        tracker.PostAsJsonAsync("/api/history", new { file, from, lines, done, last, build });
+    static Task<HttpResponseMessage> Piece(HttpClient tracker, string file, long from, string[] lines, bool done, string? last = null, string? build = null,
+        int? version = HistorySender.Version) =>
+        tracker.PostAsJsonAsync("/api/history", new { file, from, lines, done, last, build, version });
 
     [Fact]
     public async Task An_old_log_is_sent_once_and_its_gauntlet_runs_are_kept()
@@ -54,6 +55,25 @@ public class HistoryTests
         var run = Assert.Single(f.Services.GetRequiredService<GauntletService>().Runs("zzoega"));   // in the database, for the Gauntlet Tracker
         Assert.Equal((7, 300.0), (run.Scenario, run.TimingSec!.Value));
         Assert.Empty(f.Live.Uploads.Logs);   // not a live log: the Hauling Planner never sees it
+    }
+
+    [Fact]
+    public async Task An_old_log_a_tracker_sent_before_it_updated_is_asked_for_again()
+    {
+        // the server reads more of the old logs since 31 Oct 2026 (what a mission paid): a tracker that did not update yet says no version, so what it
+        // sends is kept and asked for again once it has; an updated one sends it once
+        using var f = new ServerFactory();
+        var tracker = f.Tracker(f.AddKey("zzoega"));
+        var lines = Gauntlet("zzoega");
+        Assert.Equal(HttpStatusCode.OK, (await Piece(tracker, Day1, 0, lines, true, version: null)).StatusCode);
+        Assert.Equal(2, Assert.Single(f.Services.GetRequiredService<HistoryStore>().Files("zzoega")).Version);
+        Assert.Equal(new[] { Day1 }, await Missing(tracker, Day1));
+        var paid = lines.Append("<2026-09-30T18:05:10.600Z> [Notice] <SHUDEvent_OnNotification> Added notification \"You've Earned: 16 Rewards").ToArray();
+        Assert.Equal(HttpStatusCode.OK, (await Piece(tracker, Day1, 0, paid, true)).StatusCode);   // the updated tracker sends the reward line too
+        Assert.Empty(await Missing(tracker, Day1));
+        Assert.Single(f.Services.GetRequiredService<GauntletService>().Runs("zzoega"));   // read twice, kept once
+        var contract = f.Services.GetRequiredService<ContractTracker>().Of(new[] { Id })[Id];
+        Assert.Equal(16, contract.HolderOf("zzoega")!.Rewards);   // the old contract knows what it paid him
     }
 
     [Fact]

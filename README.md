@@ -206,7 +206,9 @@ admin (done), then going live.
   whole lines (`api/history`). The server keeps them apart from the live logs, so the Hauling Planner never sees them: their lines in `/var/lib/sctools/history`
   (gzip, a folder per player) and a row per log in `LogFiles` (when the game ran, its build); the Gauntlet runs in them go to the database at once
   (`HistoryStore`). A log of another player on the same PC is noted ("zzatvo's game") and not read. When the tracker reads more kinds of lines,
-  `HistorySender.Version` goes up and the server asks for every log again. The tracker's menu says how far it is ("Old logs: sending 3 of 140"), its
+  `HistorySender.Version` goes up and the server asks for every log again (3 since 31 Oct 2026: the "You've Earned" lines, so the old contracts
+  get them too). The tracker says its version with every piece and the server keeps the log at that version, so a tracker that did not update yet is
+  asked again once it has. The tracker's menu says how far it is ("Old logs: sending 3 of 140"), its
   version (up to date, or updating), and **Check for an update now**; after an update it says "Updated to version ...".
 - **SCTools.Server** keeps the uploads (one log per player, also on disk, so a restart reads them again), works the session out every two seconds
   with the core's logic, and serves the Hauling Planner's page to everybody. The two-second refresh makes `data.json` anew only when something in it can
@@ -445,8 +447,8 @@ admin (done), then going live.
   their ids: `MissionMember`) and the game's "You've Earned: N Rewards" right after he completed it. A reward line with the scrip's amount says who got
   the scrip, whoever took it; a holder whose own log never says how it ended (it ends with a crash, or is not on the server) left it when another
   holder's log saw him leave before that one's completion; and the shares are in the order one log saw them all join (one clock: the taker's), else
-  by the time from accept to completion. The old logs on the server are read once more for the ids and the joins (`HistoryReadVersion` 4); the
-  reward lines come from the trackers from their update with this on. A player's combined accounts are added up where a tool shows his totals
+  by the time from accept to completion. The old logs on the server are read once more for the ids and the joins (`HistoryReadVersion` 4), and
+  every tracker sends its old logs once more with the reward lines (`HistorySender.Version` 3), so the old contracts' scrip comes out right too. A player's combined accounts are added up where a tool shows his totals
   (the Companion, the Gauntlet leaderboard). It is asked by the Session tool and the Companion (`ContractTracker.Earned`), the Gauntlet Tracker (each
   run's part, `GauntletRun.Paid`) and the Hauling Planner's payouts (`Payouts.ComputePayouts` picks who is paid with `ContractSplit.PlannerPayees`).
   Worked out again on every question, so a reward typed in later counts for the past. The tests `tests/SCTools.Tests/ContractTracking` show what every

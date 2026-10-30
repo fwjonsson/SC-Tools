@@ -38,8 +38,12 @@ public sealed class HistoryStore
         }
     }
 
-    /// <summary>A piece of an old log: its lines from line number from on. The last piece reads the whole log and keeps it.</summary>
-    public UploadResult Add(string player, string file, long from, IReadOnlyList<string> lines, bool done, DateTime? last, string? build, DateTime nowUtc)
+    /// <summary>
+    /// A piece of an old log: its lines from line number from on. The last piece reads the whole log and keeps it, at the version the tracker sent it with
+    /// (HistorySender.Version: an older tracker's is asked for again once it has updated).
+    /// </summary>
+    public UploadResult Add(string player, string file, long from, IReadOnlyList<string> lines, bool done, DateTime? last, string? build, DateTime nowUtc,
+        int version = HistorySender.Version)
     {
         if (!DateTime.TryParse(file, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var start))
             throw new ArgumentException("An old log is named by the time of its first line.", nameof(file));
@@ -70,7 +74,7 @@ public sealed class HistoryStore
             using var db = _store.Open();
             var row = db.LogFiles.Find(player, file);
             if (row == null) db.LogFiles.Add(row = new LogFileRow { Player = player, File = file });
-            row.Version = HistorySender.Version;
+            row.Version = Math.Min(version, HistorySender.Version);
             row.StartUtc = DateTime.SpecifyKind(start, DateTimeKind.Utc);
             row.EndUtc = (last ?? log.LastLine)?.ToUniversalTime();
             row.Build = build;

@@ -199,7 +199,7 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       line kind: its first line has no "Mission" in it), and the library keeps every player's id in the game and what his log said about the others
       ("PlayerJoined", "PlayerLeft"). A reward line with the scrip's amount says who got the scrip; a holder whose own log is silent left when another
       log saw him leave before the payout; the shares are in the order one log saw them join. The old logs already on the server have the joins and
-      leaves (read once more), not the reward lines (the trackers never sent them; sending every old log again would bring them).
+      leaves (read once more); the reward lines come with every old log, which every tracker sends once more (Frank: "so the statistics is correct").
     - Still to look at: the Gauntlet Tracker times a shared run for everybody who accepted it (the one who got the share has an accept line too), so
       the timings and the Top 10 count a shared run once per member; and which member a party's Top 10 names for it is not sure to be the taker.
 
