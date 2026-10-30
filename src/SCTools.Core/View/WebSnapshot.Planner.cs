@@ -6,7 +6,7 @@ public sealed partial class WebSnapshot
     object Planner()
     {
         var plan = _t.Plan.GetPlan();
-        var widest = 0;   // the Deliver/Collect column as wide as its longest text needs (like in the program), so a line does not wrap
+        var widest = 0;   // the Job column as wide as its longest text needs (like in the program), so a line does not wrap
 
         // a tick stays with the word before it (" ✓" never starts a line of its own)
         static string[] Keep(string[] cells) => cells.Select(c => c.Replace(" ✓", " ✓")).ToArray();

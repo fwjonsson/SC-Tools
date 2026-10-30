@@ -8,7 +8,7 @@ public static class PlanText
     /// <summary>The columns of the Current Route table, in the order of the cells of LineCells and LineTotals: the header and where the text sits.</summary>
     public static readonly IReadOnlyList<(string Header, string Align)> CurrentColumns = new[]
     {
-        ("#", "center"), ("Stops", "left"), ("Collect/Deliver", "left"), ("SCU", "right"), ("Boxes", "left"), ("Value", "right"), ("Distance", "right"), ("In flight", "right"),
+        ("#", "center"), ("Stops", "left"), ("Job", "left"), ("SCU", "right"), ("Boxes", "left"), ("Value", "right"), ("Distance", "right"), ("In flight", "right"),
     };
 
     /// <summary>The columns of the Queued routes table, in the order of the cells of QueuedCells and PlanTotals.</summary>
