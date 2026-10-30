@@ -161,7 +161,7 @@ public sealed class PlanService
                 if (first < since) continue;
                 var key = m.Id + "|" + kv.Key;
                 if (_state.Inputs.PickupClaims.ContainsKey(key)) continue;
-                if (WorkerTripBuilder.ActorAt(_state.Log, true, first, m.Holders) != null) continue;   // a log shows who it was
+                if (WorkerTripBuilder.ActorAt(_state.Log, true, first, m.Holders, _places.StationOf(kv.Value)) != null) continue;   // a log shows who it was
                 var station = _places.StationOf(kv.Value);
                 if (station == null) continue;
                 fresh.Add((key, station, first));
