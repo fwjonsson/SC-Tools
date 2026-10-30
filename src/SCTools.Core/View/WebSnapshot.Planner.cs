@@ -75,8 +75,6 @@ public sealed partial class WebSnapshot
             tripEnd = _o.TripEnd,   // where the Submit button of a Current Route goes (the site); nothing: no button
             summary = plan.Summary,
             note = plan.Note,
-            status = _t.Status.Text,
-            statusKey = _t.Status.Seq,
             palette = ViewPalette.MapPalette.Select(ViewPalette.Hex).ToArray(),
             // the map: every system as the map engine draws it (the same places as the Map tool), and every place the routes and the workers touch, with its key
             // on the map and its system (stage 2: a route may cross a gateway; the page draws each system's part on that system's tab)

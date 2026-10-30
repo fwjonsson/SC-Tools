@@ -14,8 +14,6 @@ public sealed class LiveTracker
     int _version = -1;
     int _saves;   // how many times the tracker's data was saved (a change on a page, the plan crediting a pickup, a payout...)
     int _builtSaves = -1;
-    int _builtStatusSeq = -1;
-    string _builtStatusText = "";
     JobBook? _builtJobs;
     IReadOnlyDictionary<string, WorkerPosition>? _builtPositions;   // the map's places data.json was made with (PlannerPositions on the server)
     DateTime _builtAt = DateTime.MinValue;
@@ -86,11 +84,10 @@ public sealed class LiveTracker
                 Show();
                 changed = true;
             }
-            Tracker.Status.Advance(nowUtc);
-            var status = Tracker.Status;
+            Tracker.Status.Advance(nowUtc);   // the status line has an address of its own (/hauling/status.json): it is no reason to make data.json again
             if (!changed)
             {
-                changed = _saves != _builtSaves || status.Seq != _builtStatusSeq || status.Text != _builtStatusText
+                changed = _saves != _builtSaves
                     || !ReferenceEquals(Tracker.State.Jobs, _builtJobs) || !ReferenceEquals(Tracker.State.Positions, _builtPositions) || nowUtc - _builtAt >= MaxAge;
             }
             if (changed) Build(nowUtc);
@@ -106,8 +103,6 @@ public sealed class LiveTracker
         var json = WebSnapshot.Json(Tracker, _view);
         _builds++;
         _builtSaves = _saves;
-        _builtStatusSeq = Tracker.Status.Seq;
-        _builtStatusText = Tracker.Status.Text;
         _builtJobs = Tracker.State.Jobs;
         _builtPositions = Tracker.State.Positions;
         _builtAt = nowUtc;

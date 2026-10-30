@@ -136,6 +136,9 @@ public sealed partial class WebSnapshot
 
     /// <summary>The Session table: start, session time (counting up while the clocks run), batches, missions, earned and per hour.</summary>
     /// <summary>A time for the page's clocks ("2026-10-30T20:15:00.0000000Z"): UTC, so the browser's clock can count up from it.</summary>
+    /// <summary>A time without the part of a second: a clock's start worked out from "now" is then the same each time data.json is made.</summary>
+    static DateTime ToSecond(DateTime utc) => new(utc.Ticks - utc.Ticks % TimeSpan.TicksPerSecond, utc.Kind);
+
     static string Iso(DateTime utc) => DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToString("O", CultureInfo.InvariantCulture);
 
     object[] Summary()
@@ -149,7 +152,7 @@ public sealed partial class WebSnapshot
         return new[]
         {
             Item("Start Time", _s.Inputs.Start ?? FormatTime(_s.Summary.Start)),
-            Item("Session Time", elapsed.HasValue ? LongDuration(elapsed.Value) : "", elapsed.HasValue && !_s.Current.Stop.HasValue && _s.ClocksRunning ? Iso(DateTime.UtcNow - elapsed.Value) : null),
+            Item("Session Time", elapsed.HasValue ? LongDuration(elapsed.Value) : "", elapsed.HasValue && !_s.Current.Stop.HasValue && _s.ClocksRunning ? Iso(ToSecond(DateTime.UtcNow - elapsed.Value)) : null),
             Item("Batches Delivered", _t.Figures.BatchesText()),
             Item("Active Missions", _t.Figures.ActiveText()),
             Item("Missions Completed", _t.Figures.CompletedText()),

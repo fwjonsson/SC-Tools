@@ -83,6 +83,20 @@ public class LiveTrackerTests
     }
 
     [Fact]
+    public void A_new_status_line_alone_does_not_make_data_json_again()
+    {
+        var uploads = new LogUploads();
+        var live = new LiveTracker(PlayedSession.Data(), _ => { }, uploads);
+        uploads.Add(PlayedSession.Player, "f", 0, 100, PlayedSession.Writer().Lines.ToList());
+        var now = DateTime.UtcNow;
+        live.Refresh(now);
+        var made = live.Snapshot;
+        // the status line moves on every few seconds (a new line, and clock lines like "has spent 12m 04s on this trip"); nothing else changes
+        for (var s = 2; s < 28; s += 2) live.Refresh(now.AddSeconds(s));
+        Assert.Same(made, live.Snapshot);
+    }
+
+    [Fact]
     public void Data_json_is_made_anew_when_something_comes_in_and_after_half_a_minute()
     {
         var uploads = new LogUploads();
