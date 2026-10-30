@@ -357,10 +357,13 @@ admin (done), then going live.
 - **The Gauntlet Tracker** (`/gauntlet`, `Gauntlet/` in the core, `GauntletService`) reads Gilly's Combat Gauntlet from the uploaded logs and keeps
   every run in the database. **Session**, **Stats** and **History** are the viewer's in-game party's (everybody in it now, from the logs, `PartyService`;
   alone or not playing: his own runs; Frank, 29 Oct 2026): the game session from the first of the party's games, one grind session for the party
-  (`GauntletService.GrindSessions` of several players), the times by scenario with a top 10 that says whose run it is, and on History the lifetime
-  totals and the **Earnings ranking** (total aUEC per hour at the average time, the MG scrip per hour alone, at the fastest time, lifetime earned). A
+  (`GauntletService.GrindSessions` of several players; the game session and the grind session side by side on Session, together as wide as the wide
+  tables, Frank, 30 Oct 2026), and on **Stats** the **Earnings** (the lifetime totals; top left), the top 10 fastest of a scenario, which says whose
+  run it is (top right), the **Earnings per scenario** (total aUEC per hour at the average time, the MG scrip per hour alone, at the fastest time,
+  lifetime earned; "Earnings ranking" on History until 30 Oct 2026) and the times by scenario. **History** has the earlier grind sessions (on Session
+  until then). A
   mission shared in the party is in every member's log and counts for each (the game pays each), as on the leaderboard; only the one who accepted it
-  has its start, so it is timed once. The old address `/gauntlet/ranking` goes to History. The **Leaderboard** is everybody's: total earned, aUEC,
+  has its start, so it is timed once. The old address `/gauntlet/ranking` goes to Stats. The **Leaderboard** ("All-time leaderboard") is everybody's: total earned, aUEC,
   MG scrip, total aUEC per hour over the timed runs, completed and completion rate, fastest run, favourite and best scenario, last played. The rewards
   are the same for everybody: the Mission Library's "Combat Gauntlet - Scenario #n", typed on Edit Mission Info (the admin's Gauntlet page and his
   Contracts page went on 29 Oct 2026).

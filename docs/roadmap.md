@@ -57,7 +57,9 @@ All the tools track at the same time, all the time. The tracking runs on the ser
    runs, completion rate, fastest run, favourite and best scenario, last played). Rewards from the Mission Library (typed on Edit Mission Info; the
    admin's `/admin/gauntlet` page went on 29 Oct, with his Contracts page). Top 10 fastest: picking a scenario shows it at once (no Show button). Since 29 Oct (Frank): the Session, Stats and History tabs are
    the viewer's in-game party's runs together (alone: his own); the Earnings ranking tab is **History**, with the lifetime totals moved there from
-   Session and a Scrip/h column in the ranking.
+   Session and a Scrip/h column in the ranking. Since 30 Oct 2026 (Frank): Stats has the Earnings (the lifetime totals) and the Top 10 side by side,
+   the Earnings per scenario (the ranking) and the times under them; History has the earlier grind sessions; Session has the game session and the
+   grind session side by side; the Leaderboard is titled "All-time leaderboard"; every wide table takes the whole band.
 5. **Party tool** (`/party`, PR #241): who is playing in which in-game party with the ship each one flies, everybody else with when they were last
    seen, and a page per player. `PartyService` keeps the site's party in one place for every tool. Since 29 Oct not a card on the landing page: a
    **Party** button beside the name in the top bar, with a panel (fetched when it opens) of the parties as tables like the Hauling Planner's old
