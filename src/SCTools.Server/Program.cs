@@ -15,9 +15,8 @@ using Microsoft.Extensions.Options;
 // with a password, a player with his tracker; the pages to change things are MVC (Controllers, Models, Views).
 var builder = WebApplication.CreateBuilder(args);
 
-// the settings ("SCTools" in appsettings.json, the user secrets or the environment: SCTools__Database...), read when the server is built. The names from
-// before the rename (HaulingTracker__Database...) are read first, so a server whose settings still have them works the same.
-builder.Services.Configure<ServerSettings>(builder.Configuration.GetSection("HaulingTracker"));
+// the settings ("SCTools" in appsettings.json, the user secrets or the environment: SCTools__Database...), read when the server is built (the names from
+// before the rename, HaulingTracker__..., are not read any more since 30 Oct 2026)
 builder.Services.Configure<ServerSettings>(builder.Configuration.GetSection("SCTools"));
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<ServerSettings>>().Value);
 builder.Services.AddSingleton<ServerPaths>();
@@ -122,7 +121,6 @@ using (var scope = app.Services.CreateScope())
 
 // behind the Cloudflare tunnel the page is https: the tunnel says so, and the login cookie is then only sent over https
 app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto });
-app.UseOldAddresses(settings);   // haulingtracker and sct.fwjonsson.dev: the same page at sc-tools.fwjonsson.dev (the trackers' uploads are still taken)
 app.UseStaticFiles(new StaticFileOptions
 {
     // every page links its scripts and styles with their version in the address (asp-append-version: ?v=...), so a browser may keep them for a year and a

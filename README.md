@@ -343,9 +343,9 @@ admin (done), then going live.
 - **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with the title over a screenshot of the crew's ship and a link for every tool (`/`, `Views/Home`); the Hauling Planner's page is at
   `/hauling`, every tab at an address of its own (`/hauling/session`, `/hauling/planner`, `/hauling/debts`, `/hauling/history`, `/hauling/leaderboard`; the program's own page
   keeps them after a #, and the old `#plan` links still work; the live page's tables keep to 1,900 px in the middle of an ultrawide screen, with the bar at the top
-  from edge to edge as on every page). The old addresses `haulingtracker.fwjonsson.dev` and `sct.fwjonsson.dev` send every page to the same page at the site for good (301, `OldAddress`), so there is one
-  site and one login. Only the uploads of trackers that have not updated yet (`api/...`) are still taken there; once every tracker has updated itself, the
-  old addresses are removed from the Cloudflare tunnel (and from `OldHosts` in the server's settings). The plan of the tools is `claude/sc-tools-roadmap.md` in the
+  from edge to edge as on every page). The old addresses `haulingtracker.fwjonsson.dev` and `sct.fwjonsson.dev` are gone (Frank took them
+  out of the Cloudflare tunnel; their redirect went from the server on 30 Oct 2026, #375): one site, one login. A tracker that still has an old address
+  saved moves to the site's by itself (`SiteAddress`). The plan of the tools is `claude/sc-tools-roadmap.md` in the
   project. The landing page (Frank, 30 Oct 2026, his pick of five mock-ups) has the title and the slogan centred over a screenshot of the crew's ship
   in space (`wwwroot/img/landing.jpg`, a shade over it so the text reads) and under them a row of links to the tools in the order of the bar, each with
   a dot in the tool's colour and "Only you see this" on the admin's hidden ones; the mouse over a link opens a panel with what the tool does and how
