@@ -30,8 +30,8 @@ became a site with several Star Citizen tools (one server, one tracker on every 
 All the tools track at the same time, all the time. The tracking runs on the server from what the trackers upload, not in the browser page.
 
 1. **Hauling Planner**: live at `/hauling`, with automatic parties and automatic sessions per party (#238, #239). Its contract rewards live in the
-   Mission Library. Since #266 it is the one hauling app: the Other hauling board (every system) is on its Session tab with the hauler's SCU field in
-   it; `/hauling/jobs` just goes to `/hauling`. The Contracts table was a tab of its own (#269) until 30 Oct 2026, when Frank put it back on the Session
+   Mission Library. Since #266 it is the one hauling app: the hauling of every system is in it (an Other hauling board on the Session tab until 30 Oct
+   2026, rows of the Stops board since, with the SCU typed on the Current Route); `/hauling/jobs` just goes to `/hauling`. The Contracts table was a tab of its own (#269) until 30 Oct 2026, when Frank put it back on the Session
    tab under the stops (over the whole width) and gave the two leaderboards a Leaderboard tab of their own.
 2. **Session tool** (`/session`, PR #233): playtime kept for good (`LogFiles`: old logs and live games), totals today / this week / this month / all
    time, games, crashes (no SystemQuit line), a live clock, and what the completed missions earned at the Mission Library's rewards (worked out again
@@ -123,8 +123,10 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       old planner, the second tab, the switches and `FreeLockedTrips` went.
     - **Frank's rules of 30 Oct, evening**: the first stop
       of a trip is fixed, its batch count and the other kept stops are soft (a kept stop gives way for a landing saved or a fuller ship, a third of a
-      landing as the penalty); a landing counts 20 minutes; the flying a tenth. Left: the SCU field on the Stops board (the Other hauling board stays),
-      several pickups to several drop-offs.
+      landing as the penalty); a landing counts 20 minutes; the flying a tenth.
+    - **The Other hauling board goes** (30 Oct, evening): the jobs are rows of the Stops board, and the SCU of a job's drop-off is typed in the SCU column
+      of the Current Route like a load from Ruin (the job has it, the boxes follow, the library gets the suggestion). Left: several pickups to several
+      drop-offs.
     - **Stage 2 of the design, interstellar legs** (30 Oct): `StarRoutes` gives the way between any two places of the map, through the gateways between
       systems with a 3.4 minute crossing; the planner without a hub plans the Other hauling board's jobs whose stops the map has places for (a parcel per
       pickup or per drop-off; Frank's Covalex mission from Stanton to Pyro) with the Pyro contracts, starts a worker where the map has him in any system,

@@ -9,12 +9,6 @@ public sealed class WebSnapshotOptions
     public bool Dark { get; init; } = true;
     public Func<string, int>? MeasureBold { get; init; }
 
-    /// <summary>
-    /// Where the SCU field of the Other hauling board sends what a hauler typed in for a mission (the server's address); the program has none, so its page
-    /// shows the SCU without the field.
-    /// </summary>
-    public string? JobsScu { get; init; }
-
     /// <summary>Where the Payment tick of a money transfer on the Debts tab goes (the server's address): the one who sent the money ticks it. The program has none.</summary>
     public string? DebtsPay { get; init; }
 
@@ -58,7 +52,6 @@ public sealed partial class WebSnapshot
     object Build()
     {
         var runs = RunsTables();
-        var jobs = JobsBoard();
         return new
         {
             updated = DateTime.Now.ToString("HH:mm:ss", CultureInfo.CurrentCulture),
@@ -74,9 +67,6 @@ public sealed partial class WebSnapshot
             summary = Summary(),
             rewards = Rewards(),
             pickups = Stops(),
-            jobs = jobs.Table,
-            jobsEdit = jobs.Edits,
-            jobsScu = _o.JobsScu,
             finished = Finished(),
             leaders = SessionLeaders(),
             runs = runs.Full,
@@ -117,7 +107,6 @@ public sealed partial class WebSnapshot
             if (groups.Count == 1) return (object)new { title = g.Title, leader = g.Leader, names = g.Names, playing = x.Playing };   // the whole session is theirs
             using var focus = _t.Focus(g.Names);
             var runs = RunsTables();
-            var jobs = JobsBoard();
             return new
             {
                 title = g.Title,
@@ -130,8 +119,6 @@ public sealed partial class WebSnapshot
                     summary = Summary(),
                     rewards = Rewards(),
                     pickups = Stops(),
-                    jobs = jobs.Table,
-                    jobsEdit = jobs.Edits,
                     finished = Finished(),
                     leaders = SessionLeaders(),
                     runs = runs.Full,
@@ -231,37 +218,6 @@ public sealed partial class WebSnapshot
             }
         }
         return r.DropName;
-    }
-
-    /// <summary>
-    /// The Other hauling board: the hauling jobs of every system the party has going (not the planner's own contracts; see HaulJobs), with who has each, its
-    /// pickups and drop-offs (✓ = done), its SCU and where that comes from, and what the Mission Library says it pays (else the Star Citizen Wiki). With a
-    /// party picked, only theirs. Edits: for every row, what its SCU field needs (the mission, the hauler's number for it, and without that the SCU it has and
-    /// from where); a row the game gave the SCU of has no field.
-    /// </summary>
-    (ViewTable Table, object[] Edits) JobsBoard()
-    {
-        var table = new ViewTable(_p,
-            new ViewColumn("Mission", "left"), new ViewColumn("Who", "left"), new ViewColumn("Pick up", "left"), new ViewColumn("Deliver to", "left"),
-            new ViewColumn("SCU", "right"), new ViewColumn("Value", "right"));
-        var edits = new List<object>();
-        static string N(double v) => ((long)Math.Round(v)).ToString("N0", CultureInfo.InvariantCulture);
-        foreach (var j in HaulJobs.Open(_s).Where(j => _s.Focus == null || _s.Focus(j.Mission)))
-        {
-            var who = string.Join(", ", j.Mission.Holders.Where(h => _s.Data.Party.Any(p => SameName(p, h))).OrderBy(h => h, StringComparer.OrdinalIgnoreCase));
-            var kind = _s.Jobs.KindOf(j.Mission);
-            var wiki = _s.Jobs.WikiOf(j.Mission);
-            var wikiAuec = wiki?.AuecText;   // nothing typed in the library: the Star Citizen Wiki's reward
-            table.Add(j.Title, who, HaulJobs.StopsText(j.Pickups), HaulJobs.StopsText(j.Drops), HaulJobs.ScuText(j),
-                kind?.Auec is > 0 ? kind.Auec.Value.ToString("N0", CultureInfo.CurrentCulture) : wikiAuec != null ? "~" + wikiAuec + " (wiki)" : "");
-            // the SCU field of the row (a mission the game gave no SCU of): the hauler's number for it, and without it what it has (grey) and from where
-            var (hint, from) = kind?.Scu is > 0 ? (N(kind.Scu.Value), "library")
-                : kind?.Suggested is > 0 ? (N(kind.Suggested.Value), "suggested by " + (kind.SuggestedBy ?? "somebody"))
-                : wiki is { Orders.Count: > 0 } ? ("~" + N(wiki.Total.Middle), wiki.Total.Min == wiki.Total.Max ? "wiki" : "wiki " + N(wiki.Total.Min) + "–" + N(wiki.Total.Max))
-                : ("", "");
-            edits.Add(new { id = j.Mission.Id, title = j.Mission.Title ?? "", game = j.ScuFrom == ScuFrom.Game, value = _s.Jobs.HaulerScu(j.Mission), hint, from });
-        }
-        return (table, edits.ToArray());
     }
 
     /// <summary>

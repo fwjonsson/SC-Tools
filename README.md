@@ -393,7 +393,7 @@ admin (done), then going live.
   kinds go to the kinds by name when the server starts, with what was typed for them), so an Experienced contract and a Senior one with as many stops
   are two rows with their own rewards; a contract whose name no log showed is still grouped by its contract line. With every kind is what the log
   does not say: the aUEC, MG scrip and Council scrip it pays, its cargo in SCU (it wins over the suggestion in grey: the last SCU a hauler typed in for
-  one of these missions on the Hauling Planner's Other hauling board, or what the game said for one; the board uses it; else the Star Citizen Wiki's in
+  one of these missions on his Current Route, or what the game said for one; the boards use it; else the Star Citizen Wiki's in
   grey), another name, the faction (the Giver field, as it was called until 29 Oct 2026). With it is what the **Star Citizen Wiki** says about the
   mission, in grey: the **Faction** (the one typed in wins), the **Category** (the Wiki's type: Hauling, Bounty Hunter, Security...), the **Reward**
   (the aUEC typed in wins; a reward in another currency says which), the **XP** (the reputation it gives) and the **Legality**. The server reads the
@@ -455,9 +455,10 @@ admin (done), then going live.
   party in the game, or Only me (the plan is the same; only whose routes are drawn and listed changes). The **Party** table (Member, Ship, QT Drive)
   sits beside the title and the tabs, level with the title, with the Session table under it; the Ship column has the room for a long name ("Crusader
   C2 Hercules Starlifter"), and a longer one wraps. The Stops and Finished stops boards have no From Ruin and Notes columns.
-- **Hauling of every system** (`Tracking/HaulJobs`, `JobBook` in the core; `HaulJobsController`). Besides its own contracts, the Session tab has an
-  **Other hauling** board: every mission with drop-offs (`dropoff_…` objectives) that a member of the party has going, taken in the last 12 hours
-  of the logs and not ended (with a party picked, only theirs): *RSI Disc. Month: Ling Small Haul*, courier runs, the cargo of a salvage order.
+- **Hauling of every system** (`Tracking/HaulJobs`, `JobBook` in the core). Besides its own contracts, the planner takes every mission with drop-offs
+  (`dropoff_…` objectives) that a member of the party has going, taken in the last 12 hours of the logs and not ended (with a party picked, only
+  theirs): *RSI Disc. Month: Ling Small Haul*, courier runs, the cargo of a salvage order. Until 30 Oct 2026 they were on an **Other hauling** board of
+  their own on the Session tab; since then they are rows of the Stops board like the contracts (stage 4a below), and the board is gone.
   - **To another station** (stage 1a of `docs/planner-any-hauling.md`, 30 Oct 2026): the Red Wind contracts from 2 to 4 stations to a station other
     than Ruin (`_StationToStation_…_Multi<n>ToSingle`, *Master | Stellar Large Haul | to Stanton Gateway*; `Mission.ToStation`) are the planner's own
     contracts, not jobs of this board: they are in the session, on the Stops board with their station in the Drop-off Location column (a row of their
@@ -513,9 +514,12 @@ admin (done), then going live.
     picks it up and delivers it (the delivery ends the run, like a hand-in), and in the session's earnings, the leaderboard and the Debts tab's payouts.
     What a part of a mission is worth is reward over its **parcels** (`Mission.Parcels`: the stops of a Red Wind contract, the drop-offs of a from-Ruin
     one, a job's pickups when it has one drop-off, else its drop-offs), which is what reward over stops was. A job's zones are named as the map has their
-    places everywhere a table names a location (`TrackerState.JobZoneNames`). The old planner leaves a job's rows with its note; the Route Planner (new)
-    plans the job itself (not its rows a second time). The Other hauling board stays for now: it has the SCU field, which the Stops board does not have
-    yet.
+    places everywhere a table names a location (`TrackerState.JobZoneNames`). The planner plans the job itself (not its rows a second time).
+  - **The SCU of a job, typed on the route** (Frank, 30 Oct 2026, evening): the Other hauling board and its SCU field are gone. The hauler types the SCU
+    of a job's drop-off in the **SCU column of his Current Route**, on the line of the place the cargo goes to, exactly as for a load from Ruin
+    (`PlanService.JobParts`, `HaulJobs.DropKey`, `/hauling/trips/scu`, `AppData.TypedScu`): the job has it, the boxes follow, the Stops board shows it,
+    and the Mission Library gets it as the suggestion for the kind like a number the game said. A run in progress with a job's cargo aboard has the
+    field on its Deliver lines too (`CargoRuns.LoadedJobDrops`). The admin may type anybody's; watchers see the SCU as text.
   - **A job's cargo aboard** (stage 4b, 30 Oct 2026): a run with a job's parcels goes on to the job's drop-offs still to make (`CargoRuns.LoadedDestinationsOf`:
     their places as the map has them, in any system), so the Route Planner (new) continues the run there and its Current Route ends with a Deliver line at
     each; a job with several drop-offs ends the run at the last of them, the ones before take a parcel off the ship (`WorkerTripBuilder`). On the new tab a
@@ -526,9 +530,8 @@ admin (done), then going live.
     Dunlow Orison; the admin's Map places aliases first). A pickup the game does not name (most "A to B" hauls) is named by its zone when another
     objective named a place in the same zone: exactly when a marker is right in the zone's middle (the place's own zone), else only "near ArcCorp"
     (the zone is the planet's: Baijini Point and Area18 share ArcCorp's).
-  - **SCU, the first that has it:** what the game's "Deliver" popups add up to; the SCU a hauler typed in for that mission in the board's SCU
-    field (players and the admin, logged in: a field in every row the game gave no SCU of, sent in the background to `/hauling/jobs/scu`, kept in the
-    field until the board brings it back; only that mission has it; watchers see the SCU as text); the Mission Library's for its kind (typed in there, else the suggestion: the
+  - **SCU, the first that has it:** what the game's "Deliver" popups add up to, or the SCU a hauler typed in for a drop-off on his Current Route (the
+    SCU column; it lands in the mission's drop-off like the game's number); the Mission Library's for its kind (typed in there, else the suggestion: the
     last SCU a hauler typed in for one of them, or what the game said for one, every minute, `MissionLibrary.SuggestFromGame`); the Star Citizen
     Wiki's hauling orders for the contract (the middle of their ranges: "~500 (wiki 400–600)" for a Master contract of 4 × 100–150 SCU). It is split
     evenly over the pickups and over the drop-offs the game did not give the SCU of (~ on the board), like the planner's own contracts.
