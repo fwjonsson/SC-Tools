@@ -56,6 +56,7 @@ builder.Services.AddSingleton<Audience>();     // who looks, and whose data he m
 builder.Services.AddSingleton<DataViews>();    // data.json as each viewer may see it
 builder.Services.AddSingleton<MapPlaces>();
 builder.Services.AddSingleton<MapService>();
+builder.Services.AddSingleton<CompanionService>();   // the Companion: a player's own map, contracts and game session (#380)
 builder.Services.AddSingleton<PlannerPositions>();
 builder.Services.AddSingleton<HistoryStore>();
 builder.Services.AddSingleton<MissionLibrary>();

@@ -198,21 +198,31 @@ public class MapPageTests
     }
 
     [Fact]
-    public async Task The_players_stand_beside_the_map_the_objectives_beside_them_and_the_missions_under_the_map_and_the_players()
+    public async Task The_players_stand_beside_the_map_and_on_the_companion_the_objectives_beside_them_and_the_missions_under_them()
     {
         using var f = new ServerFactory();
-        var page = await (await f.Admin()).GetStringAsync("/map");
+        var admin = await f.Admin();
+        // the Map tool: the map and the players (the objectives list and the Active Contracts went to the Companion, #380; the map got the room)
+        var page = await admin.GetStringAsync("/map");
+        Assert.Contains("<nav class=\"subnav area\" id=\"systems\" role=\"tablist\" aria-label=\"Star system\" style=\"--tool:#e0734a\"></nav>", page);   // the systems: the tool's row of tabs (30 Oct 2026)
+        Assert.DoesNotContain("<h1>", page);
+        Assert.Contains("<div class=\"maptool maponly\">", page);
+        Assert.True(page.IndexOf("<div class=\"mapbox\">", StringComparison.Ordinal) < page.IndexOf("<div class=\"mapside players\">", StringComparison.Ordinal));
+        Assert.DoesNotContain("<div class=\"mapside objectives\">", page);
+        Assert.DoesNotContain("<div class=\"mapmissions\">", page);
+        var css = await f.Browser().GetStringAsync("/site.css");
+        Assert.Contains(".maptool.maponly { grid-template-columns:minmax(0, 1060px) minmax(260px, 340px); }", css);   // a little bigger than the 820 px it had
+
+        // the Companion: the four cells of the Map tool's grid as it was
+        page = await admin.GetStringAsync("/companion");
         var players = page.IndexOf("<div class=\"mapside players\">", StringComparison.Ordinal);
         var objectives = page.IndexOf("<div class=\"mapside objectives\">", StringComparison.Ordinal);
         var missions = page.IndexOf("<div class=\"mapmissions\">", StringComparison.Ordinal);
-        Assert.Contains("<nav class=\"subnav area\" id=\"systems\" role=\"tablist\" aria-label=\"Star system\" style=\"--tool:#e0734a\"></nav>", page);   // the systems: the tool's row of tabs (30 Oct 2026)
-        Assert.DoesNotContain("<h1>", page);
-        Assert.True(page.IndexOf("<div class=\"mapbox\">", StringComparison.Ordinal) < players && players < objectives && objectives < missions);   // the four cells of the grid
-        var css = await f.Browser().GetStringAsync("/site.css");
+        Assert.True(page.IndexOf("<div class=\"mapbox\">", StringComparison.Ordinal) < players && players < objectives && objectives < missions);
         Assert.Contains(".mapside.objectives { grid-column:3; grid-row:1; }", css);
         Assert.Contains(".mapmissions { grid-column:1 / span 3; grid-row:2;", css);   // from the map's left edge to the objectives' right edge
         // the objectives list says where and who, not which mission (the Active Contracts table says that)
-        var script = await f.Browser().GetStringAsync("/map.js");
+        var script = await f.Browser().GetStringAsync("/companion.js");
         Assert.Contains("const text = (o.where || '') + (o.system && !here(o.system)", script);
         Assert.DoesNotContain("o.title + ' · '", script);
     }
@@ -223,7 +233,7 @@ public class MapPageTests
         using var f = new ServerFactory();
         var admin = await f.Admin();
         // both pages load the engine (a file of the site, with its version in the address) before their own script
-        foreach (var address in new[] { "/map", "/hauling" })
+        foreach (var address in new[] { "/map", "/hauling", "/companion" })
         {
             var page = await admin.GetStringAsync(address);
             var engine = page.IndexOf("src=\"/systemmap.js?v=", StringComparison.Ordinal);
@@ -235,8 +245,8 @@ public class MapPageTests
         var script = await res.Content.ReadAsStringAsync();
         Assert.StartsWith("var SystemMap = (function ()", script.Split('\n').First(l => !l.StartsWith("//")));
         Assert.Contains("base.svg.appendChild(base.labels);", script);   // the names of the places above the routes (30 Oct 2026)
+        Assert.Contains("[['#', ''], ['Mission', '']", await f.Browser().GetStringAsync("/companion.js"));   // the Active Contracts table numbered like the others
         var mapJs = await f.Browser().GetStringAsync("/map.js");
-        Assert.Contains("[['#', ''], ['Mission', '']", mapJs);   // the Active Contracts table numbered like the others
         Assert.Contains("b.href = '#' + s.id;", mapJs);   // the systems are links like the other tools' tabs, so the row has the same height (30 Oct 2026)
         Assert.Contains(".mapmissions table.missions th:first-child, .mapmissions table.missions td:first-child { width:36px;", await f.Browser().GetStringAsync("/site.css"));
         // the speed meter stays at 0 Mm/s when a player is not in quantum, so his card keeps its size (Frank, 29 Oct 2026)

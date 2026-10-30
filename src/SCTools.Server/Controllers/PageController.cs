@@ -74,6 +74,12 @@ public sealed class PageController : Controller
             var played = SCTools.Play.PlayStats.For(week, games, Array.Empty<SCTools.Play.EarnedMission>(), 0, 0).Played;
             return played.TotalMinutes < 1 ? "Nothing played this week" : played.TotalHours.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " h played this week";
         }
+        if (tool == SiteTools.Companion)
+        {
+            if (PointOfView.Name(HttpContext) is not { Length: > 0 } me) return "Log in to keep it open while you play";
+            var now = DateTime.UtcNow;
+            return SCTools.Play.GameSession.Latest(_playtime.Games(me, now), now)?.Running != null ? "Your game session is going on" : "Keep it open while you play";
+        }
         if (tool == SiteTools.Missions)
         {
             var all = _missions.Entries();

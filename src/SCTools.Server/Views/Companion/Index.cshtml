@@ -1,0 +1,65 @@
+@model List<string>
+@{
+    ViewData["Title"] = "Companion";
+    var visitor = ViewData["Visitor"] is true;
+    var editor = ViewData["Editor"] is true;
+}
+@* a copy of the Map tool (#380): how the map places everybody is in the README *@
+@section subnav {
+  @* the systems as a row under the bar in the tool's colour, as on the Map tool; companion.js fills it with a button per system *@
+  <nav class="subnav area" id="systems" role="tablist" aria-label="Star system" style="--tool:@SiteTools.Companion.Color"></nav>
+}
+<div class="maptool companion" data-editor="@(editor ? "true" : null)">
+  <div class="mapbox">
+    <div id="map"></div>
+    <p class="hint">Positions: the <a href="https://api.star-citizen.wiki" rel="noopener">Star Citizen Wiki API</a>. While the map shows the system you are in,
+      it goes with you when you jump to another one.</p>
+  </div>
+  @* beside the map you and your party; beside them your game session and the objectives *@
+  <div class="mapside players">
+    <h2>Players</h2>
+    <div id="players"><p class="muted">Loading…</p></div>
+  </div>
+  <div class="mapside objectives">
+    <h2>Game session</h2>
+    @if (visitor)
+    {
+      <partial name="~/Views/Shared/LogInNote.cshtml" model="@("Your game session, your party and its contracts are here once you are logged in.")" />
+    }
+    else
+    {
+      <div id="session"><p class="muted">Loading…</p></div>
+    }
+    <h2>Objectives</h2>
+    <div id="objectives"></div>
+  </div>
+  @if (!visitor)
+  {
+    @* under the map, the players and the session, over the whole width: the contracts going on, then the ones ended this game session *@
+    <div class="mapmissions">
+      @if (editor)
+      {
+        @Html.AntiForgeryToken()
+        @* every faction so far, to pick in a Faction field (autosave.js adds a new one as soon as it is saved), as on Edit Mission Info *@
+        <datalist id="factions">
+          @foreach (var g in Model)
+          {
+            <option value="@g"></option>
+          }
+        </datalist>
+        <p class="hint autosave-state" id="autosaveState" aria-live="polite"></p>
+      }
+      <h2>Active Contracts</h2>
+      <div id="missions"><p class="muted">Loading…</p></div>
+      <h2>Completed Contracts</h2>
+      <div id="completed"><p class="muted">Loading…</p></div>
+      <p class="hint">Your party's contracts: who has each, how many of its objectives are still open (Open), how the ones of this game session ended, and what
+        the <a href="/missions">Mission Library</a> says about them.
+        @if (editor) { <text>The fields are the library's (as on <a href="/admin/missions">Edit Mission Info</a>): each is saved as soon as it changes; grey is
+        what shows while nothing is typed in.</text> }</p>
+    </div>
+  }
+</div>
+<p class="hint" id="mapState"></p>
+<script src="~/systemmap.js" asp-append-version="true" defer></script>
+<script src="~/companion.js" asp-append-version="true" defer></script>

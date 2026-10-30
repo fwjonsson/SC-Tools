@@ -35,10 +35,14 @@ public static class SiteTools
         "#b77fdb", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"9\" cy=\"8\" r=\"3.2\"/><circle cx=\"17\" cy=\"9.5\" r=\"2.6\"/><path d=\"M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15 14.5c3 0 5.5 2 5.5 5\"/></svg>");
 
     public static readonly SiteTool Map = new("map", "Map",
-        "A live map of Pyro, Stanton and Nyx: where everybody is and where each is flying by his quantum jumps, the objectives of the missions going on and the active contracts. It updates every few seconds.", "/map", false,
+        "A live map of Pyro, Stanton and Nyx: where everybody is and where each is flying by his quantum jumps, and the objectives of the missions going on as marks on the map. It updates every few seconds.", "/map", false,
         "#e0734a", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"2.5\"/><circle cx=\"12\" cy=\"12\" r=\"6\"/><circle cx=\"12\" cy=\"12\" r=\"9.5\"/><circle cx=\"18\" cy=\"8.4\" r=\"1.4\" fill=\"currentColor\"/></svg>");
 
-    public static readonly IReadOnlyList<SiteTool> All = new[] { Hauling, Missions, Gauntlet, Session, Party, Map };   // the ones that work first
+    public static readonly SiteTool Companion = new("companion", "Companion",
+        "Your own page to keep open while you play: the map with you and your party, your contracts going on and the ones you finished this game session with which party member has which, and your session's playtime and earnings. It updates every few seconds.", "/companion", false,
+        "#d6609a", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M15.5 8.5l-2 5-5 2 2-5 5-2z\"/><circle cx=\"12\" cy=\"12\" r=\"0.8\" fill=\"currentColor\"/></svg>");
+
+    public static readonly IReadOnlyList<SiteTool> All = new[] { Hauling, Missions, Gauntlet, Session, Party, Map, Companion };   // the ones that work first
 
     /// <summary>
     /// The tools with a card on the landing page and a link in the top bar: every tool but the Party, which is a button beside the viewer's name in the bar
@@ -46,8 +50,11 @@ public static class SiteTools
     /// </summary>
     public static readonly IReadOnlyList<SiteTool> Cards = All.Where(t => t != Party).ToList();
 
-    /// <summary>The tools in the top bar, in the order Frank set (30 Oct 2026): the ones used while playing first. The landing page's links come in the same order (Frank, the same day).</summary>
-    public static readonly IReadOnlyList<SiteTool> Bar = new[] { Hauling, Gauntlet, Map, Session, Missions };
+    /// <summary>
+    /// The tools in the top bar, in the order Frank set (30 Oct 2026): the ones used while playing first, the Companion left of the Hauling Planner (#380).
+    /// The landing page's links come in the same order (Frank, the same day).
+    /// </summary>
+    public static readonly IReadOnlyList<SiteTool> Bar = new[] { Companion, Hauling, Gauntlet, Map, Session, Missions };
 
     public static SiteTool? Find(string? id) => All.FirstOrDefault(t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
 }

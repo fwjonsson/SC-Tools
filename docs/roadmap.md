@@ -158,6 +158,16 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       interstellar hauls, the RSI Disc. Month hauls and couriers), the gaps, and Frank's questions are in it.
     - **Next**: the design's stages, one pull request each: stage 1 Pyro places (1a the model and the boards, 1b the planner without a hub), stage
       2 the other systems, stage 3 the interstellar legs, stage 4 earnings and debts (the roadmap's stage 3 routes and stage 4 earnings, split up).
+12. **Companion** (`/companion`, #380, Frank 30 Oct 2026): a player's own page to keep open while playing, made as a copy of the Map tool. The map
+    with him and his party (personal: the admin's own view is his own player's, not everybody's; View as shows a player's), the Players list, the
+    objectives, the party's **Active Contracts** and under them **Completed Contracts** (the same columns, with how each ended, Completed, Failed or
+    Abandoned, and when, in place of Open), both with who in the party has each; and a table with the Session tool's figures except Games for the
+    **current game session** (from when the game started until an hour after it was closed, crashed or quit and not started again; a game started
+    again within that hour is the same session). Frank's answers of 30 Oct 2026: Completed Contracts go back to the start of the game session; they say
+    how each ended; the admin's fields are Edit Mission Info's (name, faction, SCU, reward, MG and Council scrip), right in the contracts' rows; when
+    the session is over, the table keeps the last one, marked ended, until the next game. While the map shows the system he is in, it follows him when
+    he jumps to another system; another system he picked stays. In the top bar and on the landing page it is left of the Hauling Planner. The Map
+    tool lost its Objectives list and its Active Contracts to it, and its map got bigger (1,060 px, was 820).
 
 Later, maybe: a party/crew board (who is on which shard, in which jurisdiction, in whose ship) and crash/server statistics.
 
@@ -213,6 +223,7 @@ should know before that happens.
    - **No buttons**: the hauling Start/Stop Session and the Gauntlet's "Start grind session" are gone ("if there are issues we will work them out");
      `SCTools:FollowSessions=false` brings the hauling button back. The Windows program went on 30 Oct 2026.
 3. Done: fleet (#240), Party tool (#241), Map tool (#242).
+   Done (30 Oct): the Companion (#380).
 4. Done (28–29 Oct): the map's tabs (#243), Map places (#244), everything up to #268: the Wiki API for every mission of the library (#265), one
    Hauling Planner (#266), the read-only Mission Library and Edit Mission Info (#267, #268). In review: the Contracts tab (#269).
 5. Hauling of every system: the Route Planner for every hauling mission, by the stages of `docs/planner-any-hauling.md` (the design, 30 Oct):

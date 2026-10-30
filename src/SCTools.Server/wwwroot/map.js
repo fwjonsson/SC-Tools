@@ -1,7 +1,7 @@
 // The Map tool: a star system from above (Pyro, Stanton or Nyx, by the tabs over the map), everybody playing where his quantum jumps put him, and the
-// objectives of the missions going on. The map itself is SystemMap (systemmap.js, the one map engine of the site, shared with the Hauling Planner's Trip
-// Planner): this script fetches map.json every few seconds, picks the system to show, and fills the lists beside and under the map (the players with their
-// speed meters, the objectives, the missions going on).
+// objectives of the missions going on (as marks on the map). The map itself is SystemMap (systemmap.js, the one map engine of the site, shared with the
+// Hauling Planner's Trip Planner and the Companion): this script fetches map.json every few seconds, picks the system to show, and fills the players beside
+// the map with their speed meters. The objectives list and the Active Contracts went to the Companion (#380), where they are a player's own.
 (function () {
   'use strict';
   let data = null;
@@ -66,7 +66,7 @@
     map.draw(d);
     const here = function (sys) { return sys === map.system(); };
 
-    // beside the map: every player (the ones in another system say which; a click shows it) and his speed meter, then the objectives
+    // beside the map: every player (the ones in another system say which; a click shows it) and his speed meter
     const side = document.getElementById('players');
     side.textContent = '';
     if (d.players.length === 0) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'Nobody is playing now.'; side.appendChild(p); }
@@ -90,47 +90,6 @@
       card.appendChild(map.meter(pl.name));   // what he does, and his speed while he is in quantum
       side.appendChild(card);
     });
-
-    const objs = document.getElementById('objectives');
-    objs.textContent = '';
-    const list = document.createElement('ul'); list.className = 'objs';
-    const lines = {};   // the same place with the same people once, with how many objectives; no mission names (Frank, 29 Oct 2026: the Active Contracts table has them)
-    d.objectives.forEach(function (o) {
-      const text = (o.where || '') + (o.system && !here(o.system) ? ' · ' + nameOfSystem(o.system) : '') + ' (' + (o.who || [o.player]).join(', ') + ')';
-      lines[text] = (lines[text] || 0) + 1;
-    });
-    Object.keys(lines).forEach(function (text) {
-      const li = document.createElement('li');
-      li.textContent = text + (lines[text] > 1 ? ' ×' + lines[text] : '');
-      list.appendChild(li);
-    });
-    if (d.objectives.length) objs.appendChild(list);
-    const note = document.createElement('p'); note.className = 'hint';
-    note.textContent = (d.objectives.length === 0 ? 'No objectives going on. ' : '') +
-      (d.unplaced > 0 ? (d.unplaced === 1 ? 'One objective is' : d.unplaced + ' objectives are') + ' only in the list: the game does not say where ' +
-        (d.unplaced === 1 ? 'it is.' : 'they are.') : '');
-    if (note.textContent) objs.appendChild(note);
-
-    // under the map: the missions going on (Active Contracts, Frank, 30 Oct 2026; Active missions before), with who has them and what the Mission Library says
-    // about them; the Hauling Planner's Session tab shows the same table (hauling.js, missionsTable)
-    const mis = document.getElementById('missions');
-    mis.textContent = '';
-    if (!d.missions || d.missions.length === 0) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'No missions going on.'; mis.appendChild(p); }
-    else {
-      const t = document.createElement('table'); t.className = 'missions view';
-      const hr = t.createTHead().insertRow();
-      [['#', ''], ['Mission', ''], ['Who', ''], ['Open', 'right'], ['Faction', ''], ['Category', ''], ['SCU', 'right'], ['Reward', 'right'], ['MG scrip', 'right'], ['Council scrip', 'right'], ['XP', 'right'], ['Legality', '']]
-        .forEach(function (h) { const th = document.createElement('th'); th.textContent = h[0]; if (h[1]) th.className = h[1]; hr.appendChild(th); });
-      const tb = t.createTBody();
-      d.missions.forEach(function (m, n) {
-        const tr = tb.insertRow();
-        [String(n + 1), m.title, m.who.join(', '), String(m.open), m.faction, m.category, m.scu, m.reward, m.mg, m.council, m.xp, m.legality].forEach(function (v, i) {
-          const td = tr.insertCell(); td.textContent = v;
-          if (i === 1) td.className = 'name'; else if (i === 3 || (i >= 6 && i <= 10)) td.className = 'right';
-        });
-      });
-      const box = document.createElement('div'); box.className = 'scroll'; box.appendChild(t); mis.appendChild(box);
-    }
   }
 
   async function refresh() {

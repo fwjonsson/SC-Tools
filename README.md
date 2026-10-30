@@ -1,7 +1,7 @@
 # SC Tools
 
-Star Citizen tools that read the game's own `Game.log`: the site **sc-tools.fwjonsson.dev** (the Hauling Planner, the Session, Mission Library, Gauntlet
-Tracker, Party and Map tools) and the **SC Tools Tracker** on every gaming PC that sends the site what the tools need. It started as the **Hauling
+Star Citizen tools that read the game's own `Game.log`: the site **sc-tools.fwjonsson.dev** (the Companion, the Hauling Planner, the Session, Mission Library,
+Gauntlet Tracker, Party and Map tools) and the **SC Tools Tracker** on every gaming PC that sends the site what the tools need. It started as the **Hauling
 Planner** Windows program, which read the logs and filled in a hauling session sheet; the program went on 30 Oct 2026 (Frank only uses the site and the
 tracker), and its logic lives on in the core, where the site runs it.
 
@@ -273,11 +273,11 @@ admin (done), then going live.
   pilot's log, a destination or an area named on Map places, a mission's objective. Not in the middle of a run, though: while he flies a run his
   trip is planned from his last pickup, and while he carries waste out of Ruin it is planned from Ruin, whatever the map says (Frank, 30 Oct 2026:
   the map put him at Patch City before he had delivered the waste, and the Ruin "Collect Waste" row and the "Deliver Waste" of the Patch City
-  row vanished from his Current Route until he had; every row of a route stays until the route is done). The players' cards stand beside the map and
-  the objectives beside them, three columns on a wide screen (Frank, 29 Oct 2026; under each other on a narrow one); an objective line says the place
-  and who, not the mission. Under all three, from the map's left edge to the objectives' right edge, **Active Contracts** (Frank, 30 Oct 2026; Active missions before): every
-  mission going on with who has it, its open objectives and the Mission Library's columns for its kind (faction, category, SCU, reward, scrip, XP,
-  legality). The objectives he can jump to are the ones the game paired with a quantum beacon (`<PairWithMissionNavpoint>
+  row vanished from his Current Route until he had; every row of a route stays until the route is done). The players' cards stand beside the map (under
+  it on a narrow window). The objectives list beside them and the **Active Contracts** under the map went to the Companion on 30 Oct 2026 (#380, below),
+  where they are the player's own, and the map got the room: 1,060 px wide (820 before). map.json still has the objectives (the map draws them) and the
+  missions going on (`missions`: who has each, its open objectives, the Mission Library's columns for its kind and its `key` in the library), which the
+  Companion and the Hauling Planner's Session tab show. The objectives he can jump to are the ones the game paired with a quantum beacon (`<PairWithMissionNavpoint>
   MissionObjectiveMarker_21517[21517] - Paired with NavPoint: MISSION_QT_Quantum_Beacon_LongRange_…`, `HaulingLog.Beacons`, with the objective's
   text from its popup, "New Objective: Go to Asteroid Cluster", and the contract's system from its name, `…_DrawOutBoss_Nyx_Super`): a destination
   that is a beacon, or an arrival with no destination while one is going on (the latest; until a minute after it was done), puts him "at the
@@ -289,7 +289,7 @@ admin (done), then going live.
   ("Go to a debris field above Daymar": `MapService.NamedIn`), else only in the list, by what they say and the contract's system (a bounty's marker
   is at 0, 0, 0). Only for the admin until it is shown on the Tools page.
   **One map engine** (Frank, 29 Oct 2026): the map itself is `wwwroot/systemmap.js`, a file of the site both the Map tool's page and the Hauling
-  Planner's page load before their own script (with its version in the address, so a browser keeps it until it changes). The Trip Planner's map is the Map tool's size (820 px wide; Frank, 29 Oct 2026), smaller on a
+  Planner's page load before their own script (with its version in the address, so a browser keeps it until it changes). The Trip Planner's map is the Companion's size (820 px wide, the Map tool's until #380; Frank, 29 Oct 2026), smaller on a
   narrower window so the workers' tables keep their columns. `SystemMap.create(box)` draws a system (`show`: the places of map.json's
   `systems`, drawn anew only when they change), the objectives and players of map.json on it (`draw`, with a filter by name), gives the caller a layer
   between the system and the objectives and the anchors of the places (`layer`, `at`) for his own drawing, and makes the line and the speed meter of a
@@ -300,6 +300,23 @@ admin (done), then going live.
   layer, the players and objectives of the workers shown (an objective has `who`: everybody with the mission, a shared one placed once), and the
   engine's meter under every worker's name. The planner's and the map's "done" agree: a pickup the planner credits (a COMPLETED or an INPROGRESS event,
   `SessionBuilder.PickedUp`) is off the map at once, and an objective one holder's log says is done is done for everybody with the mission.
+- **The Companion** (`/companion`, `CompanionService`, `CompanionController`, `wwwroot/companion.js`; #380, Frank 30 Oct 2026): a player's own page to keep
+  open while playing, made as a copy of the Map tool. Personal (`Audience.PartyOf` of the viewer: the player the admin looks as with View as, else who is
+  logged in; the admin's own view is his own player's, not everybody's): the map with him and his party (map.json cut by `DataViews.MapFor`, with `me`),
+  the Players list, the objectives beside it, and under the map the party's **Active Contracts** and **Completed Contracts**, both with who in the party
+  has each. Completed Contracts are the contracts the party ended in the viewer's current game session (`MissionLibrary.Ended`: completed, failed or
+  abandoned, newest first), with how each ended and when in place of Open, and the same columns. Beside the players is the **game session**: the Session
+  tool's top table except Games (time played, crashes, missions completed, aUEC, MG and Council scrip, earned, per hour; his own) for the current game
+  session only (`GameSession` in the core: from when the game started until an hour after it was closed, crashed or quit and not started again; a game
+  started again within that hour is the same session; when it is over, the last one is shown, marked ended, until the next game; Frank's answers). Its
+  data is `/companion/session.json`, polled every 5 seconds with its ETag (304 when nothing changed; made again when a piece of a log came in, the library
+  or the scrip's value changed, or a minute went by): no running time in it, the time played and the per hour count on in the browser from the running
+  game's start (the clock rule). The map opens on the system he is in (else the address's, else where most of his party is), and while it shows the
+  system he is in it follows him when he jumps to another one; a system he picked otherwise stays. The **admin** gets Edit Mission Info's fields in the
+  contracts' rows (name, faction with the list of factions, SCU, reward, MG and Council scrip; `ContractEdit`), sent in the background to
+  `/admin/missions/set` as soon as one changes (`autosave.js`), also while he looks as a player; a table is not drawn again while he types in it. A
+  visitor sees the map's places and a note to log in. Only for the admin until it is shown on the Tools page; in the top bar and on the landing page it is
+  left of the Hauling Planner.
 - **Map places** (Admin → Map places, `/admin/places`, `MapPlaces`, tables `MapPlaces` and `MapAliases`): the admin's changes to the map's places,
   used at once (the map reads them as an `Atlas`: `StarMap`'s places with his changes). **Not known yet** lists the quantum destinations and start
   names in the logs on the server that the map cannot place (`MapService.Follow` reports them), with how often, when last, who and the system;
@@ -353,7 +370,7 @@ admin (done), then going live.
   and the cards went that day. Every page has the same bar at the top
   (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards), the tools the viewer sees, and on the right
   **Tracker** (its page: download and setup; the tools come in the order Frank set on 30 Oct 2026, `SiteTools.Bar`: Hauling Planner, Gauntlet Tracker, Map,
-  Session, Mission Library, the landing page's links in the same order), who is logged in, for the admin **View as:** (a pick of a player, the first choice **Admin** for everybody's at once; the page and its tab stay as they are when the view changes; Frank 30 Oct 2026: the `sct-pov` cookie set by `/admin/pov`, `PointOfView`; the
+  Session, Mission Library, and the Companion left of the Hauling Planner since #380, the landing page's links in the same order), who is logged in, for the admin **View as:** (a pick of a player, the first choice **Admin** for everybody's at once; the page and its tab stay as they are when the view changes; Frank 30 Oct 2026: the `sct-pov` cookie set by `/admin/pov`, `PointOfView`; the
   Hauling Planner's page, the Gauntlet Tracker, the Session tool and the landing page's links then show that player's view, and the Hauling Planner's
   own pick of a party on its Session tab went with it; what a page lets the viewer change still goes by who is really logged in), his **Party** button (the panel of who is playing, see the Party tool), My page, Admin and
   Log out (or Log in); on a phone all of it is behind a menu button.
@@ -436,7 +453,7 @@ admin (done), then going live.
 - **Which tools everybody sees** is the admin's **Tools** page (`/admin/tools`, `SiteTools.cs`, the table `Tools`): a tick per tool, saved as soon as it
   changes. A tool that is not ticked is only for the admin: its link on the landing page (where he sees "Only you see this") and its page (a visitor gets
   the login, a player "not for you"; the hauling tracker's `data.json` too). A tool never set is as `SiteTools` says: the hauling tracker shown, the tools
-  still being made (Session, Mission Library, Gauntlet Tracker) only for the admin. The trackers' uploads do not depend on it.
+  still being made (Session, Mission Library, Gauntlet Tracker, Map, Companion) only for the admin. The trackers' uploads do not depend on it.
 - **Who is active comes from the logs** on the server (`Tracking/AutoParty.cs`), not from a tick. The game writes the in-game party in its notifications
   ("zzatvo has joined the party.", "Bileh123 has left the party." also when he quits or crashes, "zzoega is now party leader.", "The party has been
   disbanded."), and the trackers already send those lines. A tracker also sends the time of the last line of every piece, so the server knows how long each
