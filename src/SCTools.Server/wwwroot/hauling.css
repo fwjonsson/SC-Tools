@@ -26,12 +26,10 @@
 .hauling #runs td:nth-child(3) { white-space:normal; }   /* Pickup Location & Time of Cargo runs: a long run wraps instead of running over the next columns */
 .hauling #pickups td:nth-child(5) { white-space:normal; }   /* Boxes of Stops ("Waste: 4×32 + 24"): it wraps on a narrower window; Drop-off Location is a station name */
 .hauling .empty { opacity:.6; padding:6px 0; }
-.hauling #jobs td:nth-child(1), .hauling #jobs td:nth-child(3), .hauling #jobs td:nth-child(4) { white-space:normal; }   /* Other hauling: the mission and its stops wrap */
 .hauling .note { opacity:.75; font-size:12px; margin:4px 0 0; }
-/* the SCU field of the Other hauling board (a hauler logged in): saved in the background, green when it was, red when not (why: on the mouse) */
+/* the SCU field of a drop-off on the Current Route (a hauler logged in): saved in the background, green when it was, red when not (why: on the mouse) */
 .hauling .scuin { width:6em; text-align:right; background:var(--cell); color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:2px 5px; font:inherit; }
 .hauling .scuin.saving { opacity:.6; } .hauling .scuin.saved { border-color:#5fd35f; } .hauling .scuin.unsaved { border-color:#ff6b6b; }
-.hauling .src { opacity:.7; font-size:12px; margin-left:6px; white-space:nowrap; }
 .hauling .note a { color:inherit; }
 /* the Trip Planner's choice (Everyone, a party, Only me): buttons under the tabs; the tabs themselves are the row under the bar (site.css .subnav, 30 Oct 2026) */
 .hauling .sub { display:flex; gap:8px; margin:8px 0 4px; flex-wrap:wrap; }

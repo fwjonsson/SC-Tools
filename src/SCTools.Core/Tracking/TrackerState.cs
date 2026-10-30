@@ -14,7 +14,7 @@ public sealed class TrackerState
     public TrackerState(AppData data, Action<AppData>? save = null)
     {
         Data = data;
-        _save = save ?? Storage.Save;
+        _save = save ?? (_ => { });   // no save given (the tests): nothing is written
     }
 
     /// <summary>The saved data: the party, ships, names, what was typed for every session, the debts...</summary>
@@ -100,15 +100,4 @@ public sealed class TrackerState
         return inputs;
     }
 
-    /// <summary>What was typed for a pickup location of the session that is shown (made, empty, the first time it is asked for).</summary>
-    public RowInputs RowOf(string zone)
-    {
-        var rows = Inputs!.Rows;
-        if (!rows.TryGetValue(zone, out var r))
-        {
-            r = new RowInputs();
-            rows[zone] = r;
-        }
-        return r;
-    }
 }

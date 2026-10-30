@@ -131,30 +131,6 @@ public static class WorkerTripBuilder
         return true;
     }
 
-    /// <summary>Who the logs say did the first pickup at a location (null if no log shows it).</summary>
-    public static string? PickupActor(SessionGroup g, string zone, HaulingLog log, DateTime? since = null)
-    {
-        DateTime? bestTime = null;
-        string? who = null;
-        foreach (var m in g.Missions)
-        {
-            foreach (var kv in m.ObjZone)
-            {
-                if (kv.Value != zone || !kv.Key.StartsWith("pickup_") || !StopId.IsMatch(kv.Key)) continue;
-                if (!m.Events.TryGetValue(kv.Key, out var ev) || ev.Count == 0) continue;
-                var first = ev.Min(e => e.Time);
-                if (since.HasValue && first < since.Value) continue;   // pickups of an earlier set of missions do not count
-                var actor = ActorAt(log, true, first, m.Holders, StationOfZone(kv.Value));
-                if (actor != null && (bestTime == null || first < bestTime))
-                {
-                    bestTime = first;
-                    who = actor;
-                }
-            }
-        }
-        return who;
-    }
-
     /// <summary>
     /// Runs per worker. The worker of a pickup is the Assigned Worker of that location,
     /// and only where nobody is assigned who the logs say used the freight elevator. A run starts when the missions start, or when the previous run was handed in.

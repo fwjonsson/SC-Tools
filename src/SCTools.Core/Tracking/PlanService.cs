@@ -99,14 +99,6 @@ public sealed class PlanService
             .ToList();
     }
 
-    /// <summary>The first stop of a trip as the lock keeps it: the group of its batches (RoutePlanner.GroupKey) and how many.</summary>
-    public static (string Group, int Batches) FirstPick(PlannedTrip t)
-    {
-        var first = t.Stops[0];
-        var pick = t.Picks.FirstOrDefault(p => p.Id == first.Id);
-        return pick.Group != null ? (pick.Group, pick.Batches) : (first.Id, first.Batches);
-    }
-
     /// <summary>The trips in the order they are flown (Queue), each starting where the one before it ends (RoutePlanner.Chain): a run in progress ends where its cargo goes, else the worker's location.</summary>
     List<PlannedTrip> Ordered(IEnumerable<PlannedTrip> trips, Func<PlannedTrip, decimal> value, Func<string, bool> wasteAboard)
     {
@@ -853,19 +845,14 @@ public sealed class PlanService
         for (var i = 0; i < flying.Count; i++)
         {
             var c = flying[i];
-            var drive = _crew.DriveOf(c.Name);
             var w = new PlanWorkerView
             {
                 Name = c.Name,
                 Capacity = c.Capacity,
-                DriveNote = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : "",
-                Drive = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : drive.Key + ", " + (drive.Speed / 1e6).ToString("0", CultureInfo.InvariantCulture) + " Mm/s",
             };
-            w.RunsSoFar = _state.Trips.Count(x => SameName(x.Worker, c.Name));
             var standing = _where.LocationOf(c.Name, true, _hub);
             w.LocationId = standing.Id;
             w.LocationByHand = standing.ByHand;
-            w.AutoLocationId = _where.AutoLocationOf(c.Name, true, _hub);
             w.Rows.AddRange(RunRows(c.Name));
             // the run in progress is his Current trip (a locked stop is marked in the Route cell of a planned trip)
             var runRow = w.Rows.LastOrDefault(r => r.Level == "active");
@@ -986,9 +973,6 @@ public sealed class PlanService
             plan.Summary = planned.Count + " trips planned, " + Gm(planned.Sum(r => r.Gm)) + " in total for " + core.Batches + " batches. Longest: "
                 + longest.Name + " with " + Gm(longest.Planned.Sum(r => r.Gm)) + ", about " + FlightSpan(longest.Planned.Sum(r => r.Seconds)) + " of flying.";
         }
-
-        plan.Signature = plan.Summary + "¦" + string.Join("|", plan.Workers.Select(x => x.Name + "@" + x.LocationId + (x.LocationByHand ? "!" : "") + ">" + x.AutoLocationId)) + "¦" + string.Join("¦", plan.Workers.SelectMany(w =>
-            w.Rows.Select(r => w.Name + "|" + w.Capacity + "|" + r.Label + "|" + r.Hidden + "|" + r.Locked + "|" + r.First + "|" + r.Solid + "|" + r.Route + "|" + r.Batches + "|" + r.Value.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Level + "|" + r.Gm.ToString("F1", CultureInfo.InvariantCulture) + "|" + r.Flight.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Seconds.ToString("F0", CultureInfo.InvariantCulture) + "|" + r.Here + "|" + string.Join(";", r.Lines.Select(l => l.Name + "~" + l.ActionText + "~" + l.ScuText + "~" + l.BoxesText + "~" + l.Batches + "~" + l.Value.ToString("F0", CultureInfo.InvariantCulture) + "~" + l.Gm.ToString("F1", CultureInfo.InvariantCulture) + "~" + l.Seconds.ToString("F0", CultureInfo.InvariantCulture))) + "|" + w.Drive + "|" + w.RunsSoFar)));
         return plan;
     }
 }

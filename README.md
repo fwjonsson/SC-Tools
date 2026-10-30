@@ -607,10 +607,9 @@ that does not start is replaced by the one before it. The
 settings are in `/etc/sctools/sctools.env` (`sudo systemctl restart sctools` after a change), the data in `/var/lib/sctools`
 (the database, the uploaded logs, the daily copies, the keys of the login cookies), the versions in `/opt/sctools/releases`.
 
-**The rename (once).** A server set up before the rename (haulingtracker) is moved to the new names by `deploy/rename-server.sh` (as root): it stops the
-app, keeps a copy of the database in `/root`, renames the user and moves the folders, the settings and the service, and starts the app again; the settings
-are then there under both names (`HaulingTracker__...` for the version from before, `SCTools__...` for the new one; the server reads both). Then the
-pull request of the rename is merged, and GitHub deploys to the new places. Afterwards the old lines can go: `sed -i '/^HaulingTracker__/d' /etc/sctools/sctools.env`.
+**After the rename (28 Oct 2026).** The server has the new names; the settings file may still have the old lines from before, which nothing reads any more
+once they are gone: `sed -i '/^HaulingTracker__/d' /etc/sctools/sctools.env && systemctl restart sctools` (the one-time `deploy/rename-server.sh` went on
+30 Oct 2026).
 
 ## ScApiTool (Star Citizen Wiki API)
 

@@ -7,7 +7,6 @@ namespace SCTools.View;
 public sealed class WebSnapshotOptions
 {
     public bool Dark { get; init; } = true;
-    public Func<string, int>? MeasureBold { get; init; }
 
     /// <summary>Where the Payment tick of a money transfer on the Debts tab goes (the server's address): the one who sent the money ticks it. The program has none.</summary>
     public string? DebtsPay { get; init; }
@@ -56,14 +55,6 @@ public sealed partial class WebSnapshot
         {
             updated = DateTime.Now.ToString("HH:mm:ss", CultureInfo.CurrentCulture),
             session = _s.Current == null ? "" : BoardTexts.DescribeSession(_s.Current),
-            theme = new
-            {
-                bg = ViewPalette.Hex(_p.Window),
-                fg = ViewPalette.Hex(_p.Text),
-                header = ViewPalette.Hex(_p.Header),
-                line = ViewPalette.Hex(_p.Lines),
-                cell = ViewPalette.Hex(_p.Cell),
-            },
             summary = Summary(),
             rewards = Rewards(),
             pickups = Stops(),

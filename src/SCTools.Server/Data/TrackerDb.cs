@@ -36,7 +36,6 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
     public DbSet<MissionRow> Missions => Set<MissionRow>();
     public DbSet<LibraryRow> Library => Set<LibraryRow>();
     public DbSet<MissionKindRow> MissionKinds => Set<MissionKindRow>();
-    public DbSet<HaulScuRow> HaulScu => Set<HaulScuRow>();
     public DbSet<WikiMissionRow> WikiMissions => Set<WikiMissionRow>();
     public DbSet<FleetShipRow> FleetShips => Set<FleetShipRow>();
     public DbSet<ActiveShipRow> ActiveShips => Set<ActiveShipRow>();
@@ -45,7 +44,6 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
     public DbSet<SiteValueRow> SiteValues => Set<SiteValueRow>();
     public DbSet<GauntletRunRow> GauntletRuns => Set<GauntletRunRow>();
     public DbSet<GauntletSettingsRow> GauntletSettings => Set<GauntletSettingsRow>();
-    public DbSet<GauntletSessionRow> GauntletSessions => Set<GauntletSessionRow>();
 
     /// <summary>
     /// A time is kept as text with its kind (2026-10-27T18:49:00.0000000Z for UTC), so it comes back the same: SQLite has no time type, and a UTC time read
@@ -192,20 +190,12 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
         {
             e.ToTable("Missions");
             e.HasKey(x => new { x.Player, x.MissionId });
-            e.HasIndex(x => x.ContractId);
-            e.HasIndex(x => x.Kind);
         });
 
         b.Entity<MissionKindRow>(e =>
         {
             e.ToTable("MissionKinds");
             e.HasKey(x => x.Key);
-        });
-
-        b.Entity<HaulScuRow>(e =>
-        {
-            e.ToTable("HaulScu");
-            e.HasKey(x => x.MissionId);
         });
 
         b.Entity<WikiMissionRow>(e =>
@@ -218,7 +208,6 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
         {
             e.ToTable("FleetShips");
             e.HasKey(x => x.Id);
-            e.HasIndex(x => x.Player);
         });
 
         b.Entity<ActiveShipRow>(e =>
@@ -264,12 +253,6 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
             e.HasKey(x => x.Player);
             e.Property(x => x.RewardAuec).AsJson();
             e.Property(x => x.RewardScrip).AsJson();
-        });
-
-        b.Entity<GauntletSessionRow>(e =>
-        {
-            e.ToTable("GauntletSessions");
-            e.HasKey(x => x.Id);
         });
 
         // every time with its kind, every amount as it is written (see Time and Amount)

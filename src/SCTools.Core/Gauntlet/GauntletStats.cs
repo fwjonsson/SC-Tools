@@ -20,8 +20,6 @@ public sealed record GauntletScenarioStats(
     int Scenario, GauntletReward Reward, int Completed, int Cancelled, double? Average, double? Fastest, double? Slowest,
     IReadOnlyList<GauntletRun> Top, double? TotalPerHourAtAverage, double? TotalPerHourAtFastest, double LifetimeAuec, double LifetimeTotal)
 {
-    /// <summary>What it earns per hour at its average time, apart: the aUEC alone, and the MG scrip alone (null without a timed run).</summary>
-    public double? AuecPerHourAtAverage => Average > 0 ? Reward.Auec / Average * 3600 : null;
     public double? ScripPerHourAtAverage => Average > 0 ? Reward.Scrip / Average * 3600 : null;
 }
 

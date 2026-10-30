@@ -117,9 +117,6 @@ visudo -cf /etc/sudoers.d/sctools >/dev/null
 systemctl daemon-reload
 systemctl enable sctools >/dev/null 2>&1   # it starts with the first version GitHub puts in place
 
-# run by rename-server.sh: the key and the secrets are in GitHub already
-if [ -n "${SETUP_QUIET:-}" ]; then exit 0; fi
-
 echo "== the key GitHub logs in with"
 install -d -o deploy -g deploy -m 700 /home/deploy/.ssh
 if [ ! -f /root/github-deploy.pub ]; then

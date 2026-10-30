@@ -75,7 +75,6 @@ public sealed partial class WebSnapshot
             tripEnd = _o.TripEnd,   // where the Submit button of a Current Route goes (the site); nothing: no button
             summary = plan.Summary,
             note = plan.Note,
-            palette = ViewPalette.MapPalette.Select(ViewPalette.Hex).ToArray(),
             // the map: every system as the map engine draws it (the same places as the Map tool), and every place the routes and the workers touch, with its key
             // on the map and its system (stage 2: a route may cross a gateway; the page draws each system's part on that system's tab)
             maps = StarMap.Systems.Select(s => StarRoutes.CurrentAtlas().SystemData(s)).ToList(),
@@ -87,5 +86,5 @@ public sealed partial class WebSnapshot
     }
 
     /// <summary>How wide a text is in the bold table font: measured by the program, else about 7.5 pixels a character (Segoe UI 10, bold).</summary>
-    int Measure(string text) => _o.MeasureBold?.Invoke(text) ?? (int)Math.Ceiling(text.Length * 7.5);
+    int Measure(string text) => (int)Math.Ceiling(text.Length * 7.5);
 }
