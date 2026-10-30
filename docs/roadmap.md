@@ -169,6 +169,10 @@ All the tools track at the same time, all the time. The tracking runs on the ser
     the session is over, the table keeps the last one, marked ended, until the next game. While the map shows the system he is in, it follows him when
     he jumps to another system; another system he picked stays. In the top bar and on the landing page it is left of the Hauling Planner. The Map
     tool lost its Objectives list and its Active Contracts to it, and its map got bigger (1,060 px, was 820).
+    - **Earnings are your part** (Frank, 30 Oct 2026, after the Companion showed 18,501,500 aUEC for a session he hauled with zzatvo: every member
+      counted every shared contract in full): the aUEC is split evenly among the players who completed the same mission, a Hauling Planner contract
+      pays its payout split (the Debts tab's), and the scrip goes only to the one who took the contract; the Session tool counts the same way. With
+      combined accounts the Companion adds them up over the viewer's own game session, per hour of his own time played (Frank's answer).
 
 Later, maybe: a party/crew board (who is on which shard, in which jurisdiction, in whose ship) and crash/server statistics.
 

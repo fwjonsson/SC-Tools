@@ -309,7 +309,10 @@ admin (done), then going live.
   abandoned, newest first), with how each ended and when in place of Open, and the same columns. Beside the players is the **game session**: the Session
   tool's top table except Games (time played, crashes, missions completed, aUEC, MG and Council scrip, earned, per hour; his own) for the current game
   session only (`GameSession` in the core: from when the game started until an hour after it was closed, crashed or quit and not started again; a game
-  started again within that hour is the same session; when it is over, the last one is shown, marked ended, until the next game; Frank's answers). Its
+  started again within that hour is the same session; when it is over, the last one is shown, marked ended, until the next game; Frank's answers). The
+  earnings are his part, as on the Session tool (below); a player with **combined accounts** (the Account page, `AppData.CombinedAccounts`: Frank's
+  zzoega, zzatvo and zzoii) sees the aUEC, the scrip, the Earned and the per hour of all of them together over his own game session, per hour of his own
+  time played (Frank, 30 Oct 2026; the missions completed stay his own). Its
   data is `/companion/session.json`, polled every 5 seconds with its ETag (304 when nothing changed; made again when a piece of a log came in, the library
   or the scrip's value changed, or a minute went by): no running time in it, the time played and the per hour count on in the browser from the running
   game's start (the clock rule). The map opens on the system he is in (else the address's, else where most of his party is), and while it shows the
@@ -447,8 +450,12 @@ admin (done), then going live.
   library when it went by ContractId is carried over to the names once.
 - **The Session tool** (`/session`, `Play/PlayStats` in the core, `Playtime`, `SessionController`): your own play. Time played today, this week (from
   Monday), this month and in all, the games and the crashes (a log without the game's quit line, `SystemQuit`, crashed), the missions you completed
-  and what they earned (aUEC, MG and Council scrip as the Mission Library says they pay, shared ones too; the scrip at the Scrip page's value), and per
-  hour; the clock of the game you play now; a list of your games. Worked out again on every visit, so a reward typed in later counts for the past. The
+  and what they earned (aUEC, MG and Council scrip as the Mission Library says they pay; the scrip at the Scrip page's value), and per
+  hour; the clock of the game you play now; a list of your games. Worked out again on every visit, so a reward typed in later counts for the past.
+  What a mission earned is your part of it (`MissionLibrary.Earned`, Frank 30 Oct 2026; before, every member of the party counted the whole reward of a
+  contract they all completed): the aUEC is split evenly among the players who completed the same mission, a Hauling Planner contract pays what its
+  payout split gives you (`AppData.Payouts`, the Debts tab's Mission payouts, also when you shared the payout without the contract in your own log), and
+  the MG and Council scrip go only to the player who took the contract (not to one it was shared with), as the game pays them. The
   games are kept for good in `LogFiles`: the old logs (now with the quit line: `HistorySender.Version` 2, so they are sent once more) and the games of
   the live logs while they run (version 0, so their backup log still comes and takes over).
 - **Which tools everybody sees** is the admin's **Tools** page (`/admin/tools`, `SiteTools.cs`, the table `Tools`): a tick per tool, saved as soon as it

@@ -247,8 +247,11 @@
       box.appendChild(t);
       tick();
       const hint = el('p', 'hint');
-      hint.textContent = 'Your own play since the game started (a game started again within an hour of the last one is the same session). Earned is what the ' +
-        'Mission Library says your completed missions pay, with MG scrip at ' + money(s.mgValue) + ' aUEC and Council scrip at ' + money(s.councilValue) + ' aUEC.' +
+      hint.textContent = 'Your own play since the game started (a game started again within an hour of the last one is the same session). Earned is your part of ' +
+        'what the Mission Library says your completed missions pay (the aUEC split among everybody who completed the same mission, the contracts of the Hauling Planner ' +
+        'as its payouts; the scrip only for the one who took the contract), with MG scrip at ' + money(s.mgValue) + ' aUEC and Council scrip at ' +
+        money(s.councilValue) + ' aUEC.' +
+        (s.accounts ? ' The aUEC, scrip, Earned and Per hour are your accounts together (' + s.accounts.join(', ') + ') in this session, per hour of your own time played.' : '') +
         (s.withoutReward > 0 ? ' ' + s.withoutReward + (s.withoutReward === 1 ? ' completed mission has' : ' completed missions have') + ' no reward in the library yet.' : '');
       box.appendChild(hint);
     }
