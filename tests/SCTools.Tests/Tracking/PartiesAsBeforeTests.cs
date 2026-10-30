@@ -61,13 +61,13 @@ public class PartiesAsBeforeTests
     public void Who_plays_with_whom(double minutes, string groups)
     {
         var now = At(minutes);
-        Assert.Equal(groups, Groups(AutoParty.Work(UploadsAt(now).Logs, Members, now).Groups));
+        Assert.Equal(groups, Groups(PartyTracker.Work(UploadsAt(now).Logs, Members, now).Groups));
     }
 
     [Fact]
     public void When_every_member_was_active()
     {
-        var r = AutoParty.Work(UploadsAt(At(91)).Logs, Members, At(91));
+        var r = PartyTracker.Work(UploadsAt(At(91)).Logs, Members, At(91));
         Assert.Equal("+0", Changes(r.Changes["zzoega"]));
         Assert.Equal("+1.5", Changes(r.Changes["zzatvo"]));   // the crash at 60 and the relog at 64: not gone
         Assert.Equal("+5", Changes(r.Changes["zzoii"]));
@@ -82,8 +82,9 @@ public class PartiesAsBeforeTests
         var u = new LogUploads();
         var mine = new GameLogWriter().Login("zzoega").Minutes(2).PartyCreated().Minutes(30).Noise();
         var his = new GameLogWriter().Login("zzatvo").Minutes(2).Seconds(3).PartyJoined().Minutes(30).Noise();
-        Assert.True(u.Add("zzoega", "a", 0, 1000, mine.Lines.ToList(), At(40)).Ok);
-        Assert.True(u.Add("zzatvo", "b", 0, 1000, his.Lines.ToList(), At(40)).Ok);
-        Assert.Equal("zzatvo: zzatvo | zzoega: zzoega", Groups(AutoParty.Work(u.Logs, Members, At(40)).Groups));   // two parties of one
+        Assert.True(u.Add("zzoega", mine.Lines[0][1..24] + "Z", 0, 1000, mine.Lines.ToList(), At(40)).Ok);   // named by the time of its first line, as LogSender names it
+        Assert.True(u.Add("zzatvo", his.Lines[0][1..24] + "Z", 0, 1000, his.Lines.ToList(), At(40)).Ok);
+        // A DIFFERENCE MEANT: before the party tracker this was two parties of one ("zzatvo: zzatvo | zzoega: zzoega"); the two lines seconds apart are one party
+        Assert.Equal("zzoega: zzatvo, zzoega", Groups(PartyTracker.Work(u.Logs, Members, At(40)).Groups));
     }
 }

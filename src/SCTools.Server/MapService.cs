@@ -268,7 +268,7 @@ public sealed class MapService
         {
             var name = log.Player ?? log.Uploader;
             if (string.IsNullOrWhiteSpace(name)) continue;
-            if (!(games.TryGetValue(log.Uploader ?? name, out var runs) && runs.Any(r => !r.Quit && nowUtc - r.Run.Last < AutoParty.Quiet))) continue;
+            if (!(games.TryGetValue(log.Uploader ?? name, out var runs) && runs.Any(r => !r.Quit && nowUtc - r.Run.Last < PartyTracker.Quiet))) continue;
             lock (_uploads.Sync) playing.Add((log, name, log.Qt.ToList(), log.Locations.ToList(), log.Beacons.ToList(), new Dictionary<string, Mission>(log.Missions)));
         }
         return playing;

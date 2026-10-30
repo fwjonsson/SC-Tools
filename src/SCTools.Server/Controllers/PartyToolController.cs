@@ -60,21 +60,23 @@ public sealed class PartyToolController : Controller
         var parties = _party.Parties(now).Where(p => allowed == null || p.Names.Any(allowed.Contains)).ToList();
         var roster = _party.Roster(now).Where(r => allowed == null || allowed.Contains(r.Name)).ToList();
         var inParty = new HashSet<string>(parties.SelectMany(p => p.Names), StringComparer.OrdinalIgnoreCase);
+        var book = _live.Parties(now);
         var ships = parties.SelectMany(p => p.Names).Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(n => n, n => Line(n, now), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(n => n, n => Line(n, now, book), StringComparer.OrdinalIgnoreCase);
         return new PartyToolPage(parties, roster.Where(r => !inParty.Contains(r.Name)).ToList(), ships, now);
     }
 
     /// <summary>
     /// A member's ship (his fleet's active one, or the class of his last quantum jump), its drive, his colour (Edits.ColorOf: the Hauling Planner's), and
-    /// whether the planner has him active (null when he is not in its party).
+    /// whether the planner has him active (null when he is not in its party), and whether he runs no tracker.
     /// </summary>
-    PartyMemberLine Line(string name, DateTime now)
+    PartyMemberLine Line(string name, DateTime now, PartyBook book)
     {
         var active = _fleet.Active(name);
         var (color, inPlanner) = _live.Read(t => (Edits.ColorOf(t, name),
             t.State.Data.Party.Any(n => PlayerNames.SameName(n, name)) ? t.Crew.IsActiveAt(name, now) : (bool?)null));
-        return new PartyMemberLine(active.Text, active.Ship?.DriveText ?? "", ViewPalette.Hex(color), ViewPalette.Hex(ViewPalette.TextOn(color)), inPlanner);
+        return new PartyMemberLine(active.Text, active.Ship?.DriveText ?? "", ViewPalette.Hex(color), ViewPalette.Hex(ViewPalette.TextOn(color)), inPlanner,
+            _party.WithoutTracker(name, book));
     }
 
     /// <summary>

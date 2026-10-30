@@ -73,3 +73,5 @@
 .topbar button.link { font:inherit; font-weight:400; background:none; border:none; padding:0; margin:0; color:inherit; text-decoration:underline; cursor:pointer; }
 /* on a tool's own page (its body has a padding of its own, 14px 18px): the bar over the whole width */
 body.tool > .topbar { margin:-14px -18px 14px; }
+/* a party member without the SC Tools Tracker (only the others' logs show him): a small tag after his name, on the panel and the Party pages */
+.notracker { display:inline-block; margin-left:6px; padding:0 5px; border-radius:3px; font-size:0.72em; font-weight:400; letter-spacing:0; vertical-align:middle; background:rgba(0,0,0,.28); color:inherit; opacity:.85; white-space:nowrap; }

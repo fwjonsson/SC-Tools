@@ -25,7 +25,7 @@
         @foreach (var n in p.Names)
         {
           var m = Model.Ships.TryGetValue(n, out var line) ? line : new PartyMemberLine("", "", "#888888", "#ffffff", null);
-          <tr class="@(m.Active == false ? "inactive" : null)" style="background:@m.Color;color:@m.Text"><td><a href="@Link(n)">@n.ToUpperInvariant()</a></td><td>@m.Ship</td><td>@m.Drive</td>@if (Ticks(p)) {
+          <tr class="@(m.Active == false ? "inactive" : null)" style="background:@m.Color;color:@m.Text"><td><a href="@Link(n)">@n.ToUpperInvariant()</a>@if (m.NoTracker) { <span class="notracker" title="He runs no SC Tools Tracker: the site only knows what the others' logs say about him (in the party, joined, left, leads), not his ship or where he is.">no tracker</span> }</td><td>@m.Ship</td><td>@m.Drive</td>@if (Ticks(p)) {
             <td class="center">@if (m.Active is bool on) { <input type="checkbox" name="active" data-name="@n" checked="@on" aria-label="Active in the Hauling Planner" title="Off: the Hauling Planner plans no trips for him (he stopped playing); on: he is back. Holds until the logs change their mind."> }</td>
           }</tr>
         }

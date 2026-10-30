@@ -50,8 +50,23 @@ public sealed class Crew
         return last != null ? last.Active : !changes[0].Active;
     }
 
-    /// <summary>The members who were active at this time.</summary>
+    /// <summary>The members who were active at this time (the Active tick: who the planner gave routes).</summary>
     public List<string> PartyAt(DateTime utc) => PartyNamesAll().Where(n => IsActiveAt(n, utc)).ToList();
+
+    /// <summary>
+    /// Was this player in the in-game party at this time (null: now), for the money: what the party tracker says (TrackerState.Parties), never the Active
+    /// tick, which only says who the planner gives routes (Frank, 30 Oct 2026: a member unticked because he does not haul still gets his share of a contract
+    /// he had). Null where the logs do not decide (no party tracker, or a time before the logs took over: AutoPartySince); then the Active tick was it.
+    /// </summary>
+    public bool? InGamePartyAt(string name, DateTime? utc)
+    {
+        if (_s.Parties is not { } book || Data.AutoPartySince is not { } since) return null;
+        var at = utc ?? book.Now;
+        return at >= since ? book.ActiveAt(name, at) : null;
+    }
+
+    /// <summary>The members who were in the in-game party at this time, for the money (see InGamePartyAt); before the logs decided, the active ones.</summary>
+    public List<string> MoneyPartyAt(DateTime utc) => PartyNamesAll().Where(n => InGamePartyAt(n, utc) ?? IsActiveAt(n, utc)).ToList();
 
     /// <summary>From this time on the payouts are split by who was in the party at that moment. Earlier missions keep the old split.</summary>
     public DateTime PartyTrackingStart()

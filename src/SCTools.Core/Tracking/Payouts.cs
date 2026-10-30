@@ -141,8 +141,9 @@ public sealed class Payouts
             }
             else
             {
-                members = _crew.PartyAt(m.EndedAt.Value);
-                if (members.Count == 0) members = kv.Value.Keys.ToList();   // nobody was marked active: the ones who carried it share it
+                // who was in the in-game party when it paid out (the party tracker; the Active tick only says who gets routes)
+                members = _crew.MoneyPartyAt(m.EndedAt.Value);
+                if (members.Count == 0) members = kv.Value.Keys.ToList();   // nobody was in the party: the ones who carried it share it
             }
             // the ones who have the mission when it pays out share it (ContractSplit, Frank's rule of 30 Oct 2026): the party members who have it, and anybody
             // else whose log has it (what the logs say about who took part, or what was ticked on the Contracts tab), not a party member without it;

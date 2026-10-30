@@ -131,7 +131,7 @@ public class WebSnapshotTests
     {
         var (t, _) = PlayedSession.Load();
         t.State.Data.Party.Add("Pilot_B");   // no log: he is not in Pilot_A's party
-        var parties = new AutoParty.Result();
+        var parties = new PartyBook();
         parties.Groups.Add(new PartyGroup(PlayedSession.Player, new[] { PlayedSession.Player }));
         parties.Groups.Add(new PartyGroup("Pilot_B", new[] { "Pilot_B" }));
         t.State.Parties = parties;

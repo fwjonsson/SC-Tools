@@ -6,7 +6,7 @@
     var tracker = TrackerVersions.Describe(m.Tracker, null, Model.NowUtc).Text;
 }
 <p><a href="/party">‹ Party</a></p>
-<h1>@m.Name</h1>
+<h1>@m.Name@if (m.NoTracker) { <span class="notracker">no tracker</span> }</h1>
 <table class="narrow info">
   <tbody>
     <tr><th>Now</th><td>@(m.Playing ? "Playing" : m.LastSeenUtc is { } t ? "Last seen " + TrackerVersions.Ago(t, Model.NowUtc) : "Not in the logs the server has")</td></tr>
