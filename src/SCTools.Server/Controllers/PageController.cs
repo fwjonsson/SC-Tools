@@ -46,16 +46,16 @@ public sealed class PageController : Controller
             return _live.Read(t => t.State.Current == null ? "No session yet" : BoardTexts.DescribeSession(t.State.Current));
         if (tool == SiteTools.Gauntlet)
         {
-            if (User.Identity?.IsAuthenticated != true || string.IsNullOrEmpty(User.Identity.Name)) return "Log in to see your runs";
+            if (PointOfView.Name(HttpContext) is not { Length: > 0 } me) return "Log in to see your runs";
             var week = DateTime.UtcNow.AddDays(-7);
-            var runs = _gauntlet.Runs(User.Identity.Name).Count(r => r.Outcome == GauntletOutcome.Complete && r.EndedUtc >= week);
+            var runs = _gauntlet.Runs(me).Count(r => r.Outcome == GauntletOutcome.Complete && r.EndedUtc >= week);
             return runs == 0 ? "No runs this week" : runs == 1 ? "1 run this week" : runs + " runs this week";
         }
         if (tool == SiteTools.Session)
         {
-            if (User.Identity?.IsAuthenticated != true || string.IsNullOrEmpty(User.Identity.Name)) return "Log in to see your play";
+            if (PointOfView.Name(HttpContext) is not { Length: > 0 } me) return "Log in to see your play";
             var now = DateTime.UtcNow;
-            var games = _playtime.Games(User.Identity.Name, now);
+            var games = _playtime.Games(me, now);
             if (games.FirstOrDefault(g => g.Running) is { } running)
                 return "Playing for " + (running.Length.TotalHours >= 1 ? (int)running.Length.TotalHours + " h " : "") + running.Length.Minutes + " min";
             var week = SCTools.Play.PlayStats.Periods(now, TimeZoneInfo.Local)[1];

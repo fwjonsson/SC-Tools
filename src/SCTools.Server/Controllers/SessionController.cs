@@ -32,7 +32,7 @@ public sealed class SessionController : Controller
     public IActionResult Index()
     {
         if (!_tools.Sees(User, SiteTools.Session)) return User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
-        var me = User.Identity?.Name ?? "";
+        var me = PointOfView.Name(HttpContext) ?? "";   // the admin looks as a player through the top bar's pick (30 Oct 2026)
         var now = DateTime.UtcNow;
         _missions.Collect();
         var games = _playtime.Games(me, now);

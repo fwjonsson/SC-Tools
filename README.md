@@ -323,7 +323,9 @@ admin (done), then going live.
   icon and what it shows now (the hauling session, your gauntlet runs this week, the missions left to fill in). Every page has the same bar at the top
   (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards), the tools the viewer sees, and on the right
   **Tracker** (its page: download and setup; the tools come in the order Frank set on 30 Oct 2026, `SiteTools.Bar`: Hauling Planner, Gauntlet Tracker, Map,
-  Session, Mission Library, while the cards of the landing page keep theirs), who is logged in, his **Party** button (the panel of who is playing, see the Party tool), My page, Admin and
+  Session, Mission Library, while the cards of the landing page keep theirs), who is logged in, for the admin **View as** (a pick of a player, Frank 30 Oct 2026: the `sct-pov` cookie set by `/admin/pov`, `PointOfView`; the
+  Hauling Planner's page, the Gauntlet Tracker, the Session tool and the landing page's cards then show that player's view, and the Hauling Planner's
+  own pick of a party on its Session tab went with it; what a page lets the viewer change still goes by who is really logged in), his **Party** button (the panel of who is playing, see the Party tool), My page, Admin and
   Log out (or Log in); on a phone all of it is behind a menu button.
   The part of the site you are in is marked in its own colour: a tool (by its address, `/gauntlet/stats` too) in the colour of its card, My page in
   green, Admin in red on the admin's pages and his account. On an ultrawide screen every page keeps to a band of 1,900 px in the middle: the bar, the

@@ -36,7 +36,7 @@ public sealed class GauntletController : Controller
     }
 
     /// <summary>Whose page it is: the one logged in.</summary>
-    string Me => User.Identity?.Name ?? "";
+    string Me => PointOfView.Name(HttpContext) ?? "";   // the admin looks as a player through the top bar's pick (30 Oct 2026)
 
     IActionResult Hidden() => User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
 
