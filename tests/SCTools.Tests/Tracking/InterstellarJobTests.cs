@@ -46,7 +46,7 @@ public class InterstellarJobTests
         // the old planner (the Route Planner tab) plans the batch to Ruin alone
         t.Plan.GetPlan();
         Assert.Equal(1, t.Plan.Core!.Batches);
-        Assert.DoesNotContain("Shallow Fields", t.Plan.GetPlan().Note);
+        Assert.Contains("Not planned here (the drop-off is not Ruin; the Route Planner (new) plans them): Shallow Fields Station at Crusader's L4 Lagrange point ×1 to Orbituary, Gaslight.", t.Plan.GetPlan().Note);   // the job is in the session since stage 4: the old planner says so
 
         // the planner without a hub plans the two parcels too: from CRU-L4 to Orbituary and to Gaslight, through the Stanton and Pyro gateways
         var plan = t.FreePlan.GetPlan();

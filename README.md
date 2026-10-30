@@ -502,8 +502,16 @@ admin (done), then going live.
     its marker's position when that is in the system's frame (metres from the star, as the Stanton pickups' are: the nearest place of the map within 0.05
     Gm, `HaulJobs.AtPosition`; Frank's answer 5), else by the ends of a direct haul's title (*Baijini Point > Ruin Station*). A worker the logs and the map
     place nowhere starts at the session's **hub**, the place most of the open batches go to (Ruin in a to-Ruin session, so nothing changes there;
-    `Whereabouts.LocationOf(name, anyPlace, fallback)`); the old planner starts everybody at Ruin. The Stops, Finished stops and Contracts boards still
-    show the Red Wind contracts only; the jobs stay on the Other hauling board until stage 4 folds them in.
+    `Whereabouts.LocationOf(name, anyPlace, fallback)`); the old planner starts everybody at Ruin.
+  - **The jobs in the session** (stage 4a, 30 Oct 2026): the sessions take every hauling mission (`SessionBuilder.InSession`), so a job of another kind
+    is on the **Stops** board (its pickup as the map names it, its drop-offs in the Drop-off Location column, `LocationRow.Job`, `PickupName`), in the
+    **Contracts** table by its name with what the Mission Library says it pays (else the Wiki, else nothing), in the **Cargo runs** when a party member
+    picks it up and delivers it (the delivery ends the run, like a hand-in), and in the session's earnings, the leaderboard and the Debts tab's payouts.
+    What a part of a mission is worth is reward over its **parcels** (`Mission.Parcels`: the stops of a Red Wind contract, the drop-offs of a from-Ruin
+    one, a job's pickups when it has one drop-off, else its drop-offs), which is what reward over stops was. A job's zones are named as the map has their
+    places everywhere a table names a location (`TrackerState.JobZoneNames`). The old planner leaves a job's rows with its note; the Route Planner (new)
+    plans the job itself (not its rows a second time). The Other hauling board stays for now: it has the SCU field, which the Stops board does not have
+    yet (stage 4b, with the cargo aboard of a job followed in the runs).
   - **Stops:** one per objective group (`pickup_<guid>_0.._2` is one stop with three commodities), ✓ when every objective of it is completed.
   - **Names:** from the objectives' texts ("Deliver 0/4 SCU of Distilled Spirits to Port Tressler", "Collect … From Shallow Fields Station at
     Crusader's L4 Lagrange point" is CRU-L4, "… on microTech", the spaceports: NB Int. is New Babbage, Teasa Lorville, Riker Memorial Area18, August

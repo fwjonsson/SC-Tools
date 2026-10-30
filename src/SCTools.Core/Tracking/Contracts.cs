@@ -46,6 +46,8 @@ public sealed class Contracts
     /// <summary>The Stops cell of a contract: its pickups (✓ = picked up), or for a from-Ruin contract its drop-offs with their SCU (✓ = delivered).</summary>
     public string ContractStopsText(Mission m)
     {
+        // a hauling job of another kind (stage 4): its pickups as the map has them, with their SCU
+        if (HaulJobs.IsJob(m) && HaulJobs.Open(_s).FirstOrDefault(j => j.Mission.Id == m.Id) is { } job) return HaulJobs.StopsText(job.Pickups);
         if (!m.IsOut) return string.Join(",  ", SessionBuilder.StopsOf(m).Select(s => _places.LocationName(s.Zone) + (s.PickedUp ? " ✓" : "")));
         return string.Join(",  ", m.ObjZone.Where(kv => kv.Key.StartsWith("dropoff_")).OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv =>
         {

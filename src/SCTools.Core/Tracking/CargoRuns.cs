@@ -295,9 +295,9 @@ public sealed class CargoRuns
     /// </summary>
     public static double StopScu(Mission m)
     {
-        if (m.Multi <= 0) return 0;
+        if (m.Parcels <= 0) return 0;
         var all = m.ObjScu.Values.Sum();
-        return (all > 0 ? all : AssumedMissionScu) / (double)m.Multi;
+        return (all > 0 ? all : AssumedMissionScu) / (double)m.Parcels;
     }
 
     /// <summary>The SCU still to pick up at a location: its stops that are not picked up yet (a guess, see StopScu).</summary>

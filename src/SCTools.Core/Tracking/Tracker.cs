@@ -72,6 +72,13 @@ public sealed class Tracker
         var g = State.Current ?? throw new InvalidOperationException("No session is shown.");
         State.Missing = State.Log == null ? new HashSet<string>() : SessionBuilder.MissingCargo(g, Runs.BuildRuns(g, State.Inputs!), State.Log.LastTime);
         State.Summary = SessionBuilder.Summarize(g);
+        // the zones of the party's hauling jobs by the names of their places on the map (stage 4): the tables name a Stanton pickup by its station, not "Unknown ...id"
+        var names = new Dictionary<string, string>(StringComparer.Ordinal);
+        var sessionJobs = HaulJobs.Of(g.Missions.Concat(g.Failed).Where(HaulJobs.IsJob).ToList(), State.Jobs.Atlas);   // the session's, the completed ones too
+        foreach (var job in HaulJobs.Open(State).Concat(sessionJobs))
+            foreach (var stop in job.Pickups.Concat(job.Drops))
+                if (stop.Zone != null && !names.ContainsKey(stop.Zone) && (stop.Place != null || stop.Name != null)) names[stop.Zone] = stop.Shown;
+        State.JobZoneNames = names;
         State.Rows = SessionBuilder.Locations(g);
         State.OpenRows = SessionBuilder.Locations(g, true, State.Missing);
         State.PickupRows = State.OpenRows.Where(r => !r.DeliveredTime.HasValue).ToList();

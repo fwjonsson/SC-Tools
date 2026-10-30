@@ -205,6 +205,35 @@ public sealed partial class WebSnapshot
         return table;
     }
 
+    Dictionary<string, HaulJob>? _jobsById;
+
+    /// <summary>The hauling jobs of the party going on, by mission id (HaulJobs.Open, made once per snapshot): their places as the map has them, for the boards.</summary>
+    Dictionary<string, HaulJob> JobsById() => _jobsById ??= HaulJobs.Open(_s).GroupBy(j => j.Mission.Id, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The Pickup Location cell of a row: the location's name; for a job of another kind (stage 4) the place as the map has it, else what the game said.</summary>
+    string StopName(LocationRow r)
+    {
+        if (!r.Job) return _t.Places.LocationName(r.Zone);
+        foreach (var m in r.StopMissions)
+        {
+            if (JobsById().TryGetValue(m.Id, out var job) && job.Pickups.FirstOrDefault(p => p.Zone == r.Zone) is { } stop) return stop.Shown;
+        }
+        return r.PickupName ?? _t.Places.LocationName(r.Zone);
+    }
+
+    /// <summary>The Drop-off Location cell of a row of a contract to a station or a job (stage 4): the places as the map has them, else what the game said; null when nothing says.</summary>
+    string? DropText(LocationRow r)
+    {
+        if (r.Job)
+        {
+            foreach (var m in r.StopMissions)
+            {
+                if (JobsById().TryGetValue(m.Id, out var job) && job.Drops.Count > 0) return string.Join(", ", job.Drops.Select(d => d.Shown).Distinct());
+            }
+        }
+        return r.DropName;
+    }
+
     /// <summary>
     /// The Other hauling board: the hauling jobs of every system the party has going (not the planner's own contracts; see HaulJobs), with who has each, its
     /// pickups and drop-offs (✓ = done), its SCU and where that comes from, and what the Mission Library says it pays (else the Star Citizen Wiki). With a
@@ -256,9 +285,10 @@ public sealed partial class WebSnapshot
             {
                 var value = _t.Earnings.StopValue(r);
                 var waiting = CargoRuns.WaitingScu(r);   // a guess (mission SCU / its stops), nothing when everything there is picked up
-                // a row of a contract to another station says that station (stage 1a of docs/planner-any-hauling.md): the game's name for it, else the position's
-                var to = r.ToRuin ? ruin : r.DropName ?? (r.DropZone != null ? _t.Places.LocationName(r.DropZone) : "another station");
-                lines.Add((value, new[] { "", _t.Places.LocationName(stop.Zone), BoardTexts.MissionsText(r), PlanText.ScuSum(waiting), waiting >= 1 ? PlanText.ScuGuess(waiting) : "", ValueText(value), to }, r.Loaded >= r.Missions, false));
+                // a row of a contract to another station says that station (stage 1a of docs/planner-any-hauling.md): the game's name for it, else the position's;
+                // a job of another kind (stage 4) its places as the map has them
+                var to = r.ToRuin ? ruin : DropText(r) ?? (r.DropZone != null ? _t.Places.LocationName(r.DropZone) : "another station");
+                lines.Add((value, new[] { "", StopName(r), BoardTexts.MissionsText(r), PlanText.ScuSum(waiting), waiting >= 1 ? PlanText.ScuGuess(waiting) : "", ValueText(value), to }, r.Loaded >= r.Missions, false));
             }
             if (stop.Drops.Count > 0)
             {
@@ -290,7 +320,7 @@ public sealed partial class WebSnapshot
             var delivered = r.Missions > 0 ? r.StopMissions.Sum(CargoRuns.StopScu) * r.Delivered / r.Missions : 0;   // the stops handed in, in SCU (a guess)
             var row = table.Add(
                 "",
-                _t.Places.LocationName(r.Zone),
+                StopName(r),
                 r.Delivered + "/" + r.Missions,
                 PlanText.ScuSum(delivered),
                 delivered >= 1 ? PlanText.ScuGuess(delivered) : "",

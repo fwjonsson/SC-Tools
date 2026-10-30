@@ -65,6 +65,26 @@ public sealed class Mission
     /// <summary>A Red Wind contract from 2 to 4 stations to one (to Ruin, or ToStation).</summary>
     public bool IsHauling => Cargo != null;
 
+    /// <summary>
+    /// How many parts the mission's cargo is in, each worth reward / Parcels and a batch on the boards (stage 4 of docs/planner-any-hauling.md): the pickup
+    /// stops of a Red Wind contract (Multi), the drop-offs of a from-Ruin one, and for a hauling job of another kind its pickups when it has one drop-off, else
+    /// its drop-offs (a parcel per drop-off from the one pickup). 0 when the log shows no stops.
+    /// </summary>
+    public int Parcels
+    {
+        get
+        {
+            if (Multi > 0) return Multi;
+            if (IsOut) return OutDrops;
+            var picks = StopCount("pickup_");
+            var drops = StopCount("dropoff_");
+            return drops <= 1 ? picks : picks <= 1 ? drops : Math.Max(picks, drops);
+        }
+    }
+
+    /// <summary>The stops of a kind the log has objectives of ("pickup_<guid>_0" and "..._1" are one stop with two commodities).</summary>
+    int StopCount(string prefix) => ObjZone.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).Select(k => Regex.Replace(k, @"_\d+$", "")).Distinct().Count();
+
     /// <summary>A hauling contract whose drop-off is Ruin Station: what the planner plans today.</summary>
     public bool ToRuin => IsHauling && !ToStation;
     public bool Completed => EndState == "COMPLETED";

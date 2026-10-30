@@ -118,7 +118,7 @@ public sealed class Earnings
         var inp = _s.Inputs;
         if (inp == null) return 0;
         // every mission with a stop here pays its own reward (a row made from the session has the missions; one made by hand says how many of each size)
-        if (r.StopMissions.Count > 0) return r.StopMissions.Where(m => m.Multi > 0).Sum(m => RewardOf(m, inp, _s.Jobs) / m.Multi);
+        if (r.StopMissions.Count > 0) return r.StopMissions.Where(m => m.Parcels > 0).Sum(m => RewardOf(m, inp, _s.Jobs) / m.Parcels);   // a hauling job of another kind too (stage 4): its parcels
         return r.Stops2 * Or(inp.Reward2, DefaultReward2) / 2m + r.Stops3 * Or(inp.Reward3, DefaultReward3) / 3m + r.Stops4 * Or(inp.Reward4, DefaultReward4) / 4m;
     }
 
@@ -173,8 +173,8 @@ public sealed class Earnings
                     m = g.Failed.FirstOrDefault(x => x.Id == id);
                     dead = true;
                 }
-                if (m == null || m.Multi == 0) continue;
-                var v = RewardOf(m, inp, book) / m.Multi;
+                if (m == null || m.Parcels == 0) continue;
+                var v = RewardOf(m, inp, book) / m.Parcels;
                 total += v;
                 if (t.Manual || dead || CargoRuns.LostLevelOf(inp, t.Key) == "All") failed += v;   // a failed run lost all its cargo
                 else if (m.Completed) confirmed += v;
@@ -201,8 +201,8 @@ public sealed class Earnings
         foreach (var id in p.MissionIds)
         {
             var m = _s.Current.Missions.FirstOrDefault(x => x.Id == id) ?? _s.Current.Failed.FirstOrDefault(x => x.Id == id);
-            if (m == null || m.Multi == 0) continue;
-            total += RewardOf(m, _s.Inputs, _s.Jobs) / m.Multi;
+            if (m == null || m.Parcels == 0) continue;
+            total += RewardOf(m, _s.Inputs, _s.Jobs) / m.Parcels;
         }
         return total;
     }

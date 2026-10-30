@@ -79,8 +79,8 @@ public sealed class Payouts
                 foreach (var id in p.MissionIds)
                 {
                     var m = g.Missions.FirstOrDefault(x => x.Id == id);
-                    if (m == null || m.Multi == 0 || !m.Completed) continue;
-                    var v = Earnings.RewardOf(m, inp, _s.Jobs) / m.Multi;
+                    if (m == null || m.Parcels == 0 || !m.Completed) continue;
+                    var v = Earnings.RewardOf(m, inp, _s.Jobs) / m.Parcels;
                     if (v <= 0) continue;
                     carried.TryGetValue(t.Worker, out var old);
                     carried[t.Worker] = old + v;
@@ -143,7 +143,7 @@ public sealed class Payouts
                 {
                     MissionId = m.Id,
                     Time = m.EndedAt.Value,
-                    Contract = (string.IsNullOrEmpty(m.Cargo) ? "Cargo" : m.Cargo) + ", " + m.Multi + " stops",
+                    Contract = m.IsHauling ? (string.IsNullOrEmpty(m.Cargo) ? "Cargo" : m.Cargo) + ", " + m.Multi + " stops" : m.Title ?? "A hauling mission",   // a job of another kind by its name (stage 4)
                     Payout = Data.PayoutOverrides.TryGetValue(m.Id, out var typed) && typed > 0 ? typed : Earnings.RewardOf(m, inp, _s.Jobs),
                     Members = new List<string>(members),
                     Each = share,

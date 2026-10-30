@@ -39,9 +39,11 @@ public sealed class Places
 
     /// <summary>
     /// The name of a location: the one the game gives it (AutoName). The names the admin typed (AppData.LocationNames, the shortened ones of before) are
-    /// not used since 30 Oct 2026 (Frank: the full names back, and the Stops table of his Session page went); a station the site does not know is "Unknown ...id".
+    /// not used since 30 Oct 2026 (Frank: the full names back, and the Stops table of his Session page went); a zone of a hauling job of another system is
+    /// named as the map has its place (TrackerState.JobZoneNames, stage 4); a station the site does not know is "Unknown ...id".
     /// </summary>
-    public string LocationName(string zone) => AutoName(zone);
+    public string LocationName(string zone) =>
+        KnownNames.ContainsKey(StationKey(zone)) ? AutoName(zone) : _s.JobZoneNames.TryGetValue(zone, out var job) ? job : AutoName(zone);
 
     /// <summary>The station of a pickup location: by its location id, or by the name you gave it. Null when the distance table does not know it.</summary>
     public string? StationOf(string zone) => PyroDistances.IdOfTail(StationKey(zone)) ?? PyroDistances.IdOfName(LocationName(zone));
