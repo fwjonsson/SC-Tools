@@ -371,7 +371,10 @@ admin (done), then going live.
   while anything happens with its missions; after an hour with nothing (also a crash, or the trackers off) it ended 5 minutes after the last thing that
   happened. The Hauling Planner: one session for the party (everybody's hauling contracts to and from Ruin: accepted, picked up, delivered, ended; and
   while a contract is still going, everybody's quantum jumps and the latest log line count too, since a party on long routes can go an hour without a
-  pickup or a drop-off: on 29 Oct 2026 the session ended at 22:45 with nine contracts going, Frank: not while somebody is online with contracts going),
+  pickup or a drop-off: on 29 Oct 2026 the session ended at 22:45 with nine contracts going; and a session never ends while a contract is still open,
+  `AutoSessions.Apply(going)`, Frank 30 Oct 2026: a break of an hour or more at a station or a loading of twenty minutes is still the session; an
+  open contract holds it for three hours after the last line in anybody's log, `OpenContractHolds`, so somebody who went to bed with one does not
+  keep a session going for ever),
   kept in `ManualSessions` (`Auto`) so it keeps its key and what was typed for it; one that stopped goes on again when a log that came late shows it did
   not end, and it never gets shorter (`SCTools:FollowSessions` = false gives the Start / Stop Session button back). The Gauntlet Tracker: a grind
   session per player from his runs (`GauntletService.GrindSessions`), the earlier ones too. The Windows program still has its buttons.

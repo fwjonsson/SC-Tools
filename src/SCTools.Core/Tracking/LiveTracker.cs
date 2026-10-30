@@ -169,8 +169,8 @@ public sealed class LiveTracker
     bool Sessions(DateTime nowUtc)
     {
         if (Tracker.State.Log is not { } log) return false;
-        var (starts, activity) = AutoSessions.HaulingActivity(log);
-        if (!AutoSessions.Apply(Tracker.State.Data.ManualSessions, starts, activity, nowUtc)) return false;
+        var (starts, activity, going) = AutoSessions.HaulingActivity(log, nowUtc);
+        if (!AutoSessions.Apply(Tracker.State.Data.ManualSessions, starts, activity, nowUtc, going)) return false;
         Tracker.State.Save();
         Tracker.Plan.Invalidate();
         return true;

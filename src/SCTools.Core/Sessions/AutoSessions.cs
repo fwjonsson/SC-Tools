@@ -3,8 +3,10 @@ namespace SCTools.Sessions;
 /// <summary>
 /// The sessions that start and stop by themselves (the Hauling Planner's, the Gauntlet Tracker's grind sessions): a session starts when a mission of the
 /// tool is accepted, and goes on while something happens with its missions (accepted, completed, failed, abandoned; for hauling also the pickups and drop-offs,
-/// and the quantum jumps of everybody while a contract is still going: somebody online with a contract going is a session going on, Frank 30 Oct 2026).
-/// After an hour with nothing (also when the game crashed or the tracker was off), it ended 5 minutes after the last thing that happened.
+/// and the quantum jumps of everybody while a contract is still going). After an hour with nothing (also when the game crashed or the tracker was off), it
+/// ended 5 minutes after the last thing that happened. A hauling session never ends while a contract is still open (Frank, 30 Oct 2026: a break of an hour
+/// or more at a station with contracts open, or a loading that takes twenty minutes, is still the session); an open contract holds it for three hours after
+/// the last thing in anybody's log, so somebody who went to bed with one does not keep a session going for ever.
 /// </summary>
 public static class AutoSessions
 {
@@ -13,6 +15,9 @@ public static class AutoSessions
 
     /// <summary>A session that ended by itself ends this long after the last thing that happened in it.</summary>
     public static readonly TimeSpan Tail = TimeSpan.FromMinutes(5);
+
+    /// <summary>An open hauling contract holds the session this long after the last thing in anybody's log (then it is somebody who went to bed with it).</summary>
+    public static readonly TimeSpan OpenContractHolds = TimeSpan.FromHours(3);
 
     /// <summary>A session: when it started, when it stopped (null: it runs), and the last thing that happened in it.</summary>
     public sealed record Window(DateTime Start, DateTime? Stop, DateTime LastActivity);
@@ -58,9 +63,10 @@ public static class AutoSessions
     /// <summary>
     /// The Hauling Planner's sessions (kept in AppData.ManualSessions, so a session keeps its key and what was typed for it): the last one stops when an hour
     /// went by without anything (or goes on again, when a log that came late shows it did not end), and new ones start with the missions accepted after it.
-    /// A session stopped by hand stays as it is. True when anything changed.
+    /// A session stopped by hand stays as it is. With a contract still open (going), the newest session runs on whatever the activity says. True when anything
+    /// changed.
     /// </summary>
-    public static bool Apply(List<ManualSession> sessions, IEnumerable<DateTime> starts, IEnumerable<DateTime> activity, DateTime nowUtc)
+    public static bool Apply(List<ManualSession> sessions, IEnumerable<DateTime> starts, IEnumerable<DateTime> activity, DateTime nowUtc, bool going = false)
     {
         var begins = starts.ToList();
         var all = activity.Concat(begins).Distinct().Order().ToList();
@@ -74,7 +80,7 @@ public static class AutoSessions
                 // a session that stopped by itself goes on from its last activity (never less: the logs of its start may be gone from the server by now)
                 var from = last.Auto && last.StopUtc is { } had ? had - Tail : last.StartUtc;
                 var lastActivity = LastActivity(from, all);
-                var stop = StopOf(lastActivity, nowUtc);
+                var stop = going ? null : StopOf(lastActivity, nowUtc);   // a contract still open: it runs
                 if (last.StopUtc != stop || !last.Auto)
                 {
                     last.StopUtc = stop;
@@ -94,6 +100,11 @@ public static class AutoSessions
             sessions.Add(new ManualSession { StartUtc = w.Start, StopUtc = w.Stop, Auto = true });
             changed = true;
         }
+        if (going && sessions.Count > 0 && sessions[^1].Auto && sessions[^1].StopUtc != null)
+        {
+            sessions[^1].StopUtc = null;   // the contract open now is in the newest session: it runs
+            changed = true;
+        }
         return changed;
     }
 
@@ -101,13 +112,16 @@ public static class AutoSessions
     /// What happened in the log with the missions the Hauling Planner reads (to and from Ruin): when each was accepted (the starts; a mission shared to you
     /// when you first saw it), and everything (the starts, the pickups and drop-offs, the ends). While a contract is still going, the quantum jumps of everybody
     /// from its acceptance on count too, and the latest log line: a party hauling long routes can go an hour without a pickup or a drop-off, and the session
-    /// ended under them (29 Oct 2026, 22:45, with nine contracts going; Frank: not while somebody is online with contracts going).
+    /// ended under them (29 Oct 2026, 22:45, with nine contracts going). Going: a contract is still open, with something in anybody's log in the last three
+    /// hours (OpenContractHolds), and the session runs on whatever else happens (Frank, 30 Oct 2026: a break of an hour or more at a station, a loading of
+    /// twenty minutes).
     /// </summary>
-    public static (List<DateTime> Starts, List<DateTime> Activity) HaulingActivity(HaulingLog log)
+    public static (List<DateTime> Starts, List<DateTime> Activity, bool Going) HaulingActivity(HaulingLog log, DateTime nowUtc)
     {
         var starts = new List<DateTime>();
         var activity = new List<DateTime>();
         DateTime? openSince = null;   // the oldest contract still going was accepted then
+        var open = false;
         foreach (var m in log.Missions.Values)
         {
             if (!m.IsHauling && !m.IsOut) continue;
@@ -115,7 +129,11 @@ public static class AutoSessions
             {
                 starts.Add(start);
                 activity.Add(start);
-                if (m.EndedAt == null && !m.Dropped && (openSince == null || start < openSince)) openSince = start;
+                if (m.EndedAt == null && !m.Dropped)
+                {
+                    open = true;
+                    if (openSince == null || start < openSince) openSince = start;
+                }
             }
             if (m.EndedAt is { } end) activity.Add(end);
             foreach (var list in m.Events.Values)
@@ -126,6 +144,7 @@ public static class AutoSessions
             activity.AddRange(log.Qt.Where(q => q.Time >= since).Select(q => q.Time));
             if (log.LastTime >= since) activity.Add(log.LastTime);
         }
-        return (starts, activity);
+        var going = open && log.LastTime >= nowUtc - OpenContractHolds;   // anybody's log is still alive: the contract holds the session
+        return (starts, activity, going);
     }
 }
