@@ -272,14 +272,15 @@ admin (done), then going live.
   Planner too; Frank, 29 Oct 2026). `MapService.Follow` walks his jumps: the start name sets his system and place
   (`StarMap.OfName`: "Pyro System" is the system alone; a name two systems have, like "Nyx Gateway", is the one he is in, and after a gateway the
   system it leads to), the destination is a place (`StarMap.OfQuantumTarget`: the Pyro stations, "pyro3" the third planet, "LOC_RR_S1_L2" HUR-L2,
-  "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. Opening the
-  inventory of a place puts him there too (`<RequestLocationInventory> Player[zzoii] requested inventory for Location[Nyx_Levski]`: the system by the
-  start of the id, the place by the rest, `Atlas.OfLocation`; the trackers send these lines from their next update), also after a jump to somewhere the
-  map does not know; a location the map does not know is on Map places. A jump with no destination picked (he jumped at a marker he looked at, or
+  "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. Coming near a
+  place puts him there too: the game names the area he is in with his inventory lines (`<RequestLocationInventory> Player[zzoii] requested inventory for
+  Location[Nyx_Levski]`, `Location[RR_P6_LEO]` around Ruin Station: the space where a hangar can be called, not where he opened an inventory, Frank 30 Oct
+  2026; the system by the start of the id, the place by the rest, `Atlas.OfLocation`; the trackers send these lines from their next update), also after
+  a jump to somewhere the map does not know; an area the map does not know is on Map places, where Frank says what each one is. A jump with no destination picked (he jumped at a marker he looked at, or
   he is crew) is a jump too, not nothing: a crew's arrival gets the destination the pilot picked (another player of the site with the arrival of the
   same ship, by its entity id, within 10 seconds: `MapService.WithPilots`); else it is to the objective of a mission going on then (below); else he
   is "Off the grid: out of comm-array range" since then, with the last place the map had him at ("last ping at Levski"). A player the map has not
-  placed yet has "No signal yet"; an inventory at a place the map does not know (a mission's spot) leaves him where it had him (Frank, 29 Oct 2026: zzatvo
+  placed yet has "No signal yet"; an area the map does not know (a mission's spot) leaves him where it had him (Frank, 29 Oct 2026: zzatvo
   fell to "No signal yet" at Ruin). The Hauling Planner's pickups, deliveries and hand-ins place a member of its party too (`Whereabouts.AutoLocationOf`,
   `LastMoveOf`), when they are newer than anything his jumps say; his card says so ("the Hauling Planner"). The players' cards stand beside the map and
   the objectives beside them, three columns on a wide screen (Frank, 29 Oct 2026; under each other on a narrow one); an objective line says the place
@@ -328,7 +329,8 @@ admin (done), then going live.
   name fits the class best; a class that is not in his fleet shows by the game's name ("Crusader C2 Hercules Starlifter"). The Hauling Planner flies the active ship: its name (when it is a hauler the planner knows: a name like "Crusader C2
   Hercules Starlifter" is the C2), its drive and how much faster the drive is (`AppData.DriveSpeedBonus`, `Crew.QtOf`) go to the planner every few
   seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Trip Planner is the first tab of the page (Frank, 29 Oct
-  2026: `/hauling` opens it), the Σ line of its Current Route table is like the Queued routes' total, and the Time of a run on the way counts up under
+  2026: `/hauling` opens it), and the tabs are a row under the top bar in the tool's colour like the admin's pages (30 Oct 2026; the Gauntlet
+  Tracker's tabs and the Map's systems too, through the layout's `subnav` section; the tools' pages have no title of their own, the bar says where you are), the Σ line of its Current Route table is like the Queued routes' total, and the Time of a run on the way counts up under
   the map too. On the Session tab the admin picks the Lost Cargo of a run in the Cargo runs table (`/hauling/runs/lost`, sent in the background, the
   same edit as his Session page's). The **Stops** board (`WebSnapshot.Stops`) reads the from-Ruin drop-offs the same way as the pickups (Frank, 29 Oct
   2026): a pickup location is a row with its batches, its cargo, its value and Ruin as the **Drop-off Location**, and every station that drop-offs go

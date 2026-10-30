@@ -5,13 +5,15 @@ body { margin:0; background:var(--bg); color:var(--fg); font:14px "Segoe UI", sy
 a { color:inherit; }
 /* the bar at the top is topbar.css; under it on the admin's pages, the admin's pages */
 .subnav { display:flex; gap:6px; flex-wrap:wrap; padding:6px max(18px, calc((100% - 1900px) / 2)); border-bottom:1px solid var(--line); font-weight:600; }
-.subnav a { text-decoration:none; padding:4px 10px; border-radius:4px; }
-.subnav a:hover { background:var(--cell); }
-.subnav a.on { background:var(--header); color:#fff; }
-/* the admin's row of pages: in the colour of Admin in the bar above (--tool), so it is plain where it comes from */
+.subnav a, .subnav button { text-decoration:none; padding:4px 10px; border-radius:4px; background:none; border:0; color:inherit; font:inherit; font-weight:600; cursor:pointer; }
+.subnav a:hover, .subnav button:hover { background:var(--cell); }
+.subnav a.on, .subnav button.on { background:var(--header); color:#fff; }
+/* the admin's row of pages, in the colour of Admin in the bar above (--tool), so it is plain where it comes from; and a tool's tabs the same way in the
+   tool's colour (Frank, 30 Oct 2026: the Hauling Planner's tabs, the Gauntlet Tracker's, the Map's systems) */
 .subnav.area { background:color-mix(in srgb, var(--tool) 8%, var(--bg)); border-top:2px solid var(--tool); }
-.subnav.area a:hover { background:color-mix(in srgb, var(--tool) 16%, transparent); }
-.subnav.area a.on { background:color-mix(in srgb, var(--tool) 32%, transparent); box-shadow:inset 0 -2px 0 var(--tool); }
+.subnav.area a:hover, .subnav.area button:hover { background:color-mix(in srgb, var(--tool) 16%, transparent); }
+.subnav.area a.on, .subnav.area button.on { background:color-mix(in srgb, var(--tool) 32%, transparent); box-shadow:inset 0 -2px 0 var(--tool); }
+.subnav select { margin-left:auto; background:var(--cell); color:var(--fg); border:1px solid var(--line); border-radius:4px; padding:3px 8px; font:inherit; font-weight:600; }   /* the admin's pick of whose session (the Hauling Planner) */
 /* every page keeps to a band of 1,900 px in the middle of an ultrawide screen (the bar and the admin's row too), so nothing is stretched out or far apart */
 main { padding:8px 18px 40px; max-width:900px; margin-left:max(0px, calc((100% - 1900px) / 2)); }
 h1 { font-size:22px; margin:18px 0 8px; }
@@ -110,10 +112,6 @@ body > main { flex:1 0 auto; width:100%; }
 .sitefoot .dl svg { width:15px; height:15px; }
 
 /* the Gauntlet Tracker: tabs above its pages */
-.tabs { display:flex; gap:4px; margin:10px 0 4px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
-.tabs .tab { padding:7px 16px; text-decoration:none; font-weight:600; color:var(--muted); border:1px solid transparent; border-bottom:none; }
-.tabs .tab:hover { color:var(--fg); }
-.tabs .tab.on { color:var(--fg); background:var(--cell); border-color:var(--line); border-top:2px solid var(--accent); }
 
 /* a link that looks like a button (the download of the tracker) */
 a.button { display:inline-block; font-weight:600; color:#fff; background:var(--header); border:1px solid var(--line); padding:8px 18px; border-radius:4px; text-decoration:none; }
@@ -167,9 +165,6 @@ main:has(.maptool) { max-width:1900px; }
 .mapplayer .who .sys { font-weight:400; color:var(--muted); font-size:12px; margin-left:8px; }
 .mapplayer.away { cursor:pointer; opacity:.75; }
 .mapplayer.away:hover, .mapplayer.away:focus-visible { opacity:1; }
-.systabs { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
-.systabs button { background:var(--cell); color:inherit; border:1px solid var(--line); padding:5px 14px; border-radius:4px; cursor:pointer; font:inherit; }
-.systabs button.on { border-color:var(--accent); box-shadow:inset 0 -2px 0 var(--accent); font-weight:700; }
 .mapplayer .what { color:var(--muted); font-size:13px; }
 .speed { margin-top:6px; }
 .speed .bar { height:8px; background:#0b1018; border:1px solid var(--line); border-radius:4px; overflow:hidden; }

@@ -199,6 +199,7 @@ var SystemMap = (function () {
       own.filter(function (s) { return s.kind !== 'gateway'; }).forEach(function (s) { label(boxes, base.anchor[s.key], 5, [{ text: s.short, size: 11 }], false); });
 
       base.layer = el('g', { 'class': 'layer' });   // the caller's: the planner's routes
+      base.svg.appendChild(base.labels);   // the names of the places above the routes (Frank, 30 Oct 2026), under the players and the objectives
       base.objs = el('g', {});
       base.routes = el('g', {});
       base.people = el('g', {});

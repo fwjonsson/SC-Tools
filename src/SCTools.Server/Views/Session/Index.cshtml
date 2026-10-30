@@ -10,7 +10,6 @@
     string Iso(DateTime utc) => DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToString("O", inv);
     string Ended(PlayedGame g) => g.Running ? "Playing" : g.Quit == true ? "Quit" : g.Quit == false ? "Crashed" : "";
 }
-<h1>Session</h1>
 
 <div class="playnow">
 @if (Model.Running != null)
