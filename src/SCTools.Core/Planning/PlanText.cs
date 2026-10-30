@@ -24,16 +24,23 @@ public static class PlanText
     /// </summary>
     public static string RouteText(PlannedTrip trip)
     {
-        var parts = new List<string>();
+        var ids = new List<string>();
         var hasDrop = trip.Drops.Count > 0;
         var drop = hasDrop ? trip.Drops[0] : default;
         var firstStop = trip.Stops.Count > 0 ? trip.Stops[0].Id : null;
-        if (trip.From == null) parts.Add("Ruin");
-        else if (firstStop != trip.From) parts.Add(PyroDistances.NameOf(trip.From));   // where he is now
-        if (hasDrop && firstStop != drop.Id) parts.Add(PyroDistances.NameOf(drop.Id));   // a stop with only the drop-off
-        foreach (var (id, _) in trip.Stops) parts.Add(PyroDistances.NameOf(id));
-        foreach (var end in EndsOf(trip)) parts.Add(PlaceName(end));
-        return string.Join("  \u2192  ", parts);
+        if (trip.From == null) ids.Add(PyroDistances.Ruin);
+        else if (firstStop != trip.From) ids.Add(trip.From);   // where he is now
+        if (hasDrop && firstStop != drop.Id) ids.Add(drop.Id);   // a stop with only the drop-off
+        foreach (var (id, _) in trip.Stops) ids.Add(id);
+        ids.AddRange(EndsOf(trip));
+        // a leg through a gateway is a dashed arrow (Stanton Gateway  ⇢  Baijini Point: stage 2, interstellar legs)
+        var text = new System.Text.StringBuilder();
+        for (var i = 0; i < ids.Count; i++)
+        {
+            if (i > 0) text.Append(StarRoutes.Crosses(ids[i - 1], ids[i]) ? "  \u21e2  " : "  \u2192  ");
+            text.Append(PlaceName(ids[i]));
+        }
+        return text.ToString();
     }
 
     /// <summary>The places a trip delivers at, in order: its ends; Ruin for a trip the planner gave none (nothing to deliver but a load, which ends where the load goes).</summary>
@@ -41,7 +48,7 @@ public static class PlanText
         trip.Ends.Count > 0 ? trip.Ends : trip.Drops.Count > 0 && trip.Stops.Count == 0 ? Array.Empty<string>() : new[] { PyroDistances.Ruin };
 
     /// <summary>A place in the route tables: "Ruin" for Ruin Station (as the tables always had it), else the station's name.</summary>
-    public static string PlaceName(string id) => id == PyroDistances.Ruin ? "Ruin" : PyroDistances.NameOf(id);
+    public static string PlaceName(string id) => id == PyroDistances.Ruin ? "Ruin" : StarRoutes.NameOf(id);
 
     /// <summary>How many batches, for the Boxes column: "1 Batch", "3 Batches".</summary>
     public static string BatchText(int n, double scu = 0) => n + (n == 1 ? " Batch" : " Batches") + (scu >= 1 ? " (~" + Math.Round(scu).ToString(CultureInfo.InvariantCulture) + " SCU)" : "");   // the SCU is an estimate: mission SCU / its stops
@@ -86,7 +93,7 @@ public static class PlanText
                 l.ScuText,
                 l.BoxesText,
                 ValueText(l.Value),
-                l.Gm > 0 ? Gm(l.Gm) : "",
+                l.Gm > 0 ? Gm(l.Gm) + (l.Gate ? " + jump" : "") : l.Gate ? "jump" : "",   // a leg through a gateway: its jumps' Gm and the crossing
                 l.Seconds > 0 ? "~" + FlightSpan(l.Seconds) : "",
             });
         }

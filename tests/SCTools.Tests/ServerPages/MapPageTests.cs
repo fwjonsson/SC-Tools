@@ -171,7 +171,7 @@ public class MapPageTests
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Contains("no-store", res.Headers.CacheControl?.ToString());
         var map = JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement;
-        Assert.Equal(new[] { "pyro" }, map.GetProperty("systems").EnumerateArray().Select(x => x.GetProperty("id").GetString()));
+        Assert.Equal(new[] { "pyro", "stanton", "nyx" }, map.GetProperty("systems").EnumerateArray().Select(x => x.GetProperty("id").GetString()));   // every system since stage 2 (routes through the gateways)
         Assert.Contains(map.GetProperty("systems")[0].GetProperty("places").EnumerateArray(), x => x.GetProperty("key").GetString() == "pyro/ruin-station");
         Assert.Equal(new[] { "zzoega", "zzatvo" }, map.GetProperty("players").EnumerateArray().Select(x => x.GetProperty("name").GetString()).OrderByDescending(n => n));
         var objectives = map.GetProperty("objectives").EnumerateArray().ToList();

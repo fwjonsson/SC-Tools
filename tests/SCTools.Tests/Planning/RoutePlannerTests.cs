@@ -245,6 +245,33 @@ public class RoutePlannerTests
     }
 
     [Fact]
+    public void A_parcel_from_another_system_is_planned_through_the_gateways()
+    {
+        // stage 2: a direct haul from Baijini Point (Stanton) to Ruin beside the to-Ruin batches at Gaslight and Patch City, one worker at Ruin
+        const string baijini = "stanton/baijini-point";
+        var open = new Dictionary<string, int> { [Id("Gaslight")] = 2, [Id("Patch City")] = 2, [RoutePlanner.GroupKey(baijini, PyroDistances.Ruin)] = 1 };
+        var batchScu = open.Keys.ToDictionary(k => k, k => 150);
+        var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, Ts2) };
+        var shipScu = new Dictionary<string, int> { ["zzoega"] = 741 };
+        var trips = RoutePlanner.Plan(open, crew, null, null, null, batchScu, shipScu);
+        Assert.Equal(5, trips.Sum(t => t.Batches));
+        var far = Assert.Single(trips, t => t.Picks.Any(p => p.Id == baijini));
+        Assert.Contains(baijini, far.Places());
+        Assert.Equal(PyroDistances.Ruin, far.End);
+        var prev = PyroDistances.Ruin;
+        foreach (var t in trips)
+        {
+            Assert.Equal(prev, t.Start);
+            Assert.Equal(StarRoutes.PathGm(t.Places()), t.Distance, 3);   // the legs to and from the gateways
+            Assert.Equal(StarRoutes.PathSeconds(Ts2, t.Places()), t.Seconds, 3);   // the crossings' time included
+            prev = t.End;
+        }
+        Assert.True(far.Seconds > 2 * StarRoutes.GateSeconds);   // there and back through the gateways
+        Assert.Contains("\u21e2", PlanText.RouteText(far));
+        Assert.Contains("Baijini Point", PlanText.RouteText(far));
+    }
+
+    [Fact]
     public void A_locked_first_stop_is_kept_by_its_group()
     {
         var toOrbituary = RoutePlanner.GroupKey(Id("Gaslight"), Id("Orbituary"));

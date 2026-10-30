@@ -291,7 +291,8 @@ public sealed class MapService
             var others = playing.Where(o => !ReferenceEquals(o.Log, p.Log)).Select(o => (IReadOnlyList<QtEvent>)o.Qt).ToList();
             var points = Points(p.Beacons.Where(b => b.Time >= nowUtc - MissionAge), p.Missions, m => m.Title ?? "A mission", atlas);
             var w = Follow(WithPilots(p.Qt, others), atlas, null, p.Seen, points);
-            positions[p.Name] = new WorkerPosition(StarMap.PyroStationIdOf(w.At), w.At != null ? w.Since : null, StarMap.PyroStationIdOf(w.To), w.To != null ? w.Picked?.Time : null);
+            // a Pyro station by the planner's id, any other place by its key (the planner without a hub starts a trip anywhere, stage 2; the old planner takes the stations only)
+            positions[p.Name] = new WorkerPosition(w.At != null ? StarRoutes.IdOf(w.At) : null, w.At != null ? w.Since : null, w.To != null ? StarRoutes.IdOf(w.To) : null, w.To != null ? w.Picked?.Time : null);
         }
         return positions;
     }

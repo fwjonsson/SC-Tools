@@ -10,6 +10,9 @@ namespace SCTools.Planning;
 /// This is the planner without a hub. It is tried out beside the old one (TripPlanner, which plans every trip from Ruin and back) on the Route Planner (new)
 /// tab, with kept stops of its own, until Frank is happy with it; then it takes the Route Planner tab and the old one goes (docs/planner-any-hauling.md).
 /// Every rule the old one gets meanwhile is brought over here (the kept stops of a worker's trip, 30 Oct 2026).
+/// A place is a planner id (StarRoutes: a Pyro station's id, or a place key of the map), and every leg is StarRoutes' way between two places: within a system a
+/// jump, between systems the jumps to and from the gateways and the crossing (stage 2, interstellar legs), so the hauling jobs of the Other hauling board whose
+/// places the map knows are planned with the Pyro contracts.
 /// </summary>
 public static class RoutePlanner
 {
@@ -68,15 +71,15 @@ public static class RoutePlanner
         if (k > 12)
         {
             var identity = Enumerable.Range(0, k).ToArray();
-            var sum = PyroDistances.Between(start, all[0]);
-            for (var i = 1; i < k; i++) sum += PyroDistances.Between(all[i - 1], all[i]);
+            var sum = StarRoutes.Gm(start, all[0]);
+            for (var i = 1; i < k; i++) sum += StarRoutes.Gm(all[i - 1], all[i]);
             return (sum, identity);
         }
-        var d0 = all.Select(id => PyroDistances.Between(start, id)).ToArray();
+        var d0 = all.Select(id => StarRoutes.Gm(start, id)).ToArray();
         var d = new double[k, k];
         for (var i = 0; i < k; i++)
         {
-            for (var j = 0; j < k; j++) d[i, j] = PyroDistances.Between(all[i], all[j]);
+            for (var j = 0; j < k; j++) d[i, j] = StarRoutes.Gm(all[i], all[j]);
         }
         // a state is the set visited and the last place; an end may only come once every place of mids is visited
         var midMask = (1 << m) - 1;
@@ -153,7 +156,7 @@ public static class RoutePlanner
         double total = 0;
         foreach (var id in places)
         {
-            if (last != null && last != id) total += PyroDistances.Between(last, id);
+            if (last != null && last != id) total += StarRoutes.Gm(last, id);
             last = id;
         }
         return total;
@@ -166,7 +169,7 @@ public static class RoutePlanner
         double total = 0;
         foreach (var id in places)
         {
-            if (last != null && last != id) total += drive.Seconds(PyroDistances.Between(last, id));
+            if (last != null && last != id) total += StarRoutes.Seconds(drive, last, id);   // the crossings' time included
             last = id;
         }
         return total;
@@ -419,7 +422,7 @@ public static class RoutePlanner
             double gm = 0;
             if (first != null)
             {
-                gm += PyroDistances.Between(from, first);
+                gm += StarRoutes.Gm(from, first);
                 places.Add(first);
                 from = first;
             }
@@ -456,7 +459,7 @@ public static class RoutePlanner
             if (mask == 0 && drop < 0 && (aboard == null || !aboard.Any())) return null;   // nothing in it: the worker passes it by
             var start = SlotStart(assign, slot);
             var forced = special[slot] && reservedIdx[slot] >= 0 && ((mask >> reservedIdx[slot]) & 1) != 0 ? reservedIdx[slot] : drop >= 0 ? chunkStation[drop] : -1;
-            if (mask == 0 && drop >= 0 && !special[slot]) return (PyroDistances.Between(start, chunks[drop].Station), new List<string> { start, chunks[drop].Station }, new List<string>());   // a trip just for a load: it ends where the load goes
+            if (mask == 0 && drop >= 0 && !special[slot]) return (StarRoutes.Gm(start, chunks[drop].Station), new List<string> { start, chunks[drop].Station }, new List<string>());   // a trip just for a load: it ends where the load goes
             return RouteOf(start, forced, mask, aboard);
         }
 

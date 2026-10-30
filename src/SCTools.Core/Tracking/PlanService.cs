@@ -128,7 +128,7 @@ public sealed class PlanService
     List<PlannedTrip> Ordered(IEnumerable<PlannedTrip> trips, Func<PlannedTrip, decimal> value, Func<string, bool> wasteAboard)
     {
         var list = Queue(trips, value, wasteAboard);
-        if (_free) RoutePlanner.Chain(list, name => _runs.ActiveRunOf(name) != null ? _runs.LoadedDestinationsOf(name)[^1] : _where.LocationOf(name).Id, _crew.QtOf);   // the old planner's trips all start and end at Ruin: nothing to chain
+        if (_free) RoutePlanner.Chain(list, name => _runs.ActiveRunOf(name) != null ? _runs.LoadedDestinationsOf(name)[^1] : _where.LocationOf(name, true).Id, _crew.QtOf);   // the old planner's trips all start and end at Ruin: nothing to chain
         return list;
     }
 
@@ -247,8 +247,8 @@ public sealed class PlanService
 
         StopLine Add(string id, string name, bool stop, IEnumerable<string> actions, int batches = 0, decimal value = 0, double scu = 0)
         {
-            var gm = PyroDistances.Between(prev, id);
-            var line = new StopLine { Id = id, Name = name, Stop = stop, Batches = batches, Value = value, Scu = scu, Gm = gm, Seconds = gm > 0 ? drive.Seconds(gm) : 0 };
+            var gm = StarRoutes.Gm(prev, id);
+            var line = new StopLine { Id = id, Name = name, Stop = stop, Batches = batches, Value = value, Scu = scu, Gm = gm, Seconds = StarRoutes.Seconds(drive, prev, id), Gate = StarRoutes.Crosses(prev, id) };
             line.Actions.AddRange(actions);
             lines.Add(line);
             prev = id;
@@ -258,7 +258,7 @@ public sealed class PlanService
         if (trip.From == null)
         {
             // his first trip starts at Ruin but he is somewhere else: first the flight back to Ruin
-            if (at != null && at != PyroDistances.Ruin) Add(at, PyroDistances.NameOf(at), false, Array.Empty<string>());
+            if (at != null && at != PyroDistances.Ruin) Add(at, StarRoutes.NameOf(at), false, Array.Empty<string>());
             // the load for the first stop is collected at Ruin
             var collect = hasDrop
                 ? new[] { "Collect " + cargo + (drop.Batches > 1 ? " \u00d7" + drop.Batches : "") }
@@ -271,12 +271,12 @@ public sealed class PlanService
                 ruin.Value = _earnings.WasteValue(trip.DropKeys);     // what the load pays (reward / drop-offs of its contract), from the From Ruin rows of the rewards table
             }
         }
-        else if (firstStop != trip.From) Add(trip.From, PyroDistances.NameOf(trip.From), false, Array.Empty<string>());   // where he is now
+        else if (firstStop != trip.From) Add(trip.From, StarRoutes.NameOf(trip.From), false, Array.Empty<string>());   // where he is now
 
         var dropShown = !hasDrop;
         if (hasDrop && firstStop != drop.Id)
         {
-            Load(Add(drop.Id, PyroDistances.NameOf(drop.Id), true, new[] { "Deliver " + cargo }), trip);   // a stop with only the drop-off, with its SCU and boxes
+            Load(Add(drop.Id, StarRoutes.NameOf(drop.Id), true, new[] { "Deliver " + cargo }), trip);   // a stop with only the drop-off, with its SCU and boxes
             dropShown = true;
         }
         foreach (var (id, batches) in trip.Stops)
@@ -288,7 +288,7 @@ public sealed class PlanService
                 dropShown = true;
             }
             if (batches > 0) actions.Add("Collect");
-            var line = Add(id, PyroDistances.NameOf(id), true, actions, batches, ValueAt(id), ScuAt(id));
+            var line = Add(id, StarRoutes.NameOf(id), true, actions, batches, ValueAt(id), ScuAt(id));
             line.Count = batches;
             if (actions.Count > 0 && actions[0].StartsWith("Deliver", StringComparison.Ordinal)) Load(line, trip);   // the drop-off here: its SCU and boxes
         }
@@ -325,8 +325,8 @@ public sealed class PlanService
             return;
         }
         var prev = lines.LastOrDefault(l => l.Id.Length > 0)?.Id ?? PyroDistances.Ruin;
-        var gm = PyroDistances.Between(prev, id);
-        var line = new StopLine { Id = id, Name = PyroDistances.NameOf(id), Batches = batches, Value = value, Scu = scu, Gm = gm, Seconds = gm > 0 ? _crew.QtOf(worker).Seconds(gm) : 0 };
+        var gm = StarRoutes.Gm(prev, id);
+        var line = new StopLine { Id = id, Name = StarRoutes.NameOf(id), Batches = batches, Value = value, Scu = scu, Gm = gm, Seconds = StarRoutes.Seconds(_crew.QtOf(worker), prev, id), Gate = StarRoutes.Crosses(prev, id) };
         line.Actions.Add("Collect");
         line.Count = batches;
         lines.Add(line);
@@ -338,8 +338,8 @@ public sealed class PlanService
         foreach (var end in ends)
         {
             var prev = lines.LastOrDefault(l => l.Id.Length > 0)?.Id ?? PyroDistances.Ruin;
-            var gm = PyroDistances.Between(prev, end);
-            var line = new StopLine { Id = end, Name = PlaceName(end), Stop = false, Gm = gm, Seconds = gm > 0 ? _crew.QtOf(worker).Seconds(gm) : 0 };
+            var gm = StarRoutes.Gm(prev, end);
+            var line = new StopLine { Id = end, Name = PlaceName(end), Stop = false, Gm = gm, Seconds = StarRoutes.Seconds(_crew.QtOf(worker), prev, end), Gate = StarRoutes.Crosses(prev, end) };
             if (batches > 0) line.Actions.Add("Deliver");   // the SCU column only says how much where it is collected
             lines.Add(line);
         }
@@ -396,9 +396,11 @@ public sealed class PlanService
             StopLine LineFor(string? id, string shown, bool atRuin)
             {
                 if (lines[^1].Name == shown) return lines[^1];   // the same place again: one line
-                var gm = id != null ? PyroDistances.Between(from, id) : 0;
+                var gm = id != null ? StarRoutes.Gm(from, id) : 0;
+                var seconds = id != null ? StarRoutes.Seconds(drive, from, id) : 0;
+                var gate = id != null && StarRoutes.Crosses(from, id);
                 if (id != null) from = id;
-                var line = new StopLine { Id = id ?? "", Name = shown, Stop = !atRuin, Done = true, Gm = gm, Seconds = gm > 0 ? drive.Seconds(gm) : 0 };
+                var line = new StopLine { Id = id ?? "", Name = shown, Stop = !atRuin, Done = true, Gm = gm, Seconds = seconds, Gate = gate };
                 lines.Add(line);
                 done[line] = new DoneAt();
                 return line;
@@ -550,7 +552,7 @@ public sealed class PlanService
                 foreach (var c in crew.Where(x => x.Capacity > 0))
                 {
                     var run = _runs.ActiveRunOf(c.Name);
-                    var loc = _where.LocationOf(c.Name).Id;   // where he is: the station of his last pickup or delivery (the logs), or the one set by hand
+                    var loc = _where.LocationOf(c.Name, _free).Id;   // where he is: the station of his last pickup or delivery (the logs), or the one set by hand; the planner without a hub takes the map's place in any system
                     var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, LoadedScu = _runs.LoadedScuOf(c.Name), From = loc == PyroDistances.Ruin ? null : loc };
                     if (run != null) start.LoadedTo = _runs.LoadedDestinationsOf(c.Name);   // his run ends where its cargo goes (the planner without a hub)
                     // everybody who flies keeps the stops of his planned trip (Frank, 30 Oct 2026: zzoega's Megumi stop went to zzatvo's plan when zzatvo picked up at
@@ -647,7 +649,7 @@ public sealed class PlanService
             }
 
             var note = unknown.Count > 0 ? "Not in the distance table, so left out: " + string.Join(", ", unknown) + "." : "";
-            var only = limits.SelectMany(kv => kv.Value.Select(g => PyroDistances.NameOf(kv.Key) + " ×" + g.Batches + " only " + string.Join(" / ", g.Workers))).ToList();
+            var only = limits.SelectMany(kv => kv.Value.Select(g => StarRoutes.NameOf(kv.Key) + " ×" + g.Batches + " only " + string.Join(" / ", g.Workers))).ToList();
             if (only.Count > 0) note = (note.Length > 0 ? note + "  " : "") + "Not everybody has every mission: " + string.Join(", ", only) + ".";
             var core = new PlanCore
             {
@@ -698,6 +700,20 @@ public sealed class PlanService
 
     static bool SameStops(List<LockedStop> a, List<LockedStop> b) => a.Count == b.Count && a.Zip(b).All(p => p.First.Id == p.Second.Id && p.First.Batches == p.Second.Batches);
 
+    /// <summary>
+    /// The parcels of a hauling job (stage 2): one per pickup when the job has one drop-off (the Multi-to-single hauls), one per drop-off when it has one pickup (the
+    /// Single-to-multi ones, the direct hauls, the couriers), each with the stop's SCU. Null when the job cannot be planned: a stop the map has no place for (or only
+    /// roughly, the planet), or several pickups and several drop-offs (the game does not say which goes where).
+    /// </summary>
+    static List<(HaulStop Pickup, HaulStop Drop, double Scu)>? JobParcels(HaulJob j)
+    {
+        if (j.Pickups.Count == 0 || j.Drops.Count == 0 || (j.Pickups.Count > 1 && j.Drops.Count > 1)) return null;
+        if (j.Pickups.Concat(j.Drops).Any(s => s.Place == null || s.Near)) return null;
+        return j.Drops.Count == 1
+            ? j.Pickups.Select(p => (p, j.Drops[0], p.Scu)).ToList()
+            : j.Drops.Select(d => (j.Pickups[0], d, d.Scu)).ToList();
+    }
+
     /// <summary>The plan for the open batches of the selected session, with the runs so far. The trips are only worked out again when the batches or the crew change.</summary>
     public PlanView GetPlan()
     {
@@ -708,7 +724,8 @@ public sealed class PlanService
         var volume = new Dictionary<string, (double Scu, int Stops)>();   // station -> the SCU of its open stops together (a guess, see StopScu) and how many stops that is
         var limits = new Dictionary<string, List<(string[] Workers, int Batches)>>();   // station -> batches that only some of the crew can take (they have those missions running, the others do not)
         var flyers = crew.Where(c => c.Capacity > 0).Select(c => c.Name).ToList();
-        var later = new List<string>();   // the stops of the contracts to a station the distance table does not know: not planned
+        var later = new List<string>();   // the stops of the contracts to a station the distance table does not know, and the jobs with a stop the map has no place for: not planned
+        var aboard = new List<string>();   // the jobs whose cargo somebody has picked up already: the planner without a hub does not follow them yet (stage 4)
         if (_state.Inputs != null)
         {
             foreach (var r in _state.OpenRows)
@@ -752,6 +769,39 @@ public sealed class PlanService
                     else gl.Add((can, 1));
                 }
             }
+            // the hauling jobs of the party (the Other hauling board: every mission with drop-offs that is not one of the planner's own contracts) are planned by
+            // the planner without a hub (stage 2 of docs/planner-any-hauling.md): a parcel per pickup to the one drop-off, or per drop-off from the one pickup, each
+            // a batch of a group of its own (from the pickup's place to the drop-off's, in any system), with its SCU as the board has it and the mission's reward
+            // over its parcels. A job with a stop the map has no place for stays out, with a note; one whose cargo is picked up already waits for stage 4 (the runs)
+            if (_free)
+            {
+                foreach (var j in HaulJobs.Open(_state).Where(j => _state.Focus == null || _state.Focus(j.Mission)))
+                {
+                    var parcels = JobParcels(j);
+                    if (parcels == null)
+                    {
+                        later.Add(j.Title + " (" + HaulJobs.StopsText(j.Pickups) + " to " + HaulJobs.StopsText(j.Drops) + ")");
+                        continue;
+                    }
+                    if (parcels.Any(p => p.Pickup.Done && !p.Drop.Done)) aboard.Add(j.Title);
+                    var reward = (decimal)(_state.Jobs.KindOf(j.Mission)?.Auec ?? _state.Jobs.WikiOf(j.Mission)?.Auec ?? 0) / parcels.Count;
+                    var can = flyers.Where(n => _contracts.HasMission(j.Mission, n)).ToArray();
+                    foreach (var p in parcels.Where(p => !p.Pickup.Done && !p.Drop.Done))
+                    {
+                        var id = RoutePlanner.GroupKey(StarRoutes.IdOf(p.Pickup.Place!), StarRoutes.IdOf(p.Drop.Place!));
+                        var was = worth.GetValueOrDefault(id);
+                        worth[id] = (was.Value + reward, was.Batches + 1);
+                        remaining[id] = remaining.GetValueOrDefault(id) + 1;
+                        var had = volume.GetValueOrDefault(id);
+                        volume[id] = (had.Scu + (p.Scu > 0 ? p.Scu : CargoRuns.AssumedMissionScu / parcels.Count), had.Stops + 1);
+                        if (can.Length == 0 || can.Length == flyers.Count) continue;
+                        if (!limits.TryGetValue(id, out var gl)) limits[id] = gl = new List<(string[] Workers, int Batches)>();
+                        var same = gl.FindIndex(x => x.Workers.SequenceEqual(can));
+                        if (same >= 0) gl[same] = (can, gl[same].Batches + 1);
+                        else gl.Add((can, 1));
+                    }
+                }
+            }
         }
 
         // cargo that goes out from Ruin (from-Ruin contracts): the planner gives every worker the loads of his missions, each in a trip of its own that unloads at its first stop
@@ -784,13 +834,14 @@ public sealed class PlanService
         {
             var at = carried.IndexOf(load.Station);
             if (at >= 0) carried.RemoveAt(at);
-            else waits.Add(load.Cargo + " for " + PyroDistances.NameOf(load.Station));
+            else waits.Add(load.Cargo + " for " + StarRoutes.NameOf(load.Station));
         }
         if (waits.Count > 0) dropNote = (dropNote + "  Waiting to go along on a pickup trip: " + string.Join(", ", waits) + ".").Trim();
         double ScuPerBatch(string id) => volume.TryGetValue(id, out var y) && y.Stops > 0 ? y.Scu / y.Stops : 0;   // the average stop at that station, in SCU
 
-        var laterNote = later.Count == 0 ? "" : (_free ? "Not planned (the drop-off is not in the distance table): " : "Not planned here (the drop-off is not Ruin; the Route Planner (new) plans them): ") + string.Join(", ", later) + ".";
-        var plan = new PlanView { Note = (core.Note + "  " + dropNote + "  " + laterNote).Trim() };
+        var laterNote = later.Count == 0 ? "" : (_free ? "Not planned (the map has no place for a stop): " : "Not planned here (the drop-off is not Ruin; the Route Planner (new) plans them): ") + string.Join(", ", later) + ".";
+        var aboardNote = aboard.Count == 0 ? "" : "Picked up already, not followed yet: " + string.Join(", ", aboard) + ".";
+        var plan = new PlanView { Note = (core.Note + "  " + dropNote + "  " + laterNote + "  " + aboardNote).Trim() };
         var flying = crew.Where(c => c.Capacity > 0).ToList();
         for (var i = 0; i < flying.Count; i++)
         {
@@ -804,10 +855,10 @@ public sealed class PlanService
                 Drive = drive == null ? "no QT drive set (assuming " + QuantumDrives.Assumed.Key + ")" : drive.Key + ", " + (drive.Speed / 1e6).ToString("0", CultureInfo.InvariantCulture) + " Mm/s",
             };
             w.RunsSoFar = _state.Trips.Count(x => SameName(x.Worker, c.Name));
-            var standing = _where.LocationOf(c.Name);
+            var standing = _where.LocationOf(c.Name, _free);
             w.LocationId = standing.Id;
             w.LocationByHand = standing.ByHand;
-            w.AutoLocationId = _where.AutoLocationOf(c.Name);
+            w.AutoLocationId = _where.AutoLocationOf(c.Name, _free);
             w.Rows.AddRange(RunRows(c.Name));
             // the run in progress is his Current trip (a locked stop is marked in the Route cell of a planned trip)
             var runRow = w.Rows.LastOrDefault(r => r.Level == "active");

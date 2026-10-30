@@ -122,6 +122,11 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       its own; the *Route Planner* tab keeps the old planner (`TripPlanner`) and stays the default until Frank has tested the new one and decides whether
       it replaces the old one. Every rule the old planner gets meanwhile is brought over to the new one (so far: the kept stops of a worker's whole trip).
       When the new one takes over: the Route Planner tab shows it, the old class, the second tab and `FreeLockedTrips` go.
+    - **Stage 2 of the design, interstellar legs** (30 Oct): `StarRoutes` gives the way between any two places of the map, through the gateways between
+      systems with a 3.4 minute crossing; the planner without a hub plans the Other hauling board's jobs whose stops the map has places for (a parcel per
+      pickup or per drop-off; Frank's Covalex mission from Stanton to Pyro) with the Pyro contracts, starts a worker where the map has him in any system,
+      and its map has the Map tool's row of systems with the legs through a gateway drawn to and from the gateway. Not yet: the runs of a job (its
+      cargo picked up is noted, not planned), several pickups to several drop-offs, and planning within Stanton without a Pyro session (stage 3).
     - **Wiki API** (#264; #265 for every mission of the library): the log's `contract [...]` and `contractDefinitionId[...]` are the API's
       `debug_name` and `uuid` (Frank confirmed with `701271ba-…` = `Iasi_HaulCargo_AtoB_Small_PartySupplies`), so a string mod's names do not matter.
       The contract ids are kept on the Missions rows (the old logs re-read once); the server asks `api.star-citizen.wiki/api/missions/{uuid}` about
