@@ -9,6 +9,9 @@ public sealed class GauntletPage
     public string Tab { get; init; } = "session";
     public string Player { get; init; } = "";
 
+    /// <summary>Not logged in: the Leaderboard is everybody's to see, the other tabs ask to log in.</summary>
+    public bool Visitor { get; init; }
+
     /// <summary>Whose runs the Session, Stats and History tabs show: the viewer's in-game party now, or himself alone.</summary>
     public IReadOnlyList<string> Party { get; init; } = Array.Empty<string>();
 

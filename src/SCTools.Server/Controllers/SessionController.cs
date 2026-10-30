@@ -11,7 +11,6 @@ namespace SCTools.Server.Controllers;
 /// the games and the crashes, the missions you completed and what they earned (aUEC, MG and Council scrip as the Mission Library says they pay, the scrip
 /// at the admin's value), per hour; and the clock of the game you play now. Worked out again on every visit, so a reward typed in later counts for the past.
 /// </summary>
-[Authorize(Roles = $"{Roles.Admin},{Roles.Player}")]
 [Route("/session")]
 public sealed class SessionController : Controller
 {
@@ -32,6 +31,8 @@ public sealed class SessionController : Controller
     public IActionResult Index()
     {
         if (!_tools.Sees(User, SiteTools.Session)) return User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
+        ViewData["Title"] = "Session";
+        if (Audience.Of(HttpContext).Visitor) return View("~/Views/Shared/LogInNote.cshtml", "Your playtime, your games and what they earned are here once you are logged in.");
         var me = PointOfView.Name(HttpContext) ?? "";   // the admin looks as a player through the top bar's pick (30 Oct 2026)
         var now = DateTime.UtcNow;
         _missions.Collect();

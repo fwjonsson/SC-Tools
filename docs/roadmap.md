@@ -25,6 +25,8 @@ became a site with several Star Citizen tools (one server, one tracker on every 
 - **Hauling Planner**: the hauling tool (was Hauling Tracker), at `/hauling` with a path per tab (`/hauling/planner`...); the Windows program (gone 30 Oct 2026: Frank only uses the site and the tracker) was
   HaulingPlanner.exe.
 
+- **Who sees what** (Frank, 30 Oct 2026): every shown tool is open to everybody, logged in or not; no player data for a visitor except the public leaderboards (Hauling all-time, Gauntlet Leaderboard); a player sees his own and his party's; the Gauntlet Stats page is personal; the admin sees everybody's and uses the top bar's View pick to see a player's view.
+
 ## The tools
 
 All the tools track at the same time, all the time. The tracking runs on the server from what the trackers upload, not in the browser page.

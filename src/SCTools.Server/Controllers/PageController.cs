@@ -16,10 +16,15 @@ public sealed class PageController : Controller
     readonly MissionLibrary _missions;
     readonly Playtime _playtime;
     readonly MapService _map;
+    readonly Audience _audience;
+    readonly DataViews _views;
 
-    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions, Playtime playtime, MapService map)
+    public PageController(LiveTracker live, ToolAccess tools, GauntletService gauntlet, MissionLibrary missions, Playtime playtime, MapService map,
+        Audience audience, DataViews views)
     {
         _map = map;
+        _audience = audience;
+        _views = views;
         _live = live;
         _tools = tools;
         _gauntlet = gauntlet;
@@ -43,7 +48,14 @@ public sealed class PageController : Controller
     {
         if (tool.Path == null) return "Coming";
         if (tool == SiteTools.Hauling)
-            return _live.Read(t => t.State.Current == null ? "No session yet" : BoardTexts.DescribeSession(t.State.Current));
+        {
+            // the session is the party's: a visitor is asked to log in, a player sees his party's (Frank, 30 Oct 2026)
+            var viewer = Audience.Of(HttpContext);
+            if (viewer.Visitor) return "Log in to see your party's session";
+            var (bytes, _) = _views.For(_live.Snapshot, viewer, viewer.Everything ? null : _audience.Allowed(viewer, DateTime.UtcNow));
+            var session = System.Text.Json.JsonDocument.Parse(bytes).RootElement.TryGetProperty("session", out var s) ? s.GetString() : null;
+            return string.IsNullOrEmpty(session) ? "No session yet" : session;
+        }
         if (tool == SiteTools.Gauntlet)
         {
             if (PointOfView.Name(HttpContext) is not { Length: > 0 } me) return "Log in to see your runs";
@@ -89,11 +101,14 @@ public sealed class PageController : Controller
     public IActionResult Data()
     {
         if (!_tools.Sees(User, SiteTools.Hauling)) return StatusCode(StatusCodes.Status403Forbidden);
-        var snapshot = _live.Snapshot;
+        // as this viewer may see it (Audience, DataViews): the admin all of it, a player his party's session and his own debts, a visitor the maps and the
+        // all-time leaderboard; each with an ETag of its own
+        var viewer = Audience.Of(HttpContext);
+        var (bytes, etag) = _views.For(_live.Snapshot, viewer, viewer.Everything ? null : _audience.Allowed(viewer, DateTime.UtcNow));
         Response.Headers.CacheControl = "no-store";
-        Response.Headers.ETag = snapshot.ETag;
-        if (Matches(Request.Headers.IfNoneMatch, snapshot.ETag)) return StatusCode(StatusCodes.Status304NotModified);
-        return File(snapshot.Bytes, "application/json; charset=utf-8");
+        Response.Headers.ETag = etag;
+        if (Matches(Request.Headers.IfNoneMatch, etag)) return StatusCode(StatusCodes.Status304NotModified);
+        return File(bytes, "application/json; charset=utf-8");
     }
 
     /// <summary>
@@ -126,7 +141,16 @@ public sealed class PageController : Controller
     {
         if (!_tools.Sees(User, SiteTools.Hauling)) return StatusCode(StatusCodes.Status403Forbidden);
         Response.Headers.CacheControl = "no-store";
-        return Json(_live.Read(t => new { status = t.Status.Text, key = t.Status.Seq }));
+        var viewer = Audience.Of(HttpContext);
+        var (status, key) = _live.Read(t => (t.Status.Text, t.Status.Seq));
+        if (!viewer.Everything)
+        {
+            // the line is about the session's players: only for a player whose party is the whole of the session's (Frank, 30 Oct 2026); nobody else
+            var allowed = _audience.Allowed(viewer, DateTime.UtcNow)!;
+            var mine = allowed.Count > 0 && _live.Read(t => t.State.Current != null && t.State.Data.Party.Count > 0 && t.State.Data.Party.All(n => allowed.Contains(n)));
+            if (!mine) status = "";
+        }
+        return Json(new { status, key });
     }
 
     /// <summary>
@@ -138,7 +162,11 @@ public sealed class PageController : Controller
     {
         if (!_tools.Sees(User, SiteTools.Hauling)) return StatusCode(StatusCodes.Status403Forbidden);
         Response.Headers.CacheControl = "no-store";
-        return Json(_map.Snapshot(DateTime.UtcNow));   // every system since stage 2 (the Route Planner draws routes through the gateways)
+        // every system since stage 2 (the Route Planner draws routes through the gateways); the players of the viewer's party only, a visitor none
+        var viewer = Audience.Of(HttpContext);
+        var now = DateTime.UtcNow;
+        var map = _map.Snapshot(now);
+        return viewer.Everything ? Json(map) : Json(DataViews.MapFor(map, _audience.Allowed(viewer, now)));
     }
 
 }

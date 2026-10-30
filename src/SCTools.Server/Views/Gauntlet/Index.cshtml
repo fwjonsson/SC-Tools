@@ -27,12 +27,16 @@
 
 @* the tabs say nothing about whose runs they show (Frank, 30 Oct 2026): the Party panel in the top bar says who plays with whom *@
 
-@if (Model.RunCount == 0 && Model.Tab != "leaderboard")
+@if (Model.RunCount == 0 && Model.Tab != "leaderboard" && !Model.Visitor)
 {
   <p class="card">No gauntlet missions seen yet for @(Model.InParty ? "your party" : Model.Player). They are counted from the log your tracker uploads, from the moment the tracker runs (keep it running while you play).</p>
 }
 
-@if (Model.Tab == "session")
+@if (Model.Visitor && Model.Tab != "leaderboard")
+{
+  @await Html.PartialAsync("~/Views/Shared/LogInNote.cshtml", "Your runs and your party's are here once you are logged in; the Leaderboard is everybody's.")
+}
+else if (Model.Tab == "session")
 {
   @* the game session and the grind session side by side, together as wide as the wide tables (Frank, 30 Oct 2026) *@
   <div class="pair">

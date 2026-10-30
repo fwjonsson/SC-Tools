@@ -44,7 +44,7 @@ public class DataPollTests
         var fresh = await c.SendAsync(Poll(etag!));
         Assert.Equal(HttpStatusCode.OK, fresh.StatusCode);
         Assert.NotEqual(etag, fresh.Headers.ETag);
-        Assert.Contains("\"pickups\"", await fresh.Content.ReadAsStringAsync());
+        Assert.Contains("\"visitor\":true", await fresh.Content.ReadAsStringAsync());   // a visitor's data: nobody's session (Audience)
     }
 
     [Fact]

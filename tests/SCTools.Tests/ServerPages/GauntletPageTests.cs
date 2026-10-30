@@ -23,16 +23,19 @@ public class GauntletPageTests
     };
 
     [Fact]
-    public async Task A_player_sees_his_runs_and_a_visitor_has_to_log_in()
+    public async Task A_player_sees_his_runs_and_a_visitor_sees_the_leaderboard_alone()
     {
         using var f = new ServerFactory();
         var admin = await f.Admin();
         await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "gauntlet"), ("value", "true"));
         f.Upload("zzoega", Lines());
 
+        // a visitor sees the tool, not anybody's runs; the Leaderboard is everybody's (Frank, 30 Oct 2026)
         var visitor = f.Browser();
-        var denied = await visitor.GetAsync("/gauntlet");
-        Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
+        var note = await visitor.GetStringAsync("/gauntlet");
+        Assert.Contains("Log in", note);
+        Assert.DoesNotContain("227,750", note);
+        Assert.Contains("zzoega", WebUtility.HtmlDecode(await visitor.GetStringAsync("/gauntlet/leaderboard")));
 
         var player = await f.Player(f.AddKey("zzoega"));
         var page = await player.GetStringAsync("/gauntlet");
@@ -127,12 +130,13 @@ public class GauntletPageTests
 
         var zzoega = await f.Player(f.AddKey("zzoega"));
         var page = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet/stats"));   // the Earnings are on Stats since 30 Oct 2026
-        Assert.DoesNotContain("Your party:", page);   // the tabs say nothing about whose runs they show any more (30 Oct 2026): the numbers are the party's
-        Assert.Contains("250,750 aUEC", page);   // #7 (227,750) and #1 (23,000) together
-        Assert.Contains("<td class=\"right\">2</td>", page);   // completed
+        Assert.DoesNotContain("Your party:", page);   // the tabs say nothing about whose runs they show any more (30 Oct 2026)
+        // the whole Stats page is personal (Frank, 30 Oct 2026): his #7 alone, not zzatvo's #1 with it
+        Assert.Contains("227,750 aUEC", page);
+        Assert.DoesNotContain("250,750 aUEC", page);
         var stats = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet/stats?scenario=1"));
-        Assert.Contains("<th>Who</th>", stats);   // the top 10 of a party says whose run it is
-        Assert.Contains("<td>zzatvo</td>", stats);
+        Assert.DoesNotContain("<th>Who</th>", stats);   // his own top 10: no Who column
+        Assert.DoesNotContain("<td>zzatvo</td>", stats);
         var session = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet"));
         Assert.Contains("Running since", session);   // one grind session for the party
         Assert.Contains("the first of the party's games", session);
