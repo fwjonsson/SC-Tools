@@ -47,7 +47,7 @@ public class MapPageTests
         Assert.True(f.Live.Uploads.Add("zzoii", Id(now.AddMinutes(-3)), 1000, 2000, log.Lines.Skip(log.Lines.Count - 1).ToList(), now).Ok);
         var page = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/places"));
         Assert.Contains("Stanton9_Nowhere", page);
-        Assert.Contains("Inventory location", page);
+        Assert.Contains("Area", page);
         z = Player(JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement, "zzoii");
         Assert.Equal(("nyx", "at", "nyx/levski"), (z.GetProperty("system").GetString(), z.GetProperty("state").GetString(), z.GetProperty("at").GetString()));
     }
@@ -229,6 +229,8 @@ public class MapPageTests
         Assert.Equal("text/javascript", res.Content.Headers.ContentType?.MediaType);
         var script = await res.Content.ReadAsStringAsync();
         Assert.StartsWith("var SystemMap = (function ()", script.Split('\n').First(l => !l.StartsWith("//")));
+        Assert.Contains("base.svg.appendChild(base.labels);", script);   // the names of the places above the routes (30 Oct 2026)
+        Assert.Contains("[['#', ''], ['Mission', '']", await f.Browser().GetStringAsync("/map.js"));   // the Active missions table numbered like the others
         // the speed meter stays at 0 Mm/s when a player is not in quantum, so his card keeps its size (Frank, 29 Oct 2026)
         Assert.DoesNotContain("m.speed.style.display", script);
         Assert.Contains("m.unit.textContent = 'Mm/s · 0.00 c'", script);

@@ -117,14 +117,14 @@
     else {
       const t = document.createElement('table'); t.className = 'missions view';
       const hr = t.createTHead().insertRow();
-      [['Mission', ''], ['Who', ''], ['Open', 'right'], ['Faction', ''], ['Category', ''], ['SCU', 'right'], ['Reward', 'right'], ['MG scrip', 'right'], ['Council scrip', 'right'], ['XP', 'right'], ['Legality', '']]
+      [['#', ''], ['Mission', ''], ['Who', ''], ['Open', 'right'], ['Faction', ''], ['Category', ''], ['SCU', 'right'], ['Reward', 'right'], ['MG scrip', 'right'], ['Council scrip', 'right'], ['XP', 'right'], ['Legality', '']]
         .forEach(function (h) { const th = document.createElement('th'); th.textContent = h[0]; if (h[1]) th.className = h[1]; hr.appendChild(th); });
       const tb = t.createTBody();
-      d.missions.forEach(function (m) {
+      d.missions.forEach(function (m, n) {
         const tr = tb.insertRow();
-        [m.title, m.who.join(', '), String(m.open), m.faction, m.category, m.scu, m.reward, m.mg, m.council, m.xp, m.legality].forEach(function (v, i) {
+        [String(n + 1), m.title, m.who.join(', '), String(m.open), m.faction, m.category, m.scu, m.reward, m.mg, m.council, m.xp, m.legality].forEach(function (v, i) {
           const td = tr.insertCell(); td.textContent = v;
-          if (i === 0) td.className = 'name'; else if (i === 2 || (i >= 5 && i <= 9)) td.className = 'right';
+          if (i === 1) td.className = 'name'; else if (i === 3 || (i >= 6 && i <= 10)) td.className = 'right';
         });
       });
       const box = document.createElement('div'); box.className = 'scroll'; box.appendChild(t); mis.appendChild(box);
