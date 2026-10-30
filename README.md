@@ -340,7 +340,9 @@ admin (done), then going live.
   tables (Frank, 29 Oct 2026), and the Queued routes have an SCU column beside Batches (everything the trip carries). On the Current Route the drop-off
   of a planned trip has its SCU and boxes on the line of the stop it goes to, and the hauler of that trip (or the admin) types the SCU there
   (`/hauling/trips/scu`, sent in the background): it is kept for that drop-off only (`AppData.TypedScu`, the same as the admin's SCU of the drop-offs on
-  his Session page), not in the Mission Library, the plan is worked out again with it, and the game's own number wins once it writes it. The Party button's panel in the top bar shows every member's
+  his Session page), not in the Mission Library, the plan is worked out again with it, and the game's own number wins once it writes it. The planner
+  leaves a station with a single batch out of the trip he is flying when it can (`TripPlanner.LoneBatchSeconds`; Frank, 30 Oct 2026: the biggest stops
+  first, a lone batch later, when new missions may have filled the station up). The Party button's panel in the top bar shows every member's
   ship and drive ("TS-2 S3 +20 %"); the Hauling Planner's page has no Party table of its own since 29 Oct 2026 (Frank).
 - **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the Hauling Planner's page is at
   `/hauling`, every tab at an address of its own (`/hauling/session`, `/hauling/contracts`, `/hauling/planner`, `/hauling/debts`, `/hauling/history`; the program's own page

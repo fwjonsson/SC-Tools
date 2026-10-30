@@ -28,6 +28,23 @@ public class TripPlannerTests
     }
 
     [Fact]
+    public void The_trip_he_is_flying_leaves_a_station_with_a_lone_batch_for_later()
+    {
+        // 30 Oct 2026: zzoega at Orbituary with 3 batches on board (a C2: 5), and the plan sent him on to Endgame and Megumi for one batch each while
+        // Rod's Fuel had 4 and Patch City 3. The biggest stops first: a station with one batch is left for later, where new missions can fill it up
+        var open = new Dictionary<string, int> { [Id("Endgame")] = 1, [Id("Megumi")] = 1, [Id("Rod's Fuel")] = 4, [Id("Patch City")] = 3 };
+        var batchScu = open.Keys.ToDictionary(k => k, k => 123);
+        var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 5, Ts2) };
+        var shipScu = new Dictionary<string, int> { ["zzoega"] = 626 };
+        var starts = new List<WorkerStart> { new() { Worker = "zzoega", Loaded = 3, LoadedScu = 369, From = Id("Orbituary") } };
+        var trips = TripPlanner.Plan(open, crew, starts, null, new List<DropChunk>(), batchScu, shipScu);
+        // the trip he is flying (when the plan adds anything to his run at all: here it does not, he hands in what he has) never lands for a lone batch
+        Assert.All(trips.Where(t => t.Special), t => Assert.DoesNotContain(t.Stops, s => s.Id == Id("Endgame") || s.Id == Id("Megumi")));
+        Assert.Equal(9, trips.SelectMany(t => t.Stops).Sum(s => s.Batches));   // every batch is still planned, the lone ones in later trips
+        Assert.All(trips.Where(t => t.Stops.Any(s => s.Id == Id("Endgame") || s.Id == Id("Megumi"))), t => Assert.False(t.Special));
+    }
+
+    [Fact]
     public void A_run_in_progress_does_not_take_the_pickup_where_waste_waits()
     {
         var now = RodsFuelRun().Single(t => t.Special);
