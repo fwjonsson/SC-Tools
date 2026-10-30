@@ -12,7 +12,6 @@ namespace SCTools.Server.Controllers;
 /// on the landing page: the Party button beside the name in the top bar (TopBar.PartyButton) opens the panel (Panel) with the same parties as a table like
 /// the Hauling Planner's old Party table (Frank, 29 Oct 2026: Member, Ship, QT Drive, every member's row in his colour), and links here.
 /// </summary>
-[Authorize(Roles = $"{Roles.Admin},{Roles.Player}")]
 [Route("/party")]
 public sealed class PartyToolController : Controller
 {
@@ -20,9 +19,11 @@ public sealed class PartyToolController : Controller
     readonly FleetService _fleet;
     readonly LiveTracker _live;
     readonly ToolAccess _tools;
+    readonly Audience _audience;
 
-    public PartyToolController(PartyService party, FleetService fleet, LiveTracker live, ToolAccess tools)
+    public PartyToolController(PartyService party, FleetService fleet, LiveTracker live, ToolAccess tools, Audience audience)
     {
+        _audience = audience;
         _party = party;
         _fleet = fleet;
         _live = live;
@@ -36,6 +37,7 @@ public sealed class PartyToolController : Controller
     {
         if (!_tools.Sees(User, SiteTools.Party)) return Hidden();
         ViewData["Title"] = "Party";
+        if (Audience.Of(HttpContext).Visitor) return View("~/Views/Shared/LogInNote.cshtml", "Who plays with you, and the ships your party flies, are here once you are logged in.");
         return View("~/Views/PartyTool/Index.cshtml", Page(DateTime.UtcNow));
     }
 
@@ -45,14 +47,18 @@ public sealed class PartyToolController : Controller
     {
         if (!_tools.Sees(User, SiteTools.Party)) return Hidden();
         Response.Headers.CacheControl = "no-store";
+        if (Audience.Of(HttpContext).Visitor) return PartialView("~/Views/Shared/LogInNote.cshtml", "Your party is here once you are logged in.");
         return PartialView("~/Views/PartyTool/_Panel.cshtml", Page(DateTime.UtcNow));
     }
 
     /// <summary>The parties now with the ship each one flies, its drive and his colour, and everybody else: the Party page and the panel show the same.</summary>
     PartyToolPage Page(DateTime now)
     {
-        var parties = _party.Parties(now);
-        var roster = _party.Roster(now);
+        // a player sees his own party (the in-game one and the one he hauls with), the admin everybody (Audience; Frank, 30 Oct 2026)
+        var viewer = Audience.Of(HttpContext);
+        var allowed = viewer.Everything ? null : _audience.Allowed(viewer, now);
+        var parties = _party.Parties(now).Where(p => allowed == null || p.Names.Any(allowed.Contains)).ToList();
+        var roster = _party.Roster(now).Where(r => allowed == null || allowed.Contains(r.Name)).ToList();
         var inParty = new HashSet<string>(parties.SelectMany(p => p.Names), StringComparer.OrdinalIgnoreCase);
         var ships = parties.SelectMany(p => p.Names).Distinct(StringComparer.OrdinalIgnoreCase)
             .ToDictionary(n => n, n => Line(n, now), StringComparer.OrdinalIgnoreCase);
@@ -78,6 +84,7 @@ public sealed class PartyToolController : Controller
     /// Party page.
     /// </summary>
     [HttpPost("active")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Player}")]
     [AutoValidateAntiforgeryToken]
     public IActionResult Active(string name, bool active)
     {
@@ -102,6 +109,8 @@ public sealed class PartyToolController : Controller
     {
         if (!_tools.Sees(User, SiteTools.Party)) return Hidden();
         var now = DateTime.UtcNow;
+        var viewer = Audience.Of(HttpContext);
+        if (!viewer.Everything && !(_audience.Allowed(viewer, now) ?? new HashSet<string>()).Contains(name ?? "")) return NotFound();   // not of his party
         var member = _party.Member(name, now);
         if (member == null) return NotFound();
         ViewData["Title"] = member.Name;

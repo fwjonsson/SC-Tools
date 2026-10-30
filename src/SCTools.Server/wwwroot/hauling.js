@@ -492,7 +492,7 @@ function planRuns(left, names) {
   const shown = function (name) { return !names || among(names, name || ''); };
   const runs = last.planRuns || last.runs;
   const live = [];
-  const rows = runs ? runs.rows.filter(function (r, i) { const ok = !names || shown(r.cells[1]); if (ok) live.push((last.runsLive || [])[i] || null); return ok; }) : [];
+  const rows = runs ? runs.rows.filter(function (r, i) { const ok = !names || shown(r.cells[1]); if (ok) live.push((last.planRunsLive || last.runsLive || [])[i] || null); return ok; }) : [];
   const runsBox = section(left, 'h2', 'Cargo Runs', runs ? { headers: runs.headers, rows: rows } : runs);
   runsBox.classList.add('planruns'); runsBox.previousSibling.classList.add('planruns');
   runsBox.querySelectorAll('tbody tr').forEach(function (tr, i) { if (live[i] && tr.cells[5]) addTicker(tr.cells[5], live[i]); });
@@ -743,7 +743,8 @@ function changed(key, value) {
 function render() {
   Object.keys(dirty).forEach(function (k) { dirty[k] = true; });
   const v = partyView();   // whose session: the viewer's party; the session line in the tabs' row on every tab, not only the Session tab (30 Oct 2026)
-  document.getElementById('session').textContent = v.session || last.session || '';
+  // a visitor (not logged in) sees the tools and the all-time leaderboard, nobody's session (Frank, 30 Oct 2026)
+  document.getElementById('session').textContent = last.visitor ? "Log in to see your party's session (or use Open my page in your tracker)." : v.session || last.session || '';
   renderTab(shownTab);
 }
 

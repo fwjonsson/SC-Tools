@@ -53,6 +53,8 @@ builder.Services.AddSingleton<ScripValues>();
 builder.Services.AddSingleton<Playtime>();
 builder.Services.AddSingleton<FleetService>();
 builder.Services.AddSingleton<PartyService>();
+builder.Services.AddSingleton<Audience>();     // who looks, and whose data he may see (Frank, 30 Oct 2026)
+builder.Services.AddSingleton<DataViews>();    // data.json as each viewer may see it
 builder.Services.AddSingleton<MapPlaces>();
 builder.Services.AddSingleton<MapService>();
 builder.Services.AddSingleton<PlannerPositions>();

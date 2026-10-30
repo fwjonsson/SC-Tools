@@ -173,7 +173,11 @@ public class MapPageTests
         var map = JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement;
         Assert.Equal(new[] { "pyro", "stanton", "nyx" }, map.GetProperty("systems").EnumerateArray().Select(x => x.GetProperty("id").GetString()));   // every system since stage 2 (routes through the gateways)
         Assert.Contains(map.GetProperty("systems")[0].GetProperty("places").EnumerateArray(), x => x.GetProperty("key").GetString() == "pyro/ruin-station");
+        // a player sees the players of his party (Frank, 30 Oct 2026): zzatvo has the shared mission but is in no party with him; the admin sees both
+        Assert.Equal(new[] { "zzoega" }, map.GetProperty("players").EnumerateArray().Select(x => x.GetProperty("name").GetString()));
+        map = JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/hauling/map.json")).RootElement;
         Assert.Equal(new[] { "zzoega", "zzatvo" }, map.GetProperty("players").EnumerateArray().Select(x => x.GetProperty("name").GetString()).OrderByDescending(n => n));
+        Assert.Empty(JsonDocument.Parse(await f.Browser().GetStringAsync("/hauling/map.json")).RootElement.GetProperty("players").EnumerateArray());   // a visitor: the places alone
         var objectives = map.GetProperty("objectives").EnumerateArray().ToList();
         // the pickup at Gaslight is done; the one at Patch City is on the map and the hand-in (its zone is not a pickup station: only in the list), once each,
         // with both who have the mission

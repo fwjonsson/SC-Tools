@@ -14,7 +14,6 @@ namespace SCTools.Server.Controllers;
 /// No hotkeys.
 /// Cancelled missions never count as earnings; a run counts for the timings when it took at most 15 minutes (60 for scenario 8).
 /// </summary>
-[Authorize(Roles = $"{Roles.Admin},{Roles.Player}")]
 [AutoValidateAntiforgeryToken]
 [Route("/gauntlet")]
 public sealed class GauntletController : Controller
@@ -53,11 +52,14 @@ public sealed class GauntletController : Controller
         _gauntlet.Collect();
         var who = Me;
         var now = DateTime.UtcNow;
+        var visitor = Audience.Of(HttpContext).Visitor;   // not logged in: the Leaderboard, and a note to log in on the other tabs (Frank, 30 Oct 2026)
         var rewards = _gauntlet.Rewards();   // the Mission Library's
         var value = (double)_scrip.Mg;   // the admin's Scrip page
         // the viewer's in-game party now (the logs): the pages show the party's runs together; alone, or not playing, his own
         var party = _party.Parties(now).FirstOrDefault(g => g.Names.Any(n => string.Equals(n, who, StringComparison.OrdinalIgnoreCase)));
-        var members = party != null && party.Names.Count > 1 ? party.Names : new[] { who };
+        // the Stats tab is his own (Frank, 30 Oct 2026: the Top 10 fastest and the whole Stats page are personal); the Session and History tabs his party's
+        var members = tab != "stats" && party != null && party.Names.Count > 1 ? party.Names : new[] { who };
+        if (visitor) members = Array.Empty<string>();
         var all = _gauntlet.RunsOf(members);
         var runs = all.Select(x => x.Run).ToList();
         // whose run each one is (for the top 10 of a party): a mission shared in the party is in every member's log, the one who accepted it has its start
@@ -74,6 +76,7 @@ public sealed class GauntletController : Controller
         var model = new GauntletPage
         {
             Tab = tab,
+            Visitor = visitor,
             Player = who,
             Party = members,
             RunBy = by,

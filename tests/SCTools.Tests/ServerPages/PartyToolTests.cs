@@ -83,7 +83,8 @@ public class PartyToolTests
         Assert.DoesNotContain("<details class=\"party\"", await player.GetStringAsync("/"));   // no button until the tool is shown
         await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "party"), ("value", "true"));
         Assert.Contains("Party is in the top bar for everybody now.", await admin.GetStringAsync("/admin/tools"));
-        Assert.Equal(HttpStatusCode.OK, (await player.GetAsync("/party/zzoega")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await player.GetAsync("/party/zzoega")).StatusCode);   // not of his party (Frank, 30 Oct 2026)
+        Assert.Equal(HttpStatusCode.OK, (await player.GetAsync("/party/bileh123")).StatusCode);       // his own page
         Assert.Contains("<details class=\"party\"", await player.GetStringAsync("/"));
         var his2 = WebUtility.HtmlDecode(await player.GetStringAsync("/party/panel"));
         Assert.Contains("bileh123", his2);
