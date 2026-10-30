@@ -1,6 +1,7 @@
 # SC Tools: the roadmap
 
-What is planned, what was decided and why, tool by tool. Decided with Frank on 28 Oct 2026 and kept up to date since: the hauling tracker's server
+What is planned, what was decided and why, tool by tool. The to-do list itself is GitHub Issues (the backlog, see CLAUDE.md): an idea is an issue first,
+and gets its plan here once Frank decides to build it. Decided with Frank on 28 Oct 2026 and kept up to date since: the hauling tracker's server
 became a site with several Star Citizen tools (one server, one tracker on every PC, the same logins). The same text is in the claude.ai project
 (`claude/sc-tools-roadmap.md`); change both. How the code works is README.md, how we work is CLAUDE.md.
 
