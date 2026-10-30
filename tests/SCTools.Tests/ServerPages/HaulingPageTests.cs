@@ -64,6 +64,7 @@ public class HaulingPageTests
         Assert.Contains("if (name === 'contracts') name = 'session';", script);   // the old Contracts tab's address opens the Session tab (30 Oct 2026)
         Assert.Contains("function leaderWidths", script);   // the Session tables line up without the leaderboard on the same tab
         Assert.Contains("function missionsTable", script);   // the Active Contracts of the Session tab, from the map's data (30 Oct 2026)
+        Assert.Contains("function submitButton", script);   // the Submit button of a Current Route (30 Oct 2026)
         Assert.Contains("(shownTab !== 'P' && shownTab !== 'S')", script);
         Assert.True(script.IndexOf("section(el, 'h2', 'Saved sessions', d.saved);", StringComparison.Ordinal) < script.IndexOf("best.textContent = d.best", StringComparison.Ordinal));   // the best session line under the saved sessions (30 Oct 2026)
         Assert.Contains("'/hauling/' + TABS[which]", script);

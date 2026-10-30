@@ -417,6 +417,7 @@ function buildPlanner() {
     [['plancur', 'Current Route', w.current], ['planque', 'Queued routes', w.queued]].forEach(function (x) {
       const col = document.createElement('div'); col.className = x[0]; pair.appendChild(col);
       const t = document.createElement('h3'); t.textContent = x[1]; col.appendChild(t);
+      if (x[0] === 'plancur') submitButton(t, w, p.tripEnd);   // the Submit button at the right end of the title while he has a run on the way (30 Oct 2026)
       const box = document.createElement('div'); box.className = 'scroll'; col.appendChild(box);
       table(box, x[2]);
       if (x[0] === 'plancur' && p.actionWidth) { const th = box.querySelector('th:nth-child(3)'); if (th) th.style.width = p.actionWidth + 'px'; }
@@ -525,6 +526,27 @@ function tripScuFields(box, w, url) {
     });
     cell.appendChild(input);
   });
+}
+
+// The Submit button at the right end of the Current Route title (Frank, 30 Oct 2026): the worker himself (or the admin) ends his run on the way here; it is
+// counted as it is, with what it picked up, and the plan goes on from where he is. Only while he has a run on the way, and only after "Are you sure?".
+function submitButton(title, w, url) {
+  if (!url || !ME || !w.running || !(ADMIN || (w.name || '').toLowerCase() === ME)) return;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'submitroute'; b.textContent = 'Submit';
+  b.title = 'End the current route here: it is counted as it is, with what was picked up';
+  b.addEventListener('click', function () {
+    if (!confirm('Are you sure? You will end the current route, and it is submitted as it is: what was picked up counts, the rest is planned again.')) return;
+    const token = document.querySelector('input[name="__RequestVerificationToken"]');
+    const body = new FormData();
+    body.append('name', w.name || '');
+    if (token) body.append('__RequestVerificationToken', token.value);
+    b.disabled = true;
+    fetch(url, { method: 'POST', body: body, headers: { 'X-Autosave': '1' }, credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (d) { b.disabled = false; b.title = d.said || ''; if (d.ok) refresh(); else alert(d.said || 'Not done.'); })
+      .catch(function () { b.disabled = false; alert('Not done: the site could not be reached. Try again.'); });
+  });
+  title.appendChild(b);
 }
 
 // The map's line for a worker, shortened for the heading of his route card: "At Ruin Station since 01:49" is " since 01:49" when Ruin Station is

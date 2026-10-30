@@ -50,6 +50,7 @@ public sealed partial class WebSnapshot
                 title = "   –   Current location: " + PyroDistances.NameOf(w.LocationId) + (w.LocationByHand ? " (set by hand)" : ""),
                 location = PyroDistances.NameOf(w.LocationId),   // the station alone: the page adds the map's "since" to the title when the map has him there (30 Oct 2026)
                 current = shown.Count > 0 ? CurrentGrid(w, shown[0]) : null,
+                running = w.Rows.Any(r => r.Level == "active"),   // a run on the way: the Submit button ends it (30 Oct 2026)
                 // the lines of the Current Route: the drop-offs on each (their keys), and whether the hauler types the SCU there (a planned trip's drop-off stop)
                 lines = shown.Count > 0 ? shown[0].Lines.Select(l => new { keys = l.Keys, typable = l.Typable, scu = l.Parts.Count > 0 ? l.Parts.Sum() : 0 }).ToList() : null,
                 queued = shown.Count > 0 ? QueuedGrid(shown.Skip(1).ToList()) : null,
@@ -67,6 +68,7 @@ public sealed partial class WebSnapshot
         return new
         {
             tripScu = _o.TripScu,   // where a typed SCU goes (the site); nothing: the SCU is text
+            tripEnd = _o.TripEnd,   // where the Submit button of a Current Route goes (the site); nothing: no button
             summary = plan.Summary,
             note = plan.Note,
             status = _t.Status.Text,

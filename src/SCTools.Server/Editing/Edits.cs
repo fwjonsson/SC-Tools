@@ -193,6 +193,13 @@ public static class Edits
         return "Run " + run.Number + " of " + run.Worker + ": lost cargo " + level + ".";
     }
 
+    /// <summary>The Submit button of a worker's Current Route: his run on the way ends now, counted as it is (CargoRuns.SubmitRun).</summary>
+    public static string SubmitRoute(Tracker t, string name)
+    {
+        if (!t.Runs.SubmitRun(name, DateTime.UtcNow)) return name + " has no route on the way to submit.";
+        return "The route of " + name + " is submitted: the run ends here with what it picked up.";
+    }
+
     /// <summary>The SCU of a drop-off the game did not tell the size of ("mission id|objective id"); 0 forgets it. The game's own number wins once it writes it.</summary>
     public static string SetScu(Tracker t, string key, int scu)
     {

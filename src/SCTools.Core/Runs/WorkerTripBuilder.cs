@@ -163,6 +163,7 @@ public static class WorkerTripBuilder
     /// Who did it comes from the logs. If no log names anybody it is credited to a worker without a log.
     /// </summary>
     const string ManualMission = "~manual";
+    const string SubmittedMission = "~submitted";   // the Submit button: the run ends here and counts as it is (Frank, 30 Oct 2026)
     const string LeftMission = "~left";
 
     /// <summary>True for the objective of a pickup stop of a mission.</summary>
@@ -277,7 +278,7 @@ public static class WorkerTripBuilder
             foreach (var me in manual)
             {
                 if (string.Equals(me.Worker, worker, StringComparison.OrdinalIgnoreCase))
-                    events.Add((me.Time, false, me.Left ? LeftMission : ManualMission, "", true, null, null));
+                    events.Add((me.Time, false, me.Submitted ? SubmittedMission : me.Left ? LeftMission : ManualMission, "", true, null, null));
             }
             events = events.OrderBy(e => e.Time).ThenBy(e => e.IsPickup ? 1 : 0).ToList();
 
@@ -308,14 +309,16 @@ public static class WorkerTripBuilder
                     continue;
                 }
 
-                var isManual = e.Mission == ManualMission || e.Mission == LeftMission;   // ended by hand, no hand-in
+                var isManual = e.Mission == ManualMission || e.Mission == LeftMission || e.Mission == SubmittedMission;   // ended by hand, no hand-in in the log
                 // a hand-in only ends a run that has cargo of his; a run by hand (or the worker leaving) can also end one that only has waste in it (nothing to hand in)
                 var ends = isManual ? carried.Count > 0 || runCollects.Count > 0 || runDrops.Count > 0 : (e.ActorKnown ? carried.Count > 0 : carried.Contains(e.Mission));
                 if (ends)
                 {
-                    var trip = NewTrip(worker, number++, runStart, e.Time, runPickups, runCollects, runDrops, isManual ? 0 : carried.Count, failedIds, acceptedAt, periods);
+                    // a submitted run hands in what it picked up (it is counted as it is); one ended by hand or by leaving hands in nothing
+                    var trip = NewTrip(worker, number++, runStart, e.Time, runPickups, runCollects, runDrops, isManual && e.Mission != SubmittedMission ? 0 : carried.Count, failedIds, acceptedAt, periods);
                     trip.Manual = e.Mission == ManualMission;
                     trip.Left = e.Mission == LeftMission;
+                    trip.Submitted = e.Mission == SubmittedMission;
                     result.Add(trip);
                     last = trip;
                     runStart = e.Time;
@@ -324,7 +327,7 @@ public static class WorkerTripBuilder
                     runCollects = new List<TripCollect>();
                     runDrops = new List<TripDrop>();
                 }
-                else if (!isManual && last != null && !last.Manual && !last.Left && last.End.HasValue && e.Time - last.End.Value <= HandInGap)
+                else if (!isManual && last != null && !last.Manual && !last.Left && !last.Submitted && last.End.HasValue && e.Time - last.End.Value <= HandInGap)
                 {
                     // the next mission of the same hand-in, not a new run
                     last.End = e.Time;

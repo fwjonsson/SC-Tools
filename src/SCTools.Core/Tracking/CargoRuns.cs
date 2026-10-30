@@ -114,6 +114,18 @@ public sealed class CargoRuns
         return false;
     }
 
+    /// <summary>
+    /// The Submit button of a worker's Current Route (Frank, 30 Oct 2026): his run on the way ends now and is counted as it is, with what it picked up handed in;
+    /// the plan goes on from where he is. False when he has no run on the way (or no session).
+    /// </summary>
+    public bool SubmitRun(string name, DateTime nowUtc)
+    {
+        var run = OpenRunOf(name);
+        if (run == null || _s.Inputs == null) return false;
+        _s.Inputs.ManualEnds.Add(new ManualEnd { Worker = run.Worker, Time = nowUtc, Submitted = true });
+        return true;
+    }
+
     // ------------------------------------------------------------------ what a run did, its time and flight
 
     /// <summary>

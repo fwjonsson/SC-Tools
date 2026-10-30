@@ -23,6 +23,9 @@ public sealed class WebSnapshotOptions
 
     /// <summary>Where the SCU a hauler types for a drop-off of his own trip on the Trip Planner goes (the server's address; Frank, 29 Oct 2026). The program has none.</summary>
     public string? TripScu { get; init; }
+
+    /// <summary>Where the Submit button of a worker's Current Route goes (the server's address; Frank, 30 Oct 2026): his run on the way ends, counted as it is. The program has none.</summary>
+    public string? TripEnd { get; init; }
 }
 
 /// <summary>

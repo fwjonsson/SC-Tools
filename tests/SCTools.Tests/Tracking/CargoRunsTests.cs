@@ -70,6 +70,26 @@ public class CargoRunsTests
     }
 
     [Fact]
+    public void Submit_ends_the_run_on_the_way_and_counts_it_as_it_is()
+    {
+        // the Submit button of the Current Route (Frank, 30 Oct 2026): the run ends now with what it picked up, nothing is failed, and the plan goes on
+        var (t, _) = PlayedSession.Load();
+        var at = PlayedSession.LastPickup.AddMinutes(5);
+        Assert.True(t.Runs.SubmitRun(PlayedSession.Player, at));
+        var end = Assert.Single(t.State.Inputs!.ManualEnds);
+        Assert.True(end.Submitted);
+        t.LoadRuns();
+        var run = t.State.Trips.Single(r => r.Submitted);
+        Assert.Equal(at, run.End);
+        Assert.Equal(1, run.HandedIn);   // the batch it picked up at Gaslight
+        Assert.False(run.Manual);
+        Assert.False(CargoRuns.RunFailed(run, t.State.Inputs));
+        Assert.Equal("1", t.Runs.BatchesText(run));
+        Assert.Null(t.Runs.ActiveRunOf(PlayedSession.Player));   // no run on the way any more: the plan starts a new one
+        Assert.False(t.Runs.SubmitRun(PlayedSession.Player, at.AddMinutes(1)));   // nothing on the way to submit
+    }
+
+    [Fact]
     public void Some_cargo_lost_changes_nothing_else()
     {
         var (t, _) = PlayedSession.Load();
