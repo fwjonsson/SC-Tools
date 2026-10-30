@@ -6,6 +6,25 @@ namespace SCTools.Tests.Planning;
 public class PlanServiceTests
 {
     [Fact]
+    public void A_full_run_on_its_way_home_loses_its_last_leg_on_the_map_once_the_map_has_him_at_Ruin()
+    {
+        // Pilot_A has picked up both batches of his second mission: nothing is added to his run, it is drawn by itself with its two stops passed, so the
+        // waves run on the leg home. Once the map has him at Ruin (newer than his last pickup) that leg is passed too: the run has nothing left to draw
+        // (Frank, 30 Oct 2026: the arrow with the waves to Ruin stayed on the map after he had arrived, until he handed in)
+        var (t, _) = PlayedSession.Load(null, w => w.Minutes(15).Unstow().Seconds(5).Objective(PlayedSession.M2, "pickup_m2_1", "COMPLETED"));
+        var positions = new Dictionary<string, WorkerPosition>(StringComparer.OrdinalIgnoreCase);
+        t.State.Positions = positions;
+        var run = Assert.Single(t.Plan.GetPlan().Workers.Single().MapRows.Where(r => r.OnMap));
+        Assert.Equal(new[] { PlayedSession.Gaslight, PlayedSession.PatchCity }, run.Stops);
+        Assert.Equal(2, run.Passed);   // on his way home: the waves run on the leg to Ruin
+        positions[PlayedSession.Player] = new WorkerPosition(PyroDistances.Ruin, PlayedSession.LastPickup.AddMinutes(40), null, null);
+        run = Assert.Single(t.Plan.GetPlan().Workers.Single().MapRows.Where(r => r.OnMap));
+        Assert.Equal(3, run.Passed);   // at Ruin: the leg home is flown too
+        positions[PlayedSession.Player] = new WorkerPosition(PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(1), null, null);   // older than his last pickup: no say
+        Assert.Equal(2, Assert.Single(t.Plan.GetPlan().Workers.Single().MapRows.Where(r => r.OnMap)).Passed);
+    }
+
+    [Fact]
     public void The_run_in_progress_is_the_current_route_and_every_open_batch_is_planned()
     {
         var (t, _) = PlayedSession.Load();
