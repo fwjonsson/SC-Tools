@@ -11,11 +11,11 @@ public static class WorkerTripBuilder
     /// Who did a step of a from-Ruin contract. A shared mission is in the log of everyone who has it, and every one of them gets the update when somebody takes cargo out or
     /// delivers it, but only the player who did it has the elevator / loading platform lines of it. Several times (the same update in the logs of two players, a few seconds apart) are all tried.
     /// </summary>
-    public static string? OutActor(HaulingLog log, bool pickup, IEnumerable<DateTime> times, IReadOnlyCollection<string>? holders = null)
+    public static string? OutActor(HaulingLog log, bool pickup, IEnumerable<DateTime> times, IReadOnlyCollection<string>? holders = null, string? station = null)
     {
         foreach (var t in times.OrderBy(x => x))
         {
-            var who = ActorAt(log, pickup, t, holders);
+            var who = ActorAt(log, pickup, t, holders, station);
             if (who != null) return who;
         }
         return null;
@@ -33,7 +33,8 @@ public static class WorkerTripBuilder
                 if (!pickup && !kv.Key.StartsWith("dropoff_", StringComparison.Ordinal)) continue;
                 var times = kv.Value.Where(e => e.State == "COMPLETED").Select(e => e.Time).OrderBy(t => t).ToList();
                 if (times.Count == 0) continue;
-                steps.Add(new OutStep { Mission = m, Objective = kv.Key, Pickup = pickup, Worker = OutActor(log, pickup, times, m.Holders), Time = times[0] });
+                var station = m.ObjZone.TryGetValue(kv.Key, out var zone) ? StationOfZone(zone) : null;
+                steps.Add(new OutStep { Mission = m, Objective = kv.Key, Pickup = pickup, Worker = OutActor(log, pickup, times, m.Holders, station), Time = times[0] });
             }
         }
         return steps;
@@ -44,31 +45,49 @@ public static class WorkerTripBuilder
     /// or uses the loading platform (hand-in) has those lines in his own log, a few seconds before the mission update.
     /// Returns null when no log shows it (for example a party member whose log we do not have). With the mission's holders given, only one of them can
     /// be it: two players at loading platforms at the same moment are told apart by who has the mission (29 Oct 2026: zzatvo handed his own direct haul
-    /// in at Gaslight while zzoega loaded at Orbituary, and the delivery went to zzoega, who the map then put at Gaslight).
+    /// in at Gaslight while zzoega loaded at Orbituary, and the delivery went to zzoega, who the map then put at Gaslight), and by who was there (Frank,
+    /// 30 Oct 2026: with the station of the step given, a player whose own jumps had him at that station comes first, one his jumps say nothing about
+    /// next, one they put elsewhere last; among equals the nearest in time).
     /// </summary>
-    public static string? ActorAt(HaulingLog log, bool pickup, DateTime time, IReadOnlyCollection<string>? holders = null)
+    public static string? ActorAt(HaulingLog log, bool pickup, DateTime time, IReadOnlyCollection<string>? holders = null, string? station = null)
     {
         var source = pickup ? log.UnstowByPlayer : log.PlatformByPlayer;
         var from = time - TimeSpan.FromSeconds(pickup ? 20 : 30);
         var to = time + TimeSpan.FromSeconds(2);
 
-        string? best = null;
-        var bestGap = TimeSpan.MaxValue;
+        var found = new List<(string Name, TimeSpan Gap, string? At)>();   // everybody with such a line in the window: how far from the moment, and where his jumps had him
         foreach (var kv in source)
         {
             if (holders is { Count: > 0 } && !holders.Contains(kv.Key, StringComparer.OrdinalIgnoreCase)) continue;   // not his mission: not his delivery
             foreach (var x in kv.Value)
             {
                 if (x < from || x > to) continue;
-                var gap = (time - x).Duration();
-                if (gap < bestGap)
-                {
-                    bestGap = gap;
-                    best = kv.Key;
-                }
+                found.Add((kv.Key, (time - x).Duration(), station == null ? null : StationAt(log, kv.Key, time)));
             }
         }
-        return best;
+        if (found.Count == 0) return null;
+        return found.OrderBy(f => station == null || f.At == null ? 1 : f.At == station ? 0 : 2).ThenBy(f => f.Gap).First().Name;
+    }
+
+    /// <summary>The station of the distance table a location id is (by the position the log gave with it), or null.</summary>
+    public static string? StationOfZone(string? zone) => zone == null ? null : PyroDistances.IdOfTail(SCTools.Tracking.Places.StationKey(zone));
+
+    /// <summary>
+    /// The station a player's own jumps had him at this moment: the destination of his last jump before it, once he had arrived (null when his log has no
+    /// jumps, the destination is not a station of the table, or he was still flying).
+    /// </summary>
+    static string? StationAt(HaulingLog log, string player, DateTime time)
+    {
+        if (!log.QtByPlayer.TryGetValue(player, out var qt)) return null;
+        string? last = null;
+        var arrived = false;
+        foreach (var e in qt.OrderBy(q => q.Time))
+        {
+            if (e.Time > time) break;
+            if (e.Kind == QtKind.Selected) { last = e.Destination; arrived = false; }
+            else if (e.Kind == QtKind.Arrived) arrived = true;
+        }
+        return last != null && arrived ? PyroDistances.IdOfQuantumTarget(last) : null;
     }
 
     /// <summary>
@@ -125,7 +144,7 @@ public static class WorkerTripBuilder
                 if (!m.Events.TryGetValue(kv.Key, out var ev) || ev.Count == 0) continue;
                 var first = ev.Min(e => e.Time);
                 if (since.HasValue && first < since.Value) continue;   // pickups of an earlier set of missions do not count
-                var actor = ActorAt(log, true, first, m.Holders);
+                var actor = ActorAt(log, true, first, m.Holders, StationOfZone(kv.Value));
                 if (actor != null && (bestTime == null || first < bestTime))
                 {
                     bestTime = first;
@@ -172,7 +191,7 @@ public static class WorkerTripBuilder
                 if (!kv.Key.StartsWith("dropoff_")) continue;
                 foreach (var e in kv.Value)
                 {
-                    var actor = ActorAt(log, false, e.Time, m.Holders);
+                    var actor = ActorAt(log, false, e.Time, m.Holders, StationOfZone(m.ObjZone.GetValueOrDefault(kv.Key)));
                     handInActor ??= actor;
                     drops.Add((m.Id, e.Time, actor));
                 }
@@ -186,7 +205,7 @@ public static class WorkerTripBuilder
                 if (plan.HasValue && first >= plan.Value.Since)
                 {
                     // the log names who unloaded the cargo, else the Trip Planner decided (saved), else who handed the mission in
-                    who = ActorAt(log, true, first, m.Holders)
+                    who = ActorAt(log, true, first, m.Holders, StationOfZone(kv.Value))
                         ?? (plan.Value.Claims.TryGetValue(m.Id + "|" + kv.Key, out var claimed) ? claimed : null)   // once decided it stays
                         ?? handInActor ?? "Unassigned";
                 }
@@ -194,7 +213,7 @@ public static class WorkerTripBuilder
                 {
                     // the Assigned Worker of the location comes first, the logs only fill in where nobody is assigned
                     var assigned = workerOfZone(kv.Value, first);
-                    who = assigned != "Unassigned" ? assigned : (ActorAt(log, true, first, m.Holders) ?? "Unassigned");
+                    who = assigned != "Unassigned" ? assigned : (ActorAt(log, true, first, m.Holders, StationOfZone(kv.Value)) ?? "Unassigned");
                 }
                 pickups.Add((who, kv.Value, m.Id, first));
             }
