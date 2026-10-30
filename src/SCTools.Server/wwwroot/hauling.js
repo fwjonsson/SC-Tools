@@ -321,7 +321,20 @@ function planNames(p, choices) {
   return (last.parties || []).find(function (x) { return x.leader === planShown; }).names;
 }
 
-function renderPlanner() {
+// A part of the page rebuilt from nothing (the planner's whole body, every few seconds while somebody plays) makes the page shorter for a moment, and the
+// browser pulls a reader who has scrolled down back up (Frank, 30 Oct 2026: watching the Cargo Runs under the map). The part keeps its height while it is
+// rebuilt, and the page its scroll position after it.
+function keepScroll(part, build) {
+  const y = window.scrollY, h = part.offsetHeight;
+  part.style.minHeight = h + 'px';
+  try { build(); } finally {
+    part.style.minHeight = '';
+    if (window.scrollY !== y) window.scrollTo(0, y);
+  }
+}
+
+function renderPlanner() { keepScroll(document.getElementById('planBody'), buildPlanner); }
+function buildPlanner() {
   const p = last.planner;
   document.getElementById('planNote').textContent = '';   // no line above the map (like in the program): the tables get the room
   const body = document.getElementById('planBody');
@@ -405,7 +418,8 @@ function renderStatus(mapBox) {
   }
 }
 
-function renderDebts() {
+function renderDebts() { keepScroll(document.getElementById('viewD'), buildDebts); }
+function buildDebts() {
   const el = document.getElementById('viewD');
   el.textContent = '';
   const d = last.debts;
@@ -519,7 +533,8 @@ function lostPicks(box, keys, url) {
   });
 }
 
-function renderHistory() {
+function renderHistory() { keepScroll(document.getElementById('viewH'), buildHistory); }
+function buildHistory() {
   const el = document.getElementById('viewH');
   el.textContent = '';
   const d = last.history;
