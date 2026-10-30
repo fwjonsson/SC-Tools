@@ -69,6 +69,16 @@ public sealed partial class WebSnapshot
             var row = earnings.Add(p, now.ToString("N0", CultureInfo.InvariantCulture), all.ToString("N0", CultureInfo.InvariantCulture), Signed(net));
             if (Math.Abs(net) >= 0.5m) row.Color(3, net > 0 ? _p.Green : _p.Red);
         }
+        // one player's accounts added up (Frank, 30 Oct 2026): a look at what he earns in all; the balances and the debts stay each account's own
+        foreach (var group in data.CombinedAccounts)
+        {
+            var members = group.Where(n => party.Any(p => string.Equals(p, n, StringComparison.OrdinalIgnoreCase))).ToList();
+            if (members.Count < 2) continue;
+            var now = _s.Inputs == null ? 0m : members.Sum(m => Payouts.CarriedBy(_s.Inputs.Carried, m));
+            var all = members.Sum(m => data.Sessions.Values.Sum(s => Payouts.CarriedBy(s.Carried, m)));
+            var net = members.Sum(m => nets.TryGetValue(m, out var n) ? n : 0m);
+            earnings.Add(string.Join(" + ", members), now.ToString("N0", CultureInfo.InvariantCulture), all.ToString("N0", CultureInfo.InvariantCulture), Signed(net)).Color(0, _p.Cell, _p.Muted);
+        }
         earnings.Add("Total", sumNow.ToString("N0", CultureInfo.InvariantCulture), sumAll.ToString("N0", CultureInfo.InvariantCulture), "").Bold = true;
 
         return new { earnings, balances, transfers, transfersEdit, payouts, pos = ViewPalette.Hex(_p.Green), neg = ViewPalette.Hex(_p.Red) };

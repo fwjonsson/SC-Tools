@@ -16,6 +16,24 @@ public class LeaderboardTests
     };
 
     [Fact]
+    public void One_players_accounts_are_added_up_in_a_row_after_the_players()
+    {
+        // Frank, 30 Oct 2026: zzoega, zzatvo and zzoii are his; the payouts are split between them, so a row adds them up (not numbered, after the players);
+        // a group with one account on the board gets no row
+        var lines = new List<StatLine> { Line("zzatvo", 100, 1, 2, 1), Line("zzoega", 300, 2, 5, 1), Line("Bileh123", 200, 1, 3, 1) };
+        var rows = Leaderboard.Board(lines, 1, 3600, new[] { new[] { "zzoega", "zzatvo", "zzoii" }, new[] { "Bileh123", "nobody" } });
+        Assert.Equal(new[] { "★ zzoega ★", "Bileh123", "zzatvo", "zzoega + zzatvo", "Total" }, rows.Select(r => r.Name));
+        var both = rows[3];
+        Assert.True(both.Combined);
+        Assert.False(both.Top);
+        Assert.Equal("400", both.RunValue);
+        Assert.Equal("3", both.Runs);
+        Assert.Equal("67%", both.Share);
+        Assert.Equal("2.3", both.AvgBatches);
+        Assert.Equal("600", rows[4].RunValue);   // the Total is the players alone
+    }
+
+    [Fact]
     public void The_top_earner_gets_a_star_and_the_total_adds_everybody_up()
     {
         var rows = Leaderboard.Board(new List<StatLine> { Line("Pilot_B", 100, 1, 2, 1), Line("Pilot_A", 300, 2, 5, 1) }, 1, 3600);

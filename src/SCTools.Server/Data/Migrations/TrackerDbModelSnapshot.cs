@@ -933,6 +933,10 @@ namespace SCTools.Server.Data.Migrations
                     b.Property<string>("Channel")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CombinedAccounts")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("DarkMode")
                         .HasColumnType("INTEGER");
 

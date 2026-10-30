@@ -311,7 +311,7 @@ public sealed partial class WebSnapshot
             new ViewColumn("Total Earned aUEC", "right"), new ViewColumn("Lost Value", "right"), new ViewColumn("Share of Run Value"), new ViewColumn("Run Value / Hour", "right"),
         });
         var table = new ViewTable(_p, columns.ToArray());
-        foreach (var b in Leaderboard.Board(lines, totalSessions, totalSeconds))
+        foreach (var b in Leaderboard.Board(lines, totalSessions, totalSeconds, _s.Data.CombinedAccounts))
         {
             var cells = new List<string>();
             if (numbered) cells.Add("");
@@ -321,6 +321,7 @@ public sealed partial class WebSnapshot
             var row = table.Add(cells.ToArray());
             if (b.Top) row.RowColor(_p.Gold);
             if (b.Total) row.Bold = true;
+            if (b.Combined) row.Color(numbered ? 1 : 0, _p.Cell, _p.Muted);   // one player's accounts added up: in grey, after the players, not numbered
         }
         if (numbered) table.Number(0, lines.Count);   // not the Total row
         return table;
