@@ -330,7 +330,9 @@ admin (done), then going live.
   seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Trip Planner is the first tab of the page (Frank, 29 Oct
   2026: `/hauling` opens it), and the tabs are a row under the top bar in the tool's colour like the admin's pages (30 Oct 2026; the Gauntlet
   Tracker's tabs and the Map's systems too, through the layout's `subnav` section; the tools' pages have no title of their own, the bar says where you are), the Σ line of its Current Route table is like the Queued routes' total, and the Time of a run on the way counts up under
-  the map too. On the Session tab the admin picks the Lost Cargo of a run in the Cargo runs table (`/hauling/runs/lost`, sent in the background, the
+  the map too. The clocks count up from when they started (`runsLive`, `since` in the data: UTC) by the browser's clock, like the Session
+  tool's clock: the text in the data was made when the data was made, which can be a while before the page fetched it, so counting on from it made
+  the clocks lag and jump (Frank, 30 Oct 2026). On the Session tab the admin picks the Lost Cargo of a run in the Cargo runs table (`/hauling/runs/lost`, sent in the background, the
   same edit as his Session page's). The **Stops** board (`WebSnapshot.Stops`) reads the from-Ruin drop-offs the same way as the pickups (Frank, 29 Oct
   2026): a pickup location is a row with its batches, its cargo, its value and Ruin as the **Drop-off Location**, and every station that drop-offs go
   to is a row of its own with Ruin as the pickup, how many drop-offs, the cargo with its SCU in containers, their value and the station as the drop-off
