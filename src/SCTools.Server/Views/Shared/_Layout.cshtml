@@ -27,6 +27,9 @@
     }
   </nav>
 }
+@* a tool with tabs has them as the same kind of row, in its own colour (Frank, 30 Oct 2026): the tool's view gives the row in its subnav section. The tools'
+   pages have no title of their own: the bar says where you are *@
+@RenderSection("subnav", required: false)
 <main>
   @if (TempData["Message"] is string message)
   {

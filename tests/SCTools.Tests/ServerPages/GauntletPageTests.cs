@@ -40,7 +40,9 @@ public class GauntletPageTests
         Assert.Contains("<option value=\"7\" selected=\"selected\">#7</option>", stats);
         Assert.Contains("action=\"/gauntlet/stats#top10\" class=\"line\" data-autosave", stats);   // picking a scenario shows it: no Show button
         var history = await player.GetStringAsync("/gauntlet/history");   // the Earnings ranking tab is History: the lifetime totals, then the ranking with Scrip/h
-        Assert.Contains("<a class=\"tab on\" href=\"/gauntlet/history\">History</a>", history);
+        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#d9a441\">", history);   // the tabs: a row under the bar in the tool's colour (30 Oct 2026)
+        Assert.Contains("<a href=\"/gauntlet/history\" class=\"on\">History</a>", history);
+        Assert.DoesNotContain("<h1>", history);
         Assert.Contains("<h2>Lifetime</h2>", history);
         Assert.Contains("Earnings ranking", history);
         Assert.Contains("<th>Scrip/h</th>", history);
