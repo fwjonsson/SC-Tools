@@ -192,7 +192,11 @@ public static class WorkerTripBuilder
                 if (!kv.Key.StartsWith("dropoff_")) continue;
                 foreach (var e in kv.Value)
                 {
-                    var actor = ActorAt(log, false, e.Time, m.Holders, StationOfZone(m.ObjZone.GetValueOrDefault(kv.Key)));
+                    // a to-Ruin contract is handed in at Ruin, which the station table does not list as a pickup station: named outright, so who was there counts
+                    // there too (30 Oct 2026, 03:37 UTC: zzatvo handed two missions in at Ruin while zzoega was landing at Rat's Nest; zzoega's platform line was the
+                    // nearer one, the hand-in went to him, and zzatvo's route stuck at "Delivering" until his next hand-in)
+                    var station = m.IsHauling ? PyroDistances.Ruin : StationOfZone(m.ObjZone.GetValueOrDefault(kv.Key));
+                    var actor = ActorAt(log, false, e.Time, m.Holders, station);
                     handInActor ??= actor;
                     drops.Add((m.Id, e.Time, actor));
                 }
