@@ -532,7 +532,7 @@ function show(which) {
   if (last && dirty[which]) renderTab(which);
   layout();   // the tables of a tab that was hidden could not be measured
 }
-Object.keys(TABS).forEach(function (k) { document.getElementById('tab' + k).onclick = function () { show(k); }; });
+Object.keys(TABS).forEach(function (k) { document.getElementById('tab' + k).onclick = function (e) { if (e && e.preventDefault) e.preventDefault(); show(k); }; });   // a link to the tab's address: shown here, no reload
 show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || 'P');
 
 // Whose session the Session and Contracts tabs show: with one party, the whole session is theirs; with more than one (the ones in the game, then the ones

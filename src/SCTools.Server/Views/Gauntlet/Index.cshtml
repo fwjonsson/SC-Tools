@@ -12,17 +12,18 @@
     string When(DateTime utc) => utc.ToString("d MMM HH:mm", inv) + " UTC";
     string Hours(double h) => Dur(h * 3600);
     string Tab(string key, string text) =>
-        $"<a class=\"tab{(Model.Tab == key ? " on" : "")}\" href=\"/gauntlet/{key}\">{text}</a>";
+        $"<a href=\"/gauntlet/{key}\"{(Model.Tab == key ? " class=\"on\"" : "")}>{text}</a>";
     var whose = Model.InParty ? "your party" : "you";
 }
-<h1>Gauntlet Tracker</h1>
-
-<nav class="tabs">
+@section subnav {
+  @* the tabs as a row under the bar in the tool's colour, like the admin's pages (Frank, 30 Oct 2026) *@
+  <nav class="subnav area" style="--tool:@SiteTools.Gauntlet.Color">
   @Html.Raw(Tab("session", "Session"))
   @Html.Raw(Tab("stats", "Stats"))
   @Html.Raw(Tab("history", "History"))
   @Html.Raw(Tab("leaderboard", "Leaderboard"))
-</nav>
+  </nav>
+}
 
 @* whose runs the tabs show: the viewer's in-game party now (from the logs), or his own when he is alone or not playing *@
 @if (Model.Tab != "leaderboard")

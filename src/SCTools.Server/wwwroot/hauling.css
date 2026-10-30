@@ -37,10 +37,10 @@
 .hauling .scuin.saving { opacity:.6; } .hauling .scuin.saved { border-color:#5fd35f; } .hauling .scuin.unsaved { border-color:#ff6b6b; }
 .hauling .src { opacity:.7; font-size:12px; margin-left:6px; white-space:nowrap; }
 .hauling .note a { color:inherit; }
-.hauling .nav, .hauling .sub { display:flex; gap:8px; margin:8px 0 4px; flex-wrap:wrap; }
-.hauling .nav button, .hauling .sub button { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 16px; font:inherit; font-weight:600; cursor:pointer; border-radius:4px; }
-.hauling .nav button.on, .hauling .sub button.on { background:var(--header); color:#fff; }
-.hauling .nav select { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 10px; font:inherit; font-weight:600; border-radius:4px; margin-left:auto; }   /* the admin: whose session */
+/* the Trip Planner's choice (Everyone, a party, Only me): buttons under the tabs; the tabs themselves are the row under the bar (site.css .subnav, 30 Oct 2026) */
+.hauling .sub { display:flex; gap:8px; margin:8px 0 4px; flex-wrap:wrap; }
+.hauling .sub button { background:var(--cell); color:var(--fg); border:1px solid var(--line); padding:6px 16px; font:inherit; font-weight:600; cursor:pointer; border-radius:4px; }
+.hauling .sub button.on { background:var(--header); color:#fff; }
 .hauling .hidden { display:none; }
 .hauling .lostpick { background:var(--cell); color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:2px 4px; font:inherit; }   /* the admin's Lost Cargo pick */
 .hauling .plantables { flex:1 1 520px; min-width:0; }

@@ -7,16 +7,18 @@
 @* The Hauling Planner, an ordinary page of the site since 29 Oct 2026 (Frank): the site's bar and look, hauling.css and hauling.js for its own tables, tabs
    and map (systemmap.js, the one map engine). Every tab has its own address (/hauling/<tab>, PageController) and the script shows that tab. *@
 <link rel="stylesheet" href="~/hauling.css" asp-append-version="true">
+@section subnav {
+  @* the tabs as a row under the bar in the tool's colour, like the admin's pages (Frank, 30 Oct 2026); the Trip Planner first (29 Oct). Every tab is a link to
+     its own address, and hauling.js shows the tab on the page without a reload; after the tabs, for the admin only, the party whose session the tabs show *@
+  <nav class="subnav area" style="--tool:@SiteTools.Hauling.Color"><a href="/hauling/planner" id="tabP" class="on">Trip Planner</a><a href="/hauling/session" id="tabS">Session</a><a href="/hauling/contracts" id="tabC">Contracts</a><a href="/hauling/debts" id="tabD">Debts</a><a href="/hauling/history" id="tabH">History</a><select id="partyPick" class="hidden" aria-label="Whose session"></select></nav>
+}
 @* the admin gets data-admin (Razor writes a data- attribute even when its value is null, so it is written by hand) *@
 <div class="hauling" data-me="@me"@(admin ? Html.Raw(" data-admin=\"1\"") : null)>
 <!-- the title, the tabs and what they show on the left; on the Session tab the session beside them (the leaderboard and the runs under both, over the whole
      width). No Party table since 29 Oct 2026 (Frank): the Party button in the top bar shows it. After the tabs, for the admin only, the party whose session the tabs show -->
 <div class="top">
 <div class="main">
-<h1>Hauling Planner</h1>
 <div class="bar"><span id="session"></span><span id="live" class="live"></span><span id="updated"></span></div>
-@* the Trip Planner first (Frank, 29 Oct 2026): it is the tab that is looked at while hauling *@
-<div class="nav"><button id="tabP" class="on">Trip Planner</button><button id="tabS">Session</button><button id="tabC">Contracts</button><button id="tabD">Debts</button><button id="tabH">History</button><select id="partyPick" class="hidden" aria-label="Whose session"></select></div>
 
 <div id="viewS" class="hidden">
   <p class="note hidden" id="partyNote"></p>

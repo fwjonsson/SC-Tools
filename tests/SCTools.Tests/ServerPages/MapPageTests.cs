@@ -200,6 +200,8 @@ public class MapPageTests
         var players = page.IndexOf("<div class=\"mapside players\">", StringComparison.Ordinal);
         var objectives = page.IndexOf("<div class=\"mapside objectives\">", StringComparison.Ordinal);
         var missions = page.IndexOf("<div class=\"mapmissions\">", StringComparison.Ordinal);
+        Assert.Contains("<nav class=\"subnav area\" id=\"systems\" role=\"tablist\" aria-label=\"Star system\" style=\"--tool:#e0734a\"></nav>", page);   // the systems: the tool's row of tabs (30 Oct 2026)
+        Assert.DoesNotContain("<h1>", page);
         Assert.True(page.IndexOf("<div class=\"mapbox\">", StringComparison.Ordinal) < players && players < objectives && objectives < missions);   // the four cells of the grid
         var css = await f.Browser().GetStringAsync("/site.css");
         Assert.Contains(".mapside.objectives { grid-column:3; grid-row:1; }", css);
