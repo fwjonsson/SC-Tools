@@ -87,7 +87,8 @@
 .hauling .maplegend span { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
 .hauling .mapsvg svg { display:block; }
 .hauling .mapmeter { margin:-2px 0 6px; }
-.hauling .mapmeter .what { opacity:.75; font-size:13px; }
+.hauling .mapmeter .what { display:none; }   /* the line is in the heading (sinceText), the map keeps this one up to date */
+.hauling .planworker h2 .since { font-weight:400; opacity:.8; }
 .hauling .speed { margin-top:4px; max-width:520px; }
 .hauling .speed .bar { height:8px; background:rgba(128,128,128,.2); border:1px solid var(--line); border-radius:4px; overflow:hidden; }
 .hauling .speed .bar span { display:block; height:100%; background:linear-gradient(90deg, #2f7dd1, #7fd3ff); }

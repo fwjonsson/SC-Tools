@@ -196,6 +196,7 @@ public class WebSnapshotTests
         var worker = d.GetProperty("planner").GetProperty("workers").EnumerateArray().Single();
         Assert.Equal(PlayedSession.Player, worker.GetProperty("name").GetString());
         Assert.Equal("PILOT_A", worker.GetProperty("heading").GetString());
+        Assert.Equal(PyroDistances.NameOf(PlayedSession.Gaslight), worker.GetProperty("location").GetString());   // the station alone, for the heading's "since" (30 Oct 2026)
         Assert.Equal(JsonValueKind.Object, worker.GetProperty("current").ValueKind);
         Assert.True(d.GetProperty("planner").GetProperty("actionWidth").GetInt32() > 16);
     }
