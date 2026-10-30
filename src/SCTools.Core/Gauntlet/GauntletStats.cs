@@ -33,7 +33,7 @@ public static class GauntletStats
         foreach (var r in runs)
         {
             if (r.Outcome != GauntletOutcome.Complete) { cancelled++; continue; }   // a cancelled mission never earns anything
-            var w = GauntletRewards.Of(r.Scenario, rewards);
+            var w = r.Earned(rewards);   // his part of a scenario shared in the party
             done++;
             auec += w.Auec;
             scrip += w.Scrip;
@@ -115,7 +115,7 @@ public static class GauntletLeaderboard
             var hours = timed.Sum(r => r.TimingSec!.Value) / 3600;
             double Worth(GauntletRun r)
             {
-                var w = GauntletRewards.Of(r.Scenario, rewards);
+                var w = r.Earned(rewards);   // his part
                 return w.Auec + w.Scrip * scripValue;
             }
             var perHour = hours > 0 ? timed.Sum(Worth) / hours : (double?)null;

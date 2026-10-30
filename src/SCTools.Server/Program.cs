@@ -60,6 +60,7 @@ builder.Services.AddSingleton<CompanionService>();   // the Companion: a player'
 builder.Services.AddSingleton<PlannerPositions>();
 builder.Services.AddSingleton<HistoryStore>();
 builder.Services.AddSingleton<MissionLibrary>();
+builder.Services.AddSingleton<ContractTracker>();   // every contract and its money split, for every tool (#383)
 builder.Services.AddSingleton<WikiMissions>();
 builder.Services.AddHostedService<MissionLibraryService>();
 builder.Services.AddHostedService<RefreshService>();

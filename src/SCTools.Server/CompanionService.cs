@@ -17,7 +17,7 @@ namespace SCTools.Server;
 /// are everybody's, and party names the ones the lists beside the map keep to.</item>
 /// <item>Session: his current game session (GameSession: from when the game started until an hour after it was closed; after that the last one, marked
 /// over) with the Session tool's figures for it, and the contracts his party ended in it (completed, failed or abandoned, with who had each). No running
-/// time in it (the clock rule): the browser counts the game going on from its start. The earnings are his part (MissionLibrary.Earned); a player with
+/// time in it (the clock rule): the browser counts the game going on from its start. The earnings are his part (the contracts tracker's Earned); a player with
 /// combined accounts (AppData.CombinedAccounts) sees what all of them earned in his session together, per hour of his own time played (Frank, 30 Oct 2026).</item>
 /// </list>
 /// </summary>
@@ -27,18 +27,20 @@ public sealed class CompanionService
     readonly Audience _audience;
     readonly Playtime _playtime;
     readonly MissionLibrary _library;
+    readonly ContractTracker _contracts;
     readonly ScripValues _scrip;
     readonly LogUploads _uploads;
     readonly LiveTracker _live;
     readonly object _lock = new();
     readonly Dictionary<string, (byte[] Bytes, string ETag)> _made = new();
 
-    public CompanionService(MapService map, Audience audience, Playtime playtime, MissionLibrary library, ScripValues scrip, LiveTracker live)
+    public CompanionService(MapService map, Audience audience, Playtime playtime, MissionLibrary library, ContractTracker contracts, ScripValues scrip, LiveTracker live)
     {
         _map = map;
         _audience = audience;
         _playtime = playtime;
         _library = library;
+        _contracts = contracts;
         _scrip = scrip;
         _uploads = live.Uploads;
         _live = live;
@@ -120,9 +122,9 @@ public sealed class CompanionService
         // the missions of the session: from its start to now, or to its end when it is over
         var to = session.Over ? session.EndUtc!.Value : nowUtc;
         long mg = _scrip.Mg, council = _scrip.Council;
-        var own = PlayStats.For(session.StartUtc, to, Array.Empty<PlayedGame>(), _library.Earned(me), mg, council);
+        var own = PlayStats.For(session.StartUtc, to, Array.Empty<PlayedGame>(), _contracts.Earned(me), mg, council);
         // the money: his part, or with combined accounts what all of them earned in his session together (the missions completed stay his own)
-        var totals = accounts.Count > 1 ? PlayStats.For(session.StartUtc, to, Array.Empty<PlayedGame>(), _library.Earned(accounts), mg, council) : own;
+        var totals = accounts.Count > 1 ? PlayStats.For(session.StartUtc, to, Array.Empty<PlayedGame>(), _contracts.Earned(accounts), mg, council) : own;
         var running = session.Running;
         return new
         {
