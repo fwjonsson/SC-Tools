@@ -28,19 +28,27 @@ public sealed record TrackedContract(string MissionId, string? Kind, string? Tit
     /// <summary>
     /// Does this player get its MG and Council scrip? The game's rule (Frank, 30 Oct 2026): the one who took it, when he still had it when it paid out; when
     /// he abandoned it (or it failed for him), the one who accepted the share first of the ones who still had it (Frank's logs: the game's "You've Earned"
-    /// line follows that one's completion). Nobody else, and nobody when it was not completed.
+    /// line follows that one's completion). Nobody else, and nobody when it was not completed. When the game said it (a holder's "You've Earned: N Rewards"
+    /// after his completion, N the MG or the Council scrip of whole, by default its Reward), that wins: also for a contract a stranger took, whose log the
+    /// server never sees.
     /// </summary>
-    public bool GetsScrip(string player)
+    public bool GetsScrip(string player, ContractReward? whole = null)
     {
         if (HolderOf(player) is not { Completed: true } me) return false;
+        var w = whole ?? Reward;
+        bool Paid(ContractHolder h) =>
+            h.Completed && h.Rewards is { } n && (n == w.Mg || n == w.Council || (w.Mg is { } mg && w.Council is { } c && n == mg + c));
+        if (Holders.Any(Paid)) return Paid(me);
         if (TookIt(player)) return true;
         // the takers (whose log says they accepted it first): when one of them completed it, the scrip is his; when they all ended it without
         // completing it, it goes on to the share accepted first
         var takers = Holders.Where(h => h.Took == true).ToList();
         if (takers.Count == 0 || takers.Any(h => h.Completed || h.Outcome == null)) return false;
-        // the share accepted first: the longest from his accept to the completion, both by his own PC's clock (two PCs' clocks can be seconds apart, and
-        // the two shares are often accepted within a second of each other)
-        var lead = Holders.Where(h => h.Completed && h.AcceptedUtc != null && h.EndedUtc != null).Select(Lead).DefaultIfEmpty().Max();
+        // the share accepted first: in the order one log saw them all accepted (one clock), else the longest from his accept to the completion, both by his
+        // own PC's clock (two PCs' clocks can be seconds apart, and the two shares are often accepted within a second of each other)
+        var done = Holders.Where(h => h.Completed).ToList();
+        if (done.All(h => h.JoinOrder != null)) return me.JoinOrder == done.Min(h => h.JoinOrder);
+        var lead = done.Where(h => h.AcceptedUtc != null && h.EndedUtc != null).Select(Lead).DefaultIfEmpty().Max();
         return lead != null && Lead(me) == lead;
     }
 

@@ -10,10 +10,18 @@ public enum MissionOutcome { Complete, Fail, Abandon }
 /// One mission of one player, as far as his log shows it: the game's ContractId (the offer it came from), its title as the game showed it (with Frank's
 /// string mod, his names), whether it was shared to him, when it started and how it ended. Hauling: the Hauling Planner's contract line of a mission it reads
 /// ("2 To Ruin", MissionKinds.WithHauling). Definition: the contract's id as its objective markers say (contractDefinitionId: the Star Citizen Wiki API's
-/// uuid of the mission). The Mission Library groups them by their kind (MissionKinds).
+/// uuid of the mission). The Mission Library groups them by their kind (MissionKinds). For the contracts tracker: PlayerId, the player's own id in the game
+/// (his log's "Ending mission" lines say it); Members, what his log said about the other players of the mission (joined, left); Rewards, the game's
+/// "You've Earned: N Rewards" right after he completed it (the MG or Council scrip it paid him, or items).
 /// </summary>
 public sealed record MissionSeen(string MissionId, string? ContractId, string? Title, bool Shared, DateTime? StartedUtc, DateTime? EndedUtc, MissionOutcome? Outcome,
-    string? Hauling = null, string? Definition = null);
+    string? Hauling = null, string? Definition = null, string? PlayerId = null, IReadOnlyList<MissionMember>? Members = null, int? Rewards = null)
+{
+    /// <summary>The same as another, its members too (a record compares a list by reference).</summary>
+    public bool Same(MissionSeen? other) =>
+        other != null && this with { Members = null } == other with { Members = null }
+        && (Members ?? Array.Empty<MissionMember>()).SequenceEqual(other.Members ?? Array.Empty<MissionMember>());
+}
 
 /// <summary>
 /// Reads every mission of a player's Game.log (any kind, not only hauling): "ContractId: [c]. MissionId: m" says which offer it is, the notifications
@@ -34,6 +42,25 @@ public sealed class MissionReader
 
     static readonly Regex Markup = new(@"</?EM\d*>", RegexOptions.Compiled);
 
+    /// <summary>The player of an "Ending mission" line: always the log's own player (Frank's logs of Aug-Oct 2026, three accounts).</summary>
+    static readonly Regex Who = new(@"Player\[[^\]]+\] PlayerId\[(?<id>\d+)\]", RegexOptions.Compiled);
+
+    static readonly Regex Member = new(
+        @"^<(?<ts>[^>]+)> \[Notice\] <Player(?<k>Joined|Left)> Received Player\k<k> push message for: mission_id (?<m>[0-9a-fA-F-]{36}) - player_id (?<p>\d+)",
+        RegexOptions.Compiled);
+
+    /// <summary>
+    /// The game's "You've Earned: 16 Rewards" (its next line: "Access Them at Your Primary Residence's Inventory"), half a second after the completion of a
+    /// mission that pays scrip, in the log of the player it paid (Frank's logs: the MG scrip of a Combat Gauntlet scenario, also when it went on to a share).
+    /// </summary>
+    static readonly Regex Earned = new(@"^<(?<ts>[^>]+)> \[Notice\] <SHUDEvent_OnNotification> Added notification ""You've Earned: (?<n>\d+) Rewards", RegexOptions.Compiled);
+
+    /// <summary>How long after a completion the game says what it paid at the most.</summary>
+    static readonly TimeSpan EarnedAfter = TimeSpan.FromSeconds(10);
+
+    /// <summary>The line kind of Earned for the trackers (HaulingLog.LineKinds): its first line has no "Mission" in it.</summary>
+    public const string EarnedLine = "Added notification \"You've Earned: ";
+
     sealed class State
     {
         public string? ContractId;
@@ -43,7 +70,12 @@ public sealed class MissionReader
         public DateTime? Ended;
         public MissionOutcome? Outcome;
         public int Order;
+        public List<MissionMember> Members = new();
+        public int? Rewards;
     }
+
+    string? _playerId;   // the log's own player (his "Ending mission" lines)
+    (string Id, DateTime At)? _lastDone;   // the mission he completed last, for what the game says it paid
 
     readonly Dictionary<string, State> _missions = new(StringComparer.OrdinalIgnoreCase);
 
@@ -62,8 +94,16 @@ public sealed class MissionReader
     /// <summary>Every mission seen so far, in the order they first showed up.</summary>
     public IReadOnlyList<MissionSeen> Missions =>
         _missions.OrderBy(m => m.Value.Order)
-            .Select(m => new MissionSeen(m.Key.ToLowerInvariant(), m.Value.ContractId, m.Value.Title, m.Value.Shared, m.Value.Started, m.Value.Ended, m.Value.Outcome))
+            .Select(m => new MissionSeen(m.Key.ToLowerInvariant(), m.Value.ContractId, m.Value.Title, m.Value.Shared, m.Value.Started, m.Value.Ended, m.Value.Outcome,
+                PlayerId: _playerId, Members: Others(m.Value.Members), Rewards: m.Value.Rewards))
             .ToList();
+
+    /// <summary>What the log said about the other players (not about himself: his own leaving is his "Ending mission"), or null.</summary>
+    IReadOnlyList<MissionMember>? Others(List<MissionMember> members)
+    {
+        var others = members.Where(e => e.PlayerId != _playerId).ToList();
+        return others.Count > 0 ? others : null;
+    }
 
     State Of(string id) => _missions.TryGetValue(id, out var s) ? s : _missions[id] = new State { Order = _missions.Count };
 
@@ -72,7 +112,25 @@ public sealed class MissionReader
 
     public void ProcessLine(string line)
     {
-        if (line.Length < 30 || line[0] != '<' || !line.Contains("Mission", StringComparison.Ordinal)) return;
+        if (line.Length < 30 || line[0] != '<') return;
+        if (line.Contains(EarnedLine, StringComparison.Ordinal))
+        {
+            var g = Earned.Match(line);
+            if (g.Success && Time(g) is { } paid && _lastDone is { } done && paid >= done.At && paid - done.At <= EarnedAfter
+                && int.TryParse(g.Groups["n"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var n))
+                Of(done.Id).Rewards ??= n;
+            return;
+        }
+        if (!line.Contains("Mission", StringComparison.Ordinal)) return;
+        if (line.Contains(" push message for: mission_id ", StringComparison.Ordinal))
+        {
+            var p = Member.Match(line);
+            if (!p.Success || Time(p) is not { } when) return;
+            var e = new MissionMember(p.Groups["p"].Value, p.Groups["k"].Value == "Left", when);
+            var members = Of(p.Groups["m"].Value).Members;
+            if (!members.Contains(e)) members.Add(e);
+            return;
+        }
         if (line.Contains("ContractId", StringComparison.Ordinal))
         {
             var c = Contract.Match(line);
@@ -105,6 +163,7 @@ public sealed class MissionReader
                     break;
                 case "Complete":
                     if (s.Outcome == null) (s.Outcome, s.Ended) = (MissionOutcome.Complete, at);
+                    _lastDone = (n.Groups["m"].Value, at);
                     break;
                 case "Failed":
                     if (s.Outcome == null) (s.Outcome, s.Ended) = (MissionOutcome.Fail, at);
@@ -116,9 +175,11 @@ public sealed class MissionReader
         {
             var e = End.Match(line);
             if (!e.Success || Time(e) is not { } at) return;
+            if (Who.Match(line) is { Success: true } who) _playerId ??= who.Groups["id"].Value;
             var s = Of(e.Groups["m"].Value);
-            if (s.Outcome != null) return;
             var type = e.Groups["ct"].Value;
+            if (type.Equals("Complete", StringComparison.OrdinalIgnoreCase)) _lastDone = (e.Groups["m"].Value, at);
+            if (s.Outcome != null) return;
             s.Outcome = type.Equals("Complete", StringComparison.OrdinalIgnoreCase) ? MissionOutcome.Complete
                 : type.Equals("Fail", StringComparison.OrdinalIgnoreCase) ? MissionOutcome.Fail : MissionOutcome.Abandon;
             s.Ended = at;

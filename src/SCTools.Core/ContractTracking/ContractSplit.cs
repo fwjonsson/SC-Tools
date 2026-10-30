@@ -46,7 +46,7 @@ public static class ContractSplit
             auec = whole.Auec == null ? null : Even(whole.Auec.Value, Payees(c).Count);
         }
         if (!completed) return new ContractReward(auec, null, null);
-        var gets = c.GetsScrip(player);
+        var gets = c.GetsScrip(player, whole);
         long? Scrip(long? v) => gets || v == null ? v : 0;
         return new ContractReward(auec, Scrip(whole.Mg), Scrip(whole.Council));
     }

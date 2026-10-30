@@ -188,6 +188,7 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
         {
             e.ToTable("Missions");
             e.HasKey(x => new { x.Player, x.MissionId });
+            e.Property(x => x.Members).AsJson();
         });
 
         b.Entity<MissionKindRow>(e =>

@@ -95,6 +95,7 @@ public sealed class HaulingLog
         InventoryLine,                                                  // he opened the inventory of a place: where he is
         "Mission",                                                      // the missions: markers, objectives, notifications, members
         QuitLine,                                                       // the game was quit (a log without it ended in a crash)
+        SCTools.Missions.MissionReader.EarnedLine,                      // what a completed mission paid him ("You've Earned: 14 Rewards")
     };
 
     /// <summary>What the game writes when the player opens the inventory of the place he is at (LocationSeen).</summary>
