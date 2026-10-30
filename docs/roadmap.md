@@ -142,8 +142,13 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       The contract ids are kept on the Missions rows (the old logs re-read once); the server asks `api.star-citizen.wiki/api/missions/{uuid}` about
       up to 10 contracts a minute until it has every one of the library, then only new ones; it keeps hauling orders and reward; the Wiki's reward is
       grey in the library and counts until one is typed in. A `reward_max` of 0 there means only the one end is given (#268).
-    - **Next**: stage 3, route suggestions per player across systems (map distances, his drive, pickups before their drop-offs, his ship's SCU),
-      planned together with the Ruin contracts in the Trip Planner; stage 4, other hauling in the session's earnings and debts.
+    - **Design** (30 Oct; `docs/planner-any-hauling.md`): how the Route Planner plans every hauling mission of every system, interstellar ones
+      included, and loses its Ruin bias: every mission is parcels (cargo at one place for another place), a trip starts where the worker is and ends
+      at his last drop-off, the distances come from the map's places and through the gateways, the Other hauling board folds into the Stops board.
+      What the logs give today (zzoega's 342 logs: the Red Wind to-Ruin and from-Ruin contracts, Pyro station-to-station ones, Stanton HaulCargo,
+      interstellar hauls, the RSI Disc. Month hauls and couriers), the gaps, and Frank's questions are in it.
+    - **Next**: the design's stages, one pull request each: stage 1 Pyro places (1a the model and the boards, 1b the planner without a hub), stage
+      2 the other systems, stage 3 the interstellar legs, stage 4 earnings and debts (the roadmap's stage 3 routes and stage 4 earnings, split up).
 
 Later, maybe: a party/crew board (who is on which shard, in which jurisdiction, in whose ship) and crash/server statistics.
 
@@ -201,6 +206,7 @@ should know before that happens.
 3. Done: fleet (#240), Party tool (#241), Map tool (#242).
 4. Done (28–29 Oct): the map's tabs (#243), Map places (#244), everything up to #268: the Wiki API for every mission of the library (#265), one
    Hauling Planner (#266), the read-only Mission Library and Edit Mission Info (#267, #268). In review: the Contracts tab (#269).
-5. Hauling of every system: stage 3 (routes) and stage 4 (earnings).
+5. Hauling of every system: the Route Planner for every hauling mission, by the stages of `docs/planner-any-hauling.md` (the design, 30 Oct):
+   1 Pyro places, 2 the other systems, 3 the interstellar legs, 4 earnings and debts.
 6. Debts as a tool of its own, then the Goods for the Getting tracker (after Frank's run).
 7. Objectives on planets and moons on the map.
