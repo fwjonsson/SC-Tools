@@ -136,6 +136,10 @@ public static class TripPlanner
         foreach (var st in startOf)
         {
             if (st?.FirstId != null && st.FirstBatches > 0) idSet.Add(st.FirstId);
+            foreach (var k in st?.Keep ?? new List<(string Id, int Batches)>())
+            {
+                if (k.Batches > 0) idSet.Add(k.Id);
+            }
         }
         var ids = idSet.OrderBy(k => k, StringComparer.Ordinal).ToList();
         var n = ids.Count;
@@ -147,10 +151,12 @@ public static class TripPlanner
         int LoadedOf(WorkerStart? st) => st == null ? 0 : scuMode ? st.LoadedScu : st.Loaded;
         var reservedIdx = new int[w];   // the locked stop of the first trip of each worker (-1 = none) and its batches
         var reservedN = new int[w];
+        var kept = new Dictionary<int, int>[w];   // the other stops kept in his first trip (Frank, 30 Oct 2026: the whole planned trip stays his): station index -> batches
         var firstCapacity = new int[w];
         for (var k = 0; k < w; k++)
         {
             var st = startOf[k];
+            kept[k] = new Dictionary<int, int>();
             firstCapacity[k] = Math.Max(0, CapOf(k) - LoadedOf(st));
             reservedIdx[k] = -1;
             if (st?.FirstId == null || st.FirstBatches <= 0) continue;
@@ -159,17 +165,33 @@ public static class TripPlanner
             reservedN[k] = Math.Min(st.FirstBatches, firstCapacity[k] / wt[at]);
             if (reservedN[k] < st.FirstBatches) need[at] += st.FirstBatches - reservedN[k];   // what does not fit in his first trip goes back to everybody
             if (reservedN[k] <= 0) reservedIdx[k] = -1;
+            // the stops after it, in their order, as far as the ship holds them; the rest goes back to everybody
+            var room = reservedIdx[k] < 0 ? 0 : firstCapacity[k] - reservedN[k] * wt[at];
+            foreach (var (id, batches) in st.Keep)
+            {
+                if (batches <= 0) continue;
+                var idx = ids.IndexOf(id);
+                var fits = idx < 0 || idx == at ? 0 : Math.Min(batches, room / wt[idx]);
+                if (fits > 0)
+                {
+                    kept[k][idx] = kept[k].GetValueOrDefault(idx) + fits;
+                    room -= fits * wt[idx];
+                }
+                if (idx >= 0 && fits < batches) need[idx] += batches - fits;
+            }
         }
         var total = 0;
         for (var i = 0; i < n; i++) total += need[i] * wt[i];
         for (var k = 0; k < w; k++)
         {
             if (reservedIdx[k] >= 0) total += reservedN[k] * wt[reservedIdx[k]];
+            foreach (var kv in kept[k]) total += kv.Value * wt[kv.Key];
         }
         var atStation = (int[])need.Clone();   // every batch of a station, the locked ones too
         for (var k = 0; k < w; k++)
         {
             if (reservedIdx[k] >= 0) atStation[reservedIdx[k]] += reservedN[k];
+            foreach (var kv in kept[k]) atStation[kv.Key] += kv.Value;
         }
 
         // batches only some workers can take: per station the groups (a set of workers, as a bit mask, and the batches), the rest is for everybody
@@ -292,6 +314,7 @@ public static class TripPlanner
             for (var k = 0; k < w; k++)
             {
                 if (reservedIdx[k] == station) x[k] -= reservedN[k];
+                if (kept[k].TryGetValue(station, out var kn)) x[k] -= kn;
             }
             for (var s = 1; s <= allMask; s++)
             {
@@ -452,9 +475,11 @@ public static class TripPlanner
         // the number to beat: the longest worker total, plus a part of the combined time (all in seconds)
         static double Objective(double[] totals) => totals.Max() + TotalWeight * totals.Sum();
 
-        // the batches of a locked stop stay in the first trip of their worker
+        // the batches of a locked stop, and of the stops kept after it, stay in the first trip of their worker
         bool IsReserved(int[][] assign, int slot, int station) =>
-            slot < w && reservedIdx[slot] == station && assign[slot][station] <= reservedN[slot];
+            slot < w && ((reservedIdx[slot] == station && assign[slot][station] <= reservedN[slot])
+                || (kept[slot].TryGetValue(station, out var kn) && assign[slot][station] <= kn));
+        bool Fixed(int slot, int station) => slot < w && (reservedIdx[slot] == station || kept[slot].ContainsKey(station));   // a stop that stays in his first trip
 
         // one improving move: take a batch to another trip with room, or swap two batches between two trips
         bool Improve(int[][] assign, int[] loads, double[] slotCost, double[] totals, ref double current)
@@ -574,13 +599,13 @@ public static class TripPlanner
                 for (var i = 0; i < n; i++)
                 {
                     var ci = assign[a][i];
-                    if (ci == 0 || (a < w && reservedIdx[a] == i)) continue;
+                    if (ci == 0 || Fixed(a, i)) continue;
                     for (var b = a + 1; b < slots; b++)
                     {
                         for (var j = 0; j < n; j++)
                         {
                             var cj = assign[b][j];
-                            if (j == i || cj == 0 || (b < w && reservedIdx[b] == j) || (ci == 1 && cj == 1)) continue;   // one batch each: the single swap does that
+                            if (j == i || cj == 0 || Fixed(b, j) || (ci == 1 && cj == 1)) continue;   // one batch each: the single swap does that
                             var loadA = loads[a] - ci * wt[i] + cj * wt[j];
                             var loadB = loads[b] - cj * wt[j] + ci * wt[i];
                             if ((loadA > slotCapacity[a] && loadA > loads[a]) || (loadB > slotCapacity[b] && loadB > loads[b])) continue;
@@ -625,7 +650,7 @@ public static class TripPlanner
                 for (var i = 0; i < n; i++)
                 {
                     var count = assign[a][i];
-                    if (count <= 1 || (a < w && reservedIdx[a] == i)) continue;   // one batch: the single moves do that; his locked or next stop stays
+                    if (count <= 1 || Fixed(a, i)) continue;   // one batch: the single moves do that; his locked, kept or next stop stays
                     for (var b = 0; b < slots; b++)
                     {
                         if (a == b || loads[b] + count * wt[i] > slotCapacity[b]) continue;
@@ -797,6 +822,11 @@ public static class TripPlanner
                 if (reservedIdx[k] < 0) continue;
                 assign[k][reservedIdx[k]] = reservedN[k];
                 loads[k] = reservedN[k] * wt[reservedIdx[k]];
+                foreach (var kv in kept[k])
+                {
+                    assign[k][kv.Key] += kv.Value;
+                    loads[k] += kv.Value * wt[kv.Key];
+                }
             }
             // batches only some workers can take go first, to a trip of one of them with room (the first ones of a station in this order are the limited ones)
             var isLimited = new bool[units.Count];

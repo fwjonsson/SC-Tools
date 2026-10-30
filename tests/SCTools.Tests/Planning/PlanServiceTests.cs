@@ -64,19 +64,25 @@ public class PlanServiceTests
     }
 
     [Fact]
-    public void Locked_next_stops_are_kept_for_the_worker_until_they_are_unlocked()
+    public void The_stops_of_a_workers_planned_trip_are_kept_for_him_by_themselves()
     {
+        // Frank, 30 Oct 2026: no Next Stops button any more; the planner keeps the stops of everybody's planned trip, so planning again (somebody else
+        // picked up or handed in) never takes a stop away from a worker. Pilot_A flies a run with room left: the stop of its continuation is kept
         var (t, saves) = PlayedSession.Load();
         var inp = t.State.Inputs!;
         var before = saves.Count;
-        t.Plan.LockNextStops();
-        Assert.True(inp.NextStopsLocked);
+        var plan = t.Plan.GetPlan();
+        var patch = plan.Workers.Single().Rows.First(r => r.Hidden || r.IsPlan);   // what the plan adds to his run: Patch City
+        Assert.Contains(PlayedSession.PatchCity, patch.Stops);
+        var kept = Assert.Single(inp.LockedTrips[PlayedSession.Player]);
+        Assert.Equal((PlayedSession.PatchCity, 1), (kept.Id, kept.Batches));
+        Assert.Equal(PlayedSession.LastPickup, kept.Since);   // kept while he flies: only pickups after this count
         Assert.True(saves.Count > before);
-        Assert.Contains(inp.LockedTrips.Keys, k => k == PlayedSession.Player);   // he is flying a run: the next stop of its continuation gets locked when the plan is shown
-
-        t.Plan.Unlock();
-        Assert.False(inp.NextStopsLocked);
-        Assert.Empty(inp.LockedTrips);
+        // a station set by hand lets the kept stops go
+        t.Plan.ReleaseLock(PlayedSession.Player);
+        Assert.False(inp.LockedTrips.ContainsKey(PlayedSession.Player));
+        t.Plan.GetPlan();
+        Assert.Single(inp.LockedTrips[PlayedSession.Player]);   // and the plan keeps them again
     }
 
     [Fact]

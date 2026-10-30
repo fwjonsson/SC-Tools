@@ -40,53 +40,12 @@ public sealed class PlanService
     /// <summary>The plan is worked out again next time (the payouts, the drop-offs or the missions changed).</summary>
     public void Invalidate() => _planCore = null;
 
-    /// <summary>Next Stops: Unlocked. The plan is free again, so it can change while people are on their way to a stop.</summary>
-    public void Unlock()
-    {
-        var inp = _state.Inputs ?? throw new InvalidOperationException("No session is shown.");
-        _planCore = null;
-        inp.NextStopsLocked = false;
-        inp.LockedTrips.Clear();
-        _state.Save();
-    }
-
     /// <summary>
-    /// Next Stops: Locked. The plan is worked out now and the next stop of everybody is locked to him: planning again later only changes the other trips, so
-    /// someone who joins gets his share of the rest. Somebody flying a run gets the next stop of its continuation locked as soon as the plan is shown (CoreFor).
-    /// Returns how many workers got a stop locked.
+    /// The plan is sticky by itself (Frank, 30 Oct 2026; the Next Stops button of the admin's Session page went with it): the stops of every worker's planned
+    /// trip are kept for him (LockedTrips), so planning again when somebody else picks up or hands in never takes a stop away from him. A kept stop goes
+    /// when its batches are picked up or gone, or when he picks up somewhere else (he went his own way); a station set by hand releases them all (ReleaseLock).
     /// </summary>
-    public int LockNextStops()
-    {
-        var inp = _state.Inputs ?? throw new InvalidOperationException("No session is shown.");
-        _planCore = null;
-        inp.LockedTrips.Clear();
-        GetPlan();   // nothing is locked yet, so this is the free plan
-        var core = _planCore;
-        inp.NextStopsLocked = true;
-        var locked = 0;
-        if (core != null)
-        {
-            var seen = new HashSet<string>();
-            foreach (var trip in core.Trips)
-            {
-                if (!seen.Add(trip.Worker)) continue;   // the first trip of a worker is his Current
-                if (_runs.HasActiveRun(trip.Worker))
-                {
-                    // he is flying a run now: the next stop of its continuation gets locked as soon as the plan is shown (see CoreFor)
-                    if (LockKey(trip.Worker) == null) inp.LockedTrips[trip.Worker] = new List<LockedStop>();
-                    continue;
-                }
-                if (NothingToLock(trip)) continue;
-                inp.LockedTrips[LockKey(trip.Worker) ?? trip.Worker] = new List<LockedStop> { new() { Id = trip.Stops[0].Id, Batches = trip.Stops[0].Batches } };   // only his next stop
-                locked++;
-            }
-        }
-        _planCore = null;
-        _state.Save();
-        return locked;
-    }
-
-    /// <summary>He was placed somewhere by hand: his locked next stop is released, so the plan is free to start with a stop near him.</summary>
+    /// <summary>He was placed somewhere by hand: his kept stops are released, so the plan is free to start with a stop near him.</summary>
     public void ReleaseLock(string name)
     {
         var lockKey = LockKey(name);
@@ -483,19 +442,19 @@ public sealed class PlanService
     }
 
     /// <summary>False when he has picked up somewhere else since the lock was set (he did not go where the lock said); true while he is still on his way, or after he picked up at the locked stop.</summary>
-    bool FollowsLock(string name, string lockedId, DateTime? since)
+    bool FollowsLock(string name, IReadOnlyCollection<string> keptIds, DateTime? since)
     {
-        // only the pickups after the lock was set count: a lock made while he was already flying a run is for the next pickup
+        // only the pickups after the stops were kept count: stops kept while he was already flying a run are for the next pickups
         var picked = false;
         foreach (var t in _state.Trips.Where(t => SameName(t.Worker, name) && !t.End.HasValue))
         {
             foreach (var p in t.Pickups.Where(p => since == null || p.Time > since))
             {
                 picked = true;
-                if (_places.StationOf(p.Zone) == lockedId) return true;
+                if (keptIds.Contains(_places.StationOf(p.Zone) ?? "")) return true;   // he picked up at one of his kept stops: he follows the plan
             }
         }
-        return !picked;   // no pickup since the lock: he is still on his way
+        return !picked;   // no pickup since: he is still on his way
     }
 
     /// <summary>
@@ -521,13 +480,7 @@ public sealed class PlanService
             if (_state.Inputs != null)
             {
                 var changed = false;
-                var locking = _state.Inputs.NextStopsLocked;
-                if (!locking && _state.Inputs.LockedTrips.Count > 0)
-                {
-                    _state.Inputs.LockedTrips.Clear();   // the button says Unlocked: the plan is free
-                    changed = true;
-                }
-                // somebody who left the party (or does not fly) has no locked stop: his batches go back to the others
+                // somebody who left the party (or does not fly) has no kept stops: his batches go back to the others
                 foreach (var gone in _state.Inputs.LockedTrips.Keys.Where(k => !crew.Any(c => c.Capacity > 0 && SameName(c.Name, k))).ToList())
                 {
                     _state.Inputs.LockedTrips.Remove(gone);
@@ -538,39 +491,55 @@ public sealed class PlanService
                     var run = _runs.ActiveRunOf(c.Name);
                     var loc = _where.LocationOf(c.Name).Id;   // where he is: the station of his last pickup or delivery (the logs), or the one set by hand
                     var start = new WorkerStart { Worker = c.Name, Loaded = run?.Loaded ?? 0, LoadedScu = _runs.LoadedScuOf(c.Name), From = loc == PyroDistances.Ruin ? null : loc };
+                    // everybody who flies keeps the stops of his planned trip (Frank, 30 Oct 2026: zzoega's Megumi stop went to zzatvo's plan when zzatvo picked up at
+                    // Endgame): they are planned first, in their order, as long as their batches are there and fit; a pickup of his somewhere else lets them go
                     var lockKey = LockKey(c.Name);
-                    if (lockKey == null && locking)
+                    if (lockKey == null)
                     {
-                        // with the button on Locked everybody who flies has his next stop kept for him: the first stop of his planned trip is where he is heading
                         _state.Inputs.LockedTrips[c.Name] = new List<LockedStop>();
                         lockKey = c.Name;
                         changed = true;
                     }
-                    if (lockKey != null)
+                    var stored = _state.Inputs.LockedTrips[lockKey];
+                    if (stored.Count > 0 && run != null && !FollowsLock(c.Name, stored.Select(x => x.Id).ToList(), stored[0].Since))
                     {
-                        var stored = _state.Inputs.LockedTrips[lockKey];
-                        if (stored.Count > 0 && run != null && !FollowsLock(c.Name, stored[0].Id, stored[0].Since))
+                        stored = new List<LockedStop>();   // he picked up somewhere else: his trips are free again
+                        _state.Inputs.LockedTrips[lockKey] = stored;
+                        changed = true;
+                    }
+                    // a kept stop whose batches are picked up (by him or by somebody else) or gone is done with; the others keep what is still there
+                    var keep = new List<LockedStop>();
+                    foreach (var x in stored)
+                    {
+                        var left = Math.Min(x.Batches, remaining.GetValueOrDefault(x.Id) - keep.Where(y => y.Id == x.Id).Sum(y => y.Batches));
+                        if (left > 0) keep.Add(new LockedStop { Id = x.Id, Batches = left, Since = x.Since });
+                    }
+                    if (!SameStops(stored, keep))
+                    {
+                        _state.Inputs.LockedTrips[lockKey] = stored = keep;
+                        changed = true;
+                    }
+                    if (stored.Count > 0)
+                    {
+                        var take = Math.Min(stored[0].Batches, RoomAt(c.Name, stored[0].Id, start.LoadedScu));
+                        if (take > 0)
                         {
-                            _state.Inputs.LockedTrips[lockKey] = stored = new List<LockedStop>();   // he picked up somewhere else: his trips are free again
+                            start.FirstId = stored[0].Id;
+                            start.FirstBatches = take;
+                            remaining[stored[0].Id] -= take;
+                            foreach (var x in stored.Skip(1))
+                            {
+                                start.Keep.Add((x.Id, x.Batches));   // the planner gives back what does not fit in his ship
+                                remaining[x.Id] -= x.Batches;
+                            }
+                        }
+                        else
+                        {
+                            _state.Inputs.LockedTrips[lockKey] = new List<LockedStop>();   // no room for his first kept stop: a new trip is planned for him
                             changed = true;
                         }
-                        if (stored.Count > 0)
-                        {
-                            var take = Math.Min(Math.Min(stored[0].Batches, remaining.GetValueOrDefault(stored[0].Id)), RoomAt(c.Name, stored[0].Id, start.LoadedScu));
-                            if (take > 0)
-                            {
-                                start.FirstId = stored[0].Id;
-                                start.FirstBatches = take;
-                                remaining[stored[0].Id] -= take;
-                            }
-                            else
-                            {
-                                _state.Inputs.LockedTrips[lockKey] = new List<LockedStop>();   // picked up completely
-                                changed = true;
-                            }
-                        }
-                        if (start.FirstId == null && (run == null || start.LoadedScu < shipScu.GetValueOrDefault(c.Name))) waiting.Add(c.Name);   // a run with room left locks the next stop of its continuation too
                     }
+                    if (start.FirstId == null && (run == null || start.LoadedScu < shipScu.GetValueOrDefault(c.Name))) waiting.Add(c.Name);   // a run with room left keeps the stops of its continuation too
                     // his own log shows the station he is flying to (or has arrived at) since his last pickup or delivery: what he can take there stays his,
                     // locked or not, so planning again for somebody else never takes it away from him while he is on his way or about to load
                     var heading = start.FirstId == null ? _where.HeadingFor(c.Name) : null;
@@ -609,7 +578,7 @@ public sealed class PlanService
                 + "#" + string.Join("|", unknown)
                 + "#" + string.Join("|", chunks.Select(x => x.Station + ":" + x.Batches + ":" + x.Scu + ":" + x.Cargo + ":" + string.Join(",", x.Allowed)))
                 + "#" + string.Join("|", limits.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + "=" + string.Join(";", kv.Value.Select(g => string.Join(",", g.Workers) + "x" + g.Batches))))
-                + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "/" + t.Loaded + "/" + t.LoadedScu + "@" + t.From));
+                + "#" + string.Join("|", starts.Select(t => t.Worker + "=" + t.FirstId + "x" + t.FirstBatches + "+" + string.Join(",", t.Keep.Select(k => k.Id + "x" + k.Batches)) + "/" + t.Loaded + "/" + t.LoadedScu + "@" + t.From));
             if (_planCore != null && _planCore.Key == key && waiting.All(n => _planCore.Settled.Contains(n)))
             {
                 _planCore.Trips = Queue(_planCore.Trips, value, WasteAboard);   // the same trips; what they are worth can be typed again in the rewards table
@@ -623,30 +592,45 @@ public sealed class PlanService
             {
                 Key = key,
                 Trips = Queue(TripPlanner.Plan(remaining, crew, starts, limits, chunks, batchScu, shipScu, shipFullScu), value, WasteAboard),
-                Batches = remaining.Where(kv => kv.Value > 0).Sum(kv => kv.Value) + starts.Sum(t => t.FirstBatches),
+                Batches = remaining.Where(kv => kv.Value > 0).Sum(kv => kv.Value) + starts.Sum(t => t.FirstBatches + t.Keep.Sum(k => k.Batches)),
                 Note = note,
                 Settled = settled,
             };
             _planCore = core;
-            if (waiting.Count == 0 || pass > 0 || _state.Inputs == null) return core;
+            if (pass > 0 || _state.Inputs == null) return core;
 
-            // his run is handed in (or his lock was used up): the first stop of the trip planned for him is where he is going, so lock it (nothing planned = nothing to lock)
-            foreach (var name in waiting)
+            // the stops of everybody's first planned trip are his from now on: the ones kept already stay in front, what the planner put after them is kept
+            // too (so the whole trip settles; a stop never leaves the list here, only above when it is done with). A worker on his way to nothing kept
+            // (his run is handed in, or his kept stops were used up) gets the trip planned for him; nothing planned = nothing to keep
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var name in crew.Where(x => x.Capacity > 0).Select(x => x.Name))
             {
                 var lockKey = LockKey(name);
-                if (lockKey == null) continue;
+                if (lockKey == null || !seen.Add(name)) continue;
                 var next = core.Trips.FirstOrDefault(t => t.Worker == name);
                 var flying = _runs.ActiveRunOf(name);
+                var stored = _state.Inputs.LockedTrips[lockKey];
                 if (next == null || NothingToLock(next))
                 {
-                    settled.Add(name);
-                    if (flying == null) _state.Inputs.LockedTrips.Remove(lockKey);   // with a run in progress the marker stays: his next trip is locked once the run is handed in
+                    if (waiting.Contains(name)) settled.Add(name);
+                    if (flying == null && stored.Count == 0) _state.Inputs.LockedTrips.Remove(lockKey);   // with a run in progress the marker stays: his next trip is kept once the run is handed in
+                    continue;
                 }
-                else _state.Inputs.LockedTrips[lockKey] = new List<LockedStop> { new() { Id = next.Stops[0].Id, Batches = next.Stops[0].Batches, Since = flying?.Last } };
+                var since = stored.Count > 0 ? stored[0].Since : flying?.Last;
+                var kept = new List<LockedStop>(stored);
+                foreach (var (id, batches) in next.Stops)
+                {
+                    var had = kept.FirstOrDefault(x => x.Id == id);
+                    if (had == null) kept.Add(new LockedStop { Id = id, Batches = batches, Since = since });
+                    else if (batches > had.Batches) had.Batches = batches;   // the planner filled the stop up: that is his too
+                }
+                if (!SameStops(stored, kept)) _state.Inputs.LockedTrips[lockKey] = kept;
             }
             _state.Save();
         }
     }
+
+    static bool SameStops(List<LockedStop> a, List<LockedStop> b) => a.Count == b.Count && a.Zip(b).All(p => p.First.Id == p.Second.Id && p.First.Batches == p.Second.Batches);
 
     /// <summary>The plan for the open batches of the selected session, with the runs so far. The trips are only worked out again when the batches or the crew change.</summary>
     public PlanView GetPlan()

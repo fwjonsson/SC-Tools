@@ -150,19 +150,6 @@ public static class Edits
         return "Session stopped.";
     }
 
-    /// <summary>Next Stops: Locked / Unlocked, as the button of the Trip Planner.</summary>
-    public static string ToggleLocks(Tracker t)
-    {
-        if (t.State.Inputs == null) return "There is no session to plan.";
-        if (t.State.Inputs.NextStopsLocked)
-        {
-            t.Plan.Unlock();
-            return "The next stops are unlocked: the plan is free.";
-        }
-        var locked = t.Plan.LockNextStops();
-        return "The next stops are locked" + (locked > 0 ? " (" + locked + (locked == 1 ? " worker)." : " workers).") : ".");
-    }
-
     /// <summary>The start time of the session, typed as HH:mm (the session time runs from it); empty = from the logs.</summary>
     public static string SetStartTime(Tracker t, string? typed)
     {

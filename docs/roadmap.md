@@ -80,6 +80,8 @@ All the tools track at the same time, all the time. The tracking runs on the ser
      "done" agree: a pickup the planner credits is off the map at once, for everybody with the mission. Ruin is a station like any other on it
      (Frank, 29 Oct: the planner is to work with every kind of hauling and lose its Ruin bias). The Windows program went on 30 Oct 2026. The map's
      place for a worker never moves the start of a run he is in the middle of (30 Oct 2026: the rows of his waste trip vanished while he flew it).
+     The plan is sticky since 30 Oct 2026: the stops of a worker's planned trip stay his until they are picked up, gone or he picks up elsewhere, and
+     the Next Stops button of the admin's Session page went (Frank: not used; better logic instead of a button).
 7. **Map places** (`/admin/places`, PR #244, Frank 28 Oct): the admin says what a quantum destination or start name the map does not know is (a
    place, or not a place to show; `Text*` for every one that starts so), renames places, and adds places the game data does not have (at a place, or
    X/Y in Gm). Saved in the database and used by the map at once.
