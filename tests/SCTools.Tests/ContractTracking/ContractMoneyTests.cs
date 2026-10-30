@@ -270,6 +270,88 @@ public class ContractMoneyTests
         Assert.Empty(f.Services.GetRequiredService<ContractTracker>().Earned("zzatvo"));
     }
 
+    static string EndLine(DateTime t, string mission, string player, string id, string type) =>
+        $"<{T(t)}> [Notice] <EndMission> Ending mission for player. MissionId[{mission}] Player[{player}] PlayerId[{id}] CompletionType[{type}] Reason[Mission Ended] [Team_MissionFeatures][Missions]";
+
+    static string MemberLine(DateTime t, bool left, string mission, string id) =>
+        $"<{T(t)}> [Notice] <Player{(left ? "Left" : "Joined")}> Received Player{(left ? "Left" : "Joined")} push message for: mission_id {mission} - player_id {id} [Team_GameServices][Missions]";
+
+    static string EarnedLine(DateTime t, int n) => $"<{T(t)}> [Notice] <SHUDEvent_OnNotification> Added notification \"You've Earned: {n} Rewards";
+
+    const string ZzoegaId = "493008374737", ZzatvoId = "515604414831", ZzoiiId = "762737192866";
+
+    static ServerFactory Bounty(DateTime now, string mission, Func<DateTime, (string Player, List<string> Lines)[]> logs)
+    {
+        var f = new ServerFactory();
+        var at = now.AddMinutes(-40);
+        foreach (var (player, lines) in logs(at)) f.Upload(player, new GameLogWriter().At(at).Login(player).Lines.Concat(lines).ToList(), T(at));
+        var library = f.Services.GetRequiredService<MissionLibrary>();
+        library.Collect();
+        library.Set("stop rival attack", "auec", "100000", "admin", now);
+        library.Set("stop rival attack", "mg", "10", "admin", now);
+        return f;
+    }
+
+    [Fact]
+    public void A_contract_a_stranger_shared_pays_the_scrip_to_whom_the_game_says_it_paid()
+    {
+        // a player without a tracker took a bounty, shared it with zzatvo and zzoega and left it; the game paid zzoega the 10 MG scrip ("You've Earned")
+        var now = DateTime.UtcNow;
+        const string B = "7ddddddd-dddd-4ddd-8ddd-dddddddddddd";
+        using var f = Bounty(now, B, at => new[]
+        {
+            ("zzatvo", SharedWith(at.AddMinutes(1), 10, "Stop Rival Attack", B, offer: false).ToList()),
+            ("zzoega", SharedWith(at.AddMinutes(1).AddSeconds(1), 10, "Stop Rival Attack", B, offer: false).Append(EarnedLine(at.AddMinutes(11).AddSeconds(7), 10)).ToList()),
+        });
+        var c = f.Services.GetRequiredService<ContractTracker>().Of(new[] { B })[B];
+        Assert.Null(c.Taker);   // his log is not on the server
+        Assert.Equal(new ContractReward(50_000, 10, null), c.PartOf("zzoega"));
+        Assert.Equal(new ContractReward(50_000, 0, null), c.PartOf("zzatvo"));
+    }
+
+    [Fact]
+    public void A_taker_whose_log_ends_left_the_contract_when_another_log_saw_him_leave()
+    {
+        // zzatvo took it and shared it with zzoega; his log ends before it says how it ended for him (a crash), zzoega's log saw him leave it
+        var now = DateTime.UtcNow;
+        const string B = "7eeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+        const string Other = "7fffffff-ffff-4fff-8fff-ffffffffffff";
+        using var f = Bounty(now, B, at => new[]
+        {
+            ("zzatvo", new List<string> { Note(at, "Contract Accepted", "Stop Rival Attack", B), EndLine(at.AddSeconds(30), Other, "zzatvo", ZzatvoId, "Abandon") }),
+            ("zzoega", SharedWith(at.AddMinutes(1), 10, "Stop Rival Attack", B, offer: false).Append(MemberLine(at.AddMinutes(2), true, B, ZzatvoId)).ToList()),
+        });
+        var c = f.Services.GetRequiredService<ContractTracker>().Of(new[] { B })[B];
+        Assert.Equal("zzatvo", c.Taker);
+        Assert.Equal((MissionOutcome?)MissionOutcome.Abandon, c.HolderOf("zzatvo")!.Outcome);   // by zzoega's log
+        Assert.Equal(new ContractReward(100_000, 10, null), c.PartOf("zzoega"));
+    }
+
+    [Fact]
+    public void The_shares_are_in_the_order_the_taker_s_log_saw_them_join()
+    {
+        // zzoii took it and shared it; zzoega and zzatvo accepted within a second, and zzatvo's PC clock is 9 seconds behind (so by the clocks zzatvo seems
+        // first); zzoii's log saw zzoega join first. zzoii left, the two completed it
+        var now = DateTime.UtcNow;
+        const string B = "70000000-1111-4111-8111-000000000001";
+        using var f = Bounty(now, B, at => new[]
+        {
+            ("zzoii", new List<string>
+            {
+                Note(at, "Contract Accepted", "Stop Rival Attack", B),
+                MemberLine(at.AddMinutes(1).AddSeconds(5), false, B, ZzoegaId), MemberLine(at.AddMinutes(1).AddSeconds(5.6), false, B, ZzatvoId),
+                EndLine(at.AddMinutes(2), B, "zzoii", ZzoiiId, "Abandon"),
+            }),
+            ("zzoega", SharedWith(at.AddMinutes(1), 10, "Stop Rival Attack", B, offer: false).Append(EndLine(at.AddMinutes(11).AddSeconds(5), B, "zzoega", ZzoegaId, "Complete")).ToList()),
+            ("zzatvo", SharedWith(at.AddMinutes(1).AddSeconds(-8.4), 10, "Stop Rival Attack", B, offer: false)
+                .Append(EndLine(at.AddMinutes(11).AddSeconds(5 - 9), B, "zzatvo", ZzatvoId, "Complete")).ToList()),
+        });
+        var c = f.Services.GetRequiredService<ContractTracker>().Of(new[] { B })[B];
+        Assert.Equal("zzoii", c.Taker);
+        Assert.Equal(new ContractReward(50_000, 10, null), c.PartOf("zzoega"));
+        Assert.Equal(new ContractReward(50_000, 0, null), c.PartOf("zzatvo"));
+    }
+
     [Fact]
     public void A_payout_typed_on_the_debts_tab_is_what_the_contract_paid()
     {

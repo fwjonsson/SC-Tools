@@ -195,8 +195,11 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       time from each one's accept to the completion on his own clock. The game's "You've Earned: N Rewards" line after a completion agreed in 386 of
       388 shared gauntlet runs. The game says "Contract Accepted" again for every contract on every login, so the library keeps the earliest accept.
       The offer line (ContractId) is in few logs (one mission in ten).
-    - Not used yet, maybe later: that reward line itself (its first line has no "Mission" in it, so the trackers would need a new line kind), and the
-      game's "PlayerLeft" line in the others' logs when the taker's own log never says he left (it needs each account's player id kept).
+    - **The game's own clues** (Frank, 31 Oct 2026: right also with players he does not know): the trackers send the "You've Earned" line (a new
+      line kind: its first line has no "Mission" in it), and the library keeps every player's id in the game and what his log said about the others
+      ("PlayerJoined", "PlayerLeft"). A reward line with the scrip's amount says who got the scrip; a holder whose own log is silent left when another
+      log saw him leave before the payout; the shares are in the order one log saw them join. The old logs already on the server have the joins and
+      leaves (read once more), not the reward lines (the trackers never sent them; sending every old log again would bring them).
     - Still to look at: the Gauntlet Tracker times a shared run for everybody who accepted it (the one who got the share has an accept line too), so
       the timings and the Top 10 count a shared run once per member; and which member a party's Top 10 names for it is not sure to be the taker.
 

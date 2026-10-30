@@ -24,6 +24,18 @@ public sealed class MissionRow
 
     /// <summary>The contract's id as its objective markers say (contractDefinitionId): the Star Citizen Wiki API's uuid of the mission; null: no marker seen.</summary>
     public string? Definition { get; set; }
+
+    /// <summary>The player's own id in the game (his "Ending mission" lines say it): the others' logs name him by it.</summary>
+    public string? PlayerId { get; set; }
+
+    /// <summary>
+    /// What his log said about the other players of the mission: who joined it (accepted the share) and who left it, by their ids, when by his clock. The
+    /// contracts tracker reads from it who left before it paid out, and in which order the shares were accepted.
+    /// </summary>
+    public List<SCTools.Missions.MissionMember> Members { get; set; } = new();
+
+    /// <summary>The game's "You've Earned: N Rewards" right after he completed it (the MG or Council scrip it paid him, or items); null: it said nothing.</summary>
+    public int? Rewards { get; set; }
 }
 
 /// <summary>

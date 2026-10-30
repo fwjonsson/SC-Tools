@@ -274,7 +274,8 @@ public sealed class MissionLibrary
 
     static MissionSeen Seen(MissionRow r) =>
         new(r.MissionId, r.ContractId.Length == 0 ? null : r.ContractId, r.Title, r.Shared, r.StartedUtc, r.EndedUtc, Enum.TryParse<MissionOutcome>(r.Outcome, out var o) ? o : null,
-            r.Kind != null && MissionKinds.IsHauling(r.Kind) ? r.Kind[MissionKinds.HaulingPrefix.Length..] : null, r.Definition);
+            r.Kind != null && MissionKinds.IsHauling(r.Kind) ? r.Kind[MissionKinds.HaulingPrefix.Length..] : null, r.Definition, r.PlayerId,
+            r.Members.Count > 0 ? r.Members : null, r.Rewards);
 
     long _collected = -1;   // Uploads.Pieces when the live logs were last looked at
 
@@ -296,6 +297,14 @@ public sealed class MissionLibrary
     /// come after the live one), so the contracts tracker knows who accepted it first.
     /// </summary>
     static DateTime? Earliest(DateTime? a, DateTime? b) => a == null ? b : b == null || a <= b ? a : b;
+
+    /// <summary>What two logs said about the other players of a mission, together, in time order (null: nothing).</summary>
+    static IReadOnlyList<MissionMember>? Union(IReadOnlyList<MissionMember>? a, IReadOnlyList<MissionMember>? b)
+    {
+        if (b == null || b.Count == 0) return a;
+        if (a == null || a.Count == 0) return b;
+        return a.Concat(b).Distinct().OrderBy(e => e.Utc).ToList();
+    }
 
     /// <summary>Writes these missions where they are new or went on (an old log a tracker sent, or the live logs). Returns how many were written.</summary>
     public int Add(IReadOnlyDictionary<string, IReadOnlyList<MissionSeen>> found)
@@ -320,8 +329,9 @@ public sealed class MissionLibrary
                     if (!pending.TryGetValue(key, out var had)) _known.TryGetValue(key, out had);
                     // shared with him once any of his logs says so (an old log read again knows the share, the live one only the login's accept)
                     var merged = had == null ? m : new MissionSeen(had.MissionId, had.ContractId ?? m.ContractId, MissionKinds.Better(had.Title, m.Title), had.Shared || m.Shared,
-                        Earliest(had.StartedUtc, m.StartedUtc), had.EndedUtc ?? m.EndedUtc, had.Outcome ?? m.Outcome, had.Hauling ?? m.Hauling, had.Definition ?? m.Definition);
-                    if (merged == had) continue;
+                        Earliest(had.StartedUtc, m.StartedUtc), had.EndedUtc ?? m.EndedUtc, had.Outcome ?? m.Outcome, had.Hauling ?? m.Hauling, had.Definition ?? m.Definition,
+                        had.PlayerId ?? m.PlayerId, Union(had.Members, m.Members), had.Rewards ?? m.Rewards);
+                    if (merged.Same(had)) continue;
                     var row = had == null ? null : db.Missions.Find(player, had.MissionId) ?? db.Missions.FirstOrDefault(r => r.Player == player && r.MissionId == had.MissionId);
                     if (row == null) db.Missions.Add(row = new MissionRow { Player = player, MissionId = m.MissionId, ContractId = m.ContractId ?? "" });
                     if (merged.ContractId != null) row.ContractId = merged.ContractId;
@@ -331,6 +341,9 @@ public sealed class MissionLibrary
                     row.EndedUtc = merged.EndedUtc;
                     row.Outcome = merged.Outcome?.ToString();
                     row.Definition = merged.Definition;
+                    row.PlayerId = merged.PlayerId;
+                    row.Members = merged.Members?.ToList() ?? new List<MissionMember>();
+                    row.Rewards = merged.Rewards;
                     row.Kind = MissionKinds.KeyOf(merged.Title, merged.Hauling);
                     if (row.Kind != null)
                     {
@@ -353,10 +366,11 @@ public sealed class MissionLibrary
 
     /// <summary>
     /// What the old logs are read for (in the history folder, missions-read.txt, when they were read last): 2, the contract ids of their missions (for the Star
-    /// Citizen Wiki API); 3, which missions were shared with the player (the share line has no mission id: his accept just after it says which, #385). A
-    /// server that read them for less reads them again once.
+    /// Citizen Wiki API); 3, which missions were shared with the player (the share line has no mission id: his accept just after it says which, #385); 4,
+    /// the player's id and what his log said about the other players of a mission (who joined and left it: the contracts tracker). A server that read them
+    /// for less reads them again once.
     /// </summary>
-    public const int HistoryReadVersion = 3;
+    public const int HistoryReadVersion = 4;
 
     /// <summary>The file in the history folder that says what the old logs were read for last (HistoryReadVersion).</summary>
     public const string HistoryMarker = "missions-read.txt";

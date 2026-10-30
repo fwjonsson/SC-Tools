@@ -71,9 +71,12 @@ public sealed class ContractTracker
         var rewards = _library.Rewards();
         List<MissionRow> missions;
         List<GauntletRunRow> runs;
+        Dictionary<string, string> nameOf;   // every player's id in the game, to his name: the others' logs name him by it
         HashSet<string>? ids = missionIds == null ? null : new HashSet<string>(missionIds, StringComparer.OrdinalIgnoreCase);
         using (var db = _store.Open())
         {
+            nameOf = db.Missions.AsNoTracking().Where(m => m.PlayerId != null).Select(m => new { m.PlayerId, m.Player }).Distinct().ToList()
+                .GroupBy(m => m.PlayerId!).ToDictionary(g => g.Key, g => g.First().Player);
             if (player != null)
             {
                 var lower = player.ToLowerInvariant();
@@ -98,8 +101,39 @@ public sealed class ContractTracker
             .Distinct(StringComparer.OrdinalIgnoreCase);
         var byMission = missions.ToLookup(m => m.MissionId, StringComparer.OrdinalIgnoreCase);
         var byRun = runs.ToLookup(r => r.MissionId, StringComparer.OrdinalIgnoreCase);
-        return all.Select(id => Contract(id, byMission[id].ToList(), byRun[id].ToList(), payouts.GetValueOrDefault(id), overrides, rewards))
+        return all.Select(id => Contract(id, byMission[id].ToList(), byRun[id].ToList(), payouts.GetValueOrDefault(id), overrides, rewards, nameOf))
             .OrderBy(c => c.EndedUtc ?? c.Planner?.Time ?? DateTime.MaxValue).ThenBy(c => c.MissionId, StringComparer.Ordinal).ToList();
+    }
+
+    /// <summary>
+    /// What the others' logs said about each holder (by his id in the game): one whose own log never said how it ended for him left it when another holder's
+    /// log saw him leave before that one completed it (the game's "PlayerLeft", 5 seconds before at least, by that log's clock: his own log may be missing
+    /// or end with a crash); and the order the shares were accepted in, from the one log that saw them all join (the game's "PlayerJoined", one clock: the
+    /// taker's, or a share's who left).
+    /// </summary>
+    static List<ContractHolder> Clues(List<ContractHolder> holders, List<MissionRow> missions, Dictionary<string, string> nameOf)
+    {
+        int Find(string? name) => name == null ? -1 : holders.FindIndex(h => PlayerNames.SameName(h.Player, name));
+        foreach (var r in missions.Where(m => m.Outcome == nameof(MissionOutcome.Complete) && m.EndedUtc != null))
+            foreach (var e in r.Members.Where(e => e.Left && e.Utc < r.EndedUtc!.Value.AddSeconds(-5)))
+            {
+                var i = Find(nameOf.GetValueOrDefault(e.PlayerId));
+                if (i >= 0 && holders[i].Outcome == null) holders[i] = holders[i] with { Outcome = MissionOutcome.Abandon, EndedUtc = e.Utc };
+            }
+
+        var shares = holders.Where(h => h.Completed && h.Took != true).Select(h => h.Player).ToList();
+        if (shares.Count < 2) return holders;
+        foreach (var r in missions)
+        {
+            // when this log saw each of them accept the share (the first time)
+            var joined = r.Members.Where(e => !e.Left).GroupBy(e => nameOf.GetValueOrDefault(e.PlayerId) ?? "", StringComparer.OrdinalIgnoreCase)
+                .Where(g => shares.Contains(g.Key, StringComparer.OrdinalIgnoreCase)).ToDictionary(g => g.Key, g => g.Min(e => e.Utc), StringComparer.OrdinalIgnoreCase);
+            if (joined.Count < shares.Count) continue;
+            var order = joined.OrderBy(j => j.Value).ToList();
+            if (order.Zip(order.Skip(1)).Any(p => p.Second.Value - p.First.Value < TimeSpan.FromMilliseconds(100))) continue;   // a login says them all at once
+            return holders.Select(h => joined.ContainsKey(h.Player) ? h with { JoinOrder = order.FindIndex(j => PlayerNames.SameName(j.Key, h.Player)) } : h).ToList();
+        }
+        return holders;
     }
 
     static PayoutRecord Copy(PayoutRecord p) =>
@@ -110,7 +144,7 @@ public sealed class ContractTracker
     /// one who took it is the one who accepted it first.
     /// </summary>
     static TrackedContract Contract(string id, List<MissionRow> missions, List<GauntletRunRow> runs, PayoutRecord? planner, Dictionary<string, decimal> overrides,
-        Dictionary<string, ContractReward> rewards)
+        Dictionary<string, ContractReward> rewards, Dictionary<string, string> nameOf)
     {
         var holders = new List<ContractHolder>();
         void Add(ContractHolder h)
@@ -150,7 +184,9 @@ public sealed class ContractTracker
         {
             Took = could.Contains(h.Player, StringComparer.OrdinalIgnoreCase) ? acceptedOf[h.Player] == first : h.Took,
             AcceptedUtc = acceptedOf.TryGetValue(h.Player, out var a) ? a : null,
+            Rewards = missions.Where(m => PlayerNames.SameName(m.Player, h.Player)).Max(m => m.Rewards),
         }).ToList();
+        holders = Clues(holders, missions, nameOf);
 
         var kind = missions.Select(m => m.Kind).FirstOrDefault(k => k != null)
             ?? (runs.Count > 0 ? GauntletService.LibraryKey(runs[0].Scenario) : null)

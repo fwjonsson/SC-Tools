@@ -85,4 +85,30 @@ public class MissionReaderTests
         Assert.Equal(new[] { true, true, true, false }, seen.Select(m => m.Shared));
         Assert.Equal(new DateTime(2026, 10, 21, 19, 59, 29, 152, DateTimeKind.Utc), seen[0].StartedUtc);   // its first accept
     }
+
+    [Fact]
+    public void His_id_what_he_saw_of_the_others_and_what_a_mission_paid_him()
+    {
+        // zzoega's log of 9 Aug 2026: zzatvo shared a scenario with him and left it a second later, he completed it and the game paid him 14 rewards
+        const string Zero = "00000000-0000-0000-0000-000000000000";
+        var r = new MissionReader();
+        foreach (var line in new[]
+        {
+            Note("23:01:14.000", "Shared", "Combat Gauntlet - Scenario #6", Zero),
+            Note("23:01:15.867", "Accepted", " Combat Gauntlet - Scenario #6", M1),
+            $"<2026-10-21T23:01:16.747Z> [Notice] <PlayerLeft> Received PlayerLeft push message for: mission_id {M1} - player_id 515604414831 [Team_GameServices][Missions]",
+            $"<2026-10-21T23:01:17.000Z> [Notice] <PlayerJoined> Received PlayerJoined push message for: mission_id {M1} - player_id 493008374737 [Team_GameServices][Missions]",
+            $"<2026-10-21T23:05:12.426Z> [Notice] <EndMission> Ending mission for player. MissionId[{M1}] Player[zzoega] PlayerId[493008374737] CompletionType[Complete] Reason[Mission Ended] [Team_MissionFeatures][Missions]",
+            Note("23:05:12.430", "Complete", "Combat Gauntlet - Scenario #6", M1),
+            "<2026-10-21T23:05:13.100Z> [Notice] <SHUDEvent_OnNotification> Added notification \"You've Earned: 14 Rewards",
+            "<2026-10-21T23:05:13.100Z> Access Them at Your Primary Residence's Inventory",
+            "<2026-10-21T23:30:00.000Z> [Notice] <SHUDEvent_OnNotification> Added notification \"You've Earned: 3 Rewards",   // long after: not this mission's
+        })
+            r.ProcessLine(line);
+        var m = Assert.Single(r.Missions);
+        Assert.True(m.Shared);
+        Assert.Equal("493008374737", m.PlayerId);
+        Assert.Equal(new[] { new MissionMember("515604414831", true, new DateTime(2026, 10, 21, 23, 1, 16, 747, DateTimeKind.Utc)) }, m.Members);   // not himself
+        Assert.Equal(14, m.Rewards);
+    }
 }
