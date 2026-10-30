@@ -22,7 +22,15 @@ public class HaulingPageTests
         Assert.True(page.IndexOf("systemmap.js?v=", StringComparison.Ordinal) < page.IndexOf("src=\"/hauling.js?v=", StringComparison.Ordinal));
         Assert.Contains("<div class=\"hauling\" data-me=\"\">", page);   // a watcher: nobody
         // the tabs: a row under the bar in the tool's colour, like the admin's pages (30 Oct 2026), every tab a link to its address; the Trip Planner first (29 Oct)
-        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#4682ff\"><a href=\"/hauling/planner\" id=\"tabP\" class=\"on\">Route Planner</a><a href=\"/hauling/session\" id=\"tabS\">Session</a>", page);
+        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#4682ff\"><a href=\"/hauling/planner\" id=\"tabP\" class=\"on\">Route Planner</a><a href=\"/hauling/session\" id=\"tabS\">Session</a>"
+            + "<a href=\"/hauling/debts\" id=\"tabD\">Debts</a><a href=\"/hauling/history\" id=\"tabH\">History</a><a href=\"/hauling/leaderboard\" id=\"tabL\">Leaderboard</a>", page);   // no Contracts tab, a Leaderboard tab (30 Oct 2026)
+        Assert.Contains("<div id=\"viewL\" class=\"hidden\">", page);
+        Assert.Contains("<h2>Session leaderboard</h2><div class=\"scroll\" id=\"leaders\"></div>", page);
+        Assert.Contains("<h2>All-time leaderboard</h2><div class=\"scroll\" id=\"allTime\"></div>", page);
+        Assert.DoesNotContain("id=\"viewC\"", page);
+        var contracts = "<h2>Contracts</h2><p class=\"note\" id=\"rewardsParty\"></p><div class=\"scroll\" id=\"rewards\"></div>";   // the contracts under the Session tab's stops, over the whole width
+        Assert.True(page.IndexOf("id=\"belowS\"", StringComparison.Ordinal) < page.IndexOf(contracts, StringComparison.Ordinal));
+        Assert.True(page.IndexOf(contracts, StringComparison.Ordinal) < page.IndexOf("<h2>Cargo runs</h2>", StringComparison.Ordinal));
         Assert.DoesNotContain("<h1>", page);   // no title of its own: the bar says where you are
         // the live dot and the time the data was made: in the top bar left of Tracker, not on every tab (30 Oct 2026); hauling.js fills them
         Assert.Contains("<span class=\"live\" id=\"live\"></span><span class=\"updated\" id=\"updated\"></span><a class=\"dl\" href=\"/tracker\">", page);
@@ -33,6 +41,8 @@ public class HaulingPageTests
         Assert.DoesNotContain("id=\"party\"", page);   // no Party table of its own: the Party button in the top bar shows it (29 Oct 2026)
         Assert.DoesNotContain("<style>", page);   // nothing inline any more
         Assert.Equal(page, await visitor.GetStringAsync("/hauling/planner"));   // a tab's address: the same page, the script shows the tab
+        Assert.Equal(page, await visitor.GetStringAsync("/hauling/leaderboard"));
+        Assert.Equal(page, await visitor.GetStringAsync("/hauling/contracts"));   // an old link: the script shows the Session tab
         Assert.Equal(HttpStatusCode.NotFound, (await visitor.GetAsync("/hauling/nothing")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await visitor.GetAsync("/index.html")).StatusCode);   // the old address of the inlined page
 
@@ -48,7 +58,9 @@ public class HaulingPageTests
         using var f = new ServerFactory();
         var visitor = f.Browser();
         var script = await visitor.GetStringAsync("/hauling.js");
-        Assert.Contains("const TABS = { S: 'session', C: 'contracts', P: 'planner', D: 'debts', H: 'history' };", script);   // /hauling/planner
+        Assert.Contains("const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history', L: 'leaderboard' };", script);   // /hauling/planner
+        Assert.Contains("if (name === 'contracts') name = 'session';", script);   // the old Contracts tab's address opens the Session tab (30 Oct 2026)
+        Assert.Contains("function leaderWidths", script);   // the Session tables line up without the leaderboard on the same tab
         Assert.Contains("'/hauling/' + TABS[which]", script);
         Assert.Contains("|| tabOf(location.hash) || 'P');", script);   // /hauling opens the Trip Planner
         Assert.Contains("function lostPicks", script);   // the admin's Lost Cargo pick in the Cargo runs
