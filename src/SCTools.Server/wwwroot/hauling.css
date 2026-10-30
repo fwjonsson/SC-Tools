@@ -43,7 +43,7 @@
 .hauling .plantables { flex:1 1 520px; min-width:0; }
 .hauling .plantables h2:first-child { margin-top:0; }
 .hauling .plantables table { table-layout:fixed; }
-/* Current Route: #, Stops, Drop/Collect, SCU, Boxes (takes the rest), Value, Distance, In flight */
+/* Current Route: #, Stops, Job (what is done there), SCU, Boxes (takes the rest), Value, Distance, In flight */
 .hauling .plancur th:nth-child(1) { width:36px; } .hauling .plancur th:nth-child(2) { width:210px; } .hauling .plancur th:nth-child(3) { width:200px; } .hauling .plancur th:nth-child(4) { width:62px; }   /* Stops: the full names ("Starlight Service Station"); SCU: four figures and a ~ (Frank, 30 Oct 2026) */
 .hauling .plancur th:nth-child(6) { width:80px; } .hauling .plancur th:nth-child(7) { width:80px; } .hauling .plancur th:nth-child(8) { width:70px; }
 .hauling .plancur td:nth-child(3), .hauling .plancur td:nth-child(5) { white-space:normal; }
