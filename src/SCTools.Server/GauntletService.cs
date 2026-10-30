@@ -27,12 +27,12 @@ public sealed class GauntletService
     public static string LibraryKey(int scenario) => SCTools.Missions.MissionKinds.TitleKey(GauntletRewards.Title(scenario))!;
 
     /// <summary>
-    /// The rewards of the scenarios: the Mission Library's (a reward nobody knows counts 0). The first time, the library gets the ones the admin's Gauntlet
-    /// page had (the built-in ones with his changes), for the scenarios nobody typed in there yet.
+    /// The rewards of the scenarios: the Mission Library's (a reward nobody knows counts 0). The first time, the library gets the built-in ones, for the
+    /// scenarios nobody typed in there yet (the admin's old Gauntlet page and its GauntletSettings went on 30 Oct 2026: the table was empty).
     /// </summary>
     public Dictionary<int, GauntletReward> Rewards()
     {
-        var before = Rewards(Settings());
+        var before = GauntletRewards.Defaults;
         var kinds = _library.Kinds(Enumerable.Range(1, GauntletRewards.Scenarios)
             .Select(n => new MissionKindRow { Key = LibraryKey(n), Title = GauntletRewards.Title(n), Auec = before[n].Auec, MgScrip = before[n].Scrip }).ToList());
         return Enumerable.Range(1, GauntletRewards.Scenarios).ToDictionary(n => n, n =>
@@ -116,38 +116,6 @@ public sealed class GauntletService
         }
     }
 
-    /// <summary>The settings are kept under this name: they are everybody's.</summary>
-    public const string Everyone = "";
-
-    /// <summary>
-    /// The settings of everybody (the admin's Gauntlet page). Before they were everybody's, every player had his own: until the admin saves, the first that
-    /// somebody saved are taken, so nothing typed is lost.
-    /// </summary>
-    public GauntletSettingsRow Settings()
-    {
-        lock (_lock)
-        {
-            using var db = _store.Open();
-            var rows = db.GauntletSettings.AsNoTracking().ToList();
-            var row = rows.FirstOrDefault(s => s.Player == Everyone) ?? rows.FirstOrDefault() ?? new GauntletSettingsRow();
-            row.Player = Everyone;
-            return row;
-        }
-    }
-
-    public void SaveSettings(GauntletSettingsRow settings)
-    {
-        settings.Player = Everyone;
-        lock (_lock)
-        {
-            using var db = _store.Open();
-            var old = db.GauntletSettings.SingleOrDefault(s => s.Player == Everyone);
-            if (old == null) db.GauntletSettings.Add(settings);
-            else db.Entry(old).CurrentValues.SetValues(settings);
-            db.SaveChanges();
-        }
-    }
-
     /// <summary>The runs of every player, by player.</summary>
     public Dictionary<string, List<GauntletRun>> AllRuns()
     {
@@ -162,18 +130,6 @@ public sealed class GauntletService
 
     static GauntletRun Run(GauntletRunRow r) =>
         new(r.MissionId, r.Scenario, r.AcceptedUtc, r.EndedUtc, Enum.TryParse<GauntletOutcome>(r.Outcome, out var o) ? o : GauntletOutcome.Abandon);
-
-    /// <summary>The rewards the admin's Gauntlet page had before they were in the Mission Library: the defaults with his changes.</summary>
-    public static Dictionary<int, GauntletReward> Rewards(GauntletSettingsRow s)
-    {
-        var map = new Dictionary<int, GauntletReward>();
-        for (var n = 1; n <= GauntletRewards.Scenarios; n++)
-        {
-            var d = GauntletRewards.Defaults[n];
-            map[n] = new GauntletReward(s.RewardAuec.GetValueOrDefault(n, d.Auec), s.RewardScrip.GetValueOrDefault(n, d.Scrip));
-        }
-        return map;
-    }
 
     /// <summary>
     /// The grind sessions of a player, newest first: they start and stop by themselves (AutoSessions). One starts when he accepts a scenario and goes on while

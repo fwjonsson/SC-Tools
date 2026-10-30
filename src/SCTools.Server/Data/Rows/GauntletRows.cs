@@ -12,16 +12,3 @@ public sealed class GauntletRunRow
     /// <summary>Complete, Abandon or Fail (GauntletOutcome).</summary>
     public string Outcome { get; set; } = "";
 }
-
-/// <summary>A player's own settings of the Gauntlet Tracker: what a MG scrip is worth in aUEC, and rewards he changed.</summary>
-public sealed class GauntletSettingsRow
-{
-    public string Player { get; set; } = "";
-    public long ScripValue { get; set; }
-
-    /// <summary>Scenario to aUEC, only for the scenarios he changed.</summary>
-    public Dictionary<int, long> RewardAuec { get; set; } = new();
-
-    /// <summary>Scenario to MG scrip, only for the scenarios he changed.</summary>
-    public Dictionary<int, long> RewardScrip { get; set; } = new();
-}

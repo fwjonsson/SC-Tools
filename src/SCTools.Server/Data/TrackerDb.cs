@@ -34,7 +34,6 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
     public DbSet<ToolRow> Tools => Set<ToolRow>();
     public DbSet<LogFileRow> LogFiles => Set<LogFileRow>();
     public DbSet<MissionRow> Missions => Set<MissionRow>();
-    public DbSet<LibraryRow> Library => Set<LibraryRow>();
     public DbSet<MissionKindRow> MissionKinds => Set<MissionKindRow>();
     public DbSet<WikiMissionRow> WikiMissions => Set<WikiMissionRow>();
     public DbSet<FleetShipRow> FleetShips => Set<FleetShipRow>();
@@ -43,7 +42,6 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
     public DbSet<MapAliasRow> MapAliases => Set<MapAliasRow>();
     public DbSet<SiteValueRow> SiteValues => Set<SiteValueRow>();
     public DbSet<GauntletRunRow> GauntletRuns => Set<GauntletRunRow>();
-    public DbSet<GauntletSettingsRow> GauntletSettings => Set<GauntletSettingsRow>();
 
     /// <summary>
     /// A time is kept as text with its kind (2026-10-27T18:49:00.0000000Z for UTC), so it comes back the same: SQLite has no time type, and a UTC time read
@@ -229,12 +227,6 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
             e.HasIndex(x => x.Text).IsUnique();
         });
 
-        b.Entity<LibraryRow>(e =>
-        {
-            e.ToTable("Library");
-            e.HasKey(x => x.ContractId);
-        });
-
         b.Entity<SiteValueRow>(e =>
         {
             e.ToTable("SiteValues");
@@ -245,14 +237,6 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
         {
             e.ToTable("GauntletRuns");
             e.HasKey(x => new { x.Player, x.MissionId });
-        });
-
-        b.Entity<GauntletSettingsRow>(e =>
-        {
-            e.ToTable("GauntletSettings");
-            e.HasKey(x => x.Player);
-            e.Property(x => x.RewardAuec).AsJson();
-            e.Property(x => x.RewardScrip).AsJson();
         });
 
         // every time with its kind, every amount as it is written (see Time and Amount)

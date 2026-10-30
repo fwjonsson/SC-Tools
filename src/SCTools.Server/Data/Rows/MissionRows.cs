@@ -65,37 +65,6 @@ public sealed class MissionKindRow
 }
 
 /// <summary>
-/// The library before it went by name: one row per ContractId (which turned out to be one per offer, not per mission). What was typed in it is carried over
-/// to the kinds once (MissionLibrary), then the row goes.
-/// </summary>
-public sealed class LibraryRow
-{
-    public string ContractId { get; set; } = "";
-
-    /// <summary>The name typed in (null: the title from the log is shown).</summary>
-    public string? Name { get; set; }
-
-    public string? Giver { get; set; }
-    public long? Auec { get; set; }
-    public long? MgScrip { get; set; }
-    public long? CouncilScrip { get; set; }
-    public string? Notes { get; set; }
-
-    /// <summary>Who changed it last, and when.</summary>
-    public string? EditedBy { get; set; }
-    public DateTime? EditedUtc { get; set; }
-
-    /// <summary>When the Wiki was asked (null: not yet), and whether it knew the mission.</summary>
-    public DateTime? WikiCheckedUtc { get; set; }
-    public bool WikiFound { get; set; }
-    public string? WikiTitle { get; set; }
-    public string? WikiGiver { get; set; }
-    public long? WikiRewardMin { get; set; }
-    public long? WikiRewardMax { get; set; }
-    public string? WikiCurrency { get; set; }
-}
-
-/// <summary>
 /// What the Star Citizen Wiki API said about a mission (WikiMissions): its uuid (the log's contractDefinitionId), whether the API knows it, when it was
 /// asked, its debug name, title and hauling orders ("100-150;100-150": the SCU of every order), its reward, and what the Wiki shows besides (the faction,
 /// the category, the reputation, the legality). From the list of every mission (read once a day) or the mission's own page (asked for a contract the logs had).

@@ -242,41 +242,13 @@ public class MissionLibraryTests
     }
 
     [Fact]
-    public void What_was_typed_by_ContractId_goes_to_the_name_of_its_missions()
-    {
-        using var f = new ServerFactory();
-        f.Services.GetRequiredService<MissionLibrary>().Entries();   // the server's own library is ready before the old rows go in (one at a time on the database)
-        using (var db = f.Store.Open())
-        {
-            // the library as it was: by ContractId, and the missions without a kind
-            foreach (var (id, contract) in new[] { ("11111111-1111-1111-1111-111111111111", C1), ("22222222-2222-2222-2222-222222222222", C2) })
-                db.Missions.Add(new MissionRow { Player = "zzoega", MissionId = id, ContractId = contract, Title = "Combat Gauntlet - Scenario #6", Outcome = "Complete",
-                    EndedUtc = new DateTime(2026, 10, 20, 20, 0, 0, DateTimeKind.Utc) });
-            db.Library.Add(new LibraryRow { ContractId = C1, Auec = 171_250, MgScrip = 14, EditedBy = "zzoega" });
-            db.Library.Add(new LibraryRow { ContractId = C2, Giver = "Gilly" });
-            db.Library.Add(new LibraryRow { ContractId = "00000000-0000-0000-0000-00000000dead", Notes = "no mission of it" });
-            db.SaveChanges();
-        }
-        var library = new MissionLibrary(f.Store, f.Live.Uploads, f.Services.GetRequiredService<ServerPaths>(), f.Live);   // as when the server starts
-
-        var six = library.Entries().Single(e => e.Row.Key == "combat gauntlet - scenario #6");
-        Assert.Equal((2, 171_250L, 14L, "Gilly"), (six.Taken, six.Row.Auec!.Value, six.Row.MgScrip!.Value, six.Row.Giver));
-        using (var db = f.Store.Open())
-            Assert.Equal(new[] { "00000000-0000-0000-0000-00000000dead" }, db.Library.Select(l => l.ContractId).ToArray());   // carried over, except what has no mission
-        Assert.Equal(171_250, f.Services.GetRequiredService<GauntletService>().Rewards()[6].Auec);   // the Gauntlet Tracker counts with the library
-    }
-
-    [Fact]
-    public async Task The_Gauntlet_rewards_are_in_the_library_starting_with_the_ones_the_admin_had()
+    public async Task The_Gauntlet_rewards_are_in_the_library_starting_with_the_built_in_ones()
     {
         using var f = new ServerFactory();
         var admin = await f.Admin();
         var gauntlet = f.Services.GetRequiredService<GauntletService>();
-        var settings = gauntlet.Settings();
-        settings.RewardAuec[7] = 300_000;   // what the admin's Gauntlet page had
-        gauntlet.SaveSettings(settings);
 
-        Assert.Equal((300_000L, 16L), (gauntlet.Rewards()[7].Auec, gauntlet.Rewards()[7].Scrip));
+        Assert.Equal((GauntletRewards.Defaults[7].Auec, GauntletRewards.Defaults[7].Scrip), (gauntlet.Rewards()[7].Auec, gauntlet.Rewards()[7].Scrip));
         Assert.Equal(GauntletRewards.Defaults[1].Auec, gauntlet.Rewards()[1].Auec);
         var key = GauntletService.LibraryKey(7);
         await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", key), ("field", "auec"), ("value", "310000"));

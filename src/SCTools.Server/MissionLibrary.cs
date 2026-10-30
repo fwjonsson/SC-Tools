@@ -222,31 +222,6 @@ public sealed class MissionLibrary
         }
         Regroup(db, kinds);
         db.SaveChanges();
-
-        // what was typed in the library by ContractId: to the kind most of its missions have
-        var typed = db.Library.ToList();
-        if (typed.Count == 0) return;
-        var kindOf = db.Missions.Where(m => m.Kind != null).Select(m => new { m.ContractId, m.Kind }).ToList()
-            .GroupBy(m => m.ContractId, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.GroupBy(m => m.Kind!).OrderByDescending(k => k.Count()).First().Key, StringComparer.OrdinalIgnoreCase);
-        foreach (var old in typed)
-        {
-            var any = old.Name != null || old.Giver != null || old.Auec != null || old.MgScrip != null || old.CouncilScrip != null || old.Notes != null;
-            if (any)
-            {
-                if (!kindOf.TryGetValue(old.ContractId, out var key) || !kinds.TryGetValue(key, out var k)) continue;   // no mission with a name: it stays
-                k.Name ??= old.Name;
-                k.Giver ??= old.Giver;
-                k.Auec ??= old.Auec;
-                k.MgScrip ??= old.MgScrip;
-                k.CouncilScrip ??= old.CouncilScrip;
-                k.Notes ??= old.Notes;
-                k.EditedBy ??= old.EditedBy;
-                k.EditedUtc ??= old.EditedUtc;
-            }
-            db.Library.Remove(old);
-        }
-        db.SaveChanges();
     }
 
     /// <summary>
