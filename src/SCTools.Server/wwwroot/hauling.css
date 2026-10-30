@@ -8,7 +8,6 @@
 .hauling .top > .main { min-width:0; flex:1 1 560px; }   /* the tabs and the stops take the width ... */
 .hauling .top > .side { flex:0 0 560px; max-width:100%; }   /* ... the session beside the title, level with it */
 .hauling .side h2 { margin-top:12px; }
-.hauling #viewC .scroll { max-width:960px; }   /* the Contracts tab: room for the contracts' names ("Senior | Stellar Large Haul | to Ruin Station [...]") */
 .hauling .scroll { overflow-x:auto; }
 .hauling .bal table { table-layout:fixed; }
 .hauling .bal th:nth-child(1) { width:24%; }
@@ -20,7 +19,7 @@
 .hauling table.tight th { white-space:normal; }
 .hauling .kv td:first-child { font-weight:600; width:50%; }
 /* contracts (its own tab) and session: set widths (the contracts' first two columns and the session's two are halves) */
-.hauling #rewards table, .hauling #summary table { table-layout:fixed; }
+.hauling #rewards table, .hauling #summary table { table-layout:fixed; }   /* the contracts over the whole width, like the Debts tables (Frank, 30 Oct 2026) */
 .hauling #rewards th:nth-child(1) { width:44%; } .hauling #rewards th:nth-child(2) { width:16%; }   /* Contract: the room; its name wraps when there is still not enough */
 .hauling #rewards td:nth-child(1) { white-space:normal; }
 .hauling #rewards th:nth-child(3) { width:11%; } .hauling #rewards th:nth-child(4) { width:13%; } .hauling #rewards th:nth-child(5) { width:16%; }

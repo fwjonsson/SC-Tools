@@ -54,13 +54,35 @@ setInterval(function () {
 }, 1000);
 
 // The first columns of Stops, Finished stops and Cargo runs are as wide as the same columns of the Session leaderboard, so they line up (like in the program).
+// Since the leaderboard has a tab of its own (Frank, 30 Oct 2026) it can only be measured when that tab is shown; on the Session tab its tables get the
+// least widths below, which line them up with each other.
 function alignColumns() {
-  const lead = document.querySelector('#leaders table');
-  if (!lead || !lead.tHead || !lead.offsetParent) return;   // not drawn yet, or another tab is shown (nothing can be measured then)
-  const cells = Array.prototype.slice.call(lead.tHead.rows[0].cells);
   // the lined-up columns are never narrower than Stops needs them: with nobody on the leaderboard yet its columns are only as wide as their titles,
   // so Pickup Location wrapped and the rest of Stops moved (#, Pickup Location, Batches, Cargo, Value; the last column, Drop-off, takes the rest)
   const least = [36, 140, 80, 110, 110];
+  const lead = document.querySelector('#leaders table');
+  let w = least;
+  if (lead && lead.tHead && lead.offsetParent) w = leaderWidths(lead, least);   // the leaderboard is on screen: its columns as they come out
+  // after the lined-up columns: the column with the long text (wide) takes what is left, the others are as wide as their numbers need
+  const narrow = { 'Batches': 70, 'Value': 100, 'Started': 76, 'Completed': 90, 'Time': 80, 'In flight': 76, 'aUEC/h': 96, 'Lost Cargo': 96 };
+  function fix(id, n, wide) {
+    const t = document.querySelector('#' + id + ' table');
+    if (!t || !t.tHead) return;
+    const cells = t.tHead.rows[0].cells;
+    t.style.tableLayout = 'fixed';
+    for (let i = 0; i < cells.length; i++) {
+      const h = cells[i].textContent;
+      if (i < n && i < cells.length - 1 && w[i]) cells[i].style.width = w[i] + 'px';
+      else if (wide && h !== wide && narrow[h]) cells[i].style.width = narrow[h] + 'px';
+      else cells[i].style.width = '';   // the last column (or the wide one) takes what is left
+    }
+  }
+  fix('pickups', 5); fix('finished', 5); fix('runs', 2, 'Pickup Location & Time');
+}
+
+// The widths of the leaderboard's columns, once it is laid out: every column as wide as its title and its numbers need, never less than least.
+function leaderWidths(lead, least) {
+  const cells = Array.prototype.slice.call(lead.tHead.rows[0].cells);
   // every column of the leaderboard as wide as its title (on one line) and its numbers need, then what is left of the width is shared evenly by all
   // but #, so the columns are balanced (before, the first six had a set width and the others got all the room, however short their titles)
   function measure() {
@@ -86,21 +108,7 @@ function alignColumns() {
     cells.forEach(function (c, i) { c.style.width = i < least.length ? least[i] + 'px' : ''; });
     w = cells.map(function (c) { return c.getBoundingClientRect().width; });
   }
-  // after the lined-up columns: the column with the long text (wide) takes what is left, the others are as wide as their numbers need
-  const narrow = { 'Batches': 70, 'Value': 100, 'Started': 76, 'Completed': 90, 'Time': 80, 'In flight': 76, 'aUEC/h': 96, 'Lost Cargo': 96 };
-  function fix(id, n, wide) {
-    const t = document.querySelector('#' + id + ' table');
-    if (!t || !t.tHead) return;
-    const cells = t.tHead.rows[0].cells;
-    t.style.tableLayout = 'fixed';
-    for (let i = 0; i < cells.length; i++) {
-      const h = cells[i].textContent;
-      if (i < n && i < cells.length - 1 && w[i]) cells[i].style.width = w[i] + 'px';
-      else if (wide && h !== wide && narrow[h]) cells[i].style.width = narrow[h] + 'px';
-      else cells[i].style.width = '';   // the last column (or the wide one) takes what is left
-    }
-  }
-  fix('pickups', 5); fix('finished', 5); fix('runs', 2, 'Pickup Location & Time');
+  return w;
 }
 
 // Every title on one line: a column of a table with set widths that is too narrow for its title (another font, a smaller window) is made as wide as the
@@ -538,21 +546,23 @@ function buildHistory() {
   const el = document.getElementById('viewH');
   el.textContent = '';
   const d = last.history;
-  section(el, 'h2', 'All-time leaderboard', d.allTime);
+  // the All-time leaderboard is on the Leaderboard tab (Frank, 30 Oct 2026); the best session line stays with the saved sessions
   const best = document.createElement('div'); best.className = 'empty'; best.textContent = d.best || ''; el.appendChild(best);
   section(el, 'h2', 'Saved sessions', d.saved);
 }
 
-// Every tab has its own address: /hauling/session, /hauling/contracts, /hauling/planner, /hauling/debts, /hauling/history on the site; the program's
-// own page (at /) keeps them after a # (#planner). The old #plan links still open the Trip Planner.
-const TABS = { S: 'session', C: 'contracts', P: 'planner', D: 'debts', H: 'history' };
+// Every tab has its own address: /hauling/session, /hauling/planner, /hauling/debts, /hauling/history, /hauling/leaderboard on the site; the program's
+// own page (at /) keeps them after a # (#planner). The old #plan links still open the Trip Planner, and /hauling/contracts the Session tab, where the
+// contracts are since 30 Oct 2026 (Frank; the Leaderboard tab is new that day: the Session leaderboard and the All-time leaderboard).
+const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history', L: 'leaderboard' };
 const ON_SITE = /^\/hauling(\/|$)/.test(location.pathname);
 // Only the tab shown is drawn when data comes; the others are drawn when they are shown (dirty: the tabs with data they have not shown yet).
-const dirty = { S: true, C: true, P: true, D: true, H: true };
+const dirty = { S: true, P: true, D: true, H: true, L: true };
 let shownTab = 'P';   // the Trip Planner first (Frank, 29 Oct 2026)
 function tabOf(name) {
   name = (name || '').replace(/^#/, '');
   if (name === 'plan') name = 'planner';
+  if (name === 'contracts') name = 'session';   // the contracts are on the Session tab since 30 Oct 2026
   return Object.keys(TABS).find(function (k) { return TABS[k] === name; });
 }
 function show(which) {
@@ -562,7 +572,7 @@ function show(which) {
     document.getElementById('view' + k).classList.toggle('hidden', k !== which);
     document.getElementById('tab' + k).classList.toggle('on', k === which);
   });
-  // the Session tab has more than its view: the Party table and the session beside the tabs, the leaderboard and the runs under both
+  // the Session tab has more than its view: the session beside the tabs, the contracts and the runs under both
   document.getElementById('sideS').classList.toggle('hidden', which !== 'S');
   document.getElementById('belowS').classList.toggle('hidden', which !== 'S');
   try { history.replaceState(null, '', ON_SITE ? '/hauling/' + TABS[which] : '#' + TABS[which]); } catch (e) { }
@@ -572,12 +582,12 @@ function show(which) {
 Object.keys(TABS).forEach(function (k) { document.getElementById('tab' + k).onclick = function (e) { if (e && e.preventDefault) e.preventDefault(); show(k); }; });   // a link to the tab's address: shown here, no reload
 show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || 'P');
 
-// Whose session the Session and Contracts tabs show: with one party, the whole session is theirs; with more than one (the ones in the game, then the ones
+// Whose session the Session and Leaderboard tabs show: with one party, the whole session is theirs; with more than one (the ones in the game, then the ones
 // that hauled in this session and are not playing now), a player sees his own party by itself (its stops, contracts, session, leaderboard and runs: the
 // missions its players have by their own logs, and their runs), and all of them together when he is in none (or not logged in). The admin looks as a
 // player through the top bar's pick (30 Oct 2026, PointOfView: the page is that player's then) and sees everything together in his own view; the Route
 // Planner has its own choice (Everyone, a party, Only me).
-let partyText = '';   // whose session is shown, for the Contracts tab
+let partyText = '';   // whose session is shown, for the contracts on the Session tab
 function partyView() {
   const parties = last.parties || [];
   const several = parties.length > 1;
@@ -666,7 +676,7 @@ function render() {
 function renderTab(k) {
   dirty[k] = false;
   const d = last;
-  const v = k === 'S' || k === 'C' ? partyView() : null;
+  const v = k === 'S' || k === 'L' ? partyView() : null;
   if (k === 'S') {
     let measure = false;   // a table that lines up with the others was drawn anew: line them up again
     if (changed('pickups', v.pickups)) { table(document.getElementById('pickups'), v.pickups); measure = true; }
@@ -687,7 +697,9 @@ function renderTab(k) {
         + '; else the Mission Library\'s; else the Star Citizen Wiki\'s. Split evenly over the stops (~).'
       : '';
     if (changed('summary', v.summary || [])) summary(document.getElementById('summary'), v.summary || []);
-    if (changed('leaders', v.leaders)) { table(document.getElementById('leaders'), v.leaders); measure = true; }
+    // the contracts of the party shown, under the stops where the Session leaderboard was (Frank, 30 Oct 2026; a tab of their own before)
+    if (changed('rewards', v.rewards)) table(document.getElementById('rewards'), v.rewards);
+    document.getElementById('rewardsParty').textContent = partyText;
     if (changed('runs', [v.runs, v.runsLive, v.runKeys])) {
       table(document.getElementById('runs'), v.runs);
       measure = true;
@@ -698,10 +710,10 @@ function renderTab(k) {
       lostPicks(document.getElementById('runs'), v.runKeys, d.runsLost);
     }
     if (measure) alignColumns();
-  } else if (k === 'C') {
-    // the Contracts tab: the contract lines of the party shown under Session (the viewer's own, or all of them: the same line says whose)
-    if (changed('rewards', v.rewards)) table(document.getElementById('rewards'), v.rewards);
-    document.getElementById('rewardsParty').textContent = partyText;
+  } else if (k === 'L') {
+    // the Leaderboard tab (Frank, 30 Oct 2026): the Session leaderboard of the party shown, and the All-time leaderboard of every saved session
+    if (changed('leaders', v.leaders)) { table(document.getElementById('leaders'), v.leaders); alignColumns(); }
+    if (d.history && changed('allTime', d.history.allTime)) table(document.getElementById('allTime'), d.history.allTime);
   } else if (k === 'P') {
     if (!d.planner) return;
     const rest = Object.assign({}, d.planner);
