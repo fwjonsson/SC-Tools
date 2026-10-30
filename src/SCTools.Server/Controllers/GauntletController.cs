@@ -1,6 +1,7 @@
 using SCTools.Server.Accounts;
 using SCTools.Server.Data;
 using SCTools.Server.Models;
+using SCTools.Tracking;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,8 +27,11 @@ public sealed class GauntletController : Controller
     readonly ScripValues _scrip;
     readonly PartyService _party;
 
-    public GauntletController(GauntletService gauntlet, ToolAccess tools, LogUploads uploads, ScripValues scrip, PartyService party)
+    readonly LiveTracker _live;
+
+    public GauntletController(GauntletService gauntlet, ToolAccess tools, LogUploads uploads, ScripValues scrip, PartyService party, LiveTracker live)
     {
+        _live = live;
         _gauntlet = gauntlet;
         _uploads = uploads;
         _tools = tools;
@@ -44,7 +48,7 @@ public sealed class GauntletController : Controller
     public IActionResult Index(string? tab, int scenario = 1)
     {
         if (!_tools.Sees(User, SiteTools.Gauntlet)) return Hidden();
-        if (tab == "ranking") return LocalRedirect("/gauntlet/history");   // the Earnings ranking tab is History since 29 Oct 2026: old links
+        if (tab == "ranking") return LocalRedirect("/gauntlet/stats");   // the Earnings ranking tab was History from 29 Oct 2026, the ranking is on Stats since 30 Oct: old links
         tab = Tabs.Contains(tab) ? tab! : "session";
         _gauntlet.Collect();
         var who = Me;
@@ -82,7 +86,7 @@ public sealed class GauntletController : Controller
             PastGrinds = sessions.Where(s => s.Stop != null).Take(10).Select(Line).ToList(),
             Scenarios = scenarios,
             Ranking = GauntletStats.Ranking(scenarios),
-            Leaderboard = tab == "leaderboard" ? GauntletLeaderboard.Make(_gauntlet.AllRuns(), rewards, value) : Array.Empty<GauntletLeader>(),
+            Leaderboard = tab == "leaderboard" ? GauntletLeaderboard.Make(_gauntlet.AllRuns(), rewards, value, _live.Read(t => t.State.Data.CombinedAccounts)) : Array.Empty<GauntletLeader>(),
             Selected = Math.Clamp(scenario, 1, GauntletRewards.Scenarios),
             RunCount = runs.Count,
         };

@@ -38,6 +38,7 @@ public sealed class DataRows
                 WebViewPort = d.WebViewPort,
                 WatchPaths = d.WatchPaths,
                 DisabledWatchPaths = d.DisabledWatchPaths,
+                CombinedAccounts = d.CombinedAccounts,
             },
         };
 
@@ -116,6 +117,7 @@ public sealed class DataRows
         Rows = s.Rows,
         PickupClaims = s.PickupClaims,
         LockedTrips = s.LockedTrips,
+        FreeLockedTrips = s.FreeLockedTrips,
         PastWorkers = s.PastWorkers,
         Carried = s.Carried,
         RunValues = s.RunValues,
@@ -152,6 +154,7 @@ public sealed class DataRows
         Rows = r.Rows,
         PickupClaims = r.PickupClaims,
         LockedTrips = r.LockedTrips,
+        FreeLockedTrips = r.FreeLockedTrips,
         PastWorkers = r.PastWorkers,
         Carried = r.Carried,
         RunValues = r.RunValues,
@@ -181,6 +184,7 @@ public sealed class DataRows
             WebViewPort = s.WebViewPort,
             WatchPaths = s.WatchPaths,
             DisabledWatchPaths = s.DisabledWatchPaths,
+            CombinedAccounts = s.CombinedAccounts,
             Party = Members.Where(m => m.PartyPosition != null).OrderBy(m => m.PartyPosition).Select(m => m.Name).ToList(),
             InactiveParty = Members.Where(m => m.Inactive).Select(m => m.Name).ToList(),
         };

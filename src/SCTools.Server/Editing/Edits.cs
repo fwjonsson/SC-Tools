@@ -23,7 +23,7 @@ public static class Edits
         if ((location ?? "") != (byHand ? now : ""))
         {
             t.Whereabouts.SetLocation(name, location);
-            t.Plan.ReleaseLock(name);
+            foreach (var plan in t.Plans) plan.ReleaseLock(name);
             changed.Add("location");
         }
         if (color != ColorOf(t, name))
@@ -150,19 +150,6 @@ public static class Edits
         return "Session stopped.";
     }
 
-    /// <summary>Next Stops: Locked / Unlocked, as the button of the Trip Planner.</summary>
-    public static string ToggleLocks(Tracker t)
-    {
-        if (t.State.Inputs == null) return "There is no session to plan.";
-        if (t.State.Inputs.NextStopsLocked)
-        {
-            t.Plan.Unlock();
-            return "The next stops are unlocked: the plan is free.";
-        }
-        var locked = t.Plan.LockNextStops();
-        return "The next stops are locked" + (locked > 0 ? " (" + locked + (locked == 1 ? " worker)." : " workers).") : ".");
-    }
-
     /// <summary>The start time of the session, typed as HH:mm (the session time runs from it); empty = from the logs.</summary>
     public static string SetStartTime(Tracker t, string? typed)
     {
@@ -191,6 +178,13 @@ public static class Edits
         if (run == null) return "That run is not in the session any more.";
         t.Runs.SetLostLevel(run, level);
         return "Run " + run.Number + " of " + run.Worker + ": lost cargo " + level + ".";
+    }
+
+    /// <summary>The Submit button of a worker's Current Route: his run on the way ends now, counted as it is (CargoRuns.SubmitRun).</summary>
+    public static string SubmitRoute(Tracker t, string name)
+    {
+        if (!t.Runs.SubmitRun(name, DateTime.UtcNow)) return name + " has no route on the way to submit.";
+        return "The route of " + name + " is submitted: the run ends here with what it picked up.";
     }
 
     /// <summary>The SCU of a drop-off the game did not tell the size of ("mission id|objective id"); 0 forgets it. The game's own number wins once it writes it.</summary>

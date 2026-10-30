@@ -24,12 +24,17 @@ public class LoginTests
         var page = await c.GetAsync("/");
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         var home = await page.Content.ReadAsStringAsync();
-        Assert.Contains("href=\"/hauling\"", home);   // the landing page: a card for every tool
+        Assert.Contains("href=\"/hauling\"", home);   // the landing page: a link for every tool
+        Assert.Contains("<div class=\"enter\">", home);   // the row of links under the title (Frank, 30 Oct 2026: no cards, the ship as the background)
+        Assert.DoesNotContain("class=\"orbits\"", home);
+        Assert.DoesNotContain("<div class=\"tools\">", home);
+        Assert.Contains("url(\"/img/landing.jpg\")", await c.GetStringAsync("/site.css"));
+        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/img/landing.jpg")).StatusCode);
         Assert.Contains("href=\"/login\"", home);
         var live = await c.GetStringAsync("/hauling");
         Assert.Contains("href=\"/login\"", live);   // the live page has the link to log in, and back to the tools
         Assert.Contains("href=\"/\"", live);
-        foreach (var tab in new[] { "session", "contracts", "planner", "debts", "history" })   // every tab at its own address: the same page, which shows that tab
+        foreach (var tab in new[] { "session", "planner", "debts", "history", "leaderboard", "contracts" })   // every tab at its own address: the same page, which shows that tab (contracts: an old link)
             Assert.Equal(live, await c.GetStringAsync("/hauling/" + tab));
         Assert.Equal(HttpStatusCode.NotFound, (await c.GetAsync("/hauling/nothing")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/data.json")).StatusCode);
@@ -185,6 +190,28 @@ public class LoginTests
         Assert.Contains("Wrong name or password.", await old.Content.ReadAsStringAsync());
         var now = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", ServerFactory.AdminName), ("Password", NewPassword));
         Assert.Equal(HttpStatusCode.Redirect, now.StatusCode);
+    }
+
+    [Fact]
+    public async Task The_admin_counts_his_other_accounts_with_his_in_the_money_tables()
+    {
+        // Frank, 30 Oct 2026: zzatvo and zzoii are his too; a row of the money tables adds them up with zzoega (only visual: the debts stay each account's own)
+        using var f = new ServerFactory();
+        f.AddKey("zzatvo");
+        f.AddKey("zzoii");
+        var admin = await f.Admin();
+        var page = await admin.GetStringAsync("/account");
+        Assert.Contains("<h2>Combined accounts</h2>", page);
+        Assert.Contains("<input type=\"checkbox\" name=\"names\" value=\"zzatvo\"> zzatvo", page);   // every other player known, none ticked
+        Assert.Contains("value=\"zzoii\"> zzoii", page);
+        var r = await ServerFactory.Send(admin, "/account", "/account/combine", ("names", "zzatvo"), ("names", "zzoii"));
+        var saved = await r.Content.ReadAsStringAsync();
+        Assert.Contains("zzatvo, zzoii counted with admin in the money tables.", saved);
+        Assert.Contains("value=\"zzatvo\" checked=\"checked\"> zzatvo", saved);
+        Assert.Equal(new[] { "admin", "zzatvo", "zzoii" }, f.Live.Read(t => t.State.Data.CombinedAccounts.Single().ToArray()));
+        r = await ServerFactory.Send(admin, "/account", "/account/combine");   // none ticked: his alone again
+        Assert.Contains("Your account alone again in the money tables.", await r.Content.ReadAsStringAsync());
+        Assert.Empty(f.Live.Read(t => t.State.Data.CombinedAccounts));
     }
 
     [Fact]

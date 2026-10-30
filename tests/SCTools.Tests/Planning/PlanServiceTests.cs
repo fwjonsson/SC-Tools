@@ -6,6 +6,25 @@ namespace SCTools.Tests.Planning;
 public class PlanServiceTests
 {
     [Fact]
+    public void A_full_run_on_its_way_home_loses_its_last_leg_on_the_map_once_the_map_has_him_at_Ruin()
+    {
+        // Pilot_A has picked up both batches of his second mission: nothing is added to his run, it is drawn by itself with its two stops passed, so the
+        // waves run on the leg home. Once the map has him at Ruin (newer than his last pickup) that leg is passed too: the run has nothing left to draw
+        // (Frank, 30 Oct 2026: the arrow with the waves to Ruin stayed on the map after he had arrived, until he handed in)
+        var (t, _) = PlayedSession.Load(null, w => w.Minutes(15).Unstow().Seconds(5).Objective(PlayedSession.M2, "pickup_m2_1", "COMPLETED"));
+        var positions = new Dictionary<string, WorkerPosition>(StringComparer.OrdinalIgnoreCase);
+        t.State.Positions = positions;
+        var run = Assert.Single(t.Plan.GetPlan().Workers.Single().MapRows.Where(r => r.OnMap));
+        Assert.Equal(new[] { PlayedSession.Gaslight, PlayedSession.PatchCity }, run.Stops);
+        Assert.Equal(2, run.Passed);   // on his way home: the waves run on the leg to Ruin
+        positions[PlayedSession.Player] = new WorkerPosition(PyroDistances.Ruin, PlayedSession.LastPickup.AddMinutes(40), null, null);
+        run = Assert.Single(t.Plan.GetPlan().Workers.Single().MapRows.Where(r => r.OnMap));
+        Assert.Equal(3, run.Passed);   // at Ruin: the leg home is flown too
+        positions[PlayedSession.Player] = new WorkerPosition(PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(1), null, null);   // older than his last pickup: no say
+        Assert.Equal(2, Assert.Single(t.Plan.GetPlan().Workers.Single().MapRows.Where(r => r.OnMap)).Passed);
+    }
+
+    [Fact]
     public void The_run_in_progress_is_the_current_route_and_every_open_batch_is_planned()
     {
         var (t, _) = PlayedSession.Load();
@@ -31,6 +50,24 @@ public class PlanServiceTests
     }
 
     [Fact]
+    public void The_two_planners_keep_stops_of_their_own()
+    {
+        // the Route Planner (new) is tried out beside the Route Planner (30 Oct 2026): each plan is sticky by itself, so one planner's kept stops never bind the other
+        var (t, _) = PlayedSession.Load();
+        t.Plan.GetPlan();
+        Assert.NotEmpty(t.State.Inputs!.LockedTrips);
+        Assert.Empty(t.State.Inputs.FreeLockedTrips);
+        t.FreePlan.GetPlan();
+        Assert.NotEmpty(t.State.Inputs.FreeLockedTrips);
+        Assert.True(t.FreePlan.Free);
+        Assert.False(t.Plan.Free);
+        Assert.Equal(t.Plan.GetPlan().Workers.Single().Rows.Where(r => !r.Hidden).Select(r => r.Route), t.FreePlan.GetPlan().Workers.Single().Rows.Where(r => !r.Hidden).Select(r => r.Route));   // only to-Ruin contracts: the same routes
+        foreach (var plan in t.Plans) plan.ReleaseLock(PlayedSession.Player);
+        Assert.Empty(t.State.Inputs.LockedTrips);
+        Assert.Empty(t.State.Inputs.FreeLockedTrips);
+    }
+
+    [Fact]
     public void The_plan_is_worked_out_once_until_something_changes()
     {
         var (t, _) = PlayedSession.Load();
@@ -45,19 +82,25 @@ public class PlanServiceTests
     }
 
     [Fact]
-    public void Locked_next_stops_are_kept_for_the_worker_until_they_are_unlocked()
+    public void The_stops_of_a_workers_planned_trip_are_kept_for_him_by_themselves()
     {
+        // Frank, 30 Oct 2026: no Next Stops button any more; the planner keeps the stops of everybody's planned trip, so planning again (somebody else
+        // picked up or handed in) never takes a stop away from a worker. Pilot_A flies a run with room left: the stop of its continuation is kept
         var (t, saves) = PlayedSession.Load();
         var inp = t.State.Inputs!;
         var before = saves.Count;
-        t.Plan.LockNextStops();
-        Assert.True(inp.NextStopsLocked);
+        var plan = t.Plan.GetPlan();
+        var patch = plan.Workers.Single().Rows.First(r => r.Hidden || r.IsPlan);   // what the plan adds to his run: Patch City
+        Assert.Contains(PlayedSession.PatchCity, patch.Stops);
+        var kept = Assert.Single(inp.LockedTrips[PlayedSession.Player]);
+        Assert.Equal((PlayedSession.PatchCity, 1), (kept.Id, kept.Batches));
+        Assert.Equal(PlayedSession.LastPickup, kept.Since);   // kept while he flies: only pickups after this count
         Assert.True(saves.Count > before);
-        Assert.Contains(inp.LockedTrips.Keys, k => k == PlayedSession.Player);   // he is flying a run: the next stop of its continuation gets locked when the plan is shown
-
-        t.Plan.Unlock();
-        Assert.False(inp.NextStopsLocked);
-        Assert.Empty(inp.LockedTrips);
+        // a station set by hand lets the kept stops go
+        t.Plan.ReleaseLock(PlayedSession.Player);
+        Assert.False(inp.LockedTrips.ContainsKey(PlayedSession.Player));
+        t.Plan.GetPlan();
+        Assert.Single(inp.LockedTrips[PlayedSession.Player]);   // and the plan keeps them again
     }
 
     [Fact]

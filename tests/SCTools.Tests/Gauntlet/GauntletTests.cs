@@ -109,5 +109,14 @@ public class GauntletTests
         Assert.Equal(7, z.BestScenario);
         Assert.Equal(23_000.0 * 6, board[1].TotalPerHour!.Value, 6);
         Assert.Empty(GauntletLeaderboard.Make(new Dictionary<string, List<GauntletRun>> { ["nobody"] = new() }, null, 0));
+
+        // one player's accounts added up, after the players (Frank, 30 Oct 2026)
+        var runs = new Dictionary<string, List<GauntletRun>> { ["bileh123"] = bileh.ToList(), ["zzoega"] = zzoega.ToList() };
+        var withBoth = GauntletLeaderboard.Make(runs, null, 0, new[] { new[] { "zzoega", "bileh123", "zzoii" } });
+        Assert.Equal(new[] { "zzoega", "bileh123", "zzoega + bileh123" }, withBoth.Select(l => l.Player));
+        Assert.True(withBoth[2].Combined);
+        Assert.Equal(z.Auec + board[1].Auec, withBoth[2].Auec);
+        Assert.Equal((3, 1), (withBoth[2].Completed, withBoth[2].Cancelled));
+        Assert.Equal(2, GauntletLeaderboard.Make(runs, null, 0, new[] { new[] { "zzoega", "zzoii" } }).Count);   // one of them on the board: no row
     }
 }

@@ -114,6 +114,18 @@ public sealed class CargoRuns
         return false;
     }
 
+    /// <summary>
+    /// The Submit button of a worker's Current Route (Frank, 30 Oct 2026): his run on the way ends now and is counted as it is, with what it picked up handed in;
+    /// the plan goes on from where he is. False when he has no run on the way (or no session).
+    /// </summary>
+    public bool SubmitRun(string name, DateTime nowUtc)
+    {
+        var run = OpenRunOf(name);
+        if (run == null || _s.Inputs == null) return false;
+        _s.Inputs.ManualEnds.Add(new ManualEnd { Worker = run.Worker, Time = nowUtc, Submitted = true });
+        return true;
+    }
+
     // ------------------------------------------------------------------ what a run did, its time and flight
 
     /// <summary>
@@ -179,7 +191,7 @@ public sealed class CargoRuns
 
     /// <summary>Gm flown in one run: Ruin, the stations it went to (waste delivered, pickups) in the order they were visited, and the station it was handed in at (Ruin, or the station of a contract to another station). Locations missing from the table are skipped.</summary>
     public static double RunDistance(WorkerTrip t, Func<string, string?> stationOf) =>
-        TripPlanner.PathGm(new[] { PyroDistances.Ruin }.Concat(t.VisitedZones().Select(z => stationOf(z)).OfType<string>()).Append(EndStation(t, stationOf)));
+        RoutePlanner.PathGm(new[] { PyroDistances.Ruin }.Concat(t.VisitedZones().Select(z => stationOf(z)).OfType<string>()).Append(EndStation(t, stationOf)));
 
     /// <summary>Where a run was (or is to be) handed in: the station of its hand-in's drop-off, else Ruin.</summary>
     public static string EndStation(WorkerTrip t, Func<string, string?> stationOf) => (t.EndZone != null ? stationOf(t.EndZone) : null) ?? PyroDistances.Ruin;
@@ -191,7 +203,7 @@ public sealed class CargoRuns
         places.AddRange(stops);
         var last = (ends ?? Array.Empty<string>()).ToList();
         places.AddRange(last.Count > 0 ? last : new List<string> { PyroDistances.Ruin });
-        return TripPlanner.PathSeconds(_crew.QtOf(name), places);
+        return RoutePlanner.PathSeconds(_crew.QtOf(name), places);
     }
 
     /// <summary>The estimated flying time of a run on the Cargo Runs board: Ruin, the stations it went to (waste delivered, pickups) in order, and where it was handed in.</summary>

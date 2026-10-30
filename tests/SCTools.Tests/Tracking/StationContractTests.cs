@@ -86,11 +86,18 @@ public class StationContractTests
         var rewards = d.GetProperty("rewards").GetProperty("rows").EnumerateArray().Select(r => r.GetProperty("cells")[0].GetString()).ToList();
         Assert.Contains(Title, rewards);
 
-        // the planner plans all four batches: the two for Rod's Fuel in a trip that ends there, the two for Ruin in one that ends at Ruin (stage 1b)
-        var plan = t.Plan.GetPlan();
-        Assert.Equal(4, t.Plan.Core!.Batches);
+        // the old planner (the Route Planner tab) plans the two batches for Ruin and says so of the other two
+        var oldPlan = t.Plan.GetPlan();
+        Assert.Equal(2, t.Plan.Core!.Batches);
+        Assert.Contains("Not planned here (the drop-off is not Ruin; the Route Planner (new) plans them): ", oldPlan.Note);
+        Assert.Contains("Gaslight \u00d71 to Rod's Fuel 'N Supplies", oldPlan.Note);
+        Assert.Contains("Patch City \u00d71 to Rod's Fuel 'N Supplies", oldPlan.Note);
+        Assert.All(t.Plan.Core.Trips.SelectMany(x => x.Picks), p => Assert.Equal(PyroDistances.Ruin, p.To));
+        // the planner without a hub (the Route Planner (new) tab) plans all four: the two for Rod's Fuel in a trip that ends there, the two for Ruin in one that ends at Ruin (stage 1b)
+        var plan = t.FreePlan.GetPlan();
+        Assert.Equal(4, t.FreePlan.Core!.Batches);
         Assert.DoesNotContain("Not planned", plan.Note);
-        var trips = t.Plan.Core.Trips;
+        var trips = t.FreePlan.Core.Trips;
         Assert.NotEmpty(trips.Where(x => x.Ends.Contains(PlayedSession.RodsFuel)));
         Assert.Equal(2, trips.Sum(x => x.Picks.Where(p => p.To == PlayedSession.RodsFuel).Sum(p => p.Batches)));
         Assert.Equal(2, trips.Sum(x => x.Picks.Where(p => p.To == PyroDistances.Ruin).Sum(p => p.Batches)));
@@ -117,7 +124,7 @@ public class StationContractTests
         Assert.Equal((PlayedSession.Player, 1, true, RodsZone), (run.Worker, run.HandedIn, run.End.HasValue, run.EndZone));   // handed in at the station
         Assert.Equal(new[] { GaslightZone, PatchZone }, run.Pickups.OrderBy(p => p.Time).Select(p => p.Zone));
         Assert.Equal(PlayedSession.RodsFuel, t.Whereabouts.AutoLocationOf(PlayedSession.Player));   // and he is there now: his next trip starts there
-        Assert.Equal(TripPlanner.PathGm(new[] { PyroDistances.Ruin, PlayedSession.Gaslight, PlayedSession.PatchCity, PlayedSession.RodsFuel }), CargoRuns.RunDistance(run, t.Places.StationOf), 3);
+        Assert.Equal(RoutePlanner.PathGm(new[] { PyroDistances.Ruin, PlayedSession.Gaslight, PlayedSession.PatchCity, PlayedSession.RodsFuel }), CargoRuns.RunDistance(run, t.Places.StationOf), 3);
         Assert.Equal(2, t.State.PickupRows.Count);   // the completed contract left the boards; the to-Ruin stops are still waiting
         Assert.All(t.State.PickupRows, r => Assert.True(r.ToRuin));
         Assert.Equal(Earnings.DefaultReward2, t.Earnings.Earned());   // the contract paid like a 2-stop contract (the library would say otherwise by its name)

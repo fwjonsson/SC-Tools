@@ -23,6 +23,9 @@ public sealed class WebSnapshotOptions
 
     /// <summary>Where the SCU a hauler types for a drop-off of his own trip on the Trip Planner goes (the server's address; Frank, 29 Oct 2026). The program has none.</summary>
     public string? TripScu { get; init; }
+
+    /// <summary>Where the Submit button of a worker's Current Route goes (the server's address; Frank, 30 Oct 2026): his run on the way ends, counted as it is. The program has none.</summary>
+    public string? TripEnd { get; init; }
 }
 
 /// <summary>
@@ -81,7 +84,8 @@ public sealed partial class WebSnapshot
             runsLive = runs.Live,    // runs on the way: when each started (UTC), the page counts its Time up from that by its own clock (null: not running)
             runKeys = runs.Keys,     // the runs' keys, for the admin's Lost Cargo pick (RunsLost)
             runsLost = _o.RunsLost,
-            planner = Planner(),
+            planner = Planner(_t.Plan),
+            freePlanner = Planner(_t.FreePlan),   // the Route Planner (new) tab: the planner without a hub, tried out beside the old one (30 Oct 2026)
             debts = Debts(),
             debtsPay = _o.DebtsPay,
             history = History(),
@@ -313,7 +317,7 @@ public sealed partial class WebSnapshot
             new ViewColumn("Total Earned aUEC", "right"), new ViewColumn("Lost Value", "right"), new ViewColumn("Share of Run Value"), new ViewColumn("Run Value / Hour", "right"),
         });
         var table = new ViewTable(_p, columns.ToArray());
-        foreach (var b in Leaderboard.Board(lines, totalSessions, totalSeconds))
+        foreach (var b in Leaderboard.Board(lines, totalSessions, totalSeconds, _s.Data.CombinedAccounts))
         {
             var cells = new List<string>();
             if (numbered) cells.Add("");
@@ -323,6 +327,7 @@ public sealed partial class WebSnapshot
             var row = table.Add(cells.ToArray());
             if (b.Top) row.RowColor(_p.Gold);
             if (b.Total) row.Bold = true;
+            if (b.Combined) row.Color(numbered ? 1 : 0, _p.Cell, _p.Muted);   // one player's accounts added up: in grey, after the players, not numbered
         }
         if (numbered) table.Number(0, lines.Count);   // not the Total row
         return table;

@@ -71,6 +71,7 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.WatchPaths).AsJson();
             e.Property(x => x.DisabledWatchPaths).AsJson();
+            e.Property(x => x.CombinedAccounts).AsJson();
             e.Property(x => x.DefaultRewards).AsJson();
         });
 
@@ -105,6 +106,7 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
             e.Property(x => x.Rows).AsJson();
             e.Property(x => x.PickupClaims).AsJson();
             e.Property(x => x.LockedTrips).AsJson();
+            e.Property(x => x.FreeLockedTrips).AsJson();
             e.Property(x => x.PastWorkers).AsJson();
             e.Property(x => x.Carried).AsJson();
             e.Property(x => x.RunValues).AsJson();

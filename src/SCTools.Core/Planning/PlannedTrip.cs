@@ -9,7 +9,7 @@ public sealed class PlannedTrip
 {
     public string Worker = "";
     public List<(string Id, int Batches)> Stops = new();   // the pickup stations in flying order, with the batches picked up at each (every group there together)
-    public List<(string Group, string Id, string To, int Batches)> Picks = new();   // the same by group (TripPlanner.GroupKey): the station, where the batches go, how many
+    public List<(string Group, string Id, string To, int Batches)> Picks = new();   // the same by group (RoutePlanner.GroupKey): the station, where the batches go, how many
     public List<string> Ends = new();   // the places delivered at after the pickups, in flying order (Ruin for the contracts to Ruin); the trip ends at the last
     public int Batches => Stops.Sum(s => s.Batches);
     public double Distance;   // Gm: the start, the stops in order, the ends in order

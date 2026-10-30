@@ -106,6 +106,9 @@ public sealed class Whereabouts
     /// <summary>Where the map has this worker (TrackerState.Positions), or null when it has nothing on him.</summary>
     WorkerPosition? MapPosition(string name) => _s.Positions.FirstOrDefault(kv => SameName(kv.Key, name)).Value;
 
+    /// <summary>The station the map has the worker standing at now, when that is newer than anything the planner saw him do; else null (on his way, or off the grid).</summary>
+    public string? MapStationOf(string name) => MapPosition(name) is { AtStation: { } at, Since: { } since } && since > LastMoveOf(name) ? at : null;
+
     /// <summary>
     /// True when the logs show the worker doing something after this time that a station set by hand cannot outlast: taking waste out at Ruin (he is at Ruin then),
     /// or selecting a quantum destination in his own log (he is on his way, and the logs follow him from there).

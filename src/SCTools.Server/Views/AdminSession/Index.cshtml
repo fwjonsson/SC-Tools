@@ -24,16 +24,7 @@ else
 </div>
 }
 
-@if (Model.HasSession)
-{
-  <div class="buttons">
-    <form method="post" action="/admin/locks" asp-antiforgery="true" class="inline"
-          onsubmit="return confirm('@(Model.Locked ? "Unlock the next stops? The plan is free again, so it can change while people are on their way to a stop." : "Lock the next stops? The plan is worked out now and the next stop of everybody is locked to him.")');">
-      <button type="submit">Next Stops: @(Model.Locked ? "Locked" : "Unlocked")</button>
-    </form>
-    <span class="hint">@(Model.Locked ? "Planning again only changes the trips after everybody's next stop." : "The plan is free: it can change while people are on their way.")</span>
-  </div>
-}
+@* no Next Stops button since 30 Oct 2026 (Frank): the planner keeps everybody's planned stops by itself *@
 
 @if (Model.HasSession)
 {

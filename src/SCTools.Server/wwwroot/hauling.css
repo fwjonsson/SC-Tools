@@ -7,8 +7,7 @@
 .hauling .top { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
 .hauling .top > .main { min-width:0; flex:1 1 560px; }   /* the tabs and the stops take the width ... */
 .hauling .top > .side { flex:0 0 560px; max-width:100%; }   /* ... the session beside the title, level with it */
-.hauling .side h2 { margin-top:12px; }
-.hauling #viewC .scroll { max-width:960px; }   /* the Contracts tab: room for the contracts' names ("Senior | Stellar Large Haul | to Ruin Station [...]") */
+.hauling .side h2 { margin-top:22px; }   /* the Session heading level with the Stops heading beside it (Frank, 30 Oct 2026: it sat 10 px higher) */
 .hauling .scroll { overflow-x:auto; }
 .hauling .bal table { table-layout:fixed; }
 .hauling .bal th:nth-child(1) { width:24%; }
@@ -20,7 +19,7 @@
 .hauling table.tight th { white-space:normal; }
 .hauling .kv td:first-child { font-weight:600; width:50%; }
 /* contracts (its own tab) and session: set widths (the contracts' first two columns and the session's two are halves) */
-.hauling #rewards table, .hauling #summary table { table-layout:fixed; }
+.hauling #rewards table, .hauling #summary table { table-layout:fixed; }   /* the contracts over the whole width, like the Debts tables (Frank, 30 Oct 2026) */
 .hauling #rewards th:nth-child(1) { width:44%; } .hauling #rewards th:nth-child(2) { width:16%; }   /* Contract: the room; its name wraps when there is still not enough */
 .hauling #rewards td:nth-child(1) { white-space:normal; }
 .hauling #rewards th:nth-child(3) { width:11%; } .hauling #rewards th:nth-child(4) { width:13%; } .hauling #rewards th:nth-child(5) { width:16%; }
@@ -60,7 +59,8 @@
 .hauling .planpair { display:flex; flex-direction:column; gap:4px; }
 .hauling .plancur, .hauling .planque { min-width:0; }
 .hauling .plancur table, .hauling .planque table { min-width:640px; }
-.hauling .planpair h3 { margin:6px 0 4px; }
+.hauling .planpair h3 { margin:6px 0 4px; display:flex; align-items:center; }
+.hauling .planpair h3 .submitroute { margin:0 0 0 auto; padding:2px 12px; font-size:12px; }   /* the Submit button at the right end of the Current Route title (30 Oct 2026) */
 .hauling .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
 /* the map is the Map tool's size (820 px, .mapbox in site.css; Frank, 29 Oct 2026), smaller on a narrower window so the workers' tables keep their columns */
 .hauling .planleft { flex:0 0 820px; max-width:100%; }

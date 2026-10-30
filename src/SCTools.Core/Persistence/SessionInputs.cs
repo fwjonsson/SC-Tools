@@ -20,8 +20,9 @@ public sealed class SessionInputs
     public List<ManualEnd> ManualEnds { get; set; } = new();
     public Dictionary<string, RowInputs> Rows { get; set; } = new();   // key = pickup location id
     public Dictionary<string, string> PickupClaims { get; set; } = new();   // "mission|objective" -> the worker the Trip Planner credited a pickup to (only where no log names who did it)
-    public bool NextStopsLocked { get; set; }   // the "Next Stops: Locked" button of the Trip Planner: only while it is on is the next stop of everybody kept for him (off = the plan is free)
-    public Dictionary<string, List<LockedStop>> LockedTrips { get; set; } = new();   // worker -> his Current trip: the Trip Planner leaves it as it is (set by Assign Workers to Stops or by assigning stops by hand)
+    public bool NextStopsLocked { get; set; }   // the old "Next Stops: Locked" button (gone 30 Oct 2026: the plan keeps everybody's stops by itself); kept so old data files and the database column read
+    public Dictionary<string, List<LockedStop>> LockedTrips { get; set; } = new();   // worker -> the stops of his planned trip, kept for him (PlanService: sticky by itself since 30 Oct 2026)
+    public Dictionary<string, List<LockedStop>> FreeLockedTrips { get; set; } = new();   // the same for the planner without a hub (the Route Planner (new) tab, tried out beside the old one from 30 Oct 2026): its own plan is sticky by itself
     public List<WorkerEra> PastWorkers { get; set; } = new();   // assigned workers of earlier sets of missions (frozen when the table was reset)
     public DateTime? WorkersResetAt { get; set; }               // when the last set of missions began: the assigned workers were cleared then
     public Dictionary<string, decimal> Carried { get; set; } = new();   // worker -> value of the locations he carried (saved for the Debts tab)

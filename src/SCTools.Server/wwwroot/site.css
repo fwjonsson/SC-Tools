@@ -46,10 +46,16 @@ code { font-family:Consolas, monospace; }
 .key code { font-size:16px; background:var(--bg); border:1px solid var(--line); padding:6px 10px; display:inline-block; user-select:all; word-break:break-all; }
 
 /* the admin's pages: wider tables with a form in every row */
-main.wide, main:has(table.wide) { max-width:1400px; }
+main.wide, main:has(table.wide) { max-width:1900px; }   /* a page with a wide table takes the whole band, like the Hauling Planner's tables (Frank, 30 Oct 2026: the Mission Library, the Session tool's games, the Gauntlet Tracker; 1,400 px before) */
 main:has(.hauling) { max-width:1900px; }   /* the Hauling Planner: its tables take the band (hauling.css) */
 table.wide { max-width:none; }
 table.narrow { max-width:720px; }
+/* two tables side by side, together as wide as a wide table (the Gauntlet Tracker, Frank, 30 Oct 2026); under each other on a narrow screen */
+.pair { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+.pair > div { flex:1 1 420px; min-width:0; }
+tr.combined td { color:var(--muted); }   /* one player's accounts added up on a leaderboard (Frank, 30 Oct 2026) */
+.titled { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }   /* a title with a small form right of it (the Gauntlet's Top 10 and its scenario, Frank, 30 Oct 2026) */
+.titled form.line { margin:14px 0 0; }
 td input, td select { width:100%; padding:4px 6px; }
 td input[type=checkbox] { width:auto; }
 td input[type=color] { width:46px; height:30px; }
@@ -74,32 +80,25 @@ button.hasnot { background:#642e2e; }
 button.took { background:#685818; }
 button.tooknot { background:#6e4a1e; }
 
-/* the landing page: the title over faint orbit rings (like the Pyro map), a card per tool in its own colour, centred */
+/* the landing page (Frank, 30 Oct 2026): the title and the slogan centred over the screenshot of the crew's ship in space, a shade over it so the text
+   reads, and a row of links to the tools under them; no cards and no orbit rings any more */
 main:has(.landing) { max-width:none; padding:0; margin-left:0; }
-.landing { position:relative; overflow:hidden; padding-bottom:56px; }
-.landing svg.orbits { position:absolute; left:50%; top:0; width:1200px; height:460px; transform:translateX(-50%); pointer-events:none; }
-.orbits ellipse { fill:none; stroke:#22324a; stroke-width:1; }
-.orbits circle { fill:#3a5f95; }
-.hero { position:relative; text-align:center; padding:84px 20px 40px; }
-.hero h1 { margin:0; font-size:56px; line-height:1.1; letter-spacing:-.02em; font-weight:800; }
-.hero p { margin:12px auto 0; max-width:560px; color:#aab4bf; font-size:17px; }
-.landing .nothing { position:relative; margin:0 auto; }
-.tools { position:relative; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 250px)); gap:18px; justify-content:center; padding:24px 20px 0;
-  max-width:1120px; margin:0 auto; }
-.tool { position:relative; display:flex; flex-direction:column; gap:10px; padding:20px; min-height:230px; background:rgba(21, 27, 35, .92); border:1px solid var(--line);
-  border-radius:10px; text-decoration:none; color:inherit; }
-.tool::before { content:""; position:absolute; left:20px; right:20px; top:-1px; height:3px; border-radius:0 0 3px 3px; background:var(--c); }
-a.tool:not(.soon):hover { border-color:var(--c); background:#18212c; }
-a.tool:focus-visible { outline:2px solid var(--c); outline-offset:3px; }
-.tool-icon { width:30px; height:30px; color:var(--c); }
-.tool-icon svg { width:100%; height:100%; }
-.tool-name { font-size:19px; font-weight:700; }
-.tool-text { color:var(--muted); line-height:1.45; font-size:14px; flex:1; }
-.tool-state { font-size:13px; font-weight:600; color:var(--muted); }
-.tool-state.live { color:var(--good); }
-.tool.soon { opacity:.55; pointer-events:none; }
-.tool-hidden { font-size:12px; font-weight:600; color:var(--muted); border:1px dashed var(--line); border-radius:4px; padding:2px 6px; align-self:flex-start; }
-@media (max-width:560px) { .hero { padding-top:56px; } .hero h1 { font-size:42px; } .tools { grid-template-columns:minmax(0, 1fr); } }
+.landing { position:relative; min-height:calc(100vh - 150px); display:flex; align-items:center; justify-content:center;
+  background:#0d1117 url("/img/landing.jpg") center / cover no-repeat; }
+.landing::before { content:""; position:absolute; inset:0; background:linear-gradient(180deg, rgba(13, 17, 23, .3), rgba(13, 17, 23, .15) 50%, rgba(13, 17, 23, .8)); }
+.hero { position:relative; text-align:center; padding:84px 20px 60px; }
+.hero h1 { margin:0; font-size:64px; line-height:1.1; letter-spacing:-.02em; font-weight:800; text-shadow:0 2px 24px rgba(0, 0, 0, .6); }
+.hero p { margin:14px auto 0; max-width:560px; color:#c9d1d9; font-size:18px; text-shadow:0 1px 12px rgba(0, 0, 0, .7); }
+.hero .nothing { color:var(--muted); }
+.enter { display:flex; gap:12px; margin-top:28px; flex-wrap:wrap; justify-content:center; }
+.enter .tool { display:inline-flex; align-items:center; gap:8px; color:#fff; text-decoration:none; font-weight:600; font-size:14px; padding:9px 16px;
+  border:1px solid rgba(255, 255, 255, .35); border-radius:6px; background:rgba(13, 17, 23, .45); backdrop-filter:blur(6px); }
+.enter .tool:hover { border-color:var(--c); background:rgba(13, 17, 23, .7); }
+.enter .tool:focus-visible { outline:2px solid var(--c); outline-offset:3px; }
+.enter .dot { width:10px; height:10px; border-radius:50%; background:var(--c); }
+.enter .tool.soon { opacity:.55; pointer-events:none; }
+.enter .tool-hidden { font-size:11px; font-weight:600; color:var(--muted); border:1px dashed rgba(255, 255, 255, .35); border-radius:4px; padding:1px 5px; }
+@media (max-width:560px) { .hero { padding-top:56px; } .hero h1 { font-size:42px; } }
 
 /* the footer of every page: the tracker, and what the site is */
 html { height:100%; }

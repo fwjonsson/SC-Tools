@@ -31,7 +31,8 @@ All the tools track at the same time, all the time. The tracking runs on the ser
 
 1. **Hauling Planner**: live at `/hauling`, with automatic parties and automatic sessions per party (#238, #239). Its contract rewards live in the
    Mission Library. Since #266 it is the one hauling app: the Other hauling board (every system) is on its Session tab with the hauler's SCU field in
-   it; `/hauling/jobs` just goes to `/hauling`. The Contracts table is a tab of its own (#269).
+   it; `/hauling/jobs` just goes to `/hauling`. The Contracts table was a tab of its own (#269) until 30 Oct 2026, when Frank put it back on the Session
+   tab under the stops (over the whole width) and gave the two leaderboards a Leaderboard tab of their own.
 2. **Session tool** (`/session`, PR #233): playtime kept for good (`LogFiles`: old logs and live games), totals today / this week / this month / all
    time, games, crashes (no SystemQuit line), a live clock, and what the completed missions earned at the Mission Library's rewards (worked out again
    every visit, so a reward typed in later counts for the past; since #264 the Star Citizen Wiki's reward where none is typed in).
@@ -56,7 +57,9 @@ All the tools track at the same time, all the time. The tracking runs on the ser
    runs, completion rate, fastest run, favourite and best scenario, last played). Rewards from the Mission Library (typed on Edit Mission Info; the
    admin's `/admin/gauntlet` page went on 29 Oct, with his Contracts page). Top 10 fastest: picking a scenario shows it at once (no Show button). Since 29 Oct (Frank): the Session, Stats and History tabs are
    the viewer's in-game party's runs together (alone: his own); the Earnings ranking tab is **History**, with the lifetime totals moved there from
-   Session and a Scrip/h column in the ranking.
+   Session and a Scrip/h column in the ranking. Since 30 Oct 2026 (Frank): Stats has the Earnings (the lifetime totals) and the Top 10 side by side,
+   the Earnings per scenario (the ranking) and the times under them; History has the earlier grind sessions; Session has the game session and the
+   grind session side by side; the Leaderboard is titled "All-time leaderboard"; every wide table takes the whole band.
 5. **Party tool** (`/party`, PR #241): who is playing in which in-game party with the ship each one flies, everybody else with when they were last
    seen, and a page per player. `PartyService` keeps the site's party in one place for every tool. Since 29 Oct not a card on the landing page: a
    **Party** button beside the name in the top bar, with a panel (fetched when it opens) of the parties as tables like the Hauling Planner's old
@@ -77,6 +80,8 @@ All the tools track at the same time, all the time. The tracking runs on the ser
      "done" agree: a pickup the planner credits is off the map at once, for everybody with the mission. Ruin is a station like any other on it
      (Frank, 29 Oct: the planner is to work with every kind of hauling and lose its Ruin bias). The Windows program went on 30 Oct 2026. The map's
      place for a worker never moves the start of a run he is in the middle of (30 Oct 2026: the rows of his waste trip vanished while he flew it).
+     The plan is sticky since 30 Oct 2026: the stops of a worker's planned trip stay his until they are picked up, gone or he picks up elsewhere, and
+     the Next Stops button of the admin's Session page went (Frank: not used; better logic instead of a button).
 7. **Map places** (`/admin/places`, PR #244, Frank 28 Oct): the admin says what a quantum destination or start name the map does not know is (a
    place, or not a place to show; `Text*` for every one that starts so), renames places, and adds places the game data does not have (at a place, or
    X/Y in Gm). Saved in the database and used by the map at once.
@@ -113,6 +118,10 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       worker is (or where his trip before it ended) and ends at the last place it delivers at, the contracts to another station are planned in the
       same trips as the to-Ruin ones (Frank's answer 1), a run ends where it is handed in, the map draws every route from its start to its end. The
       to-Ruin plans are unchanged scenario for scenario.
+    - **Two planners side by side** (Frank, 30 Oct): the new planner (`RoutePlanner`) is on a tab of its own, *Route Planner (new)*, with kept stops of
+      its own; the *Route Planner* tab keeps the old planner (`TripPlanner`) and stays the default until Frank has tested the new one and decides whether
+      it replaces the old one. Every rule the old planner gets meanwhile is brought over to the new one (so far: the kept stops of a worker's whole trip).
+      When the new one takes over: the Route Planner tab shows it, the old class, the second tab and `FreeLockedTrips` go.
     - **Wiki API** (#264; #265 for every mission of the library): the log's `contract [...]` and `contractDefinitionId[...]` are the API's
       `debug_name` and `uuid` (Frank confirmed with `701271ba-…` = `Iasi_HaulCargo_AtoB_Small_PartySupplies`), so a string mod's names do not matter.
       The contract ids are kept on the Missions rows (the old logs re-read once); the server asks `api.star-citizen.wiki/api/missions/{uuid}` about

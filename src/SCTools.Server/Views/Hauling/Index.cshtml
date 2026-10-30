@@ -12,12 +12,14 @@
   @* the tabs as a row under the bar in the tool's colour, like the admin's pages (Frank, 30 Oct 2026); the Route Planner (Trip Planner until 30 Oct 2026) first (29 Oct). Every tab is a link to
      its own address, and hauling.js shows the tab on the page without a reload; at the right end the session shown (Frank, 30 Oct 2026: not a line of its
      own on every tab; the live dot and the time are in the top bar). The admin's pick of a party went the same day: he looks as a player through the top bar *@
-  <nav class="subnav area" style="--tool:@SiteTools.Hauling.Color"><a href="/hauling/planner" id="tabP" class="on">Route Planner</a><a href="/hauling/session" id="tabS">Session</a><a href="/hauling/contracts" id="tabC">Contracts</a><a href="/hauling/debts" id="tabD">Debts</a><a href="/hauling/history" id="tabH">History</a><span id="session" class="session"></span></nav>
+  <nav class="subnav area" style="--tool:@SiteTools.Hauling.Color"><a href="/hauling/planner" id="tabP" class="on">Route Planner</a><a href="/hauling/planner-new" id="tabN">Route Planner (new)</a><a href="/hauling/session" id="tabS">Session</a><a href="/hauling/debts" id="tabD">Debts</a><a href="/hauling/history" id="tabH">History</a><a href="/hauling/leaderboard" id="tabL">Leaderboard</a><span id="session" class="session"></span></nav>
 }
 @* the admin gets data-admin (Razor writes a data- attribute even when its value is null, so it is written by hand) *@
 <div class="hauling" data-me="@me"@(admin ? Html.Raw(" data-admin=\"1\"") : null)>
-<!-- the title, the tabs and what they show on the left; on the Session tab the session beside them (the leaderboard and the runs under both, over the whole
-     width). No Party table since 29 Oct 2026 (Frank): the Party button in the top bar shows it. After the tabs, for the admin only, the party whose session the tabs show -->
+<!-- the tabs and what they show on the left; on the Session tab the session beside them (the contracts and the runs under both, over the whole width).
+     No Party table since 29 Oct 2026 (Frank): the Party button in the top bar shows it. The two leaderboards have the Leaderboard tab (Frank, 30 Oct 2026:
+     the Session leaderboard was under the Session tab's stops, the All-time leaderboard on the History tab), and the contracts are on the Session tab
+     where the Session leaderboard was (a Contracts tab of their own from #269 to 30 Oct 2026) -->
 <div class="top">
 <div class="main">
 
@@ -27,18 +29,22 @@
   <div id="jobsBox" class="hidden"><h2>Other hauling</h2><div class="scroll" id="jobs"></div><p class="note" id="jobsNote"></p></div>
 </div>
 
-<div id="viewC" class="hidden">
-  <h2>Contracts</h2><p class="note" id="rewardsParty"></p><div class="scroll" id="rewards"></div>
-  <p class="note">What every contract line pays (set in the Mission Library), how many of them are active and completed, and what they earned.</p>
-</div>
-
 <div id="viewP">
-  <div id="planNote" class="empty"></div>
-  <div id="planBody"></div>
+  <div id="planNoteP" class="empty"></div>
+  <div id="planBodyP"></div>
+</div>
+<!-- the Route Planner (new): the planner without a hub (docs/planner-any-hauling.md), tried out beside the old one from 30 Oct 2026 with the same tables and its own map -->
+<div id="viewN" class="hidden">
+  <div id="planNoteN" class="empty"></div>
+  <div id="planBodyN"></div>
 </div>
 
 <div id="viewD" class="hidden"></div>
 <div id="viewH" class="hidden"></div>
+<div id="viewL" class="hidden">
+  <h2>Session leaderboard</h2><div class="scroll" id="leaders"></div>
+  <h2>All-time leaderboard</h2><div class="scroll" id="allTime"></div>
+</div>
 </div>
 
 <div class="side hidden" id="sideS">
@@ -47,7 +53,9 @@
 </div>
 
 <div id="belowS" class="hidden">
-<h2>Session leaderboard</h2><div class="scroll" id="leaders"></div>
+<h2>Active Contracts</h2><div id="active"><p class="muted">Loading…</p></div>
+<h2>Contracts</h2><p class="note" id="rewardsParty"></p><div class="scroll" id="rewards"></div>
+<p class="note">What every contract line pays (set in the Mission Library), how many of them are active and completed, and what they earned.</p>
 <h2>Cargo runs</h2><div class="scroll" id="runs"></div>
 </div>
 </div>

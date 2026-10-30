@@ -14,6 +14,7 @@ public sealed class WorkerTrip
     public int HandedIn;        // missions handed in at the end of this run
     public bool Manual;         // the run was ended by hand (failed)
     public bool Left;           // the run was ended because the worker left the party
+    public bool Submitted;      // the run was ended with the Submit button: counted as it is, with what it picked up (30 Oct 2026)
     public List<TripCollect> Collects = new();   // from-Ruin cargo (waste) he took out at Ruin in this run
     public List<TripDrop> Drops = new();         // from-Ruin cargo he delivered to stations in this run
     public string? EndZone;                      // the location id of the drop-off the run was handed in at (null: not handed in, or the log did not say; Ruin for the contracts to Ruin)
