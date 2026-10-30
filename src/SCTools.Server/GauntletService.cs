@@ -66,11 +66,13 @@ public sealed class GauntletService
             _known ??= db.GauntletRuns.AsNoTracking().Select(r => new { r.Player, r.MissionId }).AsEnumerable()
                 .Select(r => (r.Player.ToLowerInvariant(), r.MissionId.ToLowerInvariant())).ToHashSet();
             var added = 0;
+            var pending = new HashSet<(string, string)>();   // noted as known once the database took them: a write that fails is tried again next time
             foreach (var (player, runs) in found)
             {
                 foreach (var r in runs)
                 {
-                    if (!_known.Add((player.ToLowerInvariant(), r.MissionId.ToLowerInvariant()))) continue;
+                    var key = (player.ToLowerInvariant(), r.MissionId.ToLowerInvariant());
+                    if (_known.Contains(key) || !pending.Add(key)) continue;
                     db.GauntletRuns.Add(new GauntletRunRow
                     {
                         Player = player, MissionId = r.MissionId, Scenario = r.Scenario,
@@ -79,7 +81,11 @@ public sealed class GauntletService
                     added++;
                 }
             }
-            if (added > 0) db.SaveChanges();
+            if (added > 0)
+            {
+                db.SaveChanges();
+                _known.UnionWith(pending);
+            }
             return added;
         }
     }
@@ -177,9 +183,12 @@ public sealed class GauntletService
     public List<SCTools.Sessions.AutoSessions.Window> GrindSessions(string player, DateTime nowUtc) => GrindSessions(new[] { player }, nowUtc);
 
     /// <summary>The grind sessions of these players together (an in-game party: what any of them did with a scenario keeps the session going), newest first.</summary>
-    public List<SCTools.Sessions.AutoSessions.Window> GrindSessions(IReadOnlyCollection<string> players, DateTime nowUtc)
+    public List<SCTools.Sessions.AutoSessions.Window> GrindSessions(IReadOnlyCollection<string> players, DateTime nowUtc) =>
+        GrindSessions(players, RunsOf(players).Select(r => r.Run).ToList(), nowUtc);
+
+    /// <summary>The same, with the runs of these players the caller has already (the Gauntlet page reads them once, not twice).</summary>
+    public List<SCTools.Sessions.AutoSessions.Window> GrindSessions(IReadOnlyCollection<string> players, List<GauntletRun> runs, DateTime nowUtc)
     {
-        var runs = RunsOf(players).Select(r => r.Run).ToList();
         var accepted = _uploads.GauntletAccepted();
         var going = players.SelectMany(p => accepted.GetValueOrDefault(p) ?? Array.Empty<DateTime>()).ToList();
         var starts = runs.Select(r => r.AcceptedUtc ?? r.EndedUtc).Concat(going).ToList();

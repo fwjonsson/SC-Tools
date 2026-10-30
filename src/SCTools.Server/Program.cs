@@ -121,7 +121,13 @@ using (var scope = app.Services.CreateScope())
 // behind the Cloudflare tunnel the page is https: the tunnel says so, and the login cookie is then only sent over https
 app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto });
 app.UseOldAddresses(settings);   // haulingtracker and sct.fwjonsson.dev: the same page at sc-tools.fwjonsson.dev (the trackers' uploads are still taken)
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    // every page links its scripts and styles with their version in the address (asp-append-version: ?v=...), so a browser may keep them for a year and a
+    // new version is a new address; anything else (the favicon, the landing page's picture) a day. Before, every page load asked for each file again.
+    OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl =
+        ctx.Context.Request.Query.ContainsKey("v") ? "public,max-age=31536000,immutable" : "public,max-age=86400",
+});
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();

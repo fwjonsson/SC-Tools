@@ -21,9 +21,14 @@ public sealed class Playtime
         _uploads = uploads;
     }
 
+    long _collected = -1;   // Uploads.Pieces when the live logs were last looked at
+
     /// <summary>Writes the games of the live logs that are new or went on (never over a game its backup log told). Returns how many were written.</summary>
     public int Collect()
     {
+        // a game's length and whether it was quit only change when a piece of its log comes in: nothing new, nothing to look at (this runs every two seconds)
+        var pieces = _uploads.Pieces;
+        if (pieces == _collected) return 0;
         var games = _uploads.Games();
         lock (_lock)
         {
@@ -35,12 +40,15 @@ public sealed class Playtime
                     if (_written.TryGetValue(key, out var w) && w.Quit == quit && run.Last - w.End < TimeSpan.FromMinutes(1)) continue;   // a minute at a time
                     changed.Add((player, file, run, quit));
                 }
-            if (changed.Count == 0) return 0;
+            if (changed.Count == 0)
+            {
+                _collected = pieces;
+                return 0;
+            }
             using var db = _store.Open();
             var written = 0;
             foreach (var (player, file, run, quit) in changed)
             {
-                _written[(player.ToLowerInvariant(), file)] = (run.Last, quit);
                 var row = db.LogFiles.Find(player, file);
                 if (row != null && row.Version > 0) continue;   // its backup log told all of it already
                 if (row == null) db.LogFiles.Add(row = new LogFileRow { Player = player, File = file, ImportedUtc = DateTime.UtcNow });
@@ -51,6 +59,9 @@ public sealed class Playtime
                 written++;
             }
             db.SaveChanges();
+            // noted once the database took it: a write that fails is tried again next time
+            foreach (var (player, file, run, quit) in changed) _written[(player.ToLowerInvariant(), file)] = (run.Last, quit);
+            _collected = pieces;
             return written;
         }
     }
