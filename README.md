@@ -262,7 +262,10 @@ admin (done), then going live.
   on the Trip Planner too; `top` in map.json; Frank, 29 and 30 Oct 2026). `MapService.Follow` walks his jumps: the start name sets his system and place
   (`StarMap.OfName`: "Pyro System" is the system alone; a name two systems have, like "Nyx Gateway", is the one he is in, and after a gateway the
   system it leads to), the destination is a place (`StarMap.OfQuantumTarget`: the Pyro stations, "pyro3" the third planet, "LOC_RR_S1_L2" HUR-L2,
-  "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. Coming near a
+  "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. The game's own
+  code for a Pyro station or a gateway is read in every one of those (`Atlas.OfCode`: "RR_P6_L5" and "PYR6 L5" are Megumi Refueling, planet 6 and
+  Lagrange point 5 like "rs_ext_pyro6_l5", "RR_P6_LEO" is Ruin Station in low orbit, "RR_JP_PyroStanton" the Stanton Gateway in Pyro; RR is Rest &
+  Relax's, which the game puts on every station, Frank 31 Oct 2026). Coming near a
   place puts him there too: the game names the area he is in with his inventory lines (`<RequestLocationInventory> Player[zzoii] requested inventory for
   Location[Nyx_Levski]`, `Location[RR_P6_LEO]` around Ruin Station: the space where a hangar can be called, not where he opened an inventory, Frank 30 Oct
   2026; the system by the start of the id, the place by the rest, `Atlas.OfLocation`; the trackers send these lines from their next update), also after

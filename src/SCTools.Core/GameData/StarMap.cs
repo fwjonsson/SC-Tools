@@ -188,6 +188,12 @@ public static class StarMap
 
     internal static readonly Regex Planet = new(@"^(?:rs_ext_)?(?<s>pyro|stanton|nyx)(?<n>\d)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     internal static readonly Regex RestStop = new(@"(?:RR_S(?<n>\d)_L(?<l>\d)|stanton(?<n>\d)_l(?<l>\d))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    // The game's own code for a Pyro station (Rest & Relax's "RR", which the game puts on every station and gateway of a system, whoever runs it): planet and
+    // Lagrange point or low orbit, "RR_P6_L5" (Megumi Refueling) in the areas of the inventory lines, "PYR3 L3" (Patch City) as a start name; the same
+    // as the quantum destination "rs_ext_pyro6_l5" (Frank, 31 Oct 2026).
+    internal static readonly Regex PyroStop = new(@"^(?:LOC_)?(?:RR_P|PYR)(?<n>\d)[_ ]+(?<l>L\d|LEO)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    // A gateway in the game's own code: "RR_JP_PyroStanton" is the one in Pyro to Stanton (Stanton Gateway in Pyro).
+    internal static readonly Regex RestStopGate = new(@"^(?:LOC_)?RR_JP_(?<a>Pyro|Stanton|Nyx)(?<b>Pyro|Stanton|Nyx|Terra)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     internal static readonly Regex Gate = new(@"(?<a>pyro|stanton|nyx)-(?<b>pyro|stanton|nyx|stan|terra)_jp", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     /// <summary>The place a quantum destination of the log is, in the game data (Atlas.OfQuantumTarget).</summary>
