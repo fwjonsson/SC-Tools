@@ -22,7 +22,7 @@ public class PlannerPositionsTests
         Assert.True(f.Live.Uploads.Add("zzatvo", Id(now.AddMinutes(-20)), 0, 1000, crew.Lines.ToList(), now).Ok);
         f.Live.Refresh(now);
         var positions = f.Services.GetRequiredService<PlannerPositions>();
-        Assert.True(positions.Push(now, force: true));
+        positions.Push(now, force: true);   // the server's refresh loop runs in the test host too and may have given them already: either way they are there now
         Assert.Equal(PlayedSession.Gaslight, f.Live.Read(t => t.Whereabouts.AutoLocationOf("zzoega")));
         Assert.Equal(PlayedSession.Gaslight, f.Live.Read(t => t.Whereabouts.AutoLocationOf("zzatvo")));   // the crew member: his own log has no destination
         Assert.Equal(PlayedSession.Gaslight, f.Live.Read(t => t.Plan.GetPlan().Workers.Single(w => w.Name.Equals("zzatvo", StringComparison.OrdinalIgnoreCase)).LocationId));
