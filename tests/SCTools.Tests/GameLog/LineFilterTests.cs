@@ -83,4 +83,12 @@ public class LineFilterTests
         Assert.True(filter.Keep("<2026-10-21T08:00:00.000Z> 250,000 aUEC"));            // the amount
         Assert.False(filter.Keep("<2026-10-21T08:00:00.000Z> 250,000 aUEC"));           // only the line right after it
     }
+
+    [Fact]
+    public void The_tracker_sends_what_a_mission_paid()
+    {
+        // its first line has no "Mission" in it: a kind of its own (the contracts tracker reads who got the scrip from it)
+        var filter = new LineFilter();
+        Assert.True(filter.Keep("<2026-10-16T13:40:47.242Z> [Notice] <SHUDEvent_OnNotification> Added notification \"You've Earned: 16 Rewards"));
+    }
 }

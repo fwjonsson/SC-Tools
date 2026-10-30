@@ -190,7 +190,8 @@ admin (done), then going live.
   says how long). A tick with nothing new opens one file, the Game.log, and reads nothing from it: a backup log sent to its end is never opened again.
   While the game is closed (its Game.log has not grown for 3 minutes) it looks every 15 seconds, and every 3 again at the game's first new line; the
   ticks run off the tray's thread. It only sends the lines the
-  tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money transfers, the freight elevator and the loading platform); the rest
+  tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money transfers, the freight elevator and the loading platform, and the
+  game's "You've Earned: N Rewards" after a completed mission, since 31 Oct 2026); the rest
   of the game's log stays on the PC. It can start with Windows, and it updates itself (it looks when it starts and every half hour, so a new kind of line
   the site reads comes from every tracker soon after it is merged); the download of an update is removed once the new exe is in place, and the downloads
   of earlier updates still in Temp go when the tracker starts (`Updater.RemoveOldDownloads`); an update that fails leaves nothing behind either. The
@@ -438,7 +439,14 @@ admin (done), then going live.
   The game says "Contract Accepted" again for every contract at a login, so the library keeps the earliest accept. **When the taker abandoned it**,
   its scrip goes to the share accepted first of the ones who still had it: the one with the longest from his accept to the completion, both by his
   own PC's clock. Checked against the game's own "You've Earned: 14 Rewards" lines after the completions in Frank's, zzatvo's and zzoii's logs of
-  Aug-Oct 2026: right for 386 of 388 shared gauntlet runs (the other two were accepted within a second of each other). A player's combined accounts are added up where a tool shows his totals
+  Aug-Oct 2026: right for 386 of 388 shared gauntlet runs (the other two were accepted within a second of each other). **The game's own clues**
+  (Frank, 31 Oct 2026: right also with players he does not know, whose logs the server never sees): the Mission Library keeps, for every player's
+  mission, his id in the game (his "Ending mission" lines), what his log said about the other players (the game's "PlayerJoined" and "PlayerLeft" with
+  their ids: `MissionMember`) and the game's "You've Earned: N Rewards" right after he completed it. A reward line with the scrip's amount says who got
+  the scrip, whoever took it; a holder whose own log never says how it ended (it ends with a crash, or is not on the server) left it when another
+  holder's log saw him leave before that one's completion; and the shares are in the order one log saw them all join (one clock: the taker's), else
+  by the time from accept to completion. The old logs on the server are read once more for the ids and the joins (`HistoryReadVersion` 4); the
+  reward lines come from the trackers from their update with this on. A player's combined accounts are added up where a tool shows his totals
   (the Companion, the Gauntlet leaderboard). It is asked by the Session tool and the Companion (`ContractTracker.Earned`), the Gauntlet Tracker (each
   run's part, `GauntletRun.Paid`) and the Hauling Planner's payouts (`Payouts.ComputePayouts` picks who is paid with `ContractSplit.PlannerPayees`).
   Worked out again on every question, so a reward typed in later counts for the past. The tests `tests/SCTools.Tests/ContractTracking` show what every
