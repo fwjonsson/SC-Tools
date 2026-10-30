@@ -65,7 +65,7 @@ public class SessionPageTests
         page = await player.GetStringAsync("/session");
         Assert.DoesNotContain("no reward in the library", page);
         Assert.Contains("140,000", page);   // 120,000 aUEC + 10 Council scrip x 2,000
-        Assert.Contains("Playing for", await player.GetStringAsync("/"));   // the Session card on the landing page
+        Assert.Contains("Playing for", await player.GetStringAsync("/"));   // the Session link on the landing page says it (its hover text)
 
         var games = f.Services.GetRequiredService<Playtime>().Games("zzoega", DateTime.UtcNow);
         Assert.Equal(3, games.Count);

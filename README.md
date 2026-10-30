@@ -329,18 +329,20 @@ admin (done), then going live.
   leaves a station with a single batch out of the trip he is flying when it can (`TripPlanner.LoneBatchSeconds`; Frank, 30 Oct 2026: the biggest stops
   first, a lone batch later, when new missions may have filled the station up). The Party button's panel in the top bar shows every member's
   ship and drive ("TS-2 S3 +20 %"); the Hauling Planner's page has no Party table of its own since 29 Oct 2026 (Frank).
-- **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with a card for every tool (`/`, `Views/Home`); the Hauling Planner's page is at
+- **SC Tools.** The site, `sc-tools.fwjonsson.dev`, is a landing page with the title over a screenshot of the crew's ship and a link for every tool (`/`, `Views/Home`); the Hauling Planner's page is at
   `/hauling`, every tab at an address of its own (`/hauling/session`, `/hauling/planner`, `/hauling/debts`, `/hauling/history`, `/hauling/leaderboard`; the program's own page
   keeps them after a #, and the old `#plan` links still work; the live page's tables keep to 1,900 px in the middle of an ultrawide screen, with the bar at the top
   from edge to edge as on every page). The old addresses `haulingtracker.fwjonsson.dev` and `sct.fwjonsson.dev` send every page to the same page at the site for good (301, `OldAddress`), so there is one
   site and one login. Only the uploads of trackers that have not updated yet (`api/...`) are still taken there; once every tracker has updated itself, the
   old addresses are removed from the Cloudflare tunnel (and from `OldHosts` in the server's settings). The plan of the tools is `claude/sc-tools-roadmap.md` in the
-  project. The landing page has the title over faint orbit rings (like the Pyro map) and a card per tool, centred, each in the tool's colour with its
-  icon and what it shows now (the hauling session, your gauntlet runs this week, the missions left to fill in). Every page has the same bar at the top
+  project. The landing page (Frank, 30 Oct 2026, his pick of five mock-ups) has the title and the slogan centred over a screenshot of the crew's ship
+  in space (`wwwroot/img/landing.jpg`, a shade over it so the text reads) and under them a row of links to the tools, each with a dot in the tool's
+  colour, what it shows now as its hover text (the hauling session, your gauntlet runs this week, the missions left to fill in) and "Only you see this"
+  on the admin's hidden ones; the orbit rings and the cards went that day. Every page has the same bar at the top
   (`TopBar.cs`, `topbar.css`), the tools' own pages too: **SC Tools** (the only way back to the cards), the tools the viewer sees, and on the right
   **Tracker** (its page: download and setup; the tools come in the order Frank set on 30 Oct 2026, `SiteTools.Bar`: Hauling Planner, Gauntlet Tracker, Map,
-  Session, Mission Library, while the cards of the landing page keep theirs), who is logged in, for the admin **View as** (a pick of a player, Frank 30 Oct 2026: the `sct-pov` cookie set by `/admin/pov`, `PointOfView`; the
-  Hauling Planner's page, the Gauntlet Tracker, the Session tool and the landing page's cards then show that player's view, and the Hauling Planner's
+  Session, Mission Library, while the links of the landing page keep theirs), who is logged in, for the admin **View as** (a pick of a player, Frank 30 Oct 2026: the `sct-pov` cookie set by `/admin/pov`, `PointOfView`; the
+  Hauling Planner's page, the Gauntlet Tracker, the Session tool and the landing page's links then show that player's view, and the Hauling Planner's
   own pick of a party on its Session tab went with it; what a page lets the viewer change still goes by who is really logged in), his **Party** button (the panel of who is playing, see the Party tool), My page, Admin and
   Log out (or Log in); on a phone all of it is behind a menu button.
   The part of the site you are in is marked in its own colour: a tool (by its address, `/gauntlet/stats` too) in the colour of its card, My page in
@@ -420,7 +422,7 @@ admin (done), then going live.
   games are kept for good in `LogFiles`: the old logs (now with the quit line: `HistorySender.Version` 2, so they are sent once more) and the games of
   the live logs while they run (version 0, so their backup log still comes and takes over).
 - **Which tools everybody sees** is the admin's **Tools** page (`/admin/tools`, `SiteTools.cs`, the table `Tools`): a tick per tool, saved as soon as it
-  changes. A tool that is not ticked is only for the admin: its card on the landing page (where he sees "Only you see this") and its page (a visitor gets
+  changes. A tool that is not ticked is only for the admin: its link on the landing page (where he sees "Only you see this") and its page (a visitor gets
   the login, a player "not for you"; the hauling tracker's `data.json` too). A tool never set is as `SiteTools` says: the hauling tracker shown, the tools
   still being made (Session, Mission Library, Gauntlet Tracker) only for the admin. The trackers' uploads do not depend on it.
 - **Who is active comes from the logs** on the server (`Tracking/AutoParty.cs`), not from a tick. The game writes the in-game party in its notifications

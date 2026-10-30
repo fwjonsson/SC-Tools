@@ -24,7 +24,12 @@ public class LoginTests
         var page = await c.GetAsync("/");
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         var home = await page.Content.ReadAsStringAsync();
-        Assert.Contains("href=\"/hauling\"", home);   // the landing page: a card for every tool
+        Assert.Contains("href=\"/hauling\"", home);   // the landing page: a link for every tool
+        Assert.Contains("<div class=\"enter\">", home);   // the row of links under the title (Frank, 30 Oct 2026: no cards, the ship as the background)
+        Assert.DoesNotContain("class=\"orbits\"", home);
+        Assert.DoesNotContain("<div class=\"tools\">", home);
+        Assert.Contains("url(\"/img/landing.jpg\")", await c.GetStringAsync("/site.css"));
+        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/img/landing.jpg")).StatusCode);
         Assert.Contains("href=\"/login\"", home);
         var live = await c.GetStringAsync("/hauling");
         Assert.Contains("href=\"/login\"", live);   // the live page has the link to log in, and back to the tools

@@ -2,30 +2,26 @@
 @{
     ViewData["Title"] = "Home";
 }
-@* the landing page: the title over faint orbit rings (like the Pyro map), and a card for every tool this viewer sees (the Tools page says which everybody
-   sees), each in its own colour; the ones that are not here yet say so *@
+@* the landing page (Frank, 30 Oct 2026, his pick of the mock-ups): the title and the slogan centred over a screenshot of the crew's ship in space
+   (wwwroot/img/landing.jpg), and under them a row of links to the tools this viewer sees (the Tools page says which everybody sees), each with a dot in the
+   tool's colour and what it shows now as its hover text; the ones that are not here yet are dim. The orbit rings and the cards went *@
 <div class="landing">
-  <svg class="orbits" viewBox="0 0 1200 460" aria-hidden="true"><ellipse cx="600" cy="160" rx="170" ry="71"/><ellipse cx="600" cy="160" rx="270" ry="113"/><ellipse cx="600" cy="160" rx="380" ry="160"/><ellipse cx="600" cy="160" rx="500" ry="210"/><ellipse cx="600" cy="160" rx="640" ry="269"/> <circle cx="448" cy="128" r="3"/><circle cx="809" cy="88" r="4"/><circle cx="324" cy="50" r="3"/><circle cx="1084" cy="212" r="5"/><circle cx="-21" cy="224" r="4"/></svg>
   <section class="hero">
     <h1>SC Tools</h1>
     <p>Tools for our Star Citizen crew, fed by the game's own log.</p>
-  </section>
-  @if (Model.Cards.Count == 0)
-  {
-    <p class="card nothing">Nothing here yet.</p>
-  }
-  <div class="tools">
-    @foreach (var card in Model.Cards)
+    @if (Model.Cards.Count == 0)
     {
-      var tool = card.Tool;
-      var live = tool.Path != null;
-      <a class="tool@(live ? "" : " soon")" href="@(tool.Path ?? "#")" style="--c:@tool.Color" aria-disabled="@(live ? null : "true")">
-        <span class="tool-icon">@Html.Raw(tool.Icon)</span>
-        <span class="tool-name">@tool.Name</span>
-        <span class="tool-text">@tool.Text</span>
-        @if (card.OnlyAdmin) { <span class="tool-hidden">Only you see this</span> }
-        <span class="tool-state@(live ? " live" : "")">@card.State</span>
-      </a>
+      <p class="nothing">Nothing here yet.</p>
     }
-  </div>
+    <div class="enter">
+      @foreach (var card in Model.Cards)
+      {
+        var tool = card.Tool;
+        var live = tool.Path != null;
+        <a class="tool@(live ? "" : " soon")" href="@(tool.Path ?? "#")" style="--c:@tool.Color" title="@card.State" aria-disabled="@(live ? null : "true")">
+          <span class="dot"></span><span class="tool-name">@tool.Name</span>@if (card.OnlyAdmin) { <span class="tool-hidden">Only you see this</span> }
+        </a>
+      }
+    </div>
+  </section>
 </div>
