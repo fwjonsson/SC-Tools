@@ -74,11 +74,17 @@ public sealed class Tracker
         State.Summary = SessionBuilder.Summarize(g);
         // the zones of the party's hauling jobs by the names of their places on the map (stage 4): the tables name a Stanton pickup by its station, not "Unknown ...id"
         var names = new Dictionary<string, string>(StringComparer.Ordinal);
+        var places = new Dictionary<string, string>(StringComparer.Ordinal);
         var sessionJobs = HaulJobs.Of(g.Missions.Concat(g.Failed).Where(HaulJobs.IsJob).ToList(), State.Jobs.Atlas);   // the session's, the completed ones too
         foreach (var job in HaulJobs.Open(State).Concat(sessionJobs))
             foreach (var stop in job.Pickups.Concat(job.Drops))
-                if (stop.Zone != null && !names.ContainsKey(stop.Zone) && (stop.Place != null || stop.Name != null)) names[stop.Zone] = stop.Shown;
+            {
+                if (stop.Zone == null) continue;
+                if (!names.ContainsKey(stop.Zone) && (stop.Place != null || stop.Name != null)) names[stop.Zone] = stop.Shown;
+                if (!places.ContainsKey(stop.Zone) && stop.Place != null && !stop.Near) places[stop.Zone] = StarRoutes.IdOf(stop.Place);
+            }
         State.JobZoneNames = names;
+        State.JobZonePlaces = places;
         State.Rows = SessionBuilder.Locations(g);
         State.OpenRows = SessionBuilder.Locations(g, true, State.Missing);
         State.PickupRows = State.OpenRows.Where(r => !r.DeliveredTime.HasValue).ToList();

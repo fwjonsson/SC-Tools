@@ -19,7 +19,7 @@ public class InterstellarJobTests
     const string Pickup = "stanton/cru-l4-shallow-fields-station";
 
     /// <summary>The played session (a run on the way with a batch left at Patch City), and the job: 100 SCU from CRU-L4 to Orbituary and Gaslight, 50 each.</summary>
-    static (Tracker Tracker, SaveCounter Saves) Load(bool unplaced = false) => PlayedSession.Load(null, w =>
+    static (Tracker Tracker, SaveCounter Saves) Load(bool unplaced = false, Action<GameLogWriter>? more = null) => PlayedSession.Load(null, w =>
     {
         w.Minutes(1).AcceptedAs(Job, "Master Hauler Needed for Large Shipment")
             .Marker(Job, Contract, "pickup_ja_0", PickupZone, InStanton)
@@ -33,7 +33,37 @@ public class InterstellarJobTests
                 .Marker(Unplaced, Contract, "pickup_ua_0", "860000008201", InStanton)
                 .Marker(Unplaced, Contract, "dropoff_ub_0", OrbituaryZone, Orbituary)
                 .DeliverPopup(Unplaced, "dropoff_ub_0", 40, "Food Supplies", "Orbituary");
+        more?.Invoke(w);
     });
+
+    [Fact]
+    public void A_jobs_cargo_aboard_goes_on_to_its_drop_offs_and_the_run_ends_at_the_last_of_them()
+    {
+        // stage 4b: Pilot_A (a run on the way with a batch for Ruin) picks the job up at CRU-L4: his run now goes to Orbituary and Gaslight too, and the planner
+        // without a hub plans the rest of it there; the first delivery takes a parcel off the ship, the last one ends the run
+        var (t, _) = Load(more: w => w.Minutes(1).Unstow().Seconds(5).Objective(Job, "pickup_ja_0", "COMPLETED"));
+        Assert.Equal(new[] { PlayedSession.Gaslight, "73041", PyroDistances.Ruin }, t.Runs.LoadedDestinationsOf(PlayedSession.Player).OrderBy(x => x == PyroDistances.Ruin ? 1 : 0).ThenBy(x => x));
+        var plan = t.FreePlan.GetPlan();
+        Assert.Equal("", plan.Note);   // nothing is "picked up already, not followed": the run follows it
+        Assert.Equal(1, t.FreePlan.Core!.Batches);   // only the batch at Patch City is left to plan: the job is aboard
+        var current = plan.Workers.Single().Rows.First(r => !r.Hidden);
+        Assert.Equal("active", current.Level);
+        Assert.Contains(current.Lines, l => l.Id == "73041" && l.Actions.Contains("Deliver"));   // the run's lines end where its cargo goes
+        Assert.Contains(current.Lines, l => l.Id == PlayedSession.Gaslight && l.Actions.Contains("Deliver"));
+        Assert.Contains(current.Lines, l => l.Id == PyroDistances.Ruin && l.Actions.Contains("Deliver"));
+
+        // the first drop-off: a parcel off the ship, the run goes on; the second: the run ends there
+        var (first, _) = Load(more: w => w.Minutes(1).Unstow().Seconds(5).Objective(Job, "pickup_ja_0", "COMPLETED")
+            .Minutes(30).LoadingPlatform().Seconds(5).Objective(Job, "dropoff_jb_0", "COMPLETED"));
+        var run = Assert.Single(first.State.Trips.Where(x => !x.End.HasValue));
+        Assert.Equal(new[] { PlayedSession.Gaslight, PyroDistances.Ruin }, first.Runs.LoadedDestinationsOf(PlayedSession.Player));   // Orbituary is delivered
+        var (last, _) = Load(more: w => w.Minutes(1).Unstow().Seconds(5).Objective(Job, "pickup_ja_0", "COMPLETED")
+            .Minutes(30).LoadingPlatform().Seconds(5).Objective(Job, "dropoff_jb_0", "COMPLETED")
+            .Minutes(10).LoadingPlatform().Seconds(5).Objective(Job, "dropoff_jc_0", "COMPLETED").Seconds(1).MissionEnded(Job, "COMPLETED"));
+        var ended = last.State.Trips.Single(x => x.Pickups.Any(p => p.MissionIds.Contains(Job)));
+        Assert.True(ended.End.HasValue);
+        Assert.Equal(PlayedSession.GaslightZone, ended.EndZone);   // ended at the last drop-off
+    }
 
     [Fact]
     public void The_job_is_on_the_board_with_its_places_and_the_new_planner_plans_it_through_the_gateway()

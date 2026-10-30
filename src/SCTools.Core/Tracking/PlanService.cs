@@ -366,6 +366,9 @@ public sealed class PlanService
         return !lines[lastDone].Busy && !lines[lastDone].Pending && lastDone + 1 < lines.Count ? lastDone + 1 : lastDone;
     }
 
+    /// <summary>The planner id of a zone for a run's lines: a Pyro station; on the Route Planner (new) also the place of a job's stop in any system (stage 4b); null when neither.</summary>
+    string? PlaceOfZone(string zone) => _places.StationOf(zone) ?? (_free && _state.JobZonePlaces.TryGetValue(zone, out var place) ? place : null);
+
     /// <summary>How full the plan fills a ship (by the estimated SCU of the batches): the rest is headroom for missions that are bigger than the estimate.</summary>
     const double PlanFill = 0.9;
 
@@ -387,10 +390,10 @@ public sealed class PlanService
             var done = new Dictionary<StopLine, DoneAt>();
             var picked = 0;
             var drive = _crew.QtOf(name);
-            var from = PyroDistances.Ruin;
-
-            // the run starts at Ruin: the waste taken out there is on this line
-            var home = new StopLine { Id = PyroDistances.Ruin, Name = "Ruin", Stop = false, Done = true };
+            // the run starts at Ruin (the waste taken out there is on this line); on the Route Planner (new) at the session's hub, where the cargo of a party in another system goes (stage 4b)
+            var start = _free ? _hub : PyroDistances.Ruin;
+            var from = start;
+            var home = new StopLine { Id = start, Name = PlaceName(start), Stop = false, Done = true };
             lines.Add(home);
             done[home] = new DoneAt();
 
@@ -425,7 +428,7 @@ public sealed class PlanService
                 var batch = cluster;
                 steps.Add((batch[0].Time, () =>
                 {
-                    var id = _places.StationOf(batch[0].Zone);
+                    var id = PlaceOfZone(batch[0].Zone);
                     var line = LineFor(id, _places.LocationName(batch[0].Zone), false);
                     if (id != null && (stops.Count == 0 || stops[^1] != id)) stops.Add(id);
                     var d = done[line];
@@ -442,7 +445,7 @@ public sealed class PlanService
                 {
                     var n = pick.MissionIds.Count > 0 ? pick.MissionIds.Count : pick.Missions;
                     picked += n;
-                    var id = _places.StationOf(pick.Zone);
+                    var id = PlaceOfZone(pick.Zone);
                     var line = LineFor(id, _places.LocationName(pick.Zone), false);
                     if (id != null && (stops.Count == 0 || stops[^1] != id)) stops.Add(id);
                     line.Batches += n;
@@ -492,11 +495,11 @@ public sealed class PlanService
                 Lines = lines,
                 Batches = level == "All" ? "failed" : t.Left ? "left" : t.End.HasValue ? t.HandedIn.ToString(CultureInfo.InvariantCulture) : picked.ToString(CultureInfo.InvariantCulture),
                 BatchCount = picked,
-                Gm = stops.Count > 0 ? RoutePlanner.PathGm(new[] { PyroDistances.Ruin }.Concat(stops).Concat(_runs.LoadedDestinationsOf(name))) : 0,
+                Gm = stops.Count > 0 ? RoutePlanner.PathGm(new[] { start }.Concat(stops).Concat(_runs.LoadedDestinationsOf(name))) : 0,
                 Seconds = t.End.HasValue ? Math.Max(0, (t.End.Value - t.Start).TotalSeconds) : 0,
                 Level = level == "All" ? "all" : level == "Little" ? "little" : t.End.HasValue ? "done" : "active",
                 Stops = stops,
-                Places = new[] { PyroDistances.Ruin }.Concat(stops).Concat(_runs.LoadedDestinationsOf(name)).ToList(),
+                Places = new[] { start }.Concat(stops).Concat(_runs.LoadedDestinationsOf(name)).ToList(),
                 Value = _earnings.RunValue(t),
                 Flight = _runs.FlightOf(name, stops, _runs.LoadedDestinationsOf(name)),
             });
@@ -726,7 +729,6 @@ public sealed class PlanService
         var limits = new Dictionary<string, List<(string[] Workers, int Batches)>>();   // station -> batches that only some of the crew can take (they have those missions running, the others do not)
         var flyers = crew.Where(c => c.Capacity > 0).Select(c => c.Name).ToList();
         var later = new List<string>();   // the stops of the contracts to a station the distance table does not know, and the jobs with a stop the map has no place for: not planned
-        var aboard = new List<string>();   // the jobs whose cargo somebody has picked up already: the planner without a hub does not follow them yet (stage 4)
         if (_state.Inputs != null)
         {
             foreach (var r in _state.OpenRows)
@@ -791,7 +793,6 @@ public sealed class PlanService
                         later.Add(j.Title + " (" + HaulJobs.StopsText(j.Pickups) + " to " + HaulJobs.StopsText(j.Drops) + ")");
                         continue;
                     }
-                    if (parcels.Any(p => p.Pickup.Done && !p.Drop.Done)) aboard.Add(j.Title);
                     var reward = (decimal)(_state.Jobs.KindOf(j.Mission)?.Auec ?? _state.Jobs.WikiOf(j.Mission)?.Auec ?? 0) / parcels.Count;
                     var can = flyers.Where(n => _contracts.HasMission(j.Mission, n)).ToArray();
                     foreach (var p in parcels.Where(p => !p.Pickup.Done && !p.Drop.Done))
@@ -836,7 +837,9 @@ public sealed class PlanService
         // the session's hub: where most of the open batches go (Ruin for the to-Ruin contracts; Port Tressler for a party hauling to it in Stanton). A worker the logs
         // and the map place nowhere starts there on the Route Planner (new); the old planner starts everybody at Ruin, as it always did
         _hub = _free ? remaining.Where(kv => kv.Value > 0).GroupBy(kv => RoutePlanner.DestinationOf(kv.Key)).OrderByDescending(g => g.Sum(kv => kv.Value)).ThenBy(g => g.Key, StringComparer.Ordinal)
-            .Select(g => g.Key).FirstOrDefault() ?? PyroDistances.Ruin : PyroDistances.Ruin;
+            .Select(g => g.Key).FirstOrDefault()
+            ?? flyers.SelectMany(_runs.LoadedDestinationsOf).FirstOrDefault(p => p != PyroDistances.Ruin)   // nothing open: where the cargo aboard goes (stage 4b)
+            ?? PyroDistances.Ruin : PyroDistances.Ruin;
         var core = CoreFor(crew, remaining, unknown, limits, chunks, batchScu, shipScu, shipFullScu, TripValue);
         var dropTrips = core.Trips;
         // the waste only rides along on the pickup trips: a load that none of them can take along waits (the note says so)
@@ -852,8 +855,7 @@ public sealed class PlanService
         double ScuPerBatch(string id) => volume.TryGetValue(id, out var y) && y.Stops > 0 ? y.Scu / y.Stops : 0;   // the average stop at that station, in SCU
 
         var laterNote = later.Count == 0 ? "" : (_free ? "Not planned (the map has no place for a stop): " : "Not planned here (the drop-off is not Ruin; the Route Planner (new) plans them): ") + string.Join(", ", later) + ".";
-        var aboardNote = aboard.Count == 0 ? "" : "Picked up already, not followed yet: " + string.Join(", ", aboard) + ".";
-        var plan = new PlanView { Note = (core.Note + "  " + dropNote + "  " + laterNote + "  " + aboardNote).Trim() };
+        var plan = new PlanView { Note = (core.Note + "  " + dropNote + "  " + laterNote).Trim() };
         var flying = crew.Where(c => c.Capacity > 0).ToList();
         for (var i = 0; i < flying.Count; i++)
         {
@@ -912,7 +914,7 @@ public sealed class PlanService
                 runRow.Batches = runRow.BatchCount.ToString(CultureInfo.InvariantCulture);
                 runRow.Stops = runRow.Stops.Concat(cont.Stops.Select(s => s.Id)).ToList();
                 var ends = EndsOf(cont);
-                runRow.Places = new[] { PyroDistances.Ruin }.Concat(runRow.Stops).Concat(ends).ToList();
+                runRow.Places = new[] { _free ? _hub : PyroDistances.Ruin }.Concat(runRow.Stops).Concat(ends).ToList();
                 runRow.Gm = RoutePlanner.PathGm(runRow.Places);
                 runRow.Flight = _runs.FlightOf(c.Name, runRow.Stops, ends);   // the whole run, from Ruin to where its cargo goes
                 foreach (var (stopId, stopBatches) in cont.Stops)
