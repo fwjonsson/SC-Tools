@@ -22,7 +22,7 @@ became a site with several Star Citizen tools (one server, one tracker on every 
 - **SC Tools Tracker** (`SCToolsTracker.exe`, was HaulingTrackerSender): uploads the live log, and the old backup logs the server does not have yet
   (all of them the first time, then the new ones; PR #227; streamed line by line since PR #231). Its menu shows its version, the old logs' progress and
   "Check for an update now". Old trackers update and rename themselves; the `.old.exe` an update leaves is removed when the new one starts (PR #232).
-- **Hauling Planner**: the hauling tool (was Hauling Tracker), at `/hauling` with a path per tab (`/hauling/planner`...); the Windows program is
+- **Hauling Planner**: the hauling tool (was Hauling Tracker), at `/hauling` with a path per tab (`/hauling/planner`...); the Windows program (gone 30 Oct 2026: Frank only uses the site and the tracker) was
   HaulingPlanner.exe.
 
 ## The tools
@@ -75,7 +75,7 @@ All the tools track at the same time, all the time. The tracking runs on the ser
      with it: the players as arrows moving along their routes, the objectives as diamonds with a count, the speed meter under every worker's name,
      with the planner's routes (bold, dotted, arrows, waves, legend) on top, from `/hauling/map.json` (Pyro alone). The planner's and the map's
      "done" agree: a pickup the planner credits is off the map at once, for everybody with the mission. Ruin is a station like any other on it
-     (Frank, 29 Oct: the planner is to work with every kind of hauling and lose its Ruin bias). The Windows program keeps its own PyroMapView.
+     (Frank, 29 Oct: the planner is to work with every kind of hauling and lose its Ruin bias). The Windows program went on 30 Oct 2026.
 7. **Map places** (`/admin/places`, PR #244, Frank 28 Oct): the admin says what a quantum destination or start name the map does not know is (a
    place, or not a place to show; `Text*` for every one that starts so), renames places, and adds places the game data does not have (at a place, or
    X/Y in Gm). Saved in the database and used by the map at once.
@@ -163,7 +163,7 @@ should know before that happens.
    - **End**: after 1 hour without such activity, the session ends 5 minutes after the last activity. A crash, or a tracker off for more than an
      hour, ends it the same way.
    - **No buttons**: the hauling Start/Stop Session and the Gauntlet's "Start grind session" are gone ("if there are issues we will work them out");
-     `SCTools:FollowSessions=false` brings the hauling button back. The Windows program keeps its buttons.
+     `SCTools:FollowSessions=false` brings the hauling button back. The Windows program went on 30 Oct 2026.
 3. Done: fleet (#240), Party tool (#241), Map tool (#242).
 4. Done (28–29 Oct): the map's tabs (#243), Map places (#244), everything up to #268: the Wiki API for every mission of the library (#265), one
    Hauling Planner (#266), the read-only Mission Library and Edit Mission Info (#267, #268). In review: the Contracts tab (#269).

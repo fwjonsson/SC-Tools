@@ -7,7 +7,7 @@ planned, what was decided and why, tool by tool. This file says how we work.
 
 - Frank (GitHub fwjonsson, zzoega in the game; his other accounts are zzatvo and zzoii) asks for one thing at a time, in Swedish or English. One
   branch and one pull request per request (`claude/<topic>`); Frank reviews and merges. `main` is protected: the Build and Tests checks must be green.
-- CI is what counts: Build (Windows: the program and the tracker), Tests (Linux: `dotnet test tests/SCTools.Tests` and the planner scenarios of
+- CI is what counts: Build (Windows: the tracker and the API tool), Tests (Linux: `dotnet test tests/SCTools.Tests` and the planner scenarios of
   `tools/PlanTest`), Deploy on every merge to `main` (the site), Migration on a commit whose message has `[migration: Name]`.
 - Database changes: never write an EF Core migration by hand. Put `[migration: Name]` in the commit message, the Migration workflow adds a migration
   commit on the branch, pull it. The Tests run of that first commit fails (the model change is pending); the migration commit's run is the one to check.
@@ -19,8 +19,8 @@ planned, what was decided and why, tool by tool. This file says how we work.
   gives a load to someone who has the mission"), English everywhere. Commit messages and PR bodies are plain sentences too: what it does and why,
   not a list of files. README.md is updated in the same pull request as the code it describes, and `docs/roadmap.md` when a plan or a decision changes.
 - The Hauling Planner's page is an ordinary page of the site (`Views/Hauling/Index.cshtml`, `wwwroot/hauling.js` and `hauling.css`, the map engine
-  `wwwroot/systemmap.js`); its tabs have addresses (`/hauling/<tab>`), `PageController` lists them. The Windows program is not used any more (Frank, 29 Oct
-  2026): the site and the tracker are what counts.
+  `wwwroot/systemmap.js`); its tabs have addresses (`/hauling/<tab>`), `PageController` lists them. The Windows program went on 30 Oct 2026 (Frank only uses the site and
+  the tracker); its logic is the core's, which the site uses.
 
 ## Never
 
