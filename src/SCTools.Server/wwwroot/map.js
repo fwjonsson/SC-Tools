@@ -140,6 +140,7 @@
       const res = await fetch('/map/map.json', { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       data = await res.json();
+      data.clockOffset = Date.parse(data.updated) - Date.now();   // the server's clock against this browser's, when the data came (not when it is drawn)
       show(choose(data), false);
       state.textContent = 'Updated ' + new Date().toLocaleTimeString();
     } catch (e) {

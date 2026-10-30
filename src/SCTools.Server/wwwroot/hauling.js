@@ -47,11 +47,13 @@ function table(el, g) {
 // the data), by the browser's clock, like the Session tool's clock. The text that comes with the data is only the first value: it was made when the data
 // was made, which can be a while before the page fetched it, so counting on from it made the clocks lag and jump (Frank, 30 Oct 2026).
 function fmtHms(n) { const h = Math.floor(n / 3600), m = Math.floor(n % 3600 / 60), s = n % 60; return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0'); }
+// A clock is set at once when it is drawn (tickClocks at the end of every draw), not a second later: until then the cell showed the text that came with the
+// data, which was older, and the clock jumped.
 function addTicker(td, since) { if (since) td.dataset.since = since; }
-setInterval(function () {
-  if (document.hidden) return;
+function tickClocks() {
   document.querySelectorAll('[data-since]').forEach(function (td) { const s = Math.floor((Date.now() - Date.parse(td.dataset.since)) / 1000); if (s >= 0) td.textContent = fmtHms(s); });
-}, 1000);
+}
+setInterval(function () { if (!document.hidden) tickClocks(); }, 1000);
 
 // The first columns of Stops, Finished stops and Cargo runs are as wide as the same columns of the Session leaderboard, so they line up (like in the program).
 // Since the leaderboard has a tab of its own (Frank, 30 Oct 2026) it can only be measured when that tab is shown; on the Session tab its tables get the
@@ -353,6 +355,7 @@ async function refreshMap() {
     if (res.status === 404) { mapOff = true; return; }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     mapData = await res.json();
+    mapData.clockOffset = Date.parse(mapData.updated) - Date.now();   // the server's clock against this browser's, when the data came (not when it is drawn)
     if (shownTab === 'S') renderActive();
     const pm = planMaps[shownTab], pd = last && last.planner;
     if (pm && pd) {
@@ -364,6 +367,22 @@ async function refreshMap() {
   }
 }
 setInterval(refreshMap, 3000);
+
+// The team status line under the Route Planner's map, from its own address while the tab is shown (it changes every few seconds while somebody plays; in
+// data.json it made all the data be made again for one sentence).
+let statusLine = null;
+async function refreshStatus() {
+  if (document.hidden || shownTab !== 'P') return;
+  try {
+    const res = await fetch('/hauling/status.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    statusLine = await res.json();
+    renderStatus('P');
+  } catch (e) {
+    // the next poll tries again
+  }
+}
+setInterval(refreshStatus, 3000);
 
 // What the Trip Planner shows: Everyone, one party (its members' routes), or Only me (the viewer's own, when he is logged in and one of the workers).
 // The viewer's party first. The plan itself is the same: this only picks whose routes are drawn and listed.
@@ -462,27 +481,44 @@ function buildPlanner(tab) {
   });
   // the short copy of Cargo Runs under the map: #, Worker, Value, Started, Completed, Time and In flight (the Session tab has the whole table); the Time
   // of a run on the way counts up here too (Frank, 29 Oct 2026)
+  planRuns(left, names);
+  tickClocks();
+}
+
+// The short copy of Cargo Runs under the map, on its own: a run on the way changes its row (its aUEC/h so far) each time data.json is made, and that alone
+// should not draw the map and every route card again.
+function planRuns(left, names) {
+  left.querySelectorAll('.planruns').forEach(function (e) { e.remove(); });
+  const shown = function (name) { return !names || among(names, name || ''); };
   const runs = last.planRuns || last.runs;
   const live = [];
   const rows = runs ? runs.rows.filter(function (r, i) { const ok = !names || shown(r.cells[1]); if (ok) live.push((last.runsLive || [])[i] || null); return ok; }) : [];
   const runsBox = section(left, 'h2', 'Cargo Runs', runs ? { headers: runs.headers, rows: rows } : runs);
+  runsBox.classList.add('planruns'); runsBox.previousSibling.classList.add('planruns');
   runsBox.querySelectorAll('tbody tr').forEach(function (tr, i) { if (live[i] && tr.cells[5]) addTicker(tr.cells[5], live[i]); });
+}
+function renderPlanRuns(tab) {
+  const left = document.querySelector('#planBody' + tab + ' .planleft');
+  if (!left) return;
+  const p = last.planner;
+  keepScroll(document.getElementById('planBody' + tab), function () { planRuns(left, planNames(p, planChoices(p))); });
+  tickClocks();
 }
 
 // The small team status line under the map: it fades in only when the text really changed. It is drawn on its own, so a new line (every few seconds while
 // somebody plays) does not draw the map and the tables anew.
 function renderStatus(tab, mapBox) {
-  const p = last.planner;
+  const p = statusLine;
   mapBox = mapBox || document.querySelector('#planBody' + tab + ' .mapbox');
   if (!mapBox) return;
   let st = mapBox.querySelector('.status');
   if (!p || !p.status) { if (st) st.remove(); return; }
   if (!st) { st = document.createElement('div'); st.className = 'status'; mapBox.appendChild(st); }
   st.textContent = p.status;
-  if (p.statusKey !== shownStatus) {
+  if (p.key !== shownStatus) {
     st.classList.remove('fade'); void st.offsetWidth;   // the fade starts again on a line that is already there
     st.classList.add('fade');
-    shownStatus = p.statusKey;
+    shownStatus = p.key;
   }
 }
 
@@ -743,16 +779,16 @@ function renderTab(k) {
     if (d.history && changed('allTime', d.history.allTime)) table(document.getElementById('allTime'), d.history.allTime);
   } else if (k === 'P') {
     if (!d.planner) return;
-    const rest = Object.assign({}, d.planner);
-    delete rest.status; delete rest.statusKey;   // the status line is drawn on its own
-    if (changed('planner', [rest, d.planRuns || d.runs, d.parties, planShown])) renderPlanner(k);
-    else renderStatus(k);
+    const runsKey = [d.planRuns || d.runs, d.runsLive];
+    if (changed('planner', [d.planner, d.parties, planShown])) { changed('planRuns', runsKey); renderPlanner(k); }
+    else if (changed('planRuns', runsKey)) renderPlanRuns(k);   // only a run's row changed: the Cargo Runs alone
   } else if (k === 'D') {
     if (d.debts && changed('debts', d.debts)) renderDebts();
   } else if (k === 'H') {
     if (d.history && changed('history', d.history)) renderHistory();
   }
   fitHeaders();
+  tickClocks();
 }
 
 // The poll, every 3 seconds: the ETag of the data fetched last goes with it (If-None-Match), and the same data again comes back as 304 with no body, which
@@ -776,6 +812,6 @@ async function refresh() {
     live.textContent = '● connection lost, trying again'; live.className = 'live bad';
   }
 }
-document.addEventListener('visibilitychange', function () { if (!document.hidden) { refresh(); refreshMap(); } });
+document.addEventListener('visibilitychange', function () { if (!document.hidden) { refresh(); refreshMap(); refreshStatus(); tickClocks(); } });
 refresh();
 setInterval(refresh, 3000);

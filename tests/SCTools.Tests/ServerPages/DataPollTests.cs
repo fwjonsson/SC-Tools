@@ -46,4 +46,28 @@ public class DataPollTests
         Assert.NotEqual(etag, fresh.Headers.ETag);
         Assert.Contains("\"pickups\"", await fresh.Content.ReadAsStringAsync());
     }
+
+    [Fact]
+    public void A_weak_etag_as_cloudflare_sends_it_back_matches_too()
+    {
+        // Cloudflare compresses data.json and then calls its ETag weak (W/"..."): the browser sends it back that way, and that is still the same data
+        Assert.True(SCTools.Server.Controllers.PageController.Matches(new[] { "W/\"ab12-7\"" }, "\"ab12-7\""));
+        Assert.True(SCTools.Server.Controllers.PageController.Matches(new[] { "\"x\", \"ab12-7\"" }, "\"ab12-7\""));
+        Assert.True(SCTools.Server.Controllers.PageController.Matches(new[] { "*" }, "\"ab12-7\""));
+        Assert.False(SCTools.Server.Controllers.PageController.Matches(new[] { "W/\"ab12-6\"" }, "\"ab12-7\""));
+        Assert.False(SCTools.Server.Controllers.PageController.Matches(Array.Empty<string?>(), "\"ab12-7\""));
+    }
+
+    [Fact]
+    public async Task The_status_line_has_its_own_address_and_is_not_in_data_json()
+    {
+        using var f = new ServerFactory();
+        f.Upload(PlayedSession.Player, PlayedSession.Writer().Lines.ToList());
+        var c = f.Browser();
+        var status = System.Text.Json.JsonDocument.Parse(await c.GetStringAsync("/hauling/status.json")).RootElement;
+        Assert.True(status.TryGetProperty("status", out _));
+        Assert.True(status.TryGetProperty("key", out _));
+        var planner = System.Text.Json.JsonDocument.Parse(await c.GetStringAsync("/data.json")).RootElement.GetProperty("planner");
+        Assert.False(planner.TryGetProperty("status", out _));   // a new line every few seconds made the whole data.json again
+    }
 }

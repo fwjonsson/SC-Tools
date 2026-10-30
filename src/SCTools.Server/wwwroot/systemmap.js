@@ -247,7 +247,9 @@ var SystemMap = (function () {
     // the other), one on the way to a place from a start the map does not know is a ring at it, one in quantum moves along his route.
     function draw(d, keep) {
       data = d;
-      offset = d.updated ? new Date(d.updated).getTime() - Date.now() : 0;   // the server's clock: the jumps start by it
+      // the server's clock: the jumps start by it. Taken when the data came (clockOffset): data drawn again a few seconds later (a tab or a player clicked)
+      // measured against the time of the drawing put every player in quantum a few seconds back on his route (Frank, 30 Oct 2026: the clocks jumped)
+      offset = d.clockOffset !== undefined ? d.clockOffset : d.updated ? new Date(d.updated).getTime() - Date.now() : 0;
       movers = [];
       if (base) {
         base.objs.textContent = ''; base.routes.textContent = ''; base.people.textContent = '';

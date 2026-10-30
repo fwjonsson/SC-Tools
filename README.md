@@ -202,8 +202,12 @@ admin (done), then going live.
   version (up to date, or updating), and **Check for an update now**; after an update it says "Updated to version ...".
 - **SCTools.Server** keeps the uploads (one log per player, also on disk, so a restart reads them again), works the session out every two seconds
   with the core's logic, and serves the Hauling Planner's page to everybody. The two-second refresh makes `data.json` anew only when something in it can
-  have changed (a piece of log, a save, the status line, half a minute gone by: `LiveTracker.Refresh`), and the page polls it every 3 seconds with the
-  ETag it got last (`If-None-Match`): the same data again is a 304 with no body, so an idle server and an idle page do next to nothing. The page draws
+  have changed (a piece of log, a save, half a minute gone by: `LiveTracker.Refresh`), and the page polls it every 3 seconds with the ETag it got last
+  (`If-None-Match`): the same data again is a 304 with no body, so an idle server and an idle page do next to nothing. Cloudflare compresses the answer and
+  calls its ETag weak (`W/"..."`); the browser sends it back that way, and the server takes it as the same tag (`PageController.Matches`). The team
+  status line under the Route Planner's map has an address of its own (`/hauling/status.json`), polled with the map while the tab is shown: it changes
+  every few seconds and has clock lines, so in `data.json` it made all the data again for one sentence. Every running clock on the pages counts up by the
+  browser's clock from when it started, set at once when it is drawn; the map takes the server's clock against the browser's when its data comes. The page draws
   only the tab shown, and in it only the tables whose data changed; a browser tab nobody looks at does not poll until it is shown again. The Mission
   Library and the Gauntlet Tracker look at the logs again only when a piece came in (`LogUploads.Pieces`), and the database runs in write-ahead mode
   (WAL), so a write does not make the readers wait. The server's log says how the refresh goes: a tick over a second at once, and once an hour how

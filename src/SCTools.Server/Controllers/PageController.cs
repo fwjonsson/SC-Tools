@@ -92,9 +92,41 @@ public sealed class PageController : Controller
         var snapshot = _live.Snapshot;
         Response.Headers.CacheControl = "no-store";
         Response.Headers.ETag = snapshot.ETag;
-        if (Request.Headers.IfNoneMatch.Any(h => h != null && h.Split(',').Any(v => v.Trim() == snapshot.ETag)))
-            return StatusCode(StatusCodes.Status304NotModified);
+        if (Matches(Request.Headers.IfNoneMatch, snapshot.ETag)) return StatusCode(StatusCodes.Status304NotModified);
         return File(snapshot.Bytes, "application/json; charset=utf-8");
+    }
+
+    /// <summary>
+    /// True when the page already has this version (If-None-Match names the ETag). Cloudflare compresses the answer on its way to the browser and then
+    /// calls the ETag weak (W/"..."), and the browser sends it back that way: the W/ does not matter for "is it the same data", so it is left out of the
+    /// compare (it was not, and no poll was ever answered 304 on the site: Frank, 30 Oct 2026).
+    /// </summary>
+    public static bool Matches(IEnumerable<string?> ifNoneMatch, string etag)
+    {
+        foreach (var header in ifNoneMatch)
+        {
+            if (header == null) continue;
+            foreach (var part in header.Split(','))
+            {
+                var tag = part.Trim();
+                if (tag.StartsWith("W/", StringComparison.Ordinal)) tag = tag[2..];
+                if (tag == etag || tag == "*") return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// The team status line under the Route Planner's map, on its own: it changes every few seconds while somebody plays, and some of its lines are clocks
+    /// ("has spent 12m 04s on this trip"), so in data.json it made the whole data be made anew every few seconds for one sentence. The page asks for it
+    /// with the map, while the tab is shown.
+    /// </summary>
+    [HttpGet("/hauling/status.json")]
+    public IActionResult Status()
+    {
+        if (!_tools.Sees(User, SiteTools.Hauling)) return StatusCode(StatusCodes.Status403Forbidden);
+        Response.Headers.CacheControl = "no-store";
+        return Json(_live.Read(t => new { status = t.Status.Text, key = t.Status.Seq }));
     }
 
     /// <summary>
