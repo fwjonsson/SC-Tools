@@ -122,6 +122,10 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       its own; the *Route Planner* tab keeps the old planner (`TripPlanner`) and stays the default until Frank has tested the new one and decides whether
       it replaces the old one. Every rule the old planner gets meanwhile is brought over to the new one (so far: the kept stops of a worker's whole trip).
       When the new one takes over: the Route Planner tab shows it, the old class, the second tab and `FreeLockedTrips` go.
+    - **Frank's rules of 30 Oct, evening** (the new planner only; the old one is frozen and the admin hides either tab on the Tools page): the first stop
+      of a trip is fixed, its batch count and the other kept stops are soft (a kept stop gives way for a landing saved or a fuller ship, a third of a
+      landing as the penalty); a landing counts 20 minutes; the flying a tenth. Left: the SCU field on the Stops board (the Other hauling board stays),
+      several pickups to several drop-offs, removing the old planner when Frank says so.
     - **Stage 2 of the design, interstellar legs** (30 Oct): `StarRoutes` gives the way between any two places of the map, through the gateways between
       systems with a 3.4 minute crossing; the planner without a hub plans the Other hauling board's jobs whose stops the map has places for (a parcel per
       pickup or per drop-off; Frank's Covalex mission from Stanton to Pyro) with the Pyro contracts, starts a worker where the map has him in any system,

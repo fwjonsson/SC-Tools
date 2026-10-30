@@ -40,7 +40,7 @@ public class HaulingPageTests
         Assert.Contains("<span class=\"live\" id=\"live\"></span><span class=\"updated\" id=\"updated\"></span><a class=\"dl\" href=\"/tracker\">", page);
         Assert.Contains("<span id=\"session\" class=\"session\"></span></nav>", page);   // the session shown: at the right end of the tabs (30 Oct 2026)
         Assert.DoesNotContain("id=\"partyNote\"", page);   // no line saying whose session on the Session tab any more (30 Oct 2026)
-        Assert.Contains("<div id=\"viewP\">", page);
+        Assert.Contains("<div id=\"viewP\" class=\"hidden\">", page);   // every view starts hidden: the script shows the first tab there is (30 Oct 2026)
         Assert.Contains("<div id=\"viewS\" class=\"hidden\">", page);
         Assert.DoesNotContain("id=\"party\"", page);   // no Party table of its own: the Party button in the top bar shows it (29 Oct 2026)
         Assert.DoesNotContain("<style>", page);   // nothing inline any more
@@ -54,6 +54,36 @@ public class HaulingPageTests
         Assert.Contains("<div class=\"hauling\" data-me=\"admin\" data-admin=\"1\">", await admin.GetStringAsync("/hauling"));   // the admin picks whose session
         var player = await f.Player(f.AddKey("zzoega"));
         Assert.Contains("<div class=\"hauling\" data-me=\"zzoega\">", await player.GetStringAsync("/hauling"));
+    }
+
+    [Fact]
+    public async Task The_admin_shows_or_hides_each_route_planner_tab_on_the_tools_page()
+    {
+        // Frank, 30 Oct 2026: the two Route Planners are tools of the Tools page, so he can hide the old one while the crew tries the new one, and the other way
+        using var f = new ServerFactory();
+        var admin = await f.Admin();
+        var tools = await admin.GetStringAsync("/admin/tools");
+        Assert.Contains("value=\"planner\"", tools);
+        Assert.Contains("value=\"planner-new\"", tools);
+        Assert.Contains("<a href=\"/hauling/planner-new\">/hauling/planner-new</a>", tools);
+        var r = await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "planner"));   // the old Route Planner only for the admin
+        Assert.Equal("/admin/tools", r.Headers.Location?.OriginalString);
+        Assert.Contains("Route Planner (old) is only for you now.", await admin.GetStringAsync("/admin/tools"));
+
+        var page = await f.Browser().GetStringAsync("/hauling");
+        Assert.DoesNotContain("id=\"tabP\"", page);   // a visitor: no old tab, the new one opens first
+        Assert.DoesNotContain("id=\"viewP\"", page);
+        Assert.Contains("<a href=\"/hauling/planner-new\" id=\"tabN\" class=\"on\">Route Planner (new)</a><a href=\"/hauling/session\" id=\"tabS\">Session</a>", page);
+        Assert.Contains("<div id=\"viewN\" class=\"hidden\">", page);
+        var his = await admin.GetStringAsync("/hauling");   // the admin still sees both
+        Assert.Contains("<a href=\"/hauling/planner\" id=\"tabP\" class=\"on\">Route Planner</a><a href=\"/hauling/planner-new\" id=\"tabN\">Route Planner (new)</a>", his);
+        Assert.DoesNotContain("Route Planner (old)", await f.Browser().GetStringAsync("/"));   // not a card, not in the bar
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "planner"), ("value", "true"));
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "planner-new"));   // the other way round
+        Assert.Contains("Route Planner (new) is only for you now.", await admin.GetStringAsync("/admin/tools"));
+        page = await f.Browser().GetStringAsync("/hauling");
+        Assert.Contains("<a href=\"/hauling/planner\" id=\"tabP\" class=\"on\">Route Planner</a><a href=\"/hauling/session\" id=\"tabS\">Session</a>", page);
+        Assert.DoesNotContain("id=\"tabN\"", page);
     }
 
     [Fact]
@@ -74,7 +104,8 @@ public class HaulingPageTests
         Assert.Contains("(shownTab !== 'P' && shownTab !== 'N' && shownTab !== 'S')", script);   // the map is polled on both planner tabs and the Session tab
         Assert.True(script.IndexOf("section(el, 'h2', 'Saved sessions', d.saved);", StringComparison.Ordinal) < script.IndexOf("best.textContent = d.best", StringComparison.Ordinal));   // the best session line under the saved sessions (30 Oct 2026)
         Assert.Contains("'/hauling/' + TABS[which]", script);
-        Assert.Contains("|| tabOf(location.hash) || 'P');", script);   // /hauling opens the Trip Planner
+        Assert.Contains("|| tabOf(location.hash) || FIRST);", script);   // /hauling opens the first Route Planner tab there is (the admin may hide one, 30 Oct 2026)
+        Assert.Contains("const HAVE = Object.keys(TABS).filter(function (k) { return !!document.getElementById('tab' + k); });", script);
         Assert.Contains("function lostPicks", script);   // the admin's Lost Cargo pick in the Cargo runs
         Assert.Contains("function renderPlanner(tab) { keepScroll(document.getElementById('planBody' + tab), function () { buildPlanner(tab); }); }", script);   // the page does not jump up when the planner is drawn anew (30 Oct 2026)
         Assert.Contains("function sinceText", script);   // the map's line in the route card's heading, not under it (30 Oct 2026)

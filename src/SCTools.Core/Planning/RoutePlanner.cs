@@ -24,15 +24,22 @@ public static class RoutePlanner
     const double TopUpSeconds = 600;   // a small stop added to a ship that is nearly full already counts this much more: it is left for a later trip, where new missions can make it worth the landing (a half full ship does fill up on the way home)
     // What a plan costs is mostly its LANDINGS, not its flying: set the destination, fly in, ask for a hangar, land, leave the seat, load, back in the seat,
     // ask to take off. That is the work. Quantum travel is close to free (with two accounts the other one is played meanwhile), so it only counts for a part.
-    const double StopSeconds = 900;    // every station a trip lands at: that many seconds when comparing plans (not in the times shown), so every landing has to be worth it (about 15 min each, measured)
+    const double StopSeconds = 1200;   // every station a trip lands at: that many seconds when comparing plans (not in the times shown), so every landing has to be worth it (about 20 min each: Frank, 30 Oct 2026, more than the 15 measured)
     const double TripSeconds = StopSeconds;   // every place a trip delivers at is a landing too (the hand-in at Ruin: a run of 38 min is 9 flying, 3-4 loading waste at the elevator, the rest two landings of about 13-15 min), so two half empty trips cost a landing more than one full one
-    const double FlightWeight = 0.25;  // the part of the flying time that counts when comparing plans (the times shown are the real ones)
+    const double FlightWeight = 0.1;   // the part of the flying time that counts when comparing plans (the times shown are the real ones): a landing is worth over three hours of flying, so the plan goes a long way for a fuller stop (Frank, 30 Oct 2026; a quarter before)
     const double SyncSeconds = StopSeconds;   // delivering cargo from Ruin where the trip picks up anyway: one landing does both, so that is a landing saved
     // The trip he is flying now is the one thing of the plan that is sure to happen: the later trips are planned again as missions get done and new ones come in.
     // So its room is used now, where it fills up, and it never lands for a leftover: the smaller part of a station that another trip lands at anyway saves no landing
     // at all (that one would take it), it only costs his. The leftover waits for a later trip, where new missions can make it worth the landing.
-    const double FillNowSeconds = 900;    // what the trip he is flying picks up (not leftovers), as a part of his ship: a full ship of pickups counts as a landing saved
-    const double LeftoverSeconds = 1800;  // the trip he is flying takes the smaller part of a station that is landed at anyway: that costs as much as a trip of its own for it later (a landing and the hand-in), so the leftover waits
+    const double FillNowSeconds = StopSeconds;    // what the trip he is flying picks up (not leftovers), as a part of his ship: a full ship of pickups counts as a landing saved
+    const double LeftoverSeconds = 2 * StopSeconds;  // the trip he is flying takes the smaller part of a station that is landed at anyway: that costs as much as a trip of its own for it later (a landing and the hand-in), so the leftover waits
+    // The stops kept for a worker after the one he is flying to are soft (Frank, 30 Oct 2026): they stay unless letting one go saves a landing for the same
+    // cargo or fills the ship better (a new mission makes a stop of his two batches, or a stop elsewhere; then the stop with one batch goes back to everybody).
+    // A kept stop that leaves his trip costs this much, a third of a landing, so a change needs a real gain and the plan never flips on a tie or because
+    // somebody else moved; and every batch his planned trip loses without a replacement costs a landing (StopSeconds), so his trip is never emptied to save
+    // its landings: the kept stops with one batch each stay when nothing better is about.
+    const double KeepSeconds = StopSeconds / 3;
+    const double LaterLoneShare = 0.5;   // a landing for a lone batch in a later trip counts this much of one: new missions may fill that station before it is flown (the trip he is flying counts in full)
     const double LoneBatchSeconds = StopSeconds;   // the trip he is flying lands at a station for its one and only batch: a landing more than it is worth now, so it waits for a later trip, where new missions can fill the station up (Frank, 30 Oct 2026: the biggest stops first, a lone batch last)
     const double WasteWaitSeconds = StopSeconds;   // picking up at a station with waste waiting for it, on a trip that cannot take the waste along: the waste then needs a landing of its own later (or waits for ever), so that pickup is left for a trip from Ruin that brings the waste
 
@@ -227,12 +234,12 @@ public static class RoutePlanner
         int LoadedOf(WorkerStart? st) => st == null ? 0 : scuMode ? st.LoadedScu : st.Loaded;
         var reservedIdx = new int[w];   // the locked stop of the first trip of each worker (-1 = none) and its batches
         var reservedN = new int[w];
-        var kept = new Dictionary<int, int>[w];   // the other stops kept in his first trip (Frank, 30 Oct 2026: the whole planned trip stays his): group index -> batches
+        var prefer = new Dictionary<int, int>[w];   // the other stops of his planned trip (Frank, 30 Oct 2026): preferred in his first trip, not fixed (KeepSeconds): group index -> batches
         var firstCapacity = new int[w];
         for (var k = 0; k < w; k++)
         {
             var st = startOf[k];
-            kept[k] = new Dictionary<int, int>();
+            prefer[k] = new Dictionary<int, int>();
             firstCapacity[k] = Math.Max(0, CapOf(k) - LoadedOf(st));
             reservedIdx[k] = -1;
             if (st?.FirstId == null || st.FirstBatches <= 0) continue;
@@ -241,19 +248,15 @@ public static class RoutePlanner
             reservedN[k] = Math.Min(st.FirstBatches, firstCapacity[k] / wt[at]);
             if (reservedN[k] < st.FirstBatches) need[at] += st.FirstBatches - reservedN[k];   // what does not fit in his first trip goes back to everybody
             if (reservedN[k] <= 0) reservedIdx[k] = -1;
-            // the stops after it, in their order, as far as the ship holds them; the rest goes back to everybody
-            var room = reservedIdx[k] < 0 ? 0 : firstCapacity[k] - reservedN[k] * wt[at];
+            // the stops after it: their batches are open to everybody again, with his first trip preferring them (the start of the search puts them there, and
+            // a stop that leaves it costs KeepSeconds)
             foreach (var (id, batches) in st.Keep)
             {
                 if (batches <= 0) continue;
                 var idx = ids.IndexOf(id);
-                var fits = idx < 0 || idx == at ? 0 : Math.Min(batches, room / wt[idx]);
-                if (fits > 0)
-                {
-                    kept[k][idx] = kept[k].GetValueOrDefault(idx) + fits;
-                    room -= fits * wt[idx];
-                }
-                if (idx >= 0 && fits < batches) need[idx] += batches - fits;
+                if (idx < 0) continue;
+                need[idx] += batches;
+                if (idx != at) prefer[k][idx] = prefer[k].GetValueOrDefault(idx) + batches;
             }
         }
         var total = 0;
@@ -261,13 +264,11 @@ public static class RoutePlanner
         for (var k = 0; k < w; k++)
         {
             if (reservedIdx[k] >= 0) total += reservedN[k] * wt[reservedIdx[k]];
-            foreach (var kv in kept[k]) total += kv.Value * wt[kv.Key];
         }
-        var atGroup = (int[])need.Clone();   // every batch of a group, the locked and kept ones too
+        var atGroup = (int[])need.Clone();   // every batch of a group, the locked ones too
         for (var k = 0; k < w; k++)
         {
             if (reservedIdx[k] >= 0) atGroup[reservedIdx[k]] += reservedN[k];
-            foreach (var kv in kept[k]) atGroup[kv.Key] += kv.Value;
         }
         // every batch waiting at a station, whichever place it goes to: the lone-batch and leftover rules look at the station (one landing serves every group there)
         var atStation = new int[n];
@@ -379,7 +380,6 @@ public static class RoutePlanner
             for (var k = 0; k < w; k++)
             {
                 if (reservedIdx[k] == group) x[k] -= reservedN[k];
-                if (kept[k].TryGetValue(group, out var kn)) x[k] -= kn;
             }
             for (var s = 1; s <= allMask; s++)
             {
@@ -485,6 +485,13 @@ public static class RoutePlanner
                 carried += row[i] * wt[i];
             }
             var stops = stations.Count;
+            // the landings: every station in full on the trip he is flying; in a later trip a station with one batch waiting counts LaterLoneShare of one
+            double landings = 0;
+            foreach (var st in stations)
+            {
+                var i = Array.IndexOf(origin, st);
+                landings += !special[slot] && atStation[i] == 1 ? StopSeconds * LaterLoneShare : StopSeconds;
+            }
             // a small stop on a ship that the rest of the trip fills to 75% or more is a top-up that is not worth the landing
             double topUp = 0;
             for (var i = 0; i < n; i++)
@@ -530,12 +537,25 @@ public static class RoutePlanner
                     if (row[i] <= 0) continue;
                     if (row[i] * 2 < atGroup[i]) now += LeftoverSeconds;   // the bigger part of that group is for another trip, which lands there anyway
                     else picked += row[i] * wt[i];
-                    if (atStation[i] == 1) now += LoneBatchSeconds;   // one batch there: the biggest stops first, this one later
+                    if (atStation[i] == 1 && !(slot < w && prefer[slot].ContainsKey(i))) now += LoneBatchSeconds;   // one batch there: the biggest stops first, this one later (not a stop kept for him: it was planned)
                 }
                 now -= FillNowSeconds * Math.Min(1.0, picked / cap);
             }
             var sync = drop >= 0 && stations.Contains(origin[chunkStation[drop]]) ? SyncSeconds : 0;
-            return SlotCost(assign, slot) * FlightWeight + stops * StopSeconds + hand + topUp + wasteWait + now - sync;
+            // the stops kept for him that his first trip let go, and the cargo his planned trip lost without a replacement (see KeepSeconds)
+            double keep = 0;
+            if (slot < w && prefer[slot].Count > 0)
+            {
+                var planned = (reservedIdx[slot] >= 0 ? reservedN[slot] : 0) + prefer[slot].Values.Sum();
+                var carriedNow = 0;
+                for (var i = 0; i < n; i++) carriedNow += row[i];
+                keep = StopSeconds * Math.Max(0, planned - carriedNow);
+                foreach (var kv in prefer[slot])
+                {
+                    if (row[kv.Key] == 0) keep += KeepSeconds;
+                }
+            }
+            return SlotCost(assign, slot) * FlightWeight + landings + hand + topUp + wasteWait + now + keep - sync;
         }
 
         // the number to beat: the longest worker total, plus a part of the combined time (all in seconds)
@@ -549,11 +569,9 @@ public static class RoutePlanner
             return sum;
         }
 
-        // the batches of a locked stop, and of the stops kept after it, stay in the first trip of their worker
-        bool IsReserved(int[][] assign, int slot, int group) =>
-            slot < w && ((reservedIdx[slot] == group && assign[slot][group] <= reservedN[slot])
-                || (kept[slot].TryGetValue(group, out var kn) && assign[slot][group] <= kn));
-        bool Fixed(int slot, int group) => slot < w && (reservedIdx[slot] == group || kept[slot].ContainsKey(group));   // a stop that stays in his first trip
+        // the batches of a locked stop (the one he is flying to) stay in the first trip of their worker; the stops kept after it are only preferred (KeepSeconds)
+        bool IsReserved(int[][] assign, int slot, int group) => slot < w && reservedIdx[slot] == group && assign[slot][group] <= reservedN[slot];
+        bool Fixed(int slot, int group) => slot < w && reservedIdx[slot] == group;   // a stop that stays in his first trip
 
         // A move was made in the trips of workers a and b (the assignment, the loads): keep it when the plan got better (the totals of those workers are brought up
         // to date), else say so (the caller takes the move back)
@@ -708,7 +726,7 @@ public static class RoutePlanner
                 for (var b = 0; b < slots; b++)
                 {
                     if (a == b || loads[b] == 0 || loads[a] + loads[b] > slotCapacity[a]) continue;
-                    if (b < w && (reservedIdx[b] >= 0 || kept[b].Count > 0)) continue;   // his locked, kept or next stop stays in his first trip
+                    if (b < w && reservedIdx[b] >= 0) continue;   // his locked or next stop stays in his first trip
                     var moved = (int[])assign[b].Clone();
                     for (var i = 0; i < n; i++)
                     {
@@ -821,10 +839,25 @@ public static class RoutePlanner
                 if (reservedIdx[k] < 0) continue;
                 assign[k][reservedIdx[k]] = reservedN[k];
                 loads[k] = reservedN[k] * wt[reservedIdx[k]];
-                foreach (var kv in kept[k])
+            }
+            // the stops kept for a worker start in his first trip, as far as they fit (the search may move them for a gain: KeepSeconds), in every other restart; the
+            // others start free, so a plan that swaps two of his kept stops for one fuller stop elsewhere (two moves that are each a loss) is found too, and the
+            // best of all restarts wins, the kept stops' cost counted. A group only some workers can take is placed below by its limits
+            var used = new bool[units.Count];
+            for (var k = 0; k < w && restart % 2 == 0; k++)
+            {
+                foreach (var (i, batches) in prefer[k].Select(kv => (kv.Key, kv.Value)))
                 {
-                    assign[k][kv.Key] += kv.Value;
-                    loads[k] += kv.Value * wt[kv.Key];
+                    if (groups[i] != null) continue;
+                    var left = batches;
+                    for (var u = 0; u < units.Count && left > 0; u++)
+                    {
+                        if (used[u] || units[u] != i || loads[k] + wt[i] > slotCapacity[k]) continue;
+                        used[u] = true;
+                        assign[k][i]++;
+                        loads[k] += wt[i];
+                        left--;
+                    }
                 }
             }
             // batches only some workers can take go first, to a trip of one of them with room (the first ones of a group in this order are the limited ones)
@@ -832,6 +865,7 @@ public static class RoutePlanner
             var seen = new int[n];
             for (var u = 0; u < units.Count; u++)
             {
+                if (used[u]) continue;
                 var i = units[u];
                 var gs = groups[i];
                 if (gs == null) continue;
@@ -864,7 +898,7 @@ public static class RoutePlanner
             var slot = 0;
             for (var u = 0; u < units.Count; u++)
             {
-                if (isLimited[u]) continue;
+                if (isLimited[u] || used[u]) continue;
                 var i = units[u];
                 while (slot < slots - 1 && loads[slot] + wt[i] > slotCapacity[slot]) slot++;
                 assign[slot][i]++;
