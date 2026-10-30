@@ -188,6 +188,28 @@ public class LoginTests
     }
 
     [Fact]
+    public async Task The_admin_counts_his_other_accounts_with_his_in_the_money_tables()
+    {
+        // Frank, 30 Oct 2026: zzatvo and zzoii are his too; a row of the money tables adds them up with zzoega (only visual: the debts stay each account's own)
+        using var f = new ServerFactory();
+        f.AddKey("zzatvo");
+        f.AddKey("zzoii");
+        var admin = await f.Admin();
+        var page = await admin.GetStringAsync("/account");
+        Assert.Contains("<h2>Combined accounts</h2>", page);
+        Assert.Contains("<input type=\"checkbox\" name=\"names\" value=\"zzatvo\"> zzatvo", page);   // every other player known, none ticked
+        Assert.Contains("value=\"zzoii\"> zzoii", page);
+        var r = await ServerFactory.Send(admin, "/account", "/account/combine", ("names", "zzatvo"), ("names", "zzoii"));
+        var saved = await r.Content.ReadAsStringAsync();
+        Assert.Contains("zzatvo, zzoii counted with admin in the money tables.", saved);
+        Assert.Contains("value=\"zzatvo\" checked=\"checked\"> zzatvo", saved);
+        Assert.Equal(new[] { "admin", "zzatvo", "zzoii" }, f.Live.Read(t => t.State.Data.CombinedAccounts.Single().ToArray()));
+        r = await ServerFactory.Send(admin, "/account", "/account/combine");   // none ticked: his alone again
+        Assert.Contains("Your account alone again in the money tables.", await r.Content.ReadAsStringAsync());
+        Assert.Empty(f.Live.Read(t => t.State.Data.CombinedAccounts));
+    }
+
+    [Fact]
     public async Task The_admin_takes_the_name_of_his_own_player()
     {
         using var f = new ServerFactory();

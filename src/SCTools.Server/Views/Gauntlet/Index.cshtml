@@ -208,8 +208,8 @@ else
       {
         var l = Model.Leaderboard[i];
         var mine = l.Player.Equals(Model.Player, StringComparison.OrdinalIgnoreCase);
-        <tr class="@(mine ? "me" : null)">
-          <td>@(i + 1)</td>
+        <tr class="@(mine ? "me" : l.Combined ? "combined" : null)">
+          <td>@(l.Combined ? "" : (i + 1).ToString(inv))</td>
           <td>@l.Player</td>
           <td class="right">@Money(l.Total)</td>
           <td class="right">@Money(l.Auec)</td>

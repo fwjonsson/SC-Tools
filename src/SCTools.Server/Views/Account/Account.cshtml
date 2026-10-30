@@ -35,3 +35,26 @@
   <span asp-validation-for="Password.Again" class="error"></span>
   <button type="submit">Change the password</button>
 </form>
+
+<h2>Combined accounts</h2>
+@if (Model.Combine.Done)
+{
+  <p class="message">@(Model.Combine.Picked.Count > 0 ? string.Join(", ", Model.Combine.Picked) + " counted with " + Model.Name + " in the money tables." : "Your account alone again in the money tables.")</p>
+}
+<p class="muted">Your other accounts: the money tables (the Hauling Planner's leaderboards and its Earnings table, the Gauntlet Tracker's leaderboard) get a row
+  that adds them up with yours, so you can see what you earn in all, since the payouts are split between the accounts. Only there: the debts, the payouts
+  and the balances stay each account's own, since the work is done on each.</p>
+@if (Model.Combine.Choices.Count == 0)
+{
+  <p class="muted">No other players known yet.</p>
+}
+else
+{
+  <form method="post" action="/account/combine" asp-antiforgery="true" class="card">
+    @foreach (var n in Model.Combine.Choices)
+    {
+      <label class="check"><input type="checkbox" name="names" value="@n" checked="@Model.Combine.Picked.Contains(n, StringComparer.OrdinalIgnoreCase)"> @n</label>
+    }
+    <button type="submit">Count them with @Model.Name</button>
+  </form>
+}

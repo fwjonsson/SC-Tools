@@ -22,12 +22,24 @@ public sealed class LoginModel
     public string? Error { get; set; }
 }
 
-/// <summary>The admin's Account page: his name, and the forms to change it and his password.</summary>
+/// <summary>The admin's Account page: his name, the forms to change it and his password, and his other accounts to count with his.</summary>
 public sealed class AccountModel
 {
     public string Name { get; set; } = "";
     public NameModel Rename { get; set; } = new();
     public PasswordModel Password { get; set; } = new();
+    public CombineModel Combine { get; set; } = new();
+}
+
+/// <summary>
+/// The admin's other accounts (Frank, 30 Oct 2026: zzatvo and zzoii with zzoega): the money tables get a row that adds them up with his, for a look at what
+/// he earns in all. Only there: the debts stay each account's own, since the work is done on each (AppData.CombinedAccounts).
+/// </summary>
+public sealed class CombineModel
+{
+    public List<string> Choices { get; set; } = new();   // every other player known (the tracker keys, the party)
+    public List<string> Picked { get; set; } = new();    // the ones counted with his
+    public bool Done { get; set; }
 }
 
 /// <summary>The admin changes his name (the one he logs in with).</summary>

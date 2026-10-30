@@ -30,4 +30,5 @@ public sealed class SettingsRow
     public int WebViewPort { get; set; }
     public List<string> WatchPaths { get; set; } = new();
     public List<string> DisabledWatchPaths { get; set; } = new();
+    public List<List<string>> CombinedAccounts { get; set; } = new();   // one player's accounts added up in the money tables (30 Oct 2026)
 }

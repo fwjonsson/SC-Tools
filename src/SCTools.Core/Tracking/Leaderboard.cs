@@ -14,10 +14,13 @@ public sealed class StatLine
     public double Seconds;      // hours worked, for aUEC/hour
 }
 
-/// <summary>A row of a leaderboard as it is shown: the texts of its cells, and whether it is the top earner or the Total row.</summary>
+/// <summary>
+/// A row of a leaderboard as it is shown: the texts of its cells, and whether it is the top earner, the Total row, or a player's accounts added up
+/// (Combined: "zzoega + zzatvo", after the players, Frank, 30 Oct 2026).
+/// </summary>
 public sealed record BoardRow(
     string Name, string Sessions, string Runs, string Perfect, string Delivered, string AvgBatches, string AvgTime, string Distance, string GmPerHour,
-    string RunValue, string Earned, string Lost, string Share, string ValuePerHour, bool Top, bool Total);
+    string RunValue, string Earned, string Lost, string Share, string ValuePerHour, bool Top, bool Total, bool Combined = false);
 
 /// <summary>A saved session on the History tab.</summary>
 public sealed record HistoryRow(string Date, string Time, int Missions, string Revenue, string Carried);
@@ -153,14 +156,15 @@ public sealed class Leaderboard
     }
 
     /// <summary>The rows of a leaderboard: the highest earner on top (marked with a star), the Total row last. Nobody on it: no rows at all (no Total of zeros).</summary>
-    public static List<BoardRow> Board(List<StatLine> lines, int totalSessions, double totalSeconds)
+    /// <param name="combined">one player's accounts (AppData.CombinedAccounts): each group with two or more of them on the board gets a row that adds them up, after the players</param>
+    public static List<BoardRow> Board(List<StatLine> lines, int totalSessions, double totalSeconds, IReadOnlyList<IReadOnlyList<string>>? combined = null)
     {
         var rows = new List<BoardRow>();
         if (lines.Count == 0) return rows;
         var totalValue = lines.Sum(l => l.RunValue);
         var sum = new StatLine();
         var first = true;
-        foreach (var l in lines.OrderByDescending(l => l.RunValue).ThenBy(l => l.Name, StringComparer.OrdinalIgnoreCase))
+        BoardRow Row(StatLine l, bool top, bool combinedRow)
         {
             var avgTime = "";
             var avgMissions = "";
@@ -172,11 +176,11 @@ public sealed class Leaderboard
             var share = totalValue > 0 && l.RunValue > 0
                 ? (l.RunValue / totalValue * 100m).ToString("0", CultureInfo.InvariantCulture) + "%"
                 : "";
-            var top = first && l.RunValue > 0;   // the top earner: a star and a gold row
-            if (top) first = false;
-            rows.Add(new BoardRow(top ? "★ " + l.Name + " ★" : l.Name, Count(l.Sessions), Count(l.S.Runs), Count(l.S.Perfect), Count(l.S.Missions), avgMissions, avgTime,
-                Dist(l.S.Distance), GmPerHour(l.S.Distance, l.Seconds), Num(l.RunValue), Num(l.Confirmed), Num(l.Lost), share, PerHour(l.RunValue, l.Seconds), top, false));
-
+            return new BoardRow(top ? "★ " + l.Name + " ★" : l.Name, Count(l.Sessions), Count(l.S.Runs), Count(l.S.Perfect), Count(l.S.Missions), avgMissions, avgTime,
+                Dist(l.S.Distance), GmPerHour(l.S.Distance, l.Seconds), Num(l.RunValue), Num(l.Confirmed), Num(l.Lost), share, PerHour(l.RunValue, l.Seconds), top, false, combinedRow);
+        }
+        static void AddTo(StatLine sum, StatLine l)
+        {
             sum.S.Runs += l.S.Runs;
             sum.S.Perfect += l.S.Perfect;
             sum.S.Missions += l.S.Missions;
@@ -186,6 +190,23 @@ public sealed class Leaderboard
             sum.RunValue += l.RunValue;
             sum.Confirmed += l.Confirmed;
             sum.Lost += l.Lost;
+        }
+        foreach (var l in lines.OrderByDescending(l => l.RunValue).ThenBy(l => l.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var top = first && l.RunValue > 0;   // the top earner: a star and a gold row
+            if (top) first = false;
+            rows.Add(Row(l, top, false));
+            AddTo(sum, l);
+        }
+        // one player's accounts added up (Frank, 30 Oct 2026: what he earns in all, since the payouts are split between them); the hours are the longest of
+        // them, as the accounts play at the same time
+        foreach (var group in combined ?? Array.Empty<IReadOnlyList<string>>())
+        {
+            var members = group.Select(n => lines.FirstOrDefault(l => string.Equals(l.Name, n, StringComparison.OrdinalIgnoreCase))).Where(l => l != null).Select(l => l!).ToList();
+            if (members.Count < 2) continue;
+            var all = new StatLine { Name = string.Join(" + ", members.Select(m => m.Name)), Sessions = members.Max(m => m.Sessions), Seconds = members.Max(m => m.Seconds) };
+            foreach (var m in members) AddTo(all, m);
+            rows.Add(Row(all, false, true));
         }
         rows.Add(new BoardRow("Total", Count(totalSessions), Count(sum.S.Runs), Count(sum.S.Perfect), Count(sum.S.Missions), "", "", Dist(sum.S.Distance),
             GmPerHour(sum.S.Distance, totalSeconds), Num(sum.RunValue), Num(sum.Confirmed), Num(sum.Lost), sum.RunValue > 0 ? "100%" : "", PerHour(sum.RunValue, totalSeconds), false, true));

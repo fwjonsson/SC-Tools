@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using SCTools.Tracking;
 
 namespace SCTools.Server.Controllers;
 
@@ -77,13 +78,43 @@ public sealed class AccountController : Controller
     [HttpGet("/login/denied")]
     public IActionResult Denied() => View();
 
-    AccountModel Page(NameModel? rename = null, PasswordModel? password = null) =>
-        new() { Name = User.Identity?.Name ?? "", Rename = rename ?? new NameModel(), Password = password ?? new PasswordModel() };
+    AccountModel Page(CombineModel combine, NameModel? rename = null, PasswordModel? password = null) =>
+        new() { Name = User.Identity?.Name ?? "", Rename = rename ?? new NameModel(), Password = password ?? new PasswordModel(), Combine = combine };
 
-    /// <summary>The admin's Account page: his name and his password.</summary>
+    /// <summary>His other accounts to pick from (every other player the server knows: the tracker keys and the party) and the ones picked.</summary>
+    CombineModel CombineOf(DataStore store, LiveTracker live, string? me = null)
+    {
+        me ??= User.Identity?.Name ?? "";
+        var (party, groups) = live.Read(t => (t.State.Data.Party.ToList(), t.State.Data.CombinedAccounts.Select(g => g.ToList()).ToList()));
+        var choices = store.TrackerKeys().Select(k => k.Player).Concat(party)
+            .Where(n => !string.IsNullOrWhiteSpace(n) && !PlayerNames.SameName(n, me))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+        var mine = groups.FirstOrDefault(g => g.Any(n => PlayerNames.SameName(n, me)));
+        return new CombineModel { Choices = choices, Picked = mine?.Where(n => !PlayerNames.SameName(n, me)).ToList() ?? new List<string>() };
+    }
+
+    /// <summary>The admin's Account page: his name, his password, and his other accounts to count with his.</summary>
     [Authorize(Roles = Roles.Admin)]
     [HttpGet("/account")]
-    public IActionResult Account() => View("Account", Page());
+    public IActionResult Account([FromServices] DataStore store, [FromServices] LiveTracker live) => View("Account", Page(CombineOf(store, live)));
+
+    /// <summary>The accounts ticked are counted with his in the money tables (Frank, 30 Oct 2026); none ticked: his alone again.</summary>
+    [Authorize(Roles = Roles.Admin)]
+    [HttpPost("/account/combine")]
+    public IActionResult Combine(List<string>? names, [FromServices] DataStore store, [FromServices] LiveTracker live)
+    {
+        var me = User.Identity?.Name ?? "";
+        var choices = CombineOf(store, live).Choices;
+        var picked = (names ?? new List<string>()).Where(n => choices.Any(c => PlayerNames.SameName(c, n))).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        live.Edit(t =>
+        {
+            t.State.Data.CombinedAccounts.RemoveAll(g => g.Any(n => PlayerNames.SameName(n, me)));
+            if (picked.Count > 0) t.State.Data.CombinedAccounts.Add(new List<string> { me }.Concat(picked).ToList());
+        }, DateTime.UtcNow);
+        var combine = CombineOf(store, live);
+        combine.Done = true;
+        return View("Account", Page(combine));
+    }
 
     [Authorize(Roles = Roles.Admin)]
     [HttpGet("/account/password")]
@@ -93,7 +124,7 @@ public sealed class AccountController : Controller
     [HttpPost("/account/name")]
     public async Task<IActionResult> Name([Bind(Prefix = "Rename")] NameModel model, [FromServices] DataStore store, [FromServices] LiveTracker live)
     {
-        if (!ModelState.IsValid) return View("Account", Page(model));
+        if (!ModelState.IsValid) return View("Account", Page(CombineOf(store, live), model));
         var name = model.NewName.Trim();
         var user = await _users.GetUserAsync(User);
         if (user == null) return Challenge();
@@ -103,7 +134,7 @@ public sealed class AccountController : Controller
             if (await _users.IsInRoleAsync(other, Roles.Admin))
             {
                 ModelState.AddModelError("Rename.NewName", name + " is another admin's name.");
-                return View("Account", Page(model));
+                return View("Account", Page(CombineOf(store, live), model));
             }
             await _users.DeleteAsync(other);
         }
@@ -113,28 +144,28 @@ public sealed class AccountController : Controller
         if (!result.Succeeded)
         {
             foreach (var e in result.Errors) ModelState.AddModelError("Rename.NewName", e.Description);
-            return View("Account", Page(model));
+            return View("Account", Page(CombineOf(store, live), model));
         }
         await _signIn.RefreshSignInAsync(user);
         ModelState.Clear();
-        return View("Account", new AccountModel { Name = name, Rename = new NameModel { Done = true } });
+        return View("Account", new AccountModel { Name = name, Rename = new NameModel { Done = true }, Combine = CombineOf(store, live, name) });
     }
 
     [Authorize(Roles = Roles.Admin)]
     [HttpPost("/account/password")]
-    public async Task<IActionResult> Password([Bind(Prefix = "Password")] PasswordModel model)
+    public async Task<IActionResult> Password([Bind(Prefix = "Password")] PasswordModel model, [FromServices] DataStore store, [FromServices] LiveTracker live)
     {
-        if (!ModelState.IsValid) return View("Account", Page(password: model));
+        if (!ModelState.IsValid) return View("Account", Page(CombineOf(store, live), password: model));
         var user = await _users.GetUserAsync(User);
         if (user == null) return Challenge();
         var result = await _users.ChangePasswordAsync(user, model.Current, model.New);
         if (!result.Succeeded)
         {
             foreach (var e in result.Errors) ModelState.AddModelError("Password", e.Description);
-            return View("Account", Page(password: model));
+            return View("Account", Page(CombineOf(store, live), password: model));
         }
         await _signIn.RefreshSignInAsync(user);
         ModelState.Clear();
-        return View("Account", Page(password: new PasswordModel { Done = true }));
+        return View("Account", Page(CombineOf(store, live), password: new PasswordModel { Done = true }));
     }
 }

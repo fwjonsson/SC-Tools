@@ -76,9 +76,10 @@ public static class GauntletStats
 /// One player on the leaderboard: his lifetime earnings, his total aUEC per hour of the runs that were timed (the rewards of those runs over the time they
 /// took, so a shared mission without a start does not make him look faster), and a few records.
 /// </summary>
+/// <param name="Combined">one player's accounts added up ("zzoega + zzatvo"), after the players (Frank, 30 Oct 2026)</param>
 public sealed record GauntletLeader(
     string Player, int Completed, int Cancelled, long Auec, long Scrip, double Total, double TimedHours, double? TotalPerHour,
-    GauntletRun? Fastest, int? Favourite, int? BestScenario, double? BestScenarioPerHour, DateTime? LastPlayed)
+    GauntletRun? Fastest, int? Favourite, int? BestScenario, double? BestScenarioPerHour, DateTime? LastPlayed, bool Combined = false)
 {
     /// <summary>The share of his missions he completed (null without missions).</summary>
     public double? CompletionRate => Completed + Cancelled > 0 ? (double)Completed / (Completed + Cancelled) : null;
@@ -86,14 +87,31 @@ public sealed record GauntletLeader(
 
 public static class GauntletLeaderboard
 {
-    /// <summary>Every player with a gauntlet mission, the most earned first.</summary>
+    /// <summary>Every player with a gauntlet mission, the most earned first; then one player's accounts added up (combined: AppData.CombinedAccounts), when two or more of them are on it.</summary>
     public static IReadOnlyList<GauntletLeader> Make(IReadOnlyDictionary<string, List<GauntletRun>> runsByPlayer,
-        IReadOnlyDictionary<int, GauntletReward>? rewards, double scripValue)
+        IReadOnlyDictionary<int, GauntletReward>? rewards, double scripValue, IReadOnlyList<IReadOnlyList<string>>? combined = null)
     {
         var list = new List<GauntletLeader>();
         foreach (var (player, runs) in runsByPlayer)
         {
             if (runs.Count == 0) continue;
+            list.Add(Of(player, runs, rewards, scripValue, false));
+        }
+        var board = list.OrderByDescending(l => l.Total).ThenBy(l => l.Player, StringComparer.OrdinalIgnoreCase).ToList();
+        foreach (var group in combined ?? Array.Empty<IReadOnlyList<string>>())
+        {
+            var names = group.Where(n => runsByPlayer.Any(kv => string.Equals(kv.Key, n, StringComparison.OrdinalIgnoreCase) && kv.Value.Count > 0)).ToList();
+            if (names.Count < 2) continue;
+            var runs = names.SelectMany(n => runsByPlayer.First(kv => string.Equals(kv.Key, n, StringComparison.OrdinalIgnoreCase)).Value).ToList();
+            board.Add(Of(string.Join(" + ", names), runs, rewards, scripValue, true));
+        }
+        return board;
+    }
+
+    /// <summary>One line of the leaderboard: a player's runs, or the runs of one player's accounts together.</summary>
+    static GauntletLeader Of(string player, List<GauntletRun> runs, IReadOnlyDictionary<int, GauntletReward>? rewards, double scripValue, bool combined)
+    {
+        {
             var totals = GauntletStats.Totals(runs, rewards, scripValue);
             var timed = runs.Where(r => r.TimingSec != null).ToList();
             var hours = timed.Sum(r => r.TimingSec!.Value) / 3600;
@@ -107,9 +125,8 @@ public static class GauntletLeaderboard
             var favourite = runs.Where(r => r.Outcome == GauntletOutcome.Complete).GroupBy(r => r.Scenario)
                 .OrderByDescending(g => g.Count()).ThenByDescending(g => g.Key).Select(g => (int?)g.Key).FirstOrDefault();
             var best = GauntletStats.Ranking(GauntletStats.Scenarios(runs, rewards, scripValue)).FirstOrDefault();
-            list.Add(new GauntletLeader(player, totals.Completed, totals.Cancelled, totals.Auec, totals.Scrip, totals.TotalAuec, hours, perHour,
-                fastest, favourite, best?.Scenario, best?.TotalPerHourAtAverage, runs.Max(r => r.EndedUtc)));
+            return new GauntletLeader(player, totals.Completed, totals.Cancelled, totals.Auec, totals.Scrip, totals.TotalAuec, hours, perHour,
+                fastest, favourite, best?.Scenario, best?.TotalPerHourAtAverage, runs.Max(r => r.EndedUtc), combined);
         }
-        return list.OrderByDescending(l => l.Total).ThenBy(l => l.Player, StringComparer.OrdinalIgnoreCase).ToList();
     }
 }
