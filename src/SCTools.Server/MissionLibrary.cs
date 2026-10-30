@@ -478,25 +478,59 @@ public sealed class MissionLibrary
         }
     }
 
-    /// <summary>The missions this player completed, with what the library says they pay (worked out now: a reward typed in later counts for the past).</summary>
+    /// <summary>
+    /// The missions this player completed, with his part of what the library says they pay (worked out now: a reward typed in later counts for the past).
+    /// Frank's rules of 30 Oct 2026: the aUEC is split evenly among the players who completed the same mission (a contract shared in the party is completed
+    /// in every member's log, and the game does not pay each of them all of it); a Hauling Planner contract pays what its payout split gives him
+    /// (AppData.Payouts, the Debts tab's Mission payouts: Each when he is one of its Members, else nothing), so the Session tool, the Companion and the
+    /// Debts tab agree, also for a member who shared a payout without the contract in his own log; the MG and Council scrip go only to the player who
+    /// took the contract (not Shared with him), as the game pays them.
+    /// </summary>
     public List<SCTools.Play.EarnedMission> Earned(string player)
     {
+        var payouts = _live.Read(t => t.State.Data.Payouts.Select(p => (p.MissionId, p.Time, p.Contract, Members: p.Members.ToList(), p.Each)).ToList())
+            .GroupBy(p => p.MissionId, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.Last(), StringComparer.OrdinalIgnoreCase);
+        bool Member(List<string> members) => members.Any(n => PlayerNames.SameName(n, player));
         lock (_lock)
         {
             using var db = _store.Open();
             Prepare(db);
             var rewards = db.MissionKinds.AsNoTracking().ToDictionary(k => k.Key, StringComparer.OrdinalIgnoreCase);
             var wiki = WikiMissions.Known(db);
-            return db.Missions.AsNoTracking().Where(m => m.Player == player && m.Outcome == nameof(MissionOutcome.Complete) && m.EndedUtc != null).ToList()
-                .Select(m =>
+            var lower = player.ToLowerInvariant();
+            var mine = db.Missions.AsNoTracking().Where(m => m.Player.ToLower() == lower && m.Outcome == nameof(MissionOutcome.Complete) && m.EndedUtc != null).ToList();
+            var ids = mine.Select(m => m.MissionId).Distinct().ToList();
+            // how many players completed each of his missions (his own row is one of them)
+            var completers = db.Missions.AsNoTracking().Where(m => ids.Contains(m.MissionId) && m.Outcome == nameof(MissionOutcome.Complete)).ToList()
+                .GroupBy(m => m.MissionId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Select(m => m.Player.ToLowerInvariant()).Distinct().Count(), StringComparer.OrdinalIgnoreCase);
+            var earned = mine.Select(m =>
                 {
                     var r = m.Kind == null ? null : rewards.GetValueOrDefault(m.Kind);
-                    var auec = r?.Auec ?? (r?.WikiUuid != null ? wiki.GetValueOrDefault(r.WikiUuid)?.Auec : null);   // nothing typed in: the Wiki's reward
-                    return new SCTools.Play.EarnedMission(m.EndedUtc!.Value, m.Kind ?? m.ContractId, m.Shared, auec, r?.MgScrip, r?.CouncilScrip);
+                    long? auec;
+                    if (payouts.TryGetValue(m.MissionId, out var paid)) auec = Member(paid.Members) ? (long)Math.Round(paid.Each) : 0;   // the planner's split
+                    else
+                    {
+                        var whole = r?.Auec ?? (r?.WikiUuid != null ? wiki.GetValueOrDefault(r.WikiUuid)?.Auec : null);   // nothing typed in: the Wiki's reward
+                        auec = whole == null ? null : (long)Math.Round((double)whole.Value / Math.Max(1, completers.GetValueOrDefault(m.MissionId, 1)));
+                    }
+                    // shared with him: no scrip (0, not "not known": the kind's reward is known)
+                    long? Scrip(long? v) => m.Shared && v != null ? 0 : v;
+                    return new SCTools.Play.EarnedMission(m.EndedUtc!.Value, m.Kind ?? m.ContractId, m.Shared, auec, Scrip(r?.MgScrip), Scrip(r?.CouncilScrip));
                 })
-                .OrderBy(m => m.EndedUtc).ToList();
+                .ToList();
+            // a planner payout he had a share of, for a contract that is not in his own log (he was active in the party when it paid out)
+            var own = new HashSet<string>(ids, StringComparer.OrdinalIgnoreCase);
+            foreach (var (id, time, contract, members, each) in payouts.Values)
+                if (!own.Contains(id) && Member(members))
+                    earned.Add(new SCTools.Play.EarnedMission(time, contract, true, (long)Math.Round(each), null, null));
+            return earned.OrderBy(m => m.EndedUtc).ToList();
         }
     }
+
+    /// <summary>The missions of these accounts (one player's combined accounts, AppData.CombinedAccounts), each with that account's part (Earned), together.</summary>
+    public List<SCTools.Play.EarnedMission> Earned(IEnumerable<string> accounts) =>
+        accounts.Distinct(StringComparer.OrdinalIgnoreCase).SelectMany(Earned).OrderBy(m => m.EndedUtc).ToList();
 
     /// <summary>The missions these players ended between these times (any capitals), the newest first.</summary>
     public List<EndedMission> Ended(IReadOnlyCollection<string> players, DateTime fromUtc, DateTime toUtc)

@@ -17,7 +17,8 @@ namespace SCTools.Server;
 /// are everybody's, and party names the ones the lists beside the map keep to.</item>
 /// <item>Session: his current game session (GameSession: from when the game started until an hour after it was closed; after that the last one, marked
 /// over) with the Session tool's figures for it, and the contracts his party ended in it (completed, failed or abandoned, with who had each). No running
-/// time in it (the clock rule): the browser counts the game going on from its start.</item>
+/// time in it (the clock rule): the browser counts the game going on from its start. The earnings are his part (MissionLibrary.Earned); a player with
+/// combined accounts (AppData.CombinedAccounts) sees what all of them earned in his session together, per hour of his own time played (Frank, 30 Oct 2026).</item>
 /// </list>
 /// </summary>
 public sealed class CompanionService
@@ -28,6 +29,7 @@ public sealed class CompanionService
     readonly MissionLibrary _library;
     readonly ScripValues _scrip;
     readonly LogUploads _uploads;
+    readonly LiveTracker _live;
     readonly object _lock = new();
     readonly Dictionary<string, (byte[] Bytes, string ETag)> _made = new();
 
@@ -39,7 +41,14 @@ public sealed class CompanionService
         _library = library;
         _scrip = scrip;
         _uploads = live.Uploads;
+        _live = live;
     }
+
+    /// <summary>This player's accounts whose earnings the Companion adds up: his combined accounts (set on the Account page), else himself alone.</summary>
+    List<string> AccountsOf(string me) =>
+        _live.Read(t => t.State.Data.CombinedAccounts.FirstOrDefault(g => g.Any(n => PlayerNames.SameName(n, me)))?.ToList()) is { Count: > 1 } group
+            ? group.OrderBy(n => !PlayerNames.SameName(n, me)).ThenBy(n => n, StringComparer.OrdinalIgnoreCase).ToList()   // his own first
+            : new List<string> { me };
 
     /// <summary>The players this viewer's Companion shows: himself and his party (Audience.PartyOf); a visitor nobody.</summary>
     HashSet<string> PartyOf(string? me, DateTime nowUtc) =>
@@ -88,11 +97,12 @@ public sealed class CompanionService
     public (byte[] Bytes, string ETag) Session(string? me, bool editor, DateTime nowUtc)
     {
         var party = PartyOf(me, nowUtc);
+        var accounts = me == null ? new List<string>() : AccountsOf(me);
         var key = string.Join("|", me?.ToLowerInvariant() ?? "", editor, string.Join(",", party.Select(n => n.ToLowerInvariant()).Order(StringComparer.Ordinal)),
-            _uploads.Pieces, _library.Version, _scrip.Mg, _scrip.Council, nowUtc.Ticks / TimeSpan.TicksPerMinute);
+            string.Join(",", accounts).ToLowerInvariant(), _uploads.Pieces, _library.Version, _scrip.Mg, _scrip.Council, nowUtc.Ticks / TimeSpan.TicksPerMinute);
         lock (_lock)
             if (_made.TryGetValue(key, out var made)) return made;
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(SessionOf(me, party, editor, nowUtc), JsonSerializerOptions.Web);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(SessionOf(me, party, accounts, editor, nowUtc), JsonSerializerOptions.Web);
         var etag = "\"" + Convert.ToHexString(SHA1.HashData(bytes))[..16].ToLowerInvariant() + "\"";
         lock (_lock)
         {
@@ -101,7 +111,7 @@ public sealed class CompanionService
         }
     }
 
-    object SessionOf(string? me, IReadOnlyCollection<string> party, bool editor, DateTime nowUtc)
+    object SessionOf(string? me, IReadOnlyCollection<string> party, IReadOnlyList<string> accounts, bool editor, DateTime nowUtc)
     {
         if (me == null) return new { visitor = true };
         _library.Collect();
@@ -110,7 +120,9 @@ public sealed class CompanionService
         // the missions of the session: from its start to now, or to its end when it is over
         var to = session.Over ? session.EndUtc!.Value : nowUtc;
         long mg = _scrip.Mg, council = _scrip.Council;
-        var totals = PlayStats.For(session.StartUtc, to, Array.Empty<PlayedGame>(), _library.Earned(me), mg, council);
+        var own = PlayStats.For(session.StartUtc, to, Array.Empty<PlayedGame>(), _library.Earned(me), mg, council);
+        // the money: his part, or with combined accounts what all of them earned in his session together (the missions completed stay his own)
+        var totals = accounts.Count > 1 ? PlayStats.For(session.StartUtc, to, Array.Empty<PlayedGame>(), _library.Earned(accounts), mg, council) : own;
         var running = session.Running;
         return new
         {
@@ -123,8 +135,9 @@ public sealed class CompanionService
                 over = session.Over,
                 playedBefore = Math.Round(session.PlayedBefore.TotalSeconds),
                 crashes = session.Crashes,
-                completed = totals.Completed,
+                completed = own.Completed,
                 withoutReward = totals.WithoutReward,
+                accounts = accounts.Count > 1 ? accounts : null,   // the earnings are these accounts' together
                 auec = totals.Auec,
                 mg = totals.Mg,
                 council = totals.Council,
