@@ -68,6 +68,9 @@ public sealed class AdminPartyModel
     /// <summary>The parties now, as the logs show them ("zzoega's party: zzoega, zzatvo").</summary>
     public List<PartyGroup> Groups { get; set; } = new();
 
+    /// <summary>The members the logs put out of the party (Auto, not active): not in the table (Frank, 30 Oct 2026: gone from the page when he leaves), named under it.</summary>
+    public List<string> Gone { get; set; } = new();
+
     /// <summary>What the logs say about a member now: "In zzoega's party", "Playing alone", "Not playing".</summary>
     public static string StatusOf(Tracker t, string name)
     {
@@ -80,23 +83,27 @@ public sealed class AdminPartyModel
     public static AdminPartyModel Of(Tracker t, DateTime nowUtc)
     {
         var follows = t.State.Data.AutoPartySince != null;
+        var members = t.State.Data.Party.Select(n =>
+        {
+            var (location, byHand) = t.Whereabouts.LocationOf(n);
+            var mode = t.Crew.OverrideOf(n) switch { true => "in", false => "out", null => "auto" };
+            return new MemberInput(
+                n, t.Crew.IsActiveAt(n, nowUtc),
+                byHand ? location : "", PyroDistances.NameOf(t.Whereabouts.AutoLocationOf(n)),
+                ViewPalette.Hex(Edits.ColorOf(t, n)), t.Crew.ShipOf(n)?.Label ?? "", t.Crew.DriveOf(n)?.Label ?? "",
+                follows ? StatusOf(t, n) : "", mode);
+        }).ToList();
+        // with the logs deciding, a member they put out of the party is not in the table: he is back when they show him in a party with a member again (or you set him In)
+        bool Gone(MemberInput m) => follows && !m.Active && m.Mode == "auto";
         return new AdminPartyModel
         {
             FollowsLogs = follows,
+            Gone = members.Where(Gone).Select(m => m.Name).ToList(),
             Groups = t.State.Parties?.Groups.ToList() ?? new List<PartyGroup>(),
             Stations = MeModel.StationChoices(),   // the same lists as My page
             Ships = MeModel.ShipChoices(),
             Drives = MeModel.DriveChoices(),
-            Members = t.State.Data.Party.Select(n =>
-            {
-                var (location, byHand) = t.Whereabouts.LocationOf(n);
-                var mode = t.Crew.OverrideOf(n) switch { true => "in", false => "out", null => "auto" };
-                return new MemberInput(
-                    n, t.Crew.IsActiveAt(n, nowUtc),
-                    byHand ? location : "", PyroDistances.NameOf(t.Whereabouts.AutoLocationOf(n)),
-                    ViewPalette.Hex(Edits.ColorOf(t, n)), t.Crew.ShipOf(n)?.Label ?? "", t.Crew.DriveOf(n)?.Label ?? "",
-                    follows ? StatusOf(t, n) : "", mode);
-            }).ToList(),
+            Members = members.Where(m => !Gone(m)).ToList(),
         };
     }
 }

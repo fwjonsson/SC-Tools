@@ -10,7 +10,8 @@
 @if (Model.FollowsLogs)
 {
   <p class="muted">A change is saved as soon as you make it. The party follows the game's parties: whoever the logs show in a party with a member is a member too,
-    by himself. Who is active comes from the logs: the party in the game (who joins and leaves it) and the trackers (whose game is running). Active is saved
+    by himself, and whoever they show leaving it is gone from this table (his settings and his debts stay; he is back when he plays with a member again).
+    Who is active comes from the logs: the party in the game (who joins and leaves it) and the trackers (whose game is running). Active is saved
     with its time, so mission payouts are split between who was there when they paid out.</p>
   <p class="hint">Auto: the logs decide. In or Out: you decide, until the logs show something new about him (In until he leaves, Out until he plays).</p>
   @if (Model.Groups.Count > 0)
@@ -95,6 +96,11 @@ else
   </tbody>
 </table>
 
+@if (Model.Gone.Count > 0)
+{
+  <p class="hint">Out of the party by the logs, so not in the table: @string.Join(", ", Model.Gone). A member is back here when the logs show him in a party
+    with a member again, or when you add him (that sets him In until the logs show him leaving).</p>
+}
 <form method="post" action="/admin/party/add" asp-antiforgery="true" class="line">
   <input name="name" placeholder="New member (his name in the game)" autocomplete="off">
   <button type="submit">Add</button>
