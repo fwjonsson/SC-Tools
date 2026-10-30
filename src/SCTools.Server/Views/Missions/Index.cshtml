@@ -99,9 +99,13 @@ else
 else
 {
   @* editable: every field is a little form of its own (data-autosave: autosave.js sends it when it changes) *@
+  @* the rows are numbered in a # column on the left (Frank, 30 Oct 2026), on through the pages *@
+  var first = (Model.Page - 1) * MissionsController.PageSize;
+  var row = 0;
   <div class="scroll">
   <table class="wide missions@(edit ? "" : " view")">
     <thead><tr>
+    <th class="right">#</th>
     @foreach (var (key, text, cls) in columns)
     {
       <th class="@cls"><a href="@Model.SortLink(key)" class="@(f.Sort == key ? "on" : null)" title="Sort by it">@Html.Raw(text)@Arrow(key)</a></th>
@@ -115,6 +119,7 @@ else
       var mine = e.PlaysOf(me);
       var running = mine?.Running == true;
       <tr id="@e.Anchor" class="@(string.Join(" ", new[] { e.NeedsInfo ? "todo" : null, running ? "running" : null }.Where(c => c != null)) is { Length: > 0 } c ? c : null)">
+        <td class="right muted">@(first + ++row)</td>
         @if (edit)
         {
           @* a field where something can be typed in (Field), else the Wiki's text (Text), in the order of the columns *@

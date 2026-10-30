@@ -334,7 +334,9 @@ admin (done), then going live.
   Log out (or Log in); on a phone all of it is behind a menu button.
   The part of the site you are in is marked in its own colour: a tool (by its address, `/gauntlet/stats` too) in the colour of its card, My page in
   green, Admin in red on the admin's pages and his account. On an ultrawide screen every page keeps to a band of 1,900 px in the middle: the bar, the
-  admin's row and the pages' content (`topbar.css`, `site.css`), like the Hauling Planner's live page (Frank, 29 Oct 2026). The pages of the site end with a footer: the tracker's download, how to set it up, and the
+  admin's row and the pages' content (`topbar.css`, `site.css`), like the Hauling Planner's live page (Frank, 29 Oct 2026). A page with a wide table (the
+  Mission Library, the Session tool's games, the Gauntlet Tracker) takes the whole band too since 30 Oct 2026 (Frank; 1,400 px before), and the Mission
+  Library numbers its rows in a # column on the left, on through its pages. The pages of the site end with a footer: the tracker's download, how to set it up, and the
   disclaimer. The admin's pages have a second row under it with his pages (Session, Party, Contracts, Debts, Gauntlet, Edit Mission Info, Scrip, Map
   places, Tracker keys, Tools, Account), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
 - **The admin's pages** change the data with the core's logic (`Editing/Edits.cs`, each change saved and worked out again at once):

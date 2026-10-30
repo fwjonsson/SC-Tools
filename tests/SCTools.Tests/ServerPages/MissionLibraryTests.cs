@@ -54,6 +54,8 @@ public class MissionLibraryTests
         Assert.Equal(HttpStatusCode.Redirect, (await f.Browser().GetAsync("/missions")).StatusCode);   // a visitor: the login
         await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "missions"), ("value", "true"));
         var visitor = await f.Browser().GetStringAsync("/missions");   // shown: everybody, as the Hauling Planner's live page
+        Assert.Contains("<th class=\"right\">#</th>", visitor);   // the rows numbered on the left (30 Oct 2026)
+        Assert.Contains("<td class=\"right muted\">1</td>", visitor);
         Assert.Contains(RivalShown, WebUtility.HtmlDecode(visitor));
         Assert.DoesNotContain("Failed /<br>Completed", visitor);   // nobody's plays for a visitor
         Assert.DoesNotContain("Last<br>played", visitor);
