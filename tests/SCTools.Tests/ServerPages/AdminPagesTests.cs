@@ -51,11 +51,8 @@ public class AdminPagesTests
         Assert.Contains("Type the start time as 19:30.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/start-time", ("startTime", "soon")), "/admin"));
         Assert.Equal("07:05", Read(f, t => t.State.Inputs!.Start));
 
-        await ServerFactory.Send(admin, "/admin", "/admin/stop", ("zone", PlayedSession.PatchZone), ("name", "Patchy"), ("notes", "full of pirates"));
-        Assert.Equal("Patchy", Read(f, t => t.Places.LocationName(PlayedSession.PatchZone)));
-        Assert.Equal("full of pirates", Read(f, t => t.State.Inputs!.Rows[PlayedSession.PatchZone].Notes));
-        await ServerFactory.Send(admin, "/admin", "/admin/stop", ("zone", PlayedSession.PatchZone), ("name", ""), ("notes", "full of pirates"));
-        Assert.Equal("Patch City", Read(f, t => t.Places.LocationName(PlayedSession.PatchZone)));   // the name the program knows again
+        Assert.DoesNotContain("<h2>Stops</h2>", page);   // no names of his own for the stops any more (30 Oct 2026): the game's full names
+        Assert.Equal(HttpStatusCode.NotFound, (await ServerFactory.Send(admin, "/admin", "/admin/stop", ("zone", PlayedSession.PatchZone), ("name", "Patchy"))).StatusCode);
 
         var done = Read(f, t => PlayedSession.Runs(t).Done.Key);
         Assert.Contains("lost cargo Little", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/run", ("key", done), ("level", "Little")), "/admin"));

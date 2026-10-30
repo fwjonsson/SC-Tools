@@ -15,15 +15,15 @@ public class TripPlannerTests
     {
         var open = new Dictionary<string, int>
         {
-            [Id("Nyx GW")] = 3, [Id("Gaslight")] = 2, [Id("Orbituary")] = 2, [Id("Starlight")] = 2, [Id("Rat's Nest")] = 2,
-            [Id("Dudley")] = 2, [Id("Stanton GW")] = 2, [Id("Megumi")] = 1, [Id("Endgame")] = 2,
+            [Id("Nyx Gateway")] = 3, [Id("Gaslight")] = 2, [Id("Orbituary")] = 2, [Id("Starlight Service Station")] = 2, [Id("Rat's Nest")] = 2,
+            [Id("Dudley & Daughters")] = 2, [Id("Stanton Gateway")] = 2, [Id("Megumi Refueling")] = 1, [Id("Endgame")] = 2,
         };
         var batchScu = open.Keys.ToDictionary(k => k, k => 146);
-        batchScu[Id("Megumi")] = 125;
+        batchScu[Id("Megumi Refueling")] = 125;
         var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, Ts2) };
         var shipScu = new Dictionary<string, int> { ["zzoega"] = 741 };
-        var starts = new List<WorkerStart> { new() { Worker = "zzoega", Loaded = 2, LoadedScu = 417, From = Id("Rod's Fuel") } };
-        var drops = new List<DropChunk> { Waste("Endgame", 135), Waste("Stanton GW", 127) };
+        var starts = new List<WorkerStart> { new() { Worker = "zzoega", Loaded = 2, LoadedScu = 417, From = Id("Rod's Fuel 'N Supplies") } };
+        var drops = new List<DropChunk> { Waste("Endgame", 135), Waste("Stanton Gateway", 127) };
         return TripPlanner.Plan(open, crew, starts, null, drops, batchScu, shipScu);
     }
 
@@ -32,16 +32,16 @@ public class TripPlannerTests
     {
         // 30 Oct 2026: zzoega at Orbituary with 3 batches on board (a C2: 5), and the plan sent him on to Endgame and Megumi for one batch each while
         // Rod's Fuel had 4 and Patch City 3. The biggest stops first: a station with one batch is left for later, where new missions can fill it up
-        var open = new Dictionary<string, int> { [Id("Endgame")] = 1, [Id("Megumi")] = 1, [Id("Rod's Fuel")] = 4, [Id("Patch City")] = 3 };
+        var open = new Dictionary<string, int> { [Id("Endgame")] = 1, [Id("Megumi Refueling")] = 1, [Id("Rod's Fuel 'N Supplies")] = 4, [Id("Patch City")] = 3 };
         var batchScu = open.Keys.ToDictionary(k => k, k => 123);
         var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 5, Ts2) };
         var shipScu = new Dictionary<string, int> { ["zzoega"] = 626 };
         var starts = new List<WorkerStart> { new() { Worker = "zzoega", Loaded = 3, LoadedScu = 369, From = Id("Orbituary") } };
         var trips = TripPlanner.Plan(open, crew, starts, null, new List<DropChunk>(), batchScu, shipScu);
         // the trip he is flying (when the plan adds anything to his run at all: here it does not, he hands in what he has) never lands for a lone batch
-        Assert.All(trips.Where(t => t.Special), t => Assert.DoesNotContain(t.Stops, s => s.Id == Id("Endgame") || s.Id == Id("Megumi")));
+        Assert.All(trips.Where(t => t.Special), t => Assert.DoesNotContain(t.Stops, s => s.Id == Id("Endgame") || s.Id == Id("Megumi Refueling")));
         Assert.Equal(9, trips.SelectMany(t => t.Stops).Sum(s => s.Batches));   // every batch is still planned, the lone ones in later trips
-        Assert.All(trips.Where(t => t.Stops.Any(s => s.Id == Id("Endgame") || s.Id == Id("Megumi"))), t => Assert.False(t.Special));
+        Assert.All(trips.Where(t => t.Stops.Any(s => s.Id == Id("Endgame") || s.Id == Id("Megumi Refueling"))), t => Assert.False(t.Special));
     }
 
     [Fact]
@@ -49,14 +49,14 @@ public class TripPlannerTests
     {
         var now = RodsFuelRun().Single(t => t.Special);
         Assert.DoesNotContain(now.Stops, s => s.Id == Id("Endgame"));
-        Assert.DoesNotContain(now.Stops, s => s.Id == Id("Stanton GW"));
+        Assert.DoesNotContain(now.Stops, s => s.Id == Id("Stanton Gateway"));
     }
 
     [Fact]
     public void Every_load_from_Ruin_rides_along_on_a_pickup_at_its_station()
     {
         var trips = RodsFuelRun();
-        foreach (var station in new[] { "Endgame", "Stanton GW" })
+        foreach (var station in new[] { "Endgame", "Stanton Gateway" })
         {
             var carrier = trips.Single(t => t.Drops.Any(d => d.Id == Id(station)));
             Assert.Equal(Id(station), carrier.Stops[0].Id);   // the station of the load is the first stop of that trip
@@ -68,9 +68,9 @@ public class TripPlannerTests
     {
         var trips = RodsFuelRun();
         var planned = trips.SelectMany(t => t.Stops).GroupBy(s => s.Id).ToDictionary(g => g.Key, g => g.Sum(s => s.Batches));
-        Assert.Equal(3, planned[Id("Nyx GW")]);
+        Assert.Equal(3, planned[Id("Nyx Gateway")]);
         Assert.Equal(2, planned[Id("Endgame")]);
-        Assert.Equal(1, planned[Id("Megumi")]);
+        Assert.Equal(1, planned[Id("Megumi Refueling")]);
         Assert.Equal(18, planned.Values.Sum());
     }
 
@@ -114,11 +114,11 @@ public class TripPlannerTests
     {
         var open = new Dictionary<string, int>
         {
-            [Id("Gaslight")] = 6, [Id("Patch City")] = 5, [Id("Nyx GW")] = 3, [Id("Endgame")] = 3, [Id("Dudley")] = 2, [Id("Megumi")] = 2, [Id("Rod's Fuel")] = 2,
+            [Id("Gaslight")] = 6, [Id("Patch City")] = 5, [Id("Nyx Gateway")] = 3, [Id("Endgame")] = 3, [Id("Dudley & Daughters")] = 2, [Id("Megumi Refueling")] = 2, [Id("Rod's Fuel 'N Supplies")] = 2,
         };
         var batchScu = new Dictionary<string, int>
         {
-            [Id("Gaslight")] = 153, [Id("Patch City")] = 167, [Id("Nyx GW")] = 139, [Id("Endgame")] = 125, [Id("Dudley")] = 188, [Id("Megumi")] = 146, [Id("Rod's Fuel")] = 146,
+            [Id("Gaslight")] = 153, [Id("Patch City")] = 167, [Id("Nyx Gateway")] = 139, [Id("Endgame")] = 125, [Id("Dudley & Daughters")] = 188, [Id("Megumi Refueling")] = 146, [Id("Rod's Fuel 'N Supplies")] = 146,
         };
         var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, Ts2), ("zzatvo", 3, Ts2) };
         var shipScu = new Dictionary<string, int> { ["zzoega"] = 741, ["zzatvo"] = 741 };
@@ -146,14 +146,14 @@ public class TripPlannerTests
     {
         var open = new Dictionary<string, int>
         {
-            [Id("Nyx GW")] = 6, [Id("Patch City")] = 5, [Id("Gaslight")] = 4, [Id("Rod's Fuel")] = 2, [Id("Stanton GW")] = 2, [Id("Starlight")] = 2,
-            [Id("Endgame")] = 2, [Id("Dudley")] = 2, [Id("Orbituary")] = 2, [Id("Rat's Nest")] = 2, [Id("Megumi")] = 1,
+            [Id("Nyx Gateway")] = 6, [Id("Patch City")] = 5, [Id("Gaslight")] = 4, [Id("Rod's Fuel 'N Supplies")] = 2, [Id("Stanton Gateway")] = 2, [Id("Starlight Service Station")] = 2,
+            [Id("Endgame")] = 2, [Id("Dudley & Daughters")] = 2, [Id("Orbituary")] = 2, [Id("Rat's Nest")] = 2, [Id("Megumi Refueling")] = 1,
         };
         var batchScu = open.Keys.ToDictionary(k => k, k => 146);
-        batchScu[Id("Rod's Fuel")] = 208;
+        batchScu[Id("Rod's Fuel 'N Supplies")] = 208;
         var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, Ts2) };
         var shipScu = new Dictionary<string, int> { ["zzoega"] = 741 };
-        var drops = new List<DropChunk> { Waste("Rod's Fuel", 101), Waste("Endgame", 135), Waste("Stanton GW", 127), Waste("Nyx GW", 133) };
+        var drops = new List<DropChunk> { Waste("Rod's Fuel 'N Supplies", 101), Waste("Endgame", 135), Waste("Stanton Gateway", 127), Waste("Nyx Gateway", 133) };
         return TripPlanner.Plan(open, crew, null, null, drops, batchScu, shipScu);
     }
 

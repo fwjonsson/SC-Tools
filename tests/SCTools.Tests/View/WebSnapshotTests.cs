@@ -95,7 +95,7 @@ public class WebSnapshotTests
         var ruin = PyroDistances.NameOf(PyroDistances.Ruin);
         var drops = rows.Where(r => Cells(r)[1] == ruin).ToList();
         Assert.Equal(2, drops.Count);
-        Assert.Equal(new[] { "Patch City", "Rod's Fuel" }, drops.Select(r => Cells(r)[6]).OrderBy(x => x));
+        Assert.Equal(new[] { "Patch City", "Rod's Fuel 'N Supplies" }, drops.Select(r => Cells(r)[6]).OrderBy(x => x));
         Assert.All(drops, r => Assert.Equal("1", Cells(r)[2]));
         Assert.All(drops, r => Assert.StartsWith("Waste: ", Cells(r)[4]));   // the boxes; the SCU beside it is a number, or ? when nobody knows it
         Assert.All(drops, r => Assert.True(Cells(r)[3] == "?" || int.TryParse(Cells(r)[3], out _)));

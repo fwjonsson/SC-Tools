@@ -44,31 +44,7 @@ else
     <span class="hint">The session time runs from it. Empty = from the logs.</span>
   </form>
 
-  <h2>Stops</h2>
-  @if (Model.Stops.Count == 0)
-  {
-    <p class="muted">No stops.</p>
-  }
-  else
-  {
-    <table class="wide">
-      <thead><tr><th>Pickup Location</th><th>Batches</th><th>Notes</th><th></th></tr></thead>
-      <tbody>
-      @for (var i = 0; i < Model.Stops.Count; i++)
-      {
-        var s = Model.Stops[i];
-        var id = "stop-" + i;
-        <tr>
-          <td><input name="name" value="@s.Name" form="@id"></td>
-          <td class="center">@s.Batches</td>
-          <td><input name="notes" value="@s.Notes" form="@id"></td>
-          <td class="right"><form id="@id" method="post" action="/admin/stop" asp-antiforgery="true"><input type="hidden" name="zone" value="@s.Zone"><button type="submit">Save</button></form></td>
-        </tr>
-      }
-      </tbody>
-    </table>
-    <p class="hint">A name you type replaces the one the program knows; an empty name gives that one back.</p>
-  }
+  @* no Stops table any more (Frank, 30 Oct 2026): the stations have the names the game gives them, not names typed here, and the notes went with it *@
 
   <h2>Register lost cargo</h2>
   <p class="hint">Every run of the session: say what was lost on it.</p>

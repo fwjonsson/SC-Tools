@@ -25,18 +25,18 @@ var ts2 = QuantumDrives.Find("TS-2") ?? QuantumDrives.Assumed;
 {
     var open = new Dictionary<string, int>
     {
-        [Id("Nyx GW")] = 3, [Id("Gaslight")] = 2, [Id("Orbituary")] = 2, [Id("Starlight")] = 2, [Id("Rat's Nest")] = 2,
-        [Id("Dudley")] = 2, [Id("Stanton GW")] = 2, [Id("Megumi")] = 1, [Id("Endgame")] = 2,
+        [Id("Nyx Gateway")] = 3, [Id("Gaslight")] = 2, [Id("Orbituary")] = 2, [Id("Starlight Service Station")] = 2, [Id("Rat's Nest")] = 2,
+        [Id("Dudley & Daughters")] = 2, [Id("Stanton Gateway")] = 2, [Id("Megumi Refueling")] = 1, [Id("Endgame")] = 2,
     };
     var batchScu = open.Keys.ToDictionary(k => k, k => 146);
-    batchScu[Id("Megumi")] = 125;
+    batchScu[Id("Megumi Refueling")] = 125;
     var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, ts2) };
     var shipScu = new Dictionary<string, int> { ["zzoega"] = 741 };
-    var starts = new List<WorkerStart> { new() { Worker = "zzoega", Loaded = 2, LoadedScu = 417, From = Id("Rod's Fuel") } };
+    var starts = new List<WorkerStart> { new() { Worker = "zzoega", Loaded = 2, LoadedScu = 417, From = Id("Rod's Fuel 'N Supplies") } };
     var drops = new List<DropChunk>
     {
         new() { Station = Id("Endgame"), Batches = 1, Scu = 135, Parts = new() { 135 }, Keys = new() { "m|e" }, Cargo = "Waste" },
-        new() { Station = Id("Stanton GW"), Batches = 1, Scu = 127, Parts = new() { 127 }, Keys = new() { "m|s" }, Cargo = "Waste" },
+        new() { Station = Id("Stanton Gateway"), Batches = 1, Scu = 127, Parts = new() { 127 }, Keys = new() { "m|s" }, Cargo = "Waste" },
     };
     Show("Rod's Fuel run in progress, waste waiting at Endgame and Stanton GW", TripPlanner.Plan(open, crew, starts, null, drops, batchScu, shipScu));
 }
@@ -45,19 +45,19 @@ var ts2 = QuantumDrives.Find("TS-2") ?? QuantumDrives.Assumed;
 {
     var open = new Dictionary<string, int>
     {
-        [Id("Nyx GW")] = 6, [Id("Patch City")] = 5, [Id("Gaslight")] = 4, [Id("Rod's Fuel")] = 2, [Id("Stanton GW")] = 2, [Id("Starlight")] = 2,
-        [Id("Endgame")] = 2, [Id("Dudley")] = 2, [Id("Orbituary")] = 2, [Id("Rat's Nest")] = 2, [Id("Megumi")] = 1,
+        [Id("Nyx Gateway")] = 6, [Id("Patch City")] = 5, [Id("Gaslight")] = 4, [Id("Rod's Fuel 'N Supplies")] = 2, [Id("Stanton Gateway")] = 2, [Id("Starlight Service Station")] = 2,
+        [Id("Endgame")] = 2, [Id("Dudley & Daughters")] = 2, [Id("Orbituary")] = 2, [Id("Rat's Nest")] = 2, [Id("Megumi Refueling")] = 1,
     };
     var batchScu = open.Keys.ToDictionary(k => k, k => 146);
-    batchScu[Id("Rod's Fuel")] = 208;
+    batchScu[Id("Rod's Fuel 'N Supplies")] = 208;
     var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, ts2) };
     var shipScu = new Dictionary<string, int> { ["zzoega"] = 741 };
     var drops = new List<DropChunk>
     {
-        new() { Station = Id("Rod's Fuel"), Batches = 1, Scu = 101, Parts = new() { 101 }, Keys = new() { "m|r" }, Cargo = "Waste" },
+        new() { Station = Id("Rod's Fuel 'N Supplies"), Batches = 1, Scu = 101, Parts = new() { 101 }, Keys = new() { "m|r" }, Cargo = "Waste" },
         new() { Station = Id("Endgame"), Batches = 1, Scu = 135, Parts = new() { 135 }, Keys = new() { "m|e" }, Cargo = "Waste" },
-        new() { Station = Id("Stanton GW"), Batches = 1, Scu = 127, Parts = new() { 127 }, Keys = new() { "m|s" }, Cargo = "Waste" },
-        new() { Station = Id("Nyx GW"), Batches = 1, Scu = 133, Parts = new() { 133 }, Keys = new() { "m|n" }, Cargo = "Waste" },
+        new() { Station = Id("Stanton Gateway"), Batches = 1, Scu = 127, Parts = new() { 127 }, Keys = new() { "m|s" }, Cargo = "Waste" },
+        new() { Station = Id("Nyx Gateway"), Batches = 1, Scu = 133, Parts = new() { 133 }, Keys = new() { "m|n" }, Cargo = "Waste" },
     };
     Show("Start of a session, one worker", TripPlanner.Plan(open, crew, null, null, drops, batchScu, shipScu));
 }
@@ -67,11 +67,11 @@ var ts2 = QuantumDrives.Find("TS-2") ?? QuantumDrives.Assumed;
 {
     var open = new Dictionary<string, int>
     {
-        [Id("Gaslight")] = 6, [Id("Patch City")] = 5, [Id("Nyx GW")] = 3, [Id("Endgame")] = 3, [Id("Dudley")] = 2, [Id("Megumi")] = 2, [Id("Rod's Fuel")] = 2,
+        [Id("Gaslight")] = 6, [Id("Patch City")] = 5, [Id("Nyx Gateway")] = 3, [Id("Endgame")] = 3, [Id("Dudley & Daughters")] = 2, [Id("Megumi Refueling")] = 2, [Id("Rod's Fuel 'N Supplies")] = 2,
     };
     var batchScu = new Dictionary<string, int>
     {
-        [Id("Gaslight")] = 153, [Id("Patch City")] = 167, [Id("Nyx GW")] = 139, [Id("Endgame")] = 125, [Id("Dudley")] = 188, [Id("Megumi")] = 146, [Id("Rod's Fuel")] = 146,
+        [Id("Gaslight")] = 153, [Id("Patch City")] = 167, [Id("Nyx Gateway")] = 139, [Id("Endgame")] = 125, [Id("Dudley & Daughters")] = 188, [Id("Megumi Refueling")] = 146, [Id("Rod's Fuel 'N Supplies")] = 146,
     };
     var crew = new List<(string Name, int Capacity, QtDrive Drive)> { ("zzoega", 3, ts2), ("zzatvo", 3, ts2) };
     var shipScu = new Dictionary<string, int> { ["zzoega"] = 741, ["zzatvo"] = 741 };

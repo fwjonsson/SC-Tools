@@ -2,7 +2,7 @@ using SCTools.Tests.Support;
 
 namespace SCTools.Tests.Tracking;
 
-/// <summary>The names of the places: the stations known by their position, the names you typed, and the old names in the data file.</summary>
+/// <summary>The names of the places: the stations known by their position, with the full names the game gives them.</summary>
 public class PlacesTests
 {
     static Places PlacesWith(AppData data) => new(new TrackerState(data, _ => { }));
@@ -14,7 +14,7 @@ public class PlacesTests
     }
 
     [Fact]
-    public void A_station_found_by_its_position_has_its_short_name_and_its_distance_from_Ruin()
+    public void A_station_found_by_its_position_has_its_name_and_its_distance_from_Ruin()
     {
         var zone = Known("900000004101", GameLogWriter.Gaslight);
         var places = PlacesWith(new AppData());
@@ -24,34 +24,17 @@ public class PlacesTests
     }
 
     [Fact]
-    public void Your_own_name_wins_until_you_take_it_away()
+    public void The_stations_have_the_games_full_names_and_typed_names_do_not_count()
     {
-        var zone = Known("900000004102", GameLogWriter.PatchCity);
-        var data = new AppData();
-        var places = PlacesWith(data);
-
-        Assert.False(places.Rename(zone, "Home Base"));
-        Assert.Equal("Home Base", places.LocationName(zone));
-        Assert.Equal("70120", places.StationOf(zone));   // still the same station
-
-        Assert.True(places.Rename(zone, "Patch City"));   // the name the program knows itself is no name of your own
-        Assert.False(data.LocationNames.ContainsKey(zone));
-        places.Rename(zone, "Home Base");
-        Assert.True(places.Rename(zone, ""));
-        Assert.Equal("Patch City", places.LocationName(zone));
-    }
-
-    [Fact]
-    public void Names_saved_by_older_versions_are_shown_as_they_are_now()
-    {
+        // Frank, 30 Oct 2026: the full names back ("Rod's Fuel 'N Supplies", not "Rod's Fuel"), and the names he typed on his Session page, kept in the
+        // data file from before, are not used any more
         var known = Known("900000004103", GameLogWriter.RodsFuel);
-        var unknown = "900000004199";
         var data = new AppData();
-        data.LocationNames[unknown] = "Rod's Fuel 'N Supplies";   // the long name an earlier version saved
-        data.LocationNames[known] = "Megumi";                     // the name of another station, saved by clicking into the cell
+        data.LocationNames[known] = "Rod's Fuel";
         var places = PlacesWith(data);
-        Assert.Equal("Rod's Fuel", places.LocationName(unknown));
-        Assert.Equal("Rod's Fuel", places.LocationName(known));
+        Assert.Equal("Rod's Fuel 'N Supplies", places.LocationName(known));
+        Assert.Equal("72645", places.StationOf(known));
+        Assert.Equal("Rod's Fuel 'N Supplies", PyroDistances.NameOf("72645"));   // the planner's tables say the same
     }
 
     [Fact]
