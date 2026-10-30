@@ -810,10 +810,6 @@ namespace SCTools.Server.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("FreeLockedTrips")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Groups")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
