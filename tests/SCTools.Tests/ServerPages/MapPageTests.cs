@@ -230,7 +230,10 @@ public class MapPageTests
         var script = await res.Content.ReadAsStringAsync();
         Assert.StartsWith("var SystemMap = (function ()", script.Split('\n').First(l => !l.StartsWith("//")));
         Assert.Contains("base.svg.appendChild(base.labels);", script);   // the names of the places above the routes (30 Oct 2026)
-        Assert.Contains("[['#', ''], ['Mission', '']", await f.Browser().GetStringAsync("/map.js"));   // the Active missions table numbered like the others
+        var mapJs = await f.Browser().GetStringAsync("/map.js");
+        Assert.Contains("[['#', ''], ['Mission', '']", mapJs);   // the Active missions table numbered like the others
+        Assert.Contains("b.href = '#' + s.id;", mapJs);   // the systems are links like the other tools' tabs, so the row has the same height (30 Oct 2026)
+        Assert.Contains(".mapmissions table.missions th:first-child, .mapmissions table.missions td:first-child { width:36px;", await f.Browser().GetStringAsync("/site.css"));
         // the speed meter stays at 0 Mm/s when a player is not in quantum, so his card keeps its size (Frank, 29 Oct 2026)
         Assert.DoesNotContain("m.speed.style.display", script);
         Assert.Contains("m.unit.textContent = 'Mm/s · 0.00 c'", script);
