@@ -80,6 +80,10 @@ public class ToolsPageTests
 
         var home = await visitor.GetStringAsync("/");
         Assert.Contains("<a href=\"/hauling\" style=\"--tool:#4682ff\">Hauling Planner</a>", home);   // the same bar on the landing page, no tool marked
+        // the bar's order (Frank, 30 Oct 2026): Hauling Planner, Gauntlet Tracker, Map, Session, Mission Library; the cards keep theirs
+        var bar = home[(home.IndexOf("<nav class=\"toolnav\">", StringComparison.Ordinal) + 1)..home.IndexOf("</nav>", StringComparison.Ordinal)];
+        Assert.Equal(new[] { "Hauling Planner", "Gauntlet Tracker", "Map", "Session", "Mission Library" },
+            new[] { "Hauling Planner", "Gauntlet Tracker", "Map", "Session", "Mission Library" }.OrderBy(n => bar.IndexOf(">" + n + "</a>", StringComparison.Ordinal)));
 
         var admin = await f.Admin();
         live = await admin.GetStringAsync("/hauling");

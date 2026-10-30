@@ -44,7 +44,7 @@ public static class TopBar
             .Append("onclick=\"this.setAttribute('aria-expanded', this.parentNode.classList.toggle('open'))\">")
             .Append("<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M4 7h16M4 12h16M4 17h16\"/></svg></button>\n")
             .Append("  <div class=\"menu-panel\" id=\"topbar-menu\">\n  <nav class=\"toolnav\">");
-        foreach (var tool in SiteTools.Cards.Where(t => t.Path != null && tools.Sees(user, t)))
+        foreach (var tool in SiteTools.Bar.Where(t => t.Path != null && tools.Sees(user, t)))   // in the order Frank set (SiteTools.Bar)
             html.Append(Link(tool.Path!, tool.Name, tool.Color, tool == current));
         html.Append("</nav>\n  <div class=\"who\">")
             .Append("<a class=\"dl\" href=\"/tracker\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M12 3v12M7 10l5 5 5-5M4 20h16\"/></svg>Tracker</a>");

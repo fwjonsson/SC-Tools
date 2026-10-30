@@ -45,6 +45,9 @@ public static class SiteTools
     /// </summary>
     public static readonly IReadOnlyList<SiteTool> Cards = All.Where(t => t != Party).ToList();
 
+    /// <summary>The tools in the top bar, in the order Frank set (30 Oct 2026): the ones used while playing first. The cards keep their order.</summary>
+    public static readonly IReadOnlyList<SiteTool> Bar = new[] { Hauling, Gauntlet, Map, Session, Missions };
+
     public static SiteTool? Find(string? id) => All.FirstOrDefault(t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
 }
 
