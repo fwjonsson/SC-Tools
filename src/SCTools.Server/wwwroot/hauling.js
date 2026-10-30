@@ -640,17 +640,20 @@ const TABS = { S: 'session', P: 'planner', N: 'planner-new', D: 'debts', H: 'his
 const ON_SITE = /^\/hauling(\/|$)/.test(location.pathname);
 // Only the tab shown is drawn when data comes; the others are drawn when they are shown (dirty: the tabs with data they have not shown yet).
 const dirty = { S: true, P: true, N: true, D: true, H: true, L: true };
-let shownTab = 'P';   // the Trip Planner first (Frank, 29 Oct 2026)
+// the tabs on this page: the admin shows or hides the two Route Planners on the Tools page (30 Oct 2026), so one of them may not be here
+const HAVE = Object.keys(TABS).filter(function (k) { return !!document.getElementById('tab' + k); });
+const FIRST = HAVE.indexOf('P') >= 0 ? 'P' : HAVE.indexOf('N') >= 0 ? 'N' : HAVE[0];   // the Route Planner first (Frank, 29 Oct 2026), the new one when the old is hidden
+let shownTab = FIRST;
 function tabOf(name) {
   name = (name || '').replace(/^#/, '');
   if (name === 'plan') name = 'planner';
   if (name === 'contracts') name = 'session';   // the contracts are on the Session tab since 30 Oct 2026
-  return Object.keys(TABS).find(function (k) { return TABS[k] === name; });
+  return HAVE.find(function (k) { return TABS[k] === name; });
 }
 function show(which) {
   shownTab = which;
   if (which === 'P' || which === 'N' || which === 'S') refreshMap();   // the map's players (and the Session tab's Active Contracts) at once, not at the next poll
-  Object.keys(TABS).forEach(function (k) {
+  HAVE.forEach(function (k) {
     document.getElementById('view' + k).classList.toggle('hidden', k !== which);
     document.getElementById('tab' + k).classList.toggle('on', k === which);
   });
@@ -661,8 +664,8 @@ function show(which) {
   if (last && dirty[which]) renderTab(which);
   layout();   // the tables of a tab that was hidden could not be measured
 }
-Object.keys(TABS).forEach(function (k) { document.getElementById('tab' + k).onclick = function (e) { if (e && e.preventDefault) e.preventDefault(); show(k); }; });   // a link to the tab's address: shown here, no reload
-show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || 'P');
+HAVE.forEach(function (k) { document.getElementById('tab' + k).onclick = function (e) { if (e && e.preventDefault) e.preventDefault(); show(k); }; });   // a link to the tab's address: shown here, no reload
+show((ON_SITE && tabOf(location.pathname.split('/')[2])) || tabOf(location.hash) || FIRST);
 
 // Whose session the Session and Leaderboard tabs show: with one party, the whole session is theirs; with more than one (the ones in the game, then the ones
 // that hauled in this session and are not playing now), a player sees his own party by itself (its stops, contracts, session, leaderboard and runs: the

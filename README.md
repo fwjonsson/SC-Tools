@@ -476,13 +476,25 @@ admin (done), then going live.
     table does not know stays out of the plan, with a note.
   - **Two planners side by side** (Frank, 30 Oct 2026): the new planner is tried out on a tab of its own, **Route Planner (new)** (`/hauling/planner-new`,
     `data.freePlanner`), before it replaces the old one; the **Route Planner** tab keeps the old planner (`Planning/TripPlanner`, every trip from Ruin and
-    back; it says in its note which contracts only the new one plans) and stays the default until Frank decides. Both tabs are drawn the same way, each
+    back; it says in its note which contracts only the new one plans). The two tabs are tools of the admin's **Tools** page (`SiteTools.RoutePlanner`,
+    `RoutePlannerNew`; not cards, not in the bar), so Frank shows or hides each one for everybody; the first tab shown opens first (`HAVE`, `FIRST` in
+    hauling.js). From the evening of 30 Oct the old planner is frozen and the rules below go into the new one only. Both tabs are drawn the same way, each
     with a map of its own, from the same session, crew, runs and loads: `Tracker.Plan` and `Tracker.FreePlan` are two `PlanService`s, the second with
     `free`, and each keeps the stops of everybody's planned trip for him in a dictionary of its own (`SessionInputs.LockedTrips`, `FreeLockedTrips`), so
     each plan is sticky by itself and neither binds the other. Only the old one credits the pickups no log names. What changes in the old planner
     meanwhile is brought over to the new one (the kept stops of a worker's whole trip, 30 Oct 2026, are in both); the plan service, the boards, the runs
     and the page are shared, so changes there reach both. `tools/PlanTest` prints the old planner's trips under the new one's where they differ (only
     two-stop loops flown the other way round, which cost the same).
+  - **Soft kept stops, 20-minute landings, the flying at a tenth** (Frank, 30 Oct 2026; the new planner only): the stop a hauler is flying to stays first in
+    his trip, but its batch count is free, so he takes as many there as fit. The stops kept after it are preferred, not fixed (`RoutePlanner.KeepSeconds`, a
+    third of a landing for a kept stop that leaves his trip): they give way when that saves a landing or fills the ship better, and never on a tie. His trip
+    A ×2, B ×1, C ×1: a new batch at B makes it A ×2, B ×2 and C goes back; at A he takes 3 and keeps the nearer of B and C; at a stop D elsewhere that now
+    has two, the trip becomes A ×2, D ×2. A landing counts 20 minutes in the comparison (`StopSeconds`; the lone-batch, leftover and fill-now rules follow
+    it) and the flying a tenth of its time (`FlightWeight`), so the plan goes a long way for a fuller stop; the order of the stops within a trip is still the
+    shortest route, and the times shown are the real ones. A batch his planned trip loses without a replacement costs a landing, so the trip is never emptied
+    to save its landings, and a landing for a lone batch in a later trip counts half (`LaterLoneShare`: new missions may fill that station before it is flown),
+    which is what lets a stop elsewhere with two batches take the place of two single stops. Half the search's restarts start from his kept trip, the other
+    half free, so such a swap is found. `tools/PlanTest` prints where the old planner's plans differ.
   - **Interstellar legs** (stage 2, 30 Oct 2026; `GameData/StarRoutes`): the planner without a hub flies between any two places of the map. A place is a
     planner id: a Pyro station's id, or a place key of the map (`stanton/baijini-point`). Within a system a leg is one jump (between two Pyro stations the
     distance table's, as the game reads it, so nothing changes there); between two systems it is the jump to the gateway that leads to the other system,

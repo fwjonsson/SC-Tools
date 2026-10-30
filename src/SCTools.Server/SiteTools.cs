@@ -38,13 +38,25 @@ public static class SiteTools
         "A live map of Pyro, Stanton and Nyx: where everybody is and where each is flying by his quantum jumps, the objectives of the missions going on and the active contracts. It updates every few seconds.", "/map", false,
         "#e0734a", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"2.5\"/><circle cx=\"12\" cy=\"12\" r=\"6\"/><circle cx=\"12\" cy=\"12\" r=\"9.5\"/><circle cx=\"18\" cy=\"8.4\" r=\"1.4\" fill=\"currentColor\"/></svg>");
 
-    public static readonly IReadOnlyList<SiteTool> All = new[] { Hauling, Missions, Gauntlet, Session, Party, Map };   // the ones that work first
+    /// <summary>
+    /// The two route planners of the Hauling Planner, as tools of their own on the Tools page only (Frank, 30 Oct 2026): he shows or hides each tab there while the
+    /// new planner is tried out beside the old one. Not cards, not in the bar: they are tabs of the Hauling Planner's page.
+    /// </summary>
+    public static readonly SiteTool RoutePlanner = new("planner", "Route Planner (old)",
+        "The Route Planner tab of the Hauling Planner with the old planner: every trip from Ruin and back, the Red Wind contracts to and from Ruin.", "/hauling/planner", true,
+        Hauling.Color, Hauling.Icon);
+
+    public static readonly SiteTool RoutePlannerNew = new("planner-new", "Route Planner (new)",
+        "The Route Planner (new) tab of the Hauling Planner with the planner without a hub: a trip starts where the hauler is and ends where his cargo goes, any hauling mission of any system, through the gateways.", "/hauling/planner-new", true,
+        Hauling.Color, Hauling.Icon);
+
+    public static readonly IReadOnlyList<SiteTool> All = new[] { Hauling, Missions, Gauntlet, Session, Party, Map, RoutePlanner, RoutePlannerNew };   // the ones that work first; the planner tabs last (the Tools page)
 
     /// <summary>
     /// The tools with a card on the landing page and a link in the top bar: every tool but the Party, which is a button beside the viewer's name in the bar
     /// (TopBar.PartyButton) with its pages behind it (Frank, 29 Oct 2026). The Tools page still says who sees it.
     /// </summary>
-    public static readonly IReadOnlyList<SiteTool> Cards = All.Where(t => t != Party).ToList();
+    public static readonly IReadOnlyList<SiteTool> Cards = All.Where(t => t != Party && t != RoutePlanner && t != RoutePlannerNew).ToList();
 
     /// <summary>The tools in the top bar, in the order Frank set (30 Oct 2026): the ones used while playing first. The landing page's links come in the same order (Frank, the same day).</summary>
     public static readonly IReadOnlyList<SiteTool> Bar = new[] { Hauling, Gauntlet, Map, Session, Missions };
