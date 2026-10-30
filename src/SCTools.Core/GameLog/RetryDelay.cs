@@ -39,6 +39,15 @@ public sealed class RetryDelay
         Next = UnknownKey;
     }
 
+    /// <summary>The game is closed when its Game.log has not grown for this long: the tracker then looks every Idle instead of every 3 seconds.</summary>
+    public static readonly TimeSpan QuietAfter = TimeSpan.FromMinutes(3);
+
+    /// <summary>How often the tracker looks while the game is closed. It is back to 3 seconds at the first line the game writes.</summary>
+    public static readonly TimeSpan Idle = TimeSpan.FromSeconds(15);
+
+    /// <summary>The wait before the next try, given how long the Game.log has not grown: Next, but at least Idle while the game is closed.</summary>
+    public TimeSpan NextFor(TimeSpan quiet) => quiet >= QuietAfter && Next < Idle ? Idle : Next;
+
     /// <summary>A wait as the menu says it: "24 s", "2 min".</summary>
     public static string Say(TimeSpan wait) => wait < TimeSpan.FromMinutes(1) ? (int)wait.TotalSeconds + " s" : (int)wait.TotalMinutes + " min";
 }

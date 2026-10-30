@@ -97,6 +97,27 @@ public sealed class LogSenderTests : IDisposable
     }
 
     [Fact]
+    public void The_sender_knows_when_the_game_log_last_grew()
+    {
+        File.WriteAllText(GameLog, Text(PlayedSession.Writer().Lines));
+        var sender = Sender();
+        Assert.Equal(TimeSpan.Zero, sender.QuietFor(DateTime.UtcNow));   // not looked yet
+        sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();
+        var grew = sender.GrewAt;
+        Assert.NotNull(grew);
+        var pieces = _server.Pieces;
+        sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();
+        Assert.Equal(grew, sender.GrewAt);   // nothing new: it did not grow, and nothing was read or sent
+        Assert.Equal(pieces, _server.Pieces);
+        Assert.True(sender.QuietFor(grew!.Value.AddMinutes(5)) >= TimeSpan.FromMinutes(5));
+
+        File.AppendAllText(GameLog, Text(new GameLogWriter().At(PlayedSession.LastPickup.AddMinutes(1)).Unstow().Lines));
+        sender.TickAsync(CancellationToken.None).GetAwaiter().GetResult();
+        Assert.True(sender.GrewAt >= grew);
+        Assert.Equal(SessionUnstows + 1, _server.Log.Unstows.Count);
+    }
+
+    [Fact]
     public void A_line_the_game_is_still_writing_waits_for_the_rest()
     {
         var lines = PlayedSession.Writer().Lines;

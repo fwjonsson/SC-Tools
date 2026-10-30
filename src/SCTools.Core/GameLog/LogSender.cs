@@ -38,6 +38,8 @@ public sealed class LogSender
     readonly HashSet<string> _finished = new(StringComparer.Ordinal);   // backup logs sent completely (they do not grow any more), by their name for the server
     readonly HashSet<string> _finishedPaths = new(StringComparer.OrdinalIgnoreCase);   // the same by path: not opened again, not even for their name
     readonly Dictionary<string, string> _ids = new(StringComparer.OrdinalIgnoreCase);   // path -> its name for the server, remembered: the first line never changes
+    byte[]? _buffer;   // one piece of a log, kept for the next one: 512 KB made anew every 3 s went to the large object heap of the gaming PC all day
+    long _liveLength = -1;
 
     public LogSender(ILogServer server) => _server = server;
 
@@ -53,6 +55,12 @@ public sealed class LogSender
     /// <summary>When a piece was last taken by the server (UTC), and how many lines were sent since the tracker started.</summary>
     public DateTime? LastUpload { get; private set; }
     public int LinesSent { get; private set; }
+
+    /// <summary>When the Game.log last grew (UTC; null before the first tick). While the game runs it grows all the time; when it has not for a while, the game is closed.</summary>
+    public DateTime? GrewAt { get; private set; }
+
+    /// <summary>How long the Game.log has not grown (zero before the first tick).</summary>
+    public TimeSpan QuietFor(DateTime nowUtc) => GrewAt is { } t && nowUtc > t ? nowUtc - t : TimeSpan.Zero;
 
     /// <summary>The name of a log file for the server: the time of its first line ("2026-10-23T13:09:38.304Z"), or null while it has none.</summary>
     public static string? FileId(string path) =>
@@ -133,7 +141,13 @@ public sealed class LogSender
                 fs = Open(path);
             }
             var length = fs.Length;
-            var buffer = new byte[PieceBytes];
+            if (live && length != _liveLength)
+            {
+                _liveLength = length;
+                GrewAt = DateTime.UtcNow;
+            }
+            if (state.At >= length) return;   // nothing new: no piece to read
+            var buffer = _buffer ??= new byte[PieceBytes];
             while (state.At < length)
             {
                 fs.Seek(state.At, SeekOrigin.Begin);

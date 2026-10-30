@@ -36,6 +36,16 @@ public class RetryDelayTests
     }
 
     [Fact]
+    public void While_the_game_is_closed_the_tracker_looks_every_15_seconds_and_at_once_again_when_it_writes()
+    {
+        var d = new RetryDelay();
+        Assert.Equal(TimeSpan.FromSeconds(3), d.NextFor(TimeSpan.FromMinutes(1)));    // the game writes: every 3 seconds
+        Assert.Equal(TimeSpan.FromSeconds(15), d.NextFor(TimeSpan.FromMinutes(3)));   // nothing for 3 minutes: the game is closed
+        for (var i = 0; i < 4; i++) d.Failed();
+        Assert.Equal(TimeSpan.FromSeconds(48), d.NextFor(TimeSpan.FromMinutes(10)));  // a longer wait after failures stays as long
+    }
+
+    [Fact]
     public void The_menu_says_the_wait_in_seconds_or_minutes()
     {
         Assert.Equal("24 s", RetryDelay.Say(TimeSpan.FromSeconds(24)));

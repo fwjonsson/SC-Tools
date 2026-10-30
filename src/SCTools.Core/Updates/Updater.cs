@@ -69,19 +69,30 @@ public static class Updater
     {
         var dir = Path.Combine(Path.GetTempPath(), DownloadPrefix + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        var zip = Path.Combine(dir, zipName);
-        using (var resp = await Http.GetAsync("https://github.com/" + Repo + "/releases/download/latest/" + zipName, HttpCompletionOption.ResponseHeadersRead))
-        {
-            resp.EnsureSuccessStatusCode();
-            await using var file = File.Create(zip);
-            await resp.Content.CopyToAsync(file);
-        }
-        ZipFile.ExtractToDirectory(zip, dir);
-        File.Delete(zip);
         var exe = Path.Combine(dir, exeName);
-        if (!File.Exists(exe)) throw new FileNotFoundException("The download does not contain " + exeName + ".");
-        return exe;
+        try
+        {
+            var zip = Path.Combine(dir, zipName);
+            using (var resp = await Http.GetAsync("https://github.com/" + Repo + "/releases/download/latest/" + zipName, HttpCompletionOption.ResponseHeadersRead))
+            {
+                resp.EnsureSuccessStatusCode();
+                await using var file = File.Create(zip);
+                await resp.Content.CopyToAsync(file);
+            }
+            ZipFile.ExtractToDirectory(zip, dir);
+            File.Delete(zip);
+            if (!File.Exists(exe)) throw new FileNotFoundException("The download does not contain " + exeName + ".");
+            return exe;
+        }
+        catch
+        {
+            RemoveDownload(exe);   // a download that broke off (no network, a full disk) leaves nothing behind
+            throw;
+        }
     }
+
+    /// <summary>Removes the folder of a download (DownloadAsync) whose exe was not put in place, so a failed update leaves nothing in Temp.</summary>
+    public static void Discard(string exe) => RemoveDownload(exe);
 
     /// <summary>Removes the folder a download came in (DownloadAsync) once the exe was moved out of it; any other folder is left alone.</summary>
     static void RemoveDownload(string exe)
