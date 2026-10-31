@@ -360,6 +360,10 @@ public class MapPageTests
         var script = await f.Browser().GetStringAsync("/systemmap.js");
         Assert.Contains("function drawMeasure()", script);
         Assert.Contains("svg.style.cursor = 'crosshair'", script);
+        // a trip stop by stop: every left click adds a stop, each leg a jump of its own, and a right click clears it (Frank, 31 Oct 2026)
+        Assert.Contains("svg.addEventListener('click', function (ev) { marks.push(pointOf(ev)); drawMeasure(); });", script);
+        Assert.Contains("svg.addEventListener('contextmenu', function (ev) { ev.preventDefault(); if (marks.length) { marks = []; drawMeasure(); } });", script);
+        Assert.Contains("profile(own.d, gm * 1e9).total : null;   // a jump of its own", script);
     }
 
     [Fact]
