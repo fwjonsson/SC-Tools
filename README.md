@@ -489,7 +489,7 @@ admin (done), then going live.
   1600 px or less before; 340 at 1200, the whole width at 900; `.maptool`'s `--mapw` and `.planleft`), the outermost places 16 px from the map's edge (46 before, `ROOM` in `systemmap.js`), with the Players and the next column's title level with the map's top. A page with a wide table (the
   Mission Library, the Session tool's games, the Gauntlet Tracker) takes the whole band too since 30 Oct 2026 (Frank; 1,400 px before), and the Mission
   Library numbers its rows in a # column on the left, on through its pages. The pages of the site end with a footer: the tracker's download, how to set it up, and the
-  disclaimer. The admin's pages have a second row under it with his pages (Players, Scrip, Map, Tools, Account; Admin in the top bar opens Players), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
+  disclaimer. The admin's pages have a second row under it with his pages (Players, Scrip Value, Map, Tools, Account; Admin in the top bar opens Players), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
 - **The admin's pages** change the data with the core's logic (`Editing/Edits.cs`, each change saved and worked out again at once):
   the **Session** page (`/admin`) went on 31 Oct 2026 (Frank): the sessions start and stop by themselves (below), the lost cargo of a run is picked in
   the Hauling Planner's Cargo runs table, the SCU of a drop-off the game did not tell is typed on its Current Route, and the **start time** is a row of
@@ -598,7 +598,7 @@ admin (done), then going live.
   library when it went by ContractId is carried over to the names once.
 - **The Session History tool** (`/history`; the Session tool at `/session` until 31 Oct 2026, renamed so the Companion's Session tab is not mixed up with it, Frank; `Play/PlayStats` in the core, `Playtime`, `SessionController`): your own play. Time played today, this week (from
   Monday), this month and in all, the games and the crashes (a log without the game's quit line, `SystemQuit`, crashed), the missions you completed
-  and what they earned (aUEC, MG and Council scrip as the Mission Library says they pay; the scrip at the Scrip page's value), and per
+  and what they earned (aUEC, MG and Council scrip as the Mission Library says they pay; the scrip at the Scrip Value page's value), and per
   hour; the clock of the game you play now; a list of your games. Worked out again on every visit, so a reward typed in later counts for the past.
   What a mission earned is your part of it (the contracts tracker's `ContractTracker.Earned`, Frank 30 Oct 2026; before, every member of the party
   counted the whole reward of a contract they all completed): the aUEC is split evenly among the players who completed the same mission, a Hauling

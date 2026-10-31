@@ -106,7 +106,7 @@ public class ToolsPageTests
         Assert.DoesNotContain(">Session</a>", party);   // the Session page went (31 Oct 2026)
         Assert.Contains("aria-current=\"page\" style=\"--tool:#e5534b\">Admin</a>", await admin.GetStringAsync("/account"));
         Assert.DoesNotContain("<nav class=\"subnav", await admin.GetStringAsync("/"));
-        // a tool's page has its tool marked (from its address), the admin's Scrip page does not mark the Gauntlet Tracker
+        // a tool's page has its tool marked (from its address), the admin's Scrip Value page does not mark the Gauntlet Tracker
         var adminMap = await admin.GetStringAsync("/admin/map");   // the admin's Map: a tab of his pages, marked there (31 Oct 2026)
         Assert.Contains("<a href=\"/admin/map\" class=\"on\">Map</a>", adminMap);
         Assert.Contains("aria-current=\"page\" style=\"--tool:#e5534b\">Admin</a>", adminMap);
