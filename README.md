@@ -262,7 +262,8 @@ admin (done), then going live.
   2026; `PartyService.WithoutTracker`).
 - **The admin's Map** (`/admin/map`, a tab of his pages beside Map places since 31 Oct 2026, Frank: out of the top bar, the landing page and the Tools
   page, where it was the Map tool at `/map`, so his bar has the same tools as a player's; `MapController`, `MapService`, `wwwroot/map.js`): Pyro, Stanton and
-  Nyx from above (a button per system over the map, not a row of tabs under the admin's; it opens on the system where most players are, `#stanton` in the
+  Nyx from above (the map engine's buttons, one per system, in the map's top left corner, as on every map of the site since 31 Oct 2026, `SystemMap.systems`;
+  not a row of tabs under the admin's; it opens on the system where most players are, `#stanton` in the
   address opens that one; no texts under it and no team status line), with everybody playing where the location tracker has him (below) and the objectives of
   the missions going on (`map.json`, every 3 seconds, with who the viewer is: `me`, as the Companion's feed has it, null for a visitor; for the map tools that are his, such as measuring a distance with his own ship, #408). The places are `StarMap` (Core): the stars, planets, moons, cities, gateways and stations of
   the three systems with their positions from the Star Citizen Wiki API (`/api/locations/positions`, downloaded with ScApiTool on 20 Oct 2026;
@@ -686,8 +687,8 @@ admin (done), then going live.
     the mission. A job with a stop the map has no place for (or only the planet) stays out with a note; one whose cargo is picked up already is noted and
     left to stage 4 (the runs do not follow jobs yet); several pickups to several drop-offs are not planned (the game does not say which goes where). The
     map's place for a worker in any system is where his trip starts (`Whereabouts.LocationOf(name, anyPlace)`; the old planner keeps to the Pyro stations).
-    The map on the planner tabs gets a **row of systems** like the Map tool's when the routes touch more than one (Frank's answer 8; `data.freePlanner.maps`,
-    `places` with the system of every place); a leg through a gateway is drawn to the gateway on the system it leaves, with the far end's name, and from the
+    The map on the planner tabs gets the **systems' buttons** in its corner, the engine's as on every map, when the routes touch more than one (Frank's answer 8;
+    `data.freePlanner.maps`, `places` with the system of every place); a leg through a gateway is drawn to the gateway on the system it leaves, with the far end's name, and from the
     gateway on the system it enters; `/hauling/map.json` has every system.
   - **The other systems** (stage 3, 30 Oct 2026): any hauling mission starts a session, a courier too (`AutoSessions.HaulingActivity`, Frank's answer 7),
     so a party hauling in Stanton alone has a session and a plan on the Route Planner (new) tab. A stop the texts and the zones do not place is placed by

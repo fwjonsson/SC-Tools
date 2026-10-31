@@ -9,7 +9,8 @@
 // Since 31 Oct 2026 (Frank): over a station the mouse gets a card with what it has (UEX's services and shops, /map/services.json; #409), left clicks
 // measure a trip stop by stop, every leg a jump of its own, with its flight time with the viewer's own drive, and a right click clears it (his alone:
 // nothing leaves the browser; #408), and where somebody died in the last quarter of an hour a skull sits with his name in gray (the feed's deaths; #410).
-// All in the engine, so every map of the site has them.
+// The star systems are buttons in the map's top left corner (systems(): the page says which and which is on). All in the engine, so every map of the site
+// has them, the same way in the same place.
 var SystemMap = (function () {
   'use strict';
   const NS = 'http://www.w3.org/2000/svg';
@@ -93,6 +94,7 @@ var SystemMap = (function () {
     const meters = {};   // a player's name (lower case) -> his line and speed meter
     let card = null;     // the card over a station (what it has), one per map
     let marks = [];      // the stops of the viewer's measured trip (his alone: they never leave the browser)
+    let sysItems = null, sysOn = null, sysPick = null, sysRow = null;   // the systems' buttons in the top left corner (systems()), one row per map
     loadServices();
 
     function el(tag, attrs, parent, text) {
@@ -235,6 +237,47 @@ var SystemMap = (function () {
       base.routes = el('g', {});
       base.people = el('g', {});
       base.measure = el('g', { 'class': 'measure' });   // the viewer's measurement (#408), on top of everything
+      drawSystems();   // the systems' buttons back over the new system (the box was emptied)
+    }
+
+    // ------------------------------------------------------------------ the systems over the map: buttons in its top left corner (Frank, 31 Oct 2026)
+    // systems(items, on, pick): a button per star system (items: id, text, title), the one shown lit, pick(id) on a click; null takes them away. Every page
+    // with a map calls it (the admin's Map and the Gauntlet Tracker with how many are playing in each, the Companion with how many of the party, the Route
+    // Planner with the systems its routes touch), so every map of the site has the same row in the same place. A row of tabs under the bar, then a row over
+    // the map, before.
+    function systems(items, on, pick) {
+      sysItems = items; sysOn = on; sysPick = pick;
+      drawSystems();
+    }
+    function drawSystems() {
+      if (sysRow && !sysRow.isConnected) sysRow = null;   // the box was emptied for another system
+      if (!sysItems || !sysItems.length) { if (sysRow) { sysRow.remove(); sysRow = null; } return; }
+      if (!sysRow) {
+        sysRow = document.createElement('div');
+        sysRow.className = 'mapsys';
+        sysRow.setAttribute('role', 'tablist');
+        sysRow.setAttribute('aria-label', 'Star system');
+        if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
+        box.appendChild(sysRow);
+      }
+      if (sysRow.children.length !== sysItems.length) {   // made once, so a button keeps the focus
+        sysRow.textContent = '';
+        sysItems.forEach(function () {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.setAttribute('role', 'tab');
+          b.addEventListener('click', function () { if (sysPick) sysPick(b.dataset.sys); });
+          sysRow.appendChild(b);
+        });
+      }
+      sysItems.forEach(function (s, i) {
+        const b = sysRow.children[i];
+        b.dataset.sys = s.id;
+        b.textContent = s.text || s.id;
+        b.title = s.title || '';
+        b.className = s.id === sysOn ? 'on' : '';
+        b.setAttribute('aria-selected', s.id === sysOn ? 'true' : 'false');
+      });
     }
 
     function diamond(parent, x, y, size, title) {
@@ -538,6 +581,7 @@ var SystemMap = (function () {
     return {
       show: show,
       draw: draw,
+      systems: systems,
       meter: meter,
       el: el,
       system: function () { return base ? base.sys : null; },

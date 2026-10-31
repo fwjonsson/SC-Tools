@@ -42,9 +42,13 @@ public class SiteStatusPageTests
         }
         foreach (var page in new[] { "/session", "/missions", "/admin/map" })   // no fun facts on the admin's Map (31 Oct 2026)
             Assert.DoesNotContain("data-ticker", await admin.GetStringAsync(page));
-        // the Companion's systems have a box of their own in the row (its script fills it), beside the line
+        // the Companion's row holds the line alone: its systems are the map engine's buttons in the map's corner since 31 Oct 2026
         foreach (var page in new[] { "/companion" })
-            Assert.Contains("<div class=\"tabs\" id=\"systems\" role=\"tablist\" aria-label=\"Star system\"></div><span class=\"ticker\" data-ticker></span></nav>", await admin.GetStringAsync(page));
+        {
+            var html = await admin.GetStringAsync(page);
+            Assert.Contains("\"><span class=\"ticker\" data-ticker></span></nav>", html);
+            Assert.DoesNotContain("id=\"systems\"", html);
+        }
     }
 
     [Fact]

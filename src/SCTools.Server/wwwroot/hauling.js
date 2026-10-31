@@ -222,8 +222,8 @@ function mapSvg(el, p, routes, names, tab) {
     });
     el.appendChild(lg);
   }
-  let row = null;   // the systems' row, like the Map tool's (Frank's answer 8 of 30 Oct 2026), only when the routes are in more than one
-  if (systems.length > 1) { row = document.createElement('div'); row.className = 'sub systems'; el.appendChild(row); }
+  // the systems' buttons in the map's corner, the engine's as on every map (Frank, 31 Oct 2026; a row over the map before), only when the routes are in more
+  // than one (Frank's answer 8 of 30 Oct 2026)
   const box = document.createElement('div'); box.className = 'mapsvg'; el.appendChild(box);
   const map = SystemMap.create(box, { active: function () { return shownTab === tab; } });
   const keep = function (name) { return among(names, name || ''); };
@@ -319,7 +319,7 @@ function mapSvg(el, p, routes, names, tab) {
   function showSystem(id) {
     shownSys = id;
     if (planMaps[tab]) planMaps[tab].system = id;
-    if (row) tabButtons(row, systems.map(function (s) { return { key: s.id, text: s.name }; }), shownSys, showSystem);
+    map.systems(systems.length > 1 ? systems.map(function (s) { return { id: s.id, text: s.name }; }) : null, shownSys, showSystem);
     map.show(sysData(id));
     drawRoutes();
     if (mapData) map.draw(mapData, keep);
