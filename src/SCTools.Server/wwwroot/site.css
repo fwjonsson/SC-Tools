@@ -182,7 +182,8 @@ main:has(.maptool) { max-width:1900px; }
 /* the systems over every map, in its top left corner: the map engine's buttons (systemmap.js systems(); the page says which and which is on), the one
    shown lit (Frank, 31 Oct 2026; a row of tabs under the bar, then a row over the map, before) */
 .mapsys { position:absolute; left:0; top:0; z-index:2; display:flex; gap:0; flex-wrap:wrap; }   /* flush in the corner, the buttons touching (Frank, 31 Oct 2026: discreet, little room) */
-.mapsys button { padding:3px 9px; border:1px solid #2a313c; border-left-width:0; border-radius:0; background:rgba(16,21,28,.7); color:#a7adb8; font:inherit; font-size:11px; font-weight:600; cursor:pointer; }
+/* margin 0: the site's buttons have 10 px over them (button, above), which put the strip that far under the map's top edge (Frank, 31 Oct 2026) */
+.mapsys button { margin:0; padding:3px 9px; border:1px solid #2a313c; border-left-width:0; border-radius:0; background:rgba(16,21,28,.7); color:#a7adb8; font:inherit; font-size:11px; font-weight:600; cursor:pointer; }
 .mapsys button:first-child { border-left-width:1px; border-top-left-radius:6px; }   /* the map's own rounded corner */
 .mapsys button:last-child { border-bottom-right-radius:6px; }
 .mapsys button:hover { color:#ecece8; }

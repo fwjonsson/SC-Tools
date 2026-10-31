@@ -68,7 +68,9 @@ public class HaulingPageTests
         Assert.Contains("const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history', L: 'leaderboard' };", script);   // /hauling/planner
         Assert.Contains("function systemIn(d, id)", script);   // the map's data has every system (stage 2)
         Assert.Contains("function legEnds(x, y)", script);   // a leg through a gateway is drawn to the gateway on each system's map
-        Assert.Contains("map.systems(systems.length > 1 ? systems.map(", script);   // the systems' buttons in the map's corner, the engine's, when the routes are in more than one (31 Oct 2026)
+        Assert.Contains("map.systems(all.map(function (s) {", script);   // the systems' buttons in the map's corner, the engine's, for every system as on the other maps (31 Oct 2026)
+        Assert.Contains("pm.buttons();", script);   // the counts follow the map's data
+        Assert.DoesNotContain("systems.length > 1 ?", script);   // not only when the routes are in more than one any more
         Assert.DoesNotContain("'sub systems'", script);   // no row of its own over the map any more
         Assert.Contains("if (name === 'contracts') name = 'session';", script);   // the old Contracts tab's address opens the Session tab (30 Oct 2026)
         Assert.Contains("function leaderWidths", script);   // the Session tables line up without the leaderboard on the same tab

@@ -195,17 +195,18 @@ function darker(hex, f) {
   return '#' + [1, 2, 3].map(function (k) { return Math.round(parseInt(m[k], 16) * f).toString(16).padStart(2, '0'); }).join('');
 }
 
-// The map in its box: the legend (who flies which route) above it, a row of the systems the routes touch when there is more than one (stage 2: a route
+// The map in its box: the legend (who flies which route) above it, the systems as the engine's buttons in the map's corner (stage 2: a route
 // through a gateway is drawn on both systems' tabs, each part to or from the gateway), then the Map tool's system with the routes on it. names: the workers
 // shown (their players and objectives are drawn, nobody else's). tab: the planner tab it is on (its map is live while that tab is shown).
 function mapSvg(el, p, routes, names, tab) {
   el.textContent = '';
   const waves = [];
   const places = p.places || [];
-  const systems = (p.maps || []).filter(function (s) { return places.some(function (pl) { return pl.system === s.id; }); });
+  const all = p.maps || [];   // every system: the buttons in the map's corner, as on every map (Frank, 31 Oct 2026)
+  const systems = all.filter(function (s) { return places.some(function (pl) { return pl.system === s.id; }); });   // the ones the routes touch
   const prev = planMaps[tab];
-  let shownSys = prev && prev.system && systems.some(function (s) { return s.id === prev.system; }) ? prev.system
-    : systems.length === 0 || systems.some(function (s) { return s.id === 'pyro'; }) ? 'pyro' : systems[0].id;   // the system looked at stays; Pyro first
+  let shownSys = prev && prev.system && all.some(function (s) { return s.id === prev.system; }) ? prev.system
+    : systems.length === 0 || systems.some(function (s) { return s.id === 'pyro'; }) ? 'pyro' : systems[0].id;   // the system looked at stays; else Pyro, else where the routes are
   function sysData(id) { return systemIn(mapData, id) || (p.maps || []).find(function (s) { return s.id === id; }); }
   const legend = routes.filter(function (r) { return r.label; });
   if (legend.length) {
@@ -315,16 +316,25 @@ function mapSvg(el, p, routes, names, tab) {
       if (q) add('circle', { cx: q[0], cy: q[1], r: 7, fill: 'none', stroke: '#ecece8', 'stroke-opacity': 0.7, 'stroke-width': 1.5 });
     });
   }
-  // the system on the map: the one picked in the row (or the one looked at before); its routes, then the map's players and objectives in it
+  // the systems' buttons in the map's corner, every system as on the other maps (Frank, 31 Oct 2026: the planner's map had none while its routes stayed in
+  // one), with how many of the players shown are in each (the map's data, when it came)
+  function buttons() {
+    const n = {};
+    ((mapData && mapData.players) || []).forEach(function (pl) { if (keep(pl.name) && pl.system) n[pl.system] = (n[pl.system] || 0) + 1; });
+    map.systems(all.map(function (s) {
+      return { id: s.id, text: s.name + (n[s.id] ? ' · ' + n[s.id] : ''), title: n[s.id] ? n[s.id] + (n[s.id] === 1 ? ' player' : ' players') + ' in ' + s.name : 'Nobody in ' + s.name };
+    }), shownSys, showSystem);
+  }
+  // the system on the map: the one picked in the corner (or the one looked at before); its routes, then the map's players and objectives in it
   function showSystem(id) {
     shownSys = id;
     if (planMaps[tab]) planMaps[tab].system = id;
-    map.systems(systems.length > 1 ? systems.map(function (s) { return { id: s.id, text: s.name }; }) : null, shownSys, showSystem);
+    buttons();
     map.show(sysData(id));
     drawRoutes();
     if (mapData) map.draw(mapData, keep);
   }
-  planMaps[tab] = { map: map, drawRoutes: drawRoutes, keep: keep, waves: waves, system: shownSys, sysData: sysData };
+  planMaps[tab] = { map: map, drawRoutes: drawRoutes, keep: keep, waves: waves, system: shownSys, sysData: sysData, buttons: buttons };
   showSystem(shownSys);
   return map;
 }
@@ -364,6 +374,7 @@ async function refreshMap() {
     const pm = planMaps[shownTab], pd = last && last.planner;
     if (pm && pd) {
       if (pm.map.show(pm.sysData(pm.system))) pm.drawRoutes();   // the places changed (the admin's Map places): drawn anew
+      pm.buttons();   // how many are in each system, from the new data
       pm.map.draw(mapData, pm.keep);
     }
   } catch (e) {
