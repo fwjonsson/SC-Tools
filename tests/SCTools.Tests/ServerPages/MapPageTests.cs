@@ -139,6 +139,35 @@ public class MapPageTests
     }
 
     [Fact]
+    public async Task A_jump_picked_inside_an_area_starts_when_he_leaves_into_open_space_however_long_he_lingers()
+    {
+        // Frank, 31 Oct 2026: he picked Levski at an asteroid base and the map started the jump ten seconds after the pick, before he had left the base.
+        // Here at Ruin: out of the hangar into Ruin's area, he flies about, picks Gaslight there, and leaves into open space three minutes later
+        using var f = new ServerFactory();
+        var now = DateTime.UtcNow;
+        const long pad = 2026442305, ruinArea = 685899972, space = 3184339241;
+        var sent = 0;
+        async Task<JsonElement> Zzoega(GameLogWriter w)
+        {
+            Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-10)), sent, w.Lines.Count, w.Lines.Skip(sent).ToList(), now).Ok);
+            sent = w.Lines.Count;
+            return Player(JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/admin/map/map.json")).RootElement, "zzoega");
+        }
+
+        var w = new GameLogWriter().At(now.AddMinutes(-10)).Login("zzoega").AreaChange("zzoega", 0, pad, ruinArea, pad)
+            .Minutes(1).AreaChange("zzoega", pad, 0, pad, ruinArea).Minutes(2).QuantumSelected(Gaslight).RouteStart("Ruin Station", Gaslight);
+        var z = await Zzoega(w);
+        Assert.Equal(("at", "pyro/ruin-station", "Gaslight"), (z.GetProperty("state").GetString(), z.GetProperty("at").GetString(), z.GetProperty("leaving").GetString()));
+
+        // three minutes after the pick he leaves into open space: the jump starts then, not ten (or 47) seconds after the pick
+        w.Minutes(3).AreaChange("zzoega", pad, 0, ruinArea, space);
+        z = await Zzoega(w);
+        Assert.Equal("jump", z.GetProperty("state").GetString());
+        var start = new DateTimeOffset(now.AddMinutes(-4)).ToUnixTimeMilliseconds();
+        Assert.InRange(z.GetProperty("start").GetInt64(), start - 5, start + 5);
+    }
+
+    [Fact]
     public async Task A_player_in_quantum_is_on_his_way_and_one_who_arrived_is_there()
     {
         using var f = new ServerFactory();

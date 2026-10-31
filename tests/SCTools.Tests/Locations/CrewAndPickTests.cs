@@ -56,7 +56,7 @@ public class CrewAndPickTests
     {
         var log = Pilot().Read();
         var w = LocationTracker.Follow(log.Qt, Atlas.Default, null, null, null, log.Areas);
-        Assert.True(w.PickedLanded);
+        Assert.True(w.PickedInArea);
         var now = LocationTracker.Now(w, QuantumDrives.All[0], T.AddMinutes(1));
         Assert.Equal((PlayerState.Jump, "pyro/ruin-station", "pyro/nyx-gateway", T.AddSeconds(44.2)), (now.State, now.From?.Key, now.To?.Key, now.Start));   // not the pick + 10 s
 
