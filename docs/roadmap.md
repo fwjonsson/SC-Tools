@@ -272,7 +272,11 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       in-game party (the party tracker) are asked first.
     - The clock rule: the book changes only with a new clue (or half a minute on, when a game that went quiet ends), the plan is made anew only when
       what the planner takes from it changes, and the map's moving markers count from the jump's UTC start in map.json.
-    - The Stanton station codes of the inventory lines (`RR_HUR_L1`, `RR_CRU_LEO`) are read since #394.
+    - The Stanton station codes of the inventory lines (`RR_HUR_L1`, `RR_CRU_LEO`) are read since #394, and every other code of a real place the three
+      accounts' logs show since 31 Oct 2026 (Frank: "teach the map everything you can find"): stations in low orbit, Stanton's gateways written short,
+      moons by their letter, an outpost or a mine on the planet or moon its code names, a few one-offs. Not placed, for want of a position: the Castra and
+      Magnus gateways, Pyro's encounter sites, asteroid clusters. Working an encounter's place out from the routes' fuel estimates works (precise to a
+      fraction of a percent) once it was picked from three known places; in Aug-Oct 2026 none of Pyro's encounters had been.
     - Not yet, ideas for #388: new line kinds (a tracker update, the players told first): the jurisdiction, armistice and monitored-space
       notifications, the ATC contact, the elevators and shuttles, "X has started to QT to your current location", the party markers streamed in.
 
