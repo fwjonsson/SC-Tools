@@ -75,6 +75,9 @@ public sealed class HaulingLog
     // "Quantum Drive has arrived at final destination". The ship is in the front of the line: "| CRUS_Starlifter_C2_891702459996[891702459996]|CSCItemNavigation::..."
     static readonly Regex QtSelect = new(@"Player has selected point (?<d>\S+) as their destination", RegexOptions.Compiled);
     static readonly Regex QtStart = new(@"Projected Start Location is (?<n>.+?) for route to destination (?<d>\S+)", RegexOptions.Compiled);
+
+    // and how much fuel the route takes: "Successfully calculated route to MISSION_QT_Quantum_Beacon_LongRange_864272617968 fuel estimate 738770.250000"
+    static readonly Regex QtFuel = new(@"Successfully calculated route to (?<d>\S+) fuel estimate (?<f>[0-9]+(?:\.[0-9]+)?)", RegexOptions.Compiled);
     static readonly Regex QtShip = new(@"\| (?<s>[A-Za-z][A-Za-z0-9_]*?)_\d{6,}\[(?<id>\d+)\]\|CSCItemNavigation::", RegexOptions.Compiled);
 
     // The game no longer writes kill lines (CIG took "<Actor Death>" out after 4.3). What is still written when the player of this log dies is the list of the items of his
@@ -518,6 +521,18 @@ public sealed class HaulingLog
                     {
                         if (Qt[qi].Kind != QtKind.Selected || Qt[qi].Destination != qstart.Groups["d"].Value || Qt[qi].From.Length > 0) continue;
                         Qt[qi].From = qstart.Groups["n"].Value;
+                        break;
+                    }
+                }
+                var qfuel = QtFuel.Match(line);
+                if (qfuel.Success && double.TryParse(qfuel.Groups["f"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var estimate))
+                {
+                    // the route's fuel estimate: the game works the route out before and after the pick (both lines say the same), so it goes with the
+                    // destination selected a moment ago, the first that has none yet
+                    for (var qi = Qt.Count - 1; qi >= 0 && qtTime - Qt[qi].Time < TimeSpan.FromSeconds(3); qi--)
+                    {
+                        if (Qt[qi].Kind != QtKind.Selected || Qt[qi].Destination != qfuel.Groups["d"].Value || Qt[qi].FuelEstimate != null) continue;
+                        Qt[qi].FuelEstimate = estimate;
                         break;
                     }
                 }

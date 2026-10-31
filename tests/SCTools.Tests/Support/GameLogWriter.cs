@@ -124,6 +124,10 @@ sealed class GameLogWriter
     public GameLogWriter RouteStart(string from, string destination) =>
         Add($"{Ts} [Notice] <Calculate Route> [ItemNavigation][CL][33716] | NOT AUTH | CRUS_Starlifter_C2_891702459996[891702459996]|CSCItemNavigation::CalculateRoute|Projected Start Location is {from} for route to destination {destination} [Team_CGP4][QuantumTravel]");
 
+    /// <summary>The route the game worked out, with its fuel estimate (it writes one before the pick and one after it).</summary>
+    public GameLogWriter RouteFuel(string destination, double estimate, string ship = "CRUS_Starlifter_C2", string shipId = "891702459996") =>
+        Add($"{Ts} [Notice] <Calculate Route> [ItemNavigation][CL][33716] | NOT AUTH | {ship}_{shipId}[{shipId}]|CSCItemNavigation::CalculateRoute|Successfully calculated route to {destination} fuel estimate {estimate.ToString("F6", CultureInfo.InvariantCulture)} [Team_CGP4][QuantumTravel]");
+
     /// <summary>The ship's quantum drive arrived: in the log of everybody aboard (the pilot's has the destination he picked before it).</summary>
     public GameLogWriter QuantumArrived(string ship = "CRUS_Starlifter_C2", string shipId = "891702459996") =>
         Add($"{Ts} [Notice] <Quantum Drive Arrived - Arrived at Final Destination> [ItemNavigation][CL][33716] | NOT AUTH | {ship}_{shipId}[{shipId}]|CSCItemNavigation::OnQuantumDriveArrived|Quantum Drive has arrived at final destination [Team_CGP4][QuantumTravel]");

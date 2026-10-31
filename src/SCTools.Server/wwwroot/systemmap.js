@@ -129,7 +129,7 @@ var SystemMap = (function () {
       // the scale: everything (the places and the orbits) as big as the square holds it, in the middle; across is the system's Y, down its X
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
       const grow = function (across, down) { x0 = Math.min(x0, across); x1 = Math.max(x1, across); y0 = Math.min(y0, down); y1 = Math.max(y1, down); };
-      places.forEach(function (p) { grow(p.y, p.x); });
+      places.forEach(function (p) { if (!p.hidden) grow(p.y, p.x); });   // a hidden spot does not change the scale
       planets.forEach(function (q) { const r = orbit(q); grow(star.y - r, star.x - r); grow(star.y + r, star.x + r); });
       const sc = (W - 2 * ROOM) / Math.max(x1 - x0, y1 - y0, 1), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
       const at = function (x, y) { return [W / 2 + (y - mx) * sc, W / 2 + (x - my) * sc]; };
@@ -156,6 +156,8 @@ var SystemMap = (function () {
       const own = [];
       places.forEach(function (p) {
         base.names[p.key] = p.name;
+        // a hidden spot (a mission's beacon placed by its fuel estimate, where a player is or flies to): where it is, and nothing drawn for it
+        if (p.hidden) { base.anchor[p.key] = at(p.x, p.y); return; }
         if (p.kind === 'star') { base.anchor[p.key] = [cx, cy]; return; }
         if (p.kind === 'planet' && !p.parent) { base.anchor[p.key] = at(p.x, p.y); return; }
         const h = p.kind === 'gateway' ? null : host(p);

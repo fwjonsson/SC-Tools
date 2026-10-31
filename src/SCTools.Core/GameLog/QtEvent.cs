@@ -12,4 +12,10 @@ public sealed class QtEvent
     public string From = "";             // Selected: the name the game gives the place he starts from ("Ruin Station"), when it said so
     public string Ship = "";             // the ship he flies, as the game names it ("CRUS_Starlifter_C2")
     public string ShipId = "";           // the ship's entity id ("891702459996"): the same in the log of everybody aboard (a crew's log has the arrival, not the destination)
+
+    /// <summary>
+    /// Selected: the fuel estimate of the route the game worked out for it ("Successfully calculated route to rs_ext_pyro6_leo fuel estimate 2995938.75"),
+    /// or null. It is the drive's fuel burn times the distance (BeaconRanging), so it says how far the destination is.
+    /// </summary>
+    public double? FuelEstimate;
 }

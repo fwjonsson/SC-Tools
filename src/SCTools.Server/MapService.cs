@@ -65,6 +65,9 @@ public sealed class MapService
         var book = _live.Locations(nowUtc);
         List<(string Name, HaulingLog Log, PlayerLocation Where, Dictionary<string, Mission> Missions)> playing;
         lock (_uploads.Sync) playing = book.Players.Select(p => (p.Name, p.Log, p.Where, new Dictionary<string, Mission>(p.Log.Missions))).ToList();
+        // the hidden spots somebody is at or flies to (a mission's beacon placed by its fuel estimate): the map needs where they are, nothing more
+        var spots = playing.SelectMany(p => new[] { p.Where.At, p.Where.From, p.Where.To, p.Where.LastPing })
+            .Where(x => x is { Hidden: true }).Select(x => x!.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // an objective one holder's log says is done is done for everybody with the mission (a shared contract's pickup is credited once; the Hauling Planner
         // reads the logs merged the same way), whichever log the map happens to place it from
@@ -127,7 +130,7 @@ public sealed class MapService
         return new
         {
             updated = nowUtc,
-            systems = StarMap.Systems.Select(atlas.SystemData).ToList(),
+            systems = StarMap.Systems.Select(s => atlas.SystemData(s, spots)).ToList(),
             players,
             objectives,
             unplaced,

@@ -10,9 +10,9 @@ public enum PlaceKind { Star, Planet, Moon, City, Gateway, Station }
 /// objective markers in the log, in metres there). Parent: the planet or moon it is at (a station in orbit, a city), or null. Short: the label on the map,
 /// the full name for every place of the game data (Frank, 30 Oct 2026: "Dudley & Daughters" and "Rod's Fuel 'N Supplies" written out on the maps, as the
 /// Hauling Planner has them again since the day before; before, the stations had short labels, "Dudley", "Rod's Fuel", "HUR-L1", "PSS Alpha"); the admin
-/// can still shorten one on Map places.
+/// can still shorten one on Map places. Hidden: a place of the game data the game hides in its starmap (HiddenSpots): the map knows it but does not draw it.
 /// </summary>
-public sealed record Place(string System, string Id, string Name, string Short, PlaceKind Kind, string? Parent, double X, double Y)
+public sealed record Place(string System, string Id, string Name, string Short, PlaceKind Kind, string? Parent, double X, double Y, bool Hidden = false)
 {
     /// <summary>"pyro/ruin-station": unique over the systems (a "Nyx Gateway" is in Pyro and in Stanton).</summary>
     public string Key => System + "/" + Id;

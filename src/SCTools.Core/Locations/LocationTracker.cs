@@ -46,9 +46,10 @@ public static class LocationTracker
     /// </summary>
     /// <param name="games">every game in each player's logs (LogUploads.Games), by uploader</param>
     /// <param name="seen">every mission in each player's logs with its title (LogUploads.MissionsSeen), by uploader</param>
+    /// <param name="fuel">a player's route fuel estimate per Gm in the ship of a jump, by his fleet (null: not known), for placing a mission's beacon (BeaconRanging)</param>
     public static LocationBook Work(IEnumerable<HaulingLog> logs, IReadOnlyDictionary<string, List<(string File, GameRun Run, bool Quit)>> games,
         IReadOnlyDictionary<string, IReadOnlyList<MissionSeen>> seen, Atlas atlas, DateTime nowUtc, PartyBook? parties = null,
-        Func<string, PlannerClue?>? planner = null)
+        Func<string, PlannerClue?>? planner = null, Func<string, QtEvent, double?>? fuel = null)
     {
         var book = new LocationBook { Now = nowUtc };
         var all = logs.ToList();
@@ -71,7 +72,7 @@ public static class LocationTracker
             var points = Points(log.Beacons.Where(b => b.Time >= nowUtc - MissionAge), log.Missions, m => TitleOf(m, titles), atlas);
             var qt = WithPilots(log.Qt, others);
             if (AboardJump(log, otherLogs) is { } aboard) qt.Add(aboard);   // riding in a pilot's ship that is on its way: on the pilot's jump
-            var where = Follow(qt, atlas, null, log.Locations, points, log.Areas, stations);
+            var where = Follow(qt, atlas, null, log.Locations, points, log.Areas, stations, fuel == null ? null : e => fuel(name, e));
             // the Hauling Planner saw him pick up, deliver or hand in later than the jumps say anything: he is at that station
             if (planner?.Invoke(name) is { } clue && clue.At > (where.Since ?? DateTime.MinValue) && clue.At > (where.Picked?.Time ?? DateTime.MinValue)
                 && atlas.OfPyroStation(clue.Station) is { } there && !Equals(there, where.At))
@@ -104,11 +105,17 @@ public static class LocationTracker
     /// he went into since he picked the jump he is on, and whether he was at a station when he picked it, go with it (JumpTimes makes the jump's times of
     /// them); the area lines also say whether he is landed or taking off (Hangar). Out of the hangar into a station's own area (stations: StationAreas;
     /// the known ones when not given) is taking off, not leaving: the jump starts when he leaves that area (Frank, 31 Oct 2026).
+    /// A beacon whose objective names no place is placed by the route's fuel estimate (BeaconRanging): over the ship's estimate per Gm, learnt from a jump of
+    /// his between two known places in the same ship (the latest), else fuelPerGm (his fleet's fuel burn), it is the distance from where he starts, and the
+    /// hidden spot at that distance is where he flies to. At such a spot the game names only the system as the start of his next route ("Projected Start
+    /// Location is Nyx"): he is still there.
     /// </summary>
     public static PlayerLocation Follow(IReadOnlyList<QtEvent> qt, Atlas atlas, Action<DateTime, string, UnknownKind, string?>? unknown = null,
         IReadOnlyList<LocationSeen>? seen = null, IReadOnlyList<MissionPoint>? missions = null, IReadOnlyList<AreaChange>? areas = null,
-        IReadOnlySet<long>? stations = null)
+        IReadOnlySet<long>? stations = null, Func<QtEvent, double?>? fuelPerGm = null)
     {
+        var perGm = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);   // a ship's route fuel estimate per Gm, learnt from his jumps
+        var ranged = new Dictionary<string, Place>(StringComparer.OrdinalIgnoreCase);   // a beacon placed by its fuel estimate, by its destination id
         stations ??= StationAreas.Known;
         string? system = null;
         Place? at = null;
@@ -178,12 +185,24 @@ public static class LocationTracker
                         jumped = false;
                         lastPing = null;
                     }
-                    else if (place == null && sys != null) at = null;   // "Pyro System": in space somewhere
+                    else if (place == null && sys != null && !(at is { Hidden: true } spot && spot.System == sys)) at = null;   // "Pyro System": in space somewhere (not at a hidden spot: the game names none there)
                 }
                 picked = e;
                 from = at;
                 toMission = missions?.LastOrDefault(p => p.Is(e.Destination));
                 to = toMission != null ? toMission.Place : atlas.OfQuantumTarget(e.Destination, system);
+                if (e.FuelEstimate is > 0 and var estimate)
+                {
+                    // a jump between two known places tells this ship's estimate per Gm; a beacon that names no place is the hidden spot that far away
+                    if (to != null && from != null && !to.Hidden && !from.Hidden && to.System == from.System && e.Ship.Length > 0
+                        && StarMap.JumpGm(from, to) is >= BeaconRanging.LearnGm and var gm)
+                        perGm[e.Ship] = estimate / gm;
+                    if (to == null && toMission != null && from != null && !ranged.ContainsKey(e.Destination)
+                        && (perGm.TryGetValue(e.Ship, out var learnt) ? learnt : fuelPerGm?.Invoke(e)) is > 0 and var rate
+                        && BeaconRanging.Pick(atlas, from, estimate / rate) is { } spot)
+                        ranged[e.Destination] = spot;
+                }
+                if (to == null && toMission != null && ranged.TryGetValue(e.Destination, out var placed)) to = placed;
                 if (to == null && toMission == null && unknown != null && e.Destination.Length > 0 && !atlas.AliasOf(e.Destination).Said)
                     unknown(e.Time, e.Destination, UnknownKind.Destination, system);
                 system ??= to?.System ?? toMission?.System;

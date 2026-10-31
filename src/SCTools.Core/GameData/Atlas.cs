@@ -9,7 +9,8 @@ public sealed record PlaceAlias(string Text, string? Key);
 /// <summary>
 /// The places of the map as the site has them: the game data's (StarMap) with the admin's changes (MapPlaces in the server): his own names for places, the
 /// places he added, and what a destination or a start name of the log is when the game data does not say (PlaceAlias). Also which place a quantum destination
-/// of the log is and what a name the game says is. A place he renamed is still found by the game's name.
+/// of the log is and what a name the game says is. A place he renamed is still found by the game's name. Spots: the hidden places of the game data
+/// (HiddenSpots), found by their key but not by a name or a destination of the log, and drawn only where a player is (SystemData).
 /// </summary>
 public sealed class Atlas
 {
@@ -19,11 +20,13 @@ public sealed class Atlas
     readonly Dictionary<string, Place> _byKey;
     readonly List<(string Text, bool Prefix, string? Key)> _aliases;
 
-    public Atlas(IEnumerable<Place> places, IEnumerable<PlaceAlias> aliases)
+    public Atlas(IEnumerable<Place> places, IEnumerable<PlaceAlias> aliases, IEnumerable<Place>? spots = null)
     {
         Places = places.ToList();
+        Spots = (spots ?? HiddenSpots.All).ToList();
         _byKey = new Dictionary<string, Place>(StringComparer.OrdinalIgnoreCase);
         foreach (var p in Places) _byKey[p.Key] = p;
+        foreach (var s in Spots) _byKey.TryAdd(s.Key, s);
         _aliases = aliases
             .Select(a => (Text: a.Text.Trim(), a.Key))
             .Where(a => a.Text.Trim('*').Length > 0)
@@ -37,7 +40,10 @@ public sealed class Atlas
     /// <summary>Every place, the game data's and the admin's.</summary>
     public IReadOnlyList<Place> Places { get; }
 
-    /// <summary>A place by its key ("pyro/ruin-station"), or null.</summary>
+    /// <summary>The hidden places of the game data (HiddenSpots): where a mission's beacon can be (BeaconRanging).</summary>
+    public IReadOnlyList<Place> Spots { get; }
+
+    /// <summary>A place by its key ("pyro/ruin-station", or a hidden spot's), or null.</summary>
     public Place? Find(string? key) => key != null && _byKey.TryGetValue(key, out var p) ? p : null;
 
     /// <summary>The places of a system.</summary>
@@ -46,12 +52,16 @@ public sealed class Atlas
     /// <summary>
     /// A system as the map engine of the pages (systemmap.js) draws it: its id and name, and its places with their key, name, short name (the label), kind,
     /// parent and position (Gm). The Map tool's map.json has the three systems this way, the Hauling Planner's data.json has Pyro for its Trip Planner.
+    /// The hidden spots whose keys are in spots come too, marked hidden (a player is there or flies there: the engine needs where it is, and draws nothing
+    /// for it), so the data stays small and the map does not change when nobody is at one.
     /// </summary>
-    public object SystemData(StarSystem s) => new
+    public object SystemData(StarSystem s, IReadOnlyCollection<string>? spots = null) => new
     {
         id = s.Id,
         name = s.Name,
-        places = Of(s.Id).Select(p => new { key = p.Key, name = p.Name, @short = p.Short, kind = p.Kind.ToString().ToLowerInvariant(), parent = p.Parent, x = p.X, y = p.Y }).ToList(),
+        places = Of(s.Id).Concat(Spots.Where(p => p.System == s.Id && spots != null && spots.Contains(p.Key)))
+            .Select(p => new { key = p.Key, name = p.Name, @short = p.Short, kind = p.Kind.ToString().ToLowerInvariant(), parent = p.Parent, x = p.X, y = p.Y, hidden = p.Hidden })
+            .ToList(),
     };
 
     /// <summary>

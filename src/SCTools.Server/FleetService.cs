@@ -266,6 +266,16 @@ public sealed class FleetService
         }
     }
 
+    /// <summary>
+    /// The quantum fuel burn per km of his ship of this class of the game ("RSI_Perseus", as the logs name it), crafted as it is, or null when his fleet
+    /// does not have that ship or the game data no fuel rate for its drive. The location tracker places a mission's beacon by it (BeaconRanging).
+    /// </summary>
+    public double? FuelPerKmOf(string player, string shipClass)
+    {
+        if (ShipModels.OfClass(shipClass) is not { } model) return null;
+        return Fleet(player).FirstOrDefault(f => f.Model == model)?.FuelPerKm;
+    }
+
     /// <summary>The ship he flies now: the one he picked, else the one of his latest quantum jump (matched to his fleet by its name).</summary>
     public ActiveShip Active(string player)
     {
