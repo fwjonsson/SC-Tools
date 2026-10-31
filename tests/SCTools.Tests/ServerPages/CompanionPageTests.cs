@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using SCTools.Missions;
 using SCTools.Server;
 using SCTools.Tests.Support;
 
@@ -200,5 +202,54 @@ public class CompanionPageTests
         Assert.Contains("id=\"players\"", map);
         Assert.DoesNotContain("id=\"objectives\"", map);
         Assert.DoesNotContain("Active Contracts", map);
+    }
+
+    [Fact]
+    public async Task A_contract_the_game_took_from_him_at_an_exit_to_the_menu_leaves_the_Active_Contracts_the_map_and_the_contracts_tracker()
+    {
+        // zzoega, 31 Oct 2026 (#399): a bounty going on, an exit to the menu, the game's PlayerLeft for his own id a second later and no EndMission; the bounty
+        // was gone in the game when he came back twenty seconds later
+        using var f = new ServerFactory();
+        var now = DateTime.UtcNow;
+        now = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMillisecond));   // the log writes milliseconds
+        var start = now.AddMinutes(-30);
+        var bounty = GameLogWriter.MissionId(7);
+        var w = new GameLogWriter().At(start).Login("zzoega").Minutes(5).AcceptedAs(bounty, "Reclusive Bounty: Burt Gearhart | Extreme Risk")
+            .MissionMarker(bounty, GameLogWriter.BountyContract, "obj-1", "3846").ObjectivePopup(bounty, "obj-1", "Go to Asteroid Cluster").DataBank(bounty, "obj-1", "zzoega")
+            .Minutes(23).Inventory("zzoega", "Nyx_Levski");   // still playing two minutes ago
+        var file = T(start);
+        var first = w.Lines.ToList();
+        f.Upload("zzoega", first, file);
+        var admin = await f.Admin();
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "companion"), ("value", "true"));
+        var zzoega = await f.Player(f.AddKey("zzoega"));
+        var map = Json(await zzoega.GetStringAsync("/companion/map.json"));
+        Assert.Single(map.GetProperty("missions").EnumerateArray());     // his Active Contracts
+        Assert.Single(map.GetProperty("objectives").EnumerateArray());
+
+        // the exit and the PlayerLeft, then he came back and went on playing (the Mission Library waits ten seconds of log for an accept that gives it back); the
+        // tracker sends the lines the tools read, not the exit itself
+        w.Seconds(30).ExitToMenu().Seconds(1.4).PlayerLeft(bounty, GameLogWriter.OwnId);
+        var left = w.Now;
+        w.Seconds(17).Seconds(30).Inventory("zzoega", "Nyx_Levski");
+        var filter = new LineFilter();
+        var rest = w.Lines.Skip(first.Count).Where(filter.Keep).ToList();
+        Assert.Equal(2, rest.Count);   // the PlayerLeft and the inventory, not the exit
+        Assert.True(f.Live.Uploads.Add("zzoega", file, first.Count, first.Count + rest.Count, rest, DateTime.UtcNow).Ok);
+        f.Live.Refresh(DateTime.UtcNow);
+        map = Json(await zzoega.GetStringAsync("/companion/map.json"));
+        Assert.Empty(map.GetProperty("missions").EnumerateArray());     // not among his Active Contracts
+        Assert.Empty(map.GetProperty("objectives").EnumerateArray());   // not on his map
+        Assert.Empty(JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement.GetProperty("objectives").EnumerateArray());   // nor the Map tool's
+
+        // the contracts tracker: he took it, and it ended for him as an abandon (the game's rule for the scrip) when the game took it from him
+        f.Services.GetRequiredService<MissionLibrary>().Collect();
+        var c = f.Services.GetRequiredService<ContractTracker>().Of(new[] { bounty })[bounty];
+        var holder = Assert.Single(c.Holders);
+        Assert.Equal("zzoega", holder.Player);
+        Assert.True(holder.Took);
+        Assert.Equal(MissionOutcome.Abandon, holder.Outcome);
+        Assert.Equal(left, holder.EndedUtc);
+        Assert.Equal(("zzoega", MissionOutcome.Abandon), (c.Taker, c.Outcome));
     }
 }

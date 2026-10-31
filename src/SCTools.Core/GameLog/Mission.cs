@@ -18,7 +18,13 @@ public sealed class Mission
     public DateTime? Accepted;
     public DateTime? FirstSeen;
     public DateTime? EndedAt;
-    public string? EndState;              // COMPLETED, ABANDON, ...
+    public string? EndState;              // COMPLETED, ABANDON, FAIL, Left...
+
+    /// <summary>
+    /// The EndState of a mission the game took from him: his own PlayerLeft with no EndMission, a second after an exit to the menu (#399). Dead like an
+    /// abandon, and like it running again when the game says "Contract Accepted" for it again.
+    /// </summary>
+    public const string Left = "LEFT";
     public Dictionary<string, string> ObjZone = new();                 // objective id -> zone host id
     public Dictionary<string, List<ObjEvent>> Events = new();          // objective id -> state changes
 

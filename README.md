@@ -478,11 +478,17 @@ admin (done), then going live.
   own PC's clock. Checked against the game's own "You've Earned: 14 Rewards" lines after the completions in Frank's, zzatvo's and zzoii's logs of
   Aug-Oct 2026: right for 386 of 388 shared gauntlet runs (the other two were accepted within a second of each other). **The game's own clues**
   (Frank, 31 Oct 2026: right also with players he does not know, whose logs the server never sees): the Mission Library keeps, for every player's
-  mission, his id in the game (his "Ending mission" lines), what his log said about the other players (the game's "PlayerJoined" and "PlayerLeft" with
-  their ids: `MissionMember`) and the game's "You've Earned: N Rewards" right after he completed it. A reward line with the scrip's amount says who got
-  the scrip, whoever took it; a holder whose own log never says how it ended (it ends with a crash, or is not on the server) left it when another
-  holder's log saw him leave before that one's completion; and the shares are in the order one log saw them all join (one clock: the taker's), else
-  by the time from accept to completion. The old logs on the server are read once more for the ids and the joins (`HistoryReadVersion` 4), and
+  mission, his id in the game (his login line's geid, the objective markers' "Player: zzoega[493008374737]", his "Ending mission" lines), what his log
+  said about the other players (the game's "PlayerJoined" and "PlayerLeft" with their ids: `MissionMember`) and the game's "You've Earned: N Rewards"
+  right after he completed it. A reward line with the scrip's amount says who got the scrip, whoever took it; a holder whose own log never says how it
+  ended (it ends with a crash, or is not on the server) left it when another holder's log saw him leave before that one's completion; and the shares
+  are in the order one log saw them all join (one clock: the taker's), else by the time from accept to completion. **A mission the game took from him at
+  an exit to the menu** (Frank, 31 Oct 2026, #399: a bounty he had was gone when he came back twenty seconds later) leaves only a "PlayerLeft" with his
+  own id in his log, a second after the exit, and no "EndMission" (the normal abandon has both, two milliseconds apart). Both readers end the mission
+  for him on that PlayerLeft as abandoned (`HaulingLog` for the Companion's Active Contracts, the map's objectives and the Session tab, `MissionReader`
+  for the library and the contracts tracker), unless the game says "Contract Accepted" for it again (an event mission gave it back to him two seconds
+  later, 28 Aug 2026; the library waits ten seconds of log for that accept, since what it writes down stays). The old logs on the server are read once
+  more for the ids and the joins (`HistoryReadVersion` 4) and once more for the missions lost at an exit (`HistoryReadVersion` 5), and
   every tracker sends its old logs once more with the reward lines (`HistorySender.Version` 3), so the old contracts' scrip comes out right too. A player's combined accounts are added up where a tool shows his totals
   (the Companion, the Gauntlet leaderboard). It is asked by the Session tool and the Companion (`ContractTracker.Earned`), the Gauntlet Tracker (each
   run's part, `GauntletRun.Paid`) and the Hauling Planner's payouts (`Payouts.ComputePayouts` picks who is paid with `ContractSplit.PlannerPayees`).

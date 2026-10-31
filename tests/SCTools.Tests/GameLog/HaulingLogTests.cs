@@ -151,4 +151,55 @@ public class HaulingLogTests
     {
         Assert.Empty(new GameLogWriter().BodyItem().Seconds(0.1).BodyItem().Read().Deaths);
     }
+
+    [Fact]
+    public void A_mission_the_game_took_from_him_at_an_exit_to_the_menu_is_dead_until_it_is_accepted_again()
+    {
+        // zzoega, 31 Oct 2026 (#399): he exited to the menu with a bounty going; his log has the game's PlayerLeft for his own id a second later and no
+        // EndMission, and the bounty was gone when he came back
+        var w = new GameLogWriter().Login("Pilot_A").Minutes(5).Accepted(M1).Minutes(20).ExitToMenu().Seconds(1.4).PlayerLeft(M1, GameLogWriter.OwnId);
+        var left = w.Now;
+        var log = w.Read();
+        Assert.Equal(GameLogWriter.OwnId, log.PlayerId);   // from the login line: the log has no "Ending mission" line
+        var m = log.Missions[M1];
+        Assert.True(m.Dead);
+        Assert.Equal(Mission.Left, m.EndState);
+        Assert.Equal(left, m.EndedAt);
+        Assert.Equal(GameLogWriter.OwnId, Assert.Single(log.MemberEvents).Player);   // what the game said is kept too
+
+        // an event mission said PlayerLeft for him and "Contract Accepted" again two seconds later (28 Aug 2026): running again
+        var again = w.Seconds(1.7).Accepted(M1).Read().Missions[M1];
+        Assert.False(again.Dead);
+        Assert.Null(again.EndState);
+        Assert.Null(again.EndedAt);
+    }
+
+    [Fact]
+    public void Another_player_leaving_his_mission_and_his_own_abandon_are_read_as_before()
+    {
+        // somebody else left the mission he shared: a member event, the mission goes on for him
+        var others = new GameLogWriter().Login("Pilot_A").Accepted(M1).Minutes(5).PlayerLeft(M1, "200000000002").Read();
+        Assert.False(others.Missions[M1].Dead);
+        Assert.Equal("200000000002", Assert.Single(others.MemberEvents).Player);
+
+        // the normal abandon: the game's PlayerLeft for him and his EndMission two milliseconds later, which says how it ended (82 of 83 in Frank's logs of Aug-Oct 2026)
+        var w = new GameLogWriter().Login("Pilot_A").Accepted(M1).Minutes(5).PlayerLeft(M1, GameLogWriter.OwnId).Seconds(0.002).Abandoned(M1, "Pilot_A");
+        var m = w.Read().Missions[M1];
+        Assert.Equal("ABANDON", m.EndState);
+        Assert.Equal(w.Now, m.EndedAt);
+    }
+
+    [Fact]
+    public void His_id_comes_from_the_markers_that_name_him_when_the_login_line_has_none()
+    {
+        var log = new HaulingLog();
+        log.ProcessLine("<2026-10-21T08:00:00.000Z> [Notice] <AccountLoginCharacterStatus_Character> Character: createdAt 1791557604958 - updatedAt 1791557605400 - accountId 1000001 - name Pilot_A - state STATE_CURRENT [Team_GameServices][Login]");
+        Assert.Equal(("Pilot_A", null), (log.Player, log.PlayerId));
+        // his objective marker names him with his id ("Added to DataBank of Player: zzoega[493008374737]"), a shared one names the other player
+        var w = new GameLogWriter().Minutes(1).Accepted(M1).DataBank(M1, "obj-1", "Pilot_B", "200000000002").DataBank(M1, "obj-1", "Pilot_A", "300000000003")
+            .Minutes(9).PlayerLeft(M1, "300000000003");
+        foreach (var line in w.Lines) log.ProcessLine(line);
+        Assert.Equal("300000000003", log.PlayerId);
+        Assert.True(log.Missions[M1].Dead);
+    }
 }
