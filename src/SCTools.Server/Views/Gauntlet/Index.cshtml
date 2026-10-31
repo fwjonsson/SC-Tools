@@ -60,10 +60,11 @@ else if (Model.Tab == "session")
   {
     <div>
     <h2>This game session</h2>
-    <p class="hint">Counted passively from the start of the game (@When(Model.Game.Start)) to now@(Model.InParty ? ", the first of the party's games" : "").</p>
     @await Html.PartialAsync("_Totals", Model.Game)
     </div>
   }
+  @* what a grind session is: under its own table, as wide as it (Frank, 31 Oct 2026: under both before, over the whole width; the note under This game
+     session went) *@
   <div>
   <h2>Grind session</h2>
   @if (Model.Grind != null)
@@ -75,10 +76,11 @@ else if (Model.Tab == "session")
   {
     <p class="muted">No grind session now.</p>
   }
+  <p class="hint below">A grind session starts by itself when @whose accept@(Model.InParty ? "s" : "") a scenario and goes on while @whose play@(Model.InParty ? "s" : "") them. After an hour
+    without accepting, completing or abandoning one (also when the game crashed or the tracker was off), it ends 5 minutes after the last one. The earlier
+    ones are on History.</p>
   </div>
   </div>
-  <p class="hint">A grind session starts by itself when @whose accept@(Model.InParty ? "" : "s") a scenario and goes on while @whose play@(Model.InParty ? "" : "s") them. After an hour without accepting, completing
-    or abandoning one (also when the game crashed or the tracker was off), it ended 5 minutes after the last one. The earlier ones are on History.</p>
 }
 else if (Model.Tab == "stats")
 {

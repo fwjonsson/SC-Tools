@@ -139,7 +139,7 @@ public class GauntletPageTests
         Assert.DoesNotContain("<td>zzatvo</td>", stats);
         var session = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet"));
         Assert.Contains("Running since", session);   // one grind session for the party
-        Assert.Contains("the first of the party's games", session);
+        Assert.Contains("when your party accepts a scenario and goes on while your party plays them", session);   // the note under the grind session says whose
 
         var bileh = await f.Player(f.AddKey("bileh123"));
         var his = WebUtility.HtmlDecode(await bileh.GetStringAsync("/gauntlet/stats"));   // the Earnings are on Stats since 30 Oct 2026
@@ -206,6 +206,11 @@ public class GauntletPageTests
         Assert.Contains("map.js", page);
         Assert.True(page.IndexOf("id=\"map\"", StringComparison.Ordinal) < page.IndexOf("Grind session", StringComparison.Ordinal));   // over the sessions
         Assert.DoesNotContain("id=\"map\"", await admin.GetStringAsync("/gauntlet/stats"));   // the Session tab's alone
+        // what a grind session is: in the Grind session's column, under its table (Frank, 31 Oct 2026), and said right; no note under This game session
+        var grind = page.IndexOf("<h2>Grind session</h2>", StringComparison.Ordinal);
+        var note = page.IndexOf("A grind session starts by itself when you accept a scenario and goes on while you play them.", StringComparison.Ordinal);
+        Assert.True(grind > 0 && note > grind && page.IndexOf("</div>", grind, StringComparison.Ordinal) > note);
+        Assert.DoesNotContain("Counted passively", page);
 
         // its feed is the Companion's map: zzoega, who is playing, is on the admin's, and on his own; a player in no party with him does not see him
         var now = DateTime.UtcNow;
