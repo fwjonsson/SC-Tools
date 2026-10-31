@@ -192,6 +192,16 @@ public static class StarMap
     // Lagrange point or low orbit, "RR_P6_L5" (Megumi Refueling) in the areas of the inventory lines, "PYR3 L3" (Patch City) as a start name; the same
     // as the quantum destination "rs_ext_pyro6_l5" (Frank, 31 Oct 2026).
     internal static readonly Regex PyroStop = new(@"^(?:LOC_)?(?:RR_P|PYR)(?<n>\d)[_ ]+(?<l>L\d|LEO)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    // The same for a Stanton station, by its planet's three letters: "RR_CRU_L1" (CRU-L1 Ambitious Dream Station) and "RR_HUR_LEO" (Everus Harbor, in low
+    // orbit) in the areas, "CRU L1" as a start name (zzoega's logs, 31 Oct 2026).
+    internal static readonly Regex StantonStop = new(@"^(?:LOC_)?(?:RR_)?(?<p>HUR|CRU|ARC|MIC)[_ ](?<l>L\d|LEO)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    /// <summary>The station in low orbit of each Stanton planet, by its three letters ("RR_HUR_LEO" is Everus Harbor).</summary>
+    internal static readonly Dictionary<string, string> StantonLeo = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["HUR"] = "stanton/everus-harbor", ["CRU"] = "stanton/seraphim-station", ["ARC"] = "stanton/baijini-point", ["MIC"] = "stanton/port-tressler",
+    };
+
     // A gateway in the game's own code: "RR_JP_PyroStanton" is the one in Pyro to Stanton (Stanton Gateway in Pyro).
     internal static readonly Regex RestStopGate = new(@"^(?:LOC_)?RR_JP_(?<a>Pyro|Stanton|Nyx)(?<b>Pyro|Stanton|Nyx|Terra)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     internal static readonly Regex Gate = new(@"(?<a>pyro|stanton|nyx)-(?<b>pyro|stanton|nyx|stan|terra)_jp", RegexOptions.Compiled | RegexOptions.IgnoreCase);
