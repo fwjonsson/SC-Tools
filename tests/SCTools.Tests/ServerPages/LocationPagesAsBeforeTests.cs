@@ -11,7 +11,8 @@ namespace SCTools.Tests.ServerPages;
 /// What the pages that say where a player is showed before the location tracker (recorded on 31 Oct 2026, with the map and the Hauling Planner still
 /// learning from each other through PlannerPositions): the Map tool's map.json, the Hauling Planner's map.json and its Current location, the Companion's
 /// map, My page, the admin's Party page and the Party tool's page of a member. The location tracker has to show the same. One change on purpose: a player at
-/// a place has whether he is landed or taking off (hangar; Frank, 31 Oct 2026), so zzoega, in a hangar at Gaslight, is "landed" now.
+/// a place has whether he is landed or taking off (hangar; Frank, 31 Oct 2026), so zzoega, in a hangar at Gaslight, is "landed" now. Another: a player off
+/// the grid has the place of his last ping too (lastPingAt), where the page keeps his marker, faded (Frank, 31 Oct 2026).
 /// </summary>
 public class LocationPagesAsBeforeTests
 {
@@ -202,7 +203,7 @@ public class LocationPagesAsBeforeTests
         ,
         {name="hunter" color="#4682ff" ship="RSI Perseus" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="heading" to=null toName="the mission: Go to Asteroid Cluster" mission="A mission" since=now-120s }
         ,
-        {name="lost" color="#4682ff" ship="Anvil Arrow" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="unknown" off=true since=now-120s lastPing="Levski" }
+        {name="lost" color="#4682ff" ship="Anvil Arrow" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="unknown" off=true since=now-120s lastPing="Levski" lastPingAt="nyx/levski" }
         ,
         {name="Pilot_A" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=2026-10-21T09:10:21.000 via="the Hauling Planner" leaving=null hangar=null }
         ,]
@@ -231,7 +232,7 @@ public class LocationPagesAsBeforeTests
         ,
         {name="hunter" color="#4682ff" ship="RSI Perseus" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="heading" to=null toName="the mission: Go to Asteroid Cluster" mission="A mission" since=now-120s }
         ,
-        {name="lost" color="#4682ff" ship="Anvil Arrow" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="unknown" off=true since=now-120s lastPing="Levski" }
+        {name="lost" color="#4682ff" ship="Anvil Arrow" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="unknown" off=true since=now-120s lastPing="Levski" lastPingAt="nyx/levski" }
         ,
         {name="Pilot_A" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=2026-10-21T09:10:21.000 via="the Hauling Planner" leaving=null hangar=null }
         ,]

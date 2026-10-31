@@ -191,8 +191,10 @@ public sealed class MapService
             PlayerState.Heading => new { name, color, ship, drive = shown, top = drive.Speed, system = w.System, state = "heading", to = w.To?.Key, toName = w.ToName,
                 mission = w.Mission, since = w.Since },
             PlayerState.Mission => new { name, color, ship, drive = shown, top = drive.Speed, system = w.System, state = "mission", atName = w.AtName, mission = w.Mission, since = w.Since },
-            // not known: off the grid after a jump the map cannot follow (with the last place it had him at), or no signal yet
-            _ => (object)new { name, color, ship, drive = shown, top = drive.Speed, system = w.System, state = "unknown", off = w.Off, since = w.Since, lastPing = w.LastPing },
+            // not known: off the grid after a jump the map cannot follow (with the last place it had him at, where the page keeps his marker, faded: Frank,
+            // 31 Oct 2026, "I don't like that the marker fully disappears"), or no signal yet
+            _ => (object)new { name, color, ship, drive = shown, top = drive.Speed, system = w.System, state = "unknown", off = w.Off, since = w.Since, lastPing = w.LastPing,
+                lastPingAt = w.LastPingAt?.Key },
         };
     }
 }

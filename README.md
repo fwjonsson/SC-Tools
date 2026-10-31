@@ -303,7 +303,9 @@ admin (done), then going live.
   stayed at Ruin on the map while he rode in zzoega's ship). An arrival seconds after the inventory line of a place is that arrival (zzatvo's log had the
   Nyx Gateway's inventory line 47 ms before his arrival line, and the map took the arrival for a jump of its own, "off the grid"). When no area line came
   before the pick (a tracker that just updated, a game just started), the first one after it says whether he was in a hangar when he picked; else it is to the objective of a mission going on then (below); else he
-  is "Off the grid: out of comm-array range" since then, with the last place the map had him at ("last ping at Levski"). A player the map has not
+  is "Off the grid: out of comm-array range" since then, with the last place the map had him at ("last ping at Levski"), where his marker stays, faded
+  (`lastPingAt` in map.json; Frank, 31 Oct 2026: a rough overview beats no marker). An arrival with no destination while the area lines have him landed
+  is the jump that brought him there, written late (zzoega's log had it 81 s after he landed at Levski), not a jump off the grid. A player the map has not
   placed yet has "No signal yet"; an area the map does not know (a mission's spot) leaves him where it had him (Frank, 29 Oct 2026: zzatvo
   fell to "No signal yet" at Ruin). The Hauling Planner's pickups, deliveries and hand-ins place a member of its party too (`Whereabouts.OwnLocationOf`,
   `LastMoveOf`), when they are newer than anything his jumps say; his card says so ("the Hauling Planner"). The other way too (Frank's list of 29 Oct 2026: the map and the planner learn from each other):

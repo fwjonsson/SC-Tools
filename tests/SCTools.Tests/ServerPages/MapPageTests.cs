@@ -81,6 +81,7 @@ public class MapPageTests
         var a = Player(JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/map/map.json")).RootElement, "zzatvo");
         Assert.Equal(("nyx", "unknown", true, "Levski"),
             (a.GetProperty("system").GetString(), a.GetProperty("state").GetString(), a.GetProperty("off").GetBoolean(), a.GetProperty("lastPing").GetString()));
+        Assert.Equal("nyx/levski", a.GetProperty("lastPingAt").GetString());   // the page keeps his marker there, faded
     }
 
     [Fact]

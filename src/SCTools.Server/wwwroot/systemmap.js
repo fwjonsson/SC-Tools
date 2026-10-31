@@ -216,9 +216,10 @@ var SystemMap = (function () {
     }
 
     // A player on the map: an arrow in his colour (pointing where he flies; up when he is somewhere), a ring that pulses out from it so he is easy to spot,
-    // and his name beside it in his colour (on the left near the right edge). place() puts it somewhere, turned that many degrees.
-    function marker(pl, title) {
-      const g = el('g', { 'class': 'player' }, base.people);
+    // and his name beside it in his colour (on the left near the right edge). place() puts it somewhere, turned that many degrees. Faint: off the grid, at
+    // his last ping (half seen, so it does not pass for where he is).
+    function marker(pl, title, faint) {
+      const g = el('g', faint ? { 'class': 'player', opacity: 0.45 } : { 'class': 'player' }, base.people);
       el('circle', { r: 9, fill: pl.color, 'fill-opacity': 0.2, stroke: pl.color, 'stroke-width': 1.5 }, g);
       const pulse = el('circle', { r: 9, fill: 'none', stroke: pl.color, 'stroke-width': 2 }, g);
       el('animate', { attributeName: 'r', values: '9;19', dur: '1.8s', repeatCount: 'indefinite' }, pulse);
@@ -278,6 +279,11 @@ var SystemMap = (function () {
         (d.players || []).forEach(function (pl) {
           if (!ok(pl.name)) return;
           if (here(pl.system) && pl.state === 'at' && base.anchor[pl.at]) { const a = base.anchor[pl.at], k = a.join(','); (stay[k] = stay[k] || { p: a, list: [] }).list.push(pl); }
+          // off the grid: his marker stays at his last ping, faded (Frank, 31 Oct 2026: a rough overview beats no marker)
+          if (pl.state === 'unknown' && pl.off && pl.lastPingAt && base.anchor[pl.lastPingAt]) {
+            const a = base.anchor[pl.lastPingAt], k = a.join(',');
+            (stay[k] = stay[k] || { p: a, list: [] }).list.push(pl);
+          }
           if (here(pl.system) && pl.state === 'heading' && base.anchor[pl.to]) {
             const a = base.anchor[pl.to];
             const g = el('g', {}, base.routes);
@@ -300,7 +306,10 @@ var SystemMap = (function () {
         });
         Object.keys(stay).forEach(function (k) {
           const p = stay[k].p;
-          stay[k].list.forEach(function (pl, i) { marker(pl, pl.name + ' at ' + pl.atName).place(p[0], p[1] + 18 + i * 22, 0); });
+          stay[k].list.forEach(function (pl, i) {
+            const off = pl.state === 'unknown';
+            marker(pl, off ? pl.name + ': off the grid, last ping at ' + pl.lastPing : pl.name + ' at ' + pl.atName, off).place(p[0], p[1] + 18 + i * 22, 0);
+          });
         });
       }
       Object.keys(meters).forEach(function (key) { if (meters[key].what.isConnected) bind(meters[key]); else delete meters[key]; });

@@ -89,6 +89,25 @@ public class CrewAndPickTests
     }
 
     [Fact]
+    public void An_arrival_written_after_he_landed_is_the_jump_that_brought_him_there()
+    {
+        // zzoega's log of 31 Oct 2026: logged in out in Nyx space, flew to Levski without picking a destination, landed in its hangar; the arrival line came
+        // 81 s after the landing. Nobody jumps from a hangar: he is at Levski, not off the grid
+        const long NyxSpace = 2627827560, LevskiHangar = 3723364946;
+        var t = new DateTime(2026, 10, 31, 10, 19, 53, DateTimeKind.Utc);
+        var log = new GameLogWriter().At(t).Login("zzoega").Seconds(47).AreaChange("zzoega", 0, 0, 0, NyxSpace)
+            .At(t.AddSeconds(332.5)).AreaChange("zzoega", 0, LevskiHangar, NyxSpace, LevskiHangar).Inventory("zzoega", "Nyx_Levski")
+            .At(t.AddSeconds(413.9)).QuantumArrived("MISC_Starfarer", "905389025800").Read();
+        var w = LocationTracker.Follow(log.Qt, Atlas.Default, null, log.Locations, null, log.Areas);
+        Assert.Equal(("nyx/levski", false, (HangarState?)HangarState.Landed), (w.At?.Key, w.Jumped, w.Hangar));
+
+        // out in space, an arrival with no destination is still a jump to somewhere the map does not know: off the grid, the marker kept at the last ping
+        var away = new GameLogWriter().At(t).Login("zzoega").Inventory("zzoega", "Nyx_Levski").Minutes(5).QuantumArrived("MISC_Starfarer", "905389025800").Read();
+        var off = LocationTracker.Now(LocationTracker.Follow(away.Qt, Atlas.Default, null, away.Locations, null, away.Areas), QuantumDrives.All[0], t.AddMinutes(6));
+        Assert.Equal((PlayerState.Unknown, true, "Levski", "nyx/levski"), (off.State, off.Off, off.LastPing, off.LastPingAt?.Key));
+    }
+
+    [Fact]
     public void Somebody_else_leaving_the_same_station_on_his_own_jump_is_not_crew()
     {
         // zzatvo flies his own ship: he picked his own jump, so he is on his, not on zzoega's
