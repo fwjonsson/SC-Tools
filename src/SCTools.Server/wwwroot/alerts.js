@@ -57,7 +57,7 @@
     close.addEventListener('click', function (e) { e.stopPropagation(); t.remove(); });
     row.appendChild(sound); row.appendChild(close);
     t.appendChild(row);
-    t.addEventListener('click', function () { location.href = '/admin/places#unknown'; });   // always Map places, the Companion too (Frank)
+    t.addEventListener('click', function () { location.href = '/admin/map#unknown'; });   // always the Map tab's list of them, the Companion too (Frank)
     stack().appendChild(t);
     setTimeout(function () { t.remove(); }, 60000);
     ping();
@@ -109,7 +109,7 @@
           })
           .catch(function () { save.disabled = false; save.textContent = 'Not saved: try again'; });
       });
-      const add = el('a', 'small', 'add it as a new place'); add.href = '/admin/places?add=' + encodeURIComponent(h.text) + '#add'; f.appendChild(add);
+      const add = el('a', 'small', 'add it as a new place'); add.href = '/admin/map?add=' + encodeURIComponent(h.text) + '#add'; f.appendChild(add);
       const later = el('button', 'link', 'Later'); later.type = 'button';
       later.addEventListener('click', function () {
         const b = new FormData();

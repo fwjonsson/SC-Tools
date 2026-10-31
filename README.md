@@ -261,7 +261,7 @@ admin (done), then going live.
   who runs no SC Tools Tracker (no log of his own and no tracker key: only the others' logs show him) has a small **no tracker** tag after his name
   on the panel and the Party pages (his own page says Tracker: None), and his last seen is the last time the others' logs showed him (Frank, 31 Oct
   2026; `PartyService.WithoutTracker`).
-- **The admin's Map** (`/admin/map`, a tab of his pages beside Map places since 31 Oct 2026, Frank: out of the top bar, the landing page and the Tools
+- **The admin's Map** (`/admin/map`, a tab of his pages since 31 Oct 2026, one tab with Map places since later that day, Frank: out of the top bar, the landing page and the Tools
   page, where it was the Map tool at `/map`, so his bar has the same tools as a player's; `MapController`, `MapService`, `wwwroot/map.js`): Pyro, Stanton and
   Nyx from above (the map engine's buttons, one per system, in the map's top left corner, as on every map of the site since 31 Oct 2026, `SystemMap.systems`;
   not a row of tabs under the admin's; it opens on the system where most players are, `#stanton` in the
@@ -402,7 +402,8 @@ admin (done), then going live.
   `/admin/missions/set` as soon as one changes (`autosave.js`), also while he looks as a player; a table is not drawn again while he types in it. A
   visitor sees the map's places and a note to log in. Only for the admin until it is shown on the Tools page; in the top bar and on the landing page it is
   left of the Hauling Planner.
-- **Map places** (Admin → Map places, `/admin/places`, `MapPlaces`, tables `MapPlaces` and `MapAliases`): the admin's changes to the map's places,
+- **Map places** (Admin → Map, `/admin/map`: the map in the top left, **Not known yet** to its right with the players under it, the rest under
+  them; the Map places tab of its own, `/admin/places`, until 31 Oct 2026; its changes still send to `/admin/places/…`; `MapPlaces`, tables `MapPlaces` and `MapAliases`): the admin's changes to the map's places,
   used at once (the map reads them as an `Atlas`: `StarMap`'s places with his changes). **Not known yet** lists the quantum destinations and start
   names in the logs on the server that the map cannot place (`LocationTracker.Follow` reports them), with how often, when last, who and the system;
   for each he says what it is: a place, or *not a place to show* (a mission's marker, an encounter), and a text ending in * is every one that
@@ -412,7 +413,7 @@ admin (done), then going live.
   the place). **Add a place**: its system, name, short name, what it is, and where: at a place of that system (in its orbit when it is a
   planet or a moon) or X and Y in Gm; optionally for a text of the log, which is then that place (the *add it* link of a Not known row fills
   it in). **The admin's notice of unknown places** (#414, Frank 31 Oct 2026; `UnknownPlaceAlerts`, `MapPlaces.Sightings`, `wwwroot/alerts.js`, loaded for
-  the admin alone on every page): a toast in the top right with a short sound ("Map places: unknown place needs registration"; a click opens Map places)
+  the admin alone on every page): a toast in the top right with a short sound ("Map places: unknown place needs registration"; a click opens the Map tab's Not known yet)
   when somebody else meets an unknown place, the first time anybody does, and when one of his combined accounts comes to one that is still unknown, once
   per visit (sightings less than 10 minutes apart are one visit). Being there is an area he came into, a start name, or a quantum destination he arrived
   at (not one he only picked). On his Companion a card under the map for every unknown place his accounts were at in the last half hour, with Map places'
@@ -489,7 +490,7 @@ admin (done), then going live.
   1600 px or less before; 340 at 1200, the whole width at 900; `.maptool`'s `--mapw` and `.planleft`), the outermost places 16 px from the map's edge (46 before, `ROOM` in `systemmap.js`), with the Players and the next column's title level with the map's top. A page with a wide table (the
   Mission Library, the Session tool's games, the Gauntlet Tracker) takes the whole band too since 30 Oct 2026 (Frank; 1,400 px before), and the Mission
   Library numbers its rows in a # column on the left, on through its pages. The pages of the site end with a footer: the tracker's download, how to set it up, and the
-  disclaimer. The admin's pages have a second row under it with his pages (Session, Players, Debts, Scrip, Map places, Map, Tools, Account), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
+  disclaimer. The admin's pages have a second row under it with his pages (Session, Players, Debts, Scrip, Map, Tools, Account), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
 - **The admin's pages** change the data with the core's logic (`Editing/Edits.cs`, each change saved and worked out again at once):
   **Session** (`/admin`: the session, which starts and stops by itself (below), the start time, the names and notes of the
   stops, **Register lost cargo** (the runs, with what was lost on each), the SCU of from-Ruin drop-offs the game did not tell; the rewards are the

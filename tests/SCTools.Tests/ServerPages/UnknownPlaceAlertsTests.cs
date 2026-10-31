@@ -61,7 +61,7 @@ public class UnknownPlaceAlertsTests
         var res = await ServerFactory.Send(admin, "/companion", "/admin/places/later", ("text", Castra), ("kind", "Location"));
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Empty((await News(admin, seq)).GetProperty("here").EnumerateArray());
-        Assert.Contains(Castra, await admin.GetStringAsync("/admin/places"));
+        Assert.Contains(Castra, await admin.GetStringAsync("/admin/map"));
 
         // back there after more than ten minutes: a new visit, a notice and the card again
         Seen(f, ServerFactory.AdminName, now.AddMinutes(15), "a3.log");

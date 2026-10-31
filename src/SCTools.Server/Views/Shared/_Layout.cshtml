@@ -30,7 +30,7 @@
   bool On(string href) => href == "/admin" ? string.Equals(path, href, StringComparison.OrdinalIgnoreCase) : path.StartsWith(href, StringComparison.OrdinalIgnoreCase);
   <nav class="subnav area" style="--tool:@TopBar.AdminColor">
     @foreach (var (href, text) in new[] { ("/admin", "Session"), ("/admin/players", "Players"), ("/admin/debts", "Debts"),
-                                         ("/admin/scrip", "Scrip"), ("/admin/places", "Map places"), ("/admin/map", "Map"),
+                                         ("/admin/scrip", "Scrip"), ("/admin/map", "Map"),
                                          ("/admin/tools", "Tools"),
                                          ("/account", "Account") })
     {

@@ -11,7 +11,8 @@ namespace SCTools.Server.Controllers;
 /// The admin's Map (a tab of his pages since 31 Oct 2026, Frank: out of the top bar and the landing page, where it was the Map tool; the players have the
 /// Companion and the Route Planner, which read the same location tracker): every system with everybody playing where his quantum jumps put him (moving
 /// along his route while he is in quantum, with his speed) and the objectives of the missions going on (MapService). The page asks for map.json every few
-/// seconds and moves the players in between. The admin's own view has everybody; View as shows what that player's party would see (Audience).
+/// seconds and moves the players in between. The admin's own view has everybody; View as shows what that player's party would see (Audience). The page
+/// itself is MapPlacesController's since 31 Oct 2026 (Frank: the Map and Map places one tab, the places the map does not know beside it).
 /// </summary>
 [Authorize(Roles = Roles.Admin)]
 [Route("/admin/map")]
@@ -24,13 +25,6 @@ public sealed class MapController : Controller
     {
         _map = map;
         _audience = audience;
-    }
-
-    [HttpGet("")]
-    public IActionResult Index()
-    {
-        ViewData["Title"] = "Map";
-        return View();
     }
 
     /// <summary>

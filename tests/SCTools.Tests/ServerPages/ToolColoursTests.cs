@@ -22,7 +22,7 @@ public class ToolColoursTests
         foreach (var tool in new[] { SiteTools.Hauling, SiteTools.Companion, SiteTools.Gauntlet, SiteTools.Session, SiteTools.Missions })
             Assert.Contains(Header(tool.Color), await admin.GetStringAsync(tool.Path!));
         Assert.Contains(Header(SiteTools.Gauntlet.Color), await admin.GetStringAsync("/gauntlet/stats"));   // every tab of it
-        Assert.Contains(Header(TopBar.AdminColor), await admin.GetStringAsync("/admin/places"));   // the admin's pages in Admin's red
+        Assert.Contains(Header(TopBar.AdminColor), await admin.GetStringAsync("/admin/map"));   // the admin's pages in Admin's red
         Assert.Contains("<body>", await admin.GetStringAsync("/"));   // the landing page keeps the site's blue
     }
 
