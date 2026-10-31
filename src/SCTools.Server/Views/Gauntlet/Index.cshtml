@@ -30,7 +30,7 @@
 
 @* the tabs say nothing about whose runs they show (Frank, 30 Oct 2026): the Party panel in the top bar says who plays with whom *@
 
-@if (Model.RunCount == 0 && Model.Tab != "leaderboard" && !Model.Visitor)
+@if (Model.RunCount == 0 && Model.Tab != "leaderboard" && Model.Tab != "session" && !Model.Visitor)
 {
   <p class="card">No gauntlet missions seen yet for @(Model.InParty ? "your party" : Model.Player). They are counted from the log your tracker uploads, from the moment the tracker runs (keep it running while you play).</p>
 }
@@ -72,6 +72,11 @@ else if (Model.Tab == "session")
         ones are on History.</p>
     </div>
   </div>
+  @* no runs yet: said under the map on this tab, so the map, the Players and the Game Session start level at the top (Frank, 31 Oct 2026) *@
+  @if (Model.RunCount == 0)
+  {
+    <p class="card">No gauntlet missions seen yet for @(Model.InParty ? "your party" : Model.Player). They are counted from the log your tracker uploads, from the moment the tracker runs (keep it running while you play).</p>
+  }
   <script src="~/systemmap.js" asp-append-version="true" defer></script>
   <script src="~/map.js" asp-append-version="true" defer></script>
 }

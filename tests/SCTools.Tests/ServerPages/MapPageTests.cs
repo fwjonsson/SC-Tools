@@ -259,7 +259,8 @@ public class MapPageTests
         Assert.DoesNotContain("<div class=\"mapmissions\">", page);
         var css = await f.Browser().GetStringAsync("/site.css");
         Assert.Contains(".maptool.maponly { grid-template-columns:minmax(0, 1060px) minmax(260px, 340px); }", css);   // a little bigger than the 820 px it had
-        Assert.Contains(".maptool.gauntletmap { grid-template-columns:minmax(0, 820px) minmax(260px, 340px);", css);   // the Gauntlet Tracker's: the Companion's size (Frank, 31 Oct 2026)
+        Assert.Contains(".maptool.gauntletmap { margin-bottom:18px; }", css);   // the Gauntlet Tracker's: the Companion's columns and size (Frank, 31 Oct 2026)
+        Assert.Contains("main { padding:14px 18px 40px;", css);   // the same room under the row of tabs on every page (31 Oct 2026)
         Assert.Contains(".mapsys { position:absolute; left:0; top:0; z-index:2; display:flex; gap:0;", css);   // the systems flush in the map's corner, touching, on every map (Frank, 31 Oct 2026: discreet)
         Assert.Contains(".mapsys button { margin:0; padding:3px 9px;", css);   // no 10 px over it from the site's buttons: right at the map's top edge (Frank, 31 Oct 2026)
         Assert.DoesNotContain(".hauling .mapbox { background", await f.Browser().GetStringAsync("/hauling.css"));   // the planner's map box looks like the others' (Frank, 31 Oct 2026)

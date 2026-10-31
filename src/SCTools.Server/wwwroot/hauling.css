@@ -2,6 +2,7 @@
    colours, the fonts, the bar) and these rules for its own tables and tabs. Everything is under .hauling, so nothing here reaches the other pages. */
 .hauling h1 { font-size:20px; margin:10px 0 2px; }
 .hauling h2 { font-size:16px; margin:22px 0 6px; }
+.hauling .main > div > h2:first-child { margin-top:0; }   /* a tab's first title: the room over it is main's, as on every page (31 Oct 2026) */
 .hauling h3 { font-size:14px; margin:14px 0 4px; }
 .hauling table { max-width:none; }   /* the site caps its tables; these take the width they are given */
 .hauling .top { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
@@ -60,7 +61,7 @@
 .hauling .plancur table, .hauling .planque table { min-width:640px; }
 .hauling .planpair h3 { margin:6px 0 4px; display:flex; align-items:center; }
 .hauling .planpair h3 .submitroute { margin:0 0 0 auto; padding:2px 12px; font-size:12px; }   /* the Submit button at the right end of the Current Route title (30 Oct 2026) */
-.hauling .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:6px; }
+.hauling .planwrap { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; }   /* the room over it is main's (31 Oct 2026) */
 /* the map is the Companion's size (820 px, the Map tool's until it got bigger, #380; Frank, 29 Oct 2026), smaller on a narrower window so the workers' tables keep their columns */
 .hauling .planleft { flex:0 0 820px; max-width:100%; }
 .hauling .planleft h2 { margin-top:14px; }
