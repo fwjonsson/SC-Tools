@@ -181,10 +181,12 @@ main:has(.maptool) { max-width:1900px; }
 .unknowncard.done { border-left-color:#5fd35f; }   /* saved: says so for a moment, then goes */
 /* the systems over every map, in its top left corner: the map engine's buttons (systemmap.js systems(); the page says which and which is on), the one
    shown lit (Frank, 31 Oct 2026; a row of tabs under the bar, then a row over the map, before) */
-.mapsys { position:absolute; left:10px; top:10px; z-index:2; display:flex; gap:6px; flex-wrap:wrap; }
-.mapsys button { padding:5px 14px; border-radius:4px; background:rgba(16,21,28,.85); border:1px solid #3a4250; color:#ecece8; font:inherit; font-weight:600; cursor:pointer; }
-.mapsys button:hover { border-color:#8a93a3; }
-.mapsys button.on { background:var(--header); border-color:var(--header); color:#fff; }
+.mapsys { position:absolute; left:0; top:0; z-index:2; display:flex; gap:0; flex-wrap:wrap; }   /* flush in the corner, the buttons touching (Frank, 31 Oct 2026: discreet, little room) */
+.mapsys button { padding:3px 9px; border:1px solid #2a313c; border-left-width:0; border-radius:0; background:rgba(16,21,28,.7); color:#a7adb8; font:inherit; font-size:11px; font-weight:600; cursor:pointer; }
+.mapsys button:first-child { border-left-width:1px; border-top-left-radius:6px; }   /* the map's own rounded corner */
+.mapsys button:last-child { border-bottom-right-radius:6px; }
+.mapsys button:hover { color:#ecece8; }
+.mapsys button.on { color:#fff; background:rgba(236,236,232,.14); box-shadow:inset 0 -2px 0 #ecece8; }
 /* the card the map engine shows over a station: what it has (its services in gold, its shops in gray; systemmap.js, #409) */
 .mapcard { position:absolute; z-index:3; pointer-events:none; max-width:280px; padding:6px 9px; border:1px solid #3a4250; border-radius:6px;
   background:#10151c; color:#ecece8; font-size:12px; line-height:1.35; box-shadow:0 2px 10px rgba(0,0,0,.55); }
