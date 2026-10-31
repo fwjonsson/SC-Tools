@@ -481,8 +481,8 @@ admin (done), then going live.
   green, Admin in red on the admin's pages and his account. The page's tables (their heads) and its buttons are in that colour too (`TopBar.ColorOf`
   sets `--header`, the colour mixed into the dark as the site's blue is; Frank, 31 Oct 2026: every tool's tables in its colour), and a # column is as narrow
   as the Hauling Planner's on every tool (`th.n`, `td.n`: the Gauntlet Tracker's Stats and Leaderboard, Session History's Games). The colours since
-  31 Oct 2026: the Hauling Planner blue, the Companion yellow (pink before), the Gauntlet Tracker red (a crimson of its own, not Admin's; yellow
-  before), Session History teal and the Mission Library grey (the other way round before), the Party purple. On an ultrawide screen every page keeps to a band of 1,900 px in the middle: the bar, the
+  31 Oct 2026: the Hauling Planner blue, the Companion yellow (pink before), the Gauntlet Tracker orange (the Map tool's colour
+  before it became an admin page; yellow before, not red: the admin's pages are), Session History teal and the Mission Library grey (the other way round before), the Party purple. On an ultrawide screen every page keeps to a band of 1,900 px in the middle: the bar, the
   admin's row and the pages' content (`topbar.css`, `site.css`), like the Hauling Planner's live page (Frank, 29 Oct 2026). A page with a wide table (the
   Mission Library, the Session tool's games, the Gauntlet Tracker) takes the whole band too since 30 Oct 2026 (Frank; 1,400 px before), and the Mission
   Library numbers its rows in a # column on the left, on through its pages. The pages of the site end with a footer: the tracker's download, how to set it up, and the
