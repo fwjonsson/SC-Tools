@@ -10,7 +10,6 @@
 .hauling .side h2 { margin-top:22px; }   /* the Session heading level with the Stops heading beside it (Frank, 30 Oct 2026: it sat 10 px higher) */
 .hauling .scroll { overflow-x:auto; }
 .hauling .bal table { table-layout:fixed; }
-.hauling .bal th:nth-child(1) { width:36px; }   /* # (31 Oct 2026) */
 .hauling .bal th:nth-child(2) { width:24%; }
 .hauling .bal th:nth-child(3) { width:18%; }
 .hauling table { border-collapse:collapse; width:100%; }
@@ -21,7 +20,6 @@
 .hauling .kv td:first-child { font-weight:600; width:50%; }
 /* contracts (its own tab) and session: set widths (the contracts' first two columns and the session's two are halves) */
 .hauling #rewards table, .hauling #summary table { table-layout:fixed; }   /* the contracts over the whole width, like the Debts tables (Frank, 30 Oct 2026) */
-.hauling #rewards th:nth-child(1) { width:36px; }   /* # (31 Oct 2026) */
 .hauling #rewards th:nth-child(2) { width:50%; } .hauling #rewards th:nth-child(3) { width:17%; }   /* Contract: the room; its name wraps when there is still not enough */
 .hauling #rewards td:nth-child(2) { white-space:normal; }
 .hauling #rewards th:nth-child(4) { width:13%; } .hauling #rewards th:nth-child(5) { width:17%; }
@@ -44,13 +42,13 @@
 .hauling .plantables h2.planplayers { margin:4px 0 10px; }   /* the Players heading over the route cards, like the Companion's beside its map (31 Oct 2026) */
 .hauling .plantables table { table-layout:fixed; }
 /* Current Route: #, Stops, Job (what is done there), SCU, Boxes (takes the rest), Value, Distance, In flight */
-.hauling .plancur th:nth-child(1) { width:36px; } .hauling .plancur th:nth-child(2) { width:210px; } .hauling .plancur th:nth-child(3) { width:200px; } .hauling .plancur th:nth-child(4) { width:62px; }   /* Stops: the full names ("Starlight Service Station"); SCU: four figures and a ~ (Frank, 30 Oct 2026) */
+.hauling .plancur th:nth-child(2) { width:210px; } .hauling .plancur th:nth-child(3) { width:200px; } .hauling .plancur th:nth-child(4) { width:62px; }   /* Stops: the full names ("Starlight Service Station"); SCU: four figures and a ~ (Frank, 30 Oct 2026) */
 .hauling .plancur th:nth-child(6) { width:80px; } .hauling .plancur th:nth-child(7) { width:80px; } .hauling .plancur th:nth-child(8) { width:70px; }
 .hauling .plancur td:nth-child(3), .hauling .plancur td:nth-child(5) { white-space:normal; }
 .hauling .plancur td:nth-child(4):has(.scuin) { padding:2px 4px; }   /* the hauler's SCU to a stop: the field fills the cell (it ran over into Boxes; Frank, 30 Oct 2026) */
 .hauling .plancur .scuin { width:100%; min-width:3.5em; box-sizing:border-box; text-align:right; }
 /* Queued routes: #, Route (takes the rest), Stops (how many), Batches, SCU, Value, Distance, In flight */
-.hauling .planque th:nth-child(1) { width:36px; } .hauling .planque th:nth-child(3) { width:64px; } .hauling .planque th:nth-child(4) { width:84px; } .hauling .planque th:nth-child(5) { width:64px; }
+.hauling .planque th:nth-child(3) { width:64px; } .hauling .planque th:nth-child(4) { width:84px; } .hauling .planque th:nth-child(5) { width:64px; }
 .hauling .planque th:nth-child(6) { width:80px; } .hauling .planque th:nth-child(7) { width:80px; } .hauling .planque th:nth-child(8) { width:70px; }
 .hauling .planque td:nth-child(2) { white-space:normal; }
 /* every worker in his own frame: the Current Route, and the Queued routes under it */
@@ -95,3 +93,7 @@
 .hauling .speed .bar span { display:block; height:100%; background:linear-gradient(90deg, #2f7dd1, #7fd3ff); }
 .hauling .speed .num { font-variant-numeric:tabular-nums; font-size:20px; font-weight:700; }
 .hauling .speed .unit { opacity:.75; font-size:12px; margin-left:4px; }
+/* The # column: one width in every table of the page, the tables that size themselves too (the All-time leaderboard, the Debts and History tables, the
+   Cargo Runs under the map, Active Contracts), and as wide as the Companion's (Frank, 31 Oct 2026). !important: the lined-up columns (alignColumns) and
+   the leaderboard's own widths are set on the cells themselves. Last in the file, so no narrower window's padding wins over it. */
+.hauling table th.idx, .hauling table td.idx { width:36px !important; padding-left:4px; padding-right:4px; text-align:center; }

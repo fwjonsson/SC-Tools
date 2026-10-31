@@ -26,7 +26,8 @@ function table(el, g) {
   }
   const t = document.createElement('table');   // an empty table still shows its header, like in the program
   const hr = t.createTHead().insertRow();
-  g.headers.forEach(function (h) { const th = document.createElement('th'); th.textContent = h.text; hr.appendChild(th); });
+  // the # column has one width in every table of the page (.idx in hauling.css; Frank, 31 Oct 2026)
+  g.headers.forEach(function (h) { const th = document.createElement('th'); th.textContent = h.text; if (h.text === '#') th.className = 'idx'; hr.appendChild(th); });
   const tb = t.createTBody();
   g.rows.forEach(function (r) {
     const tr = tb.insertRow();
@@ -34,6 +35,7 @@ function table(el, g) {
     r.cells.forEach(function (v, i) {
       const td = tr.insertCell();
       td.textContent = v;
+      if (g.headers[i].text === '#') td.className = 'idx';
       td.style.textAlign = g.headers[i].align;
       if (r.back[i]) td.style.background = r.back[i];
       if (r.fore[i]) td.style.color = r.fore[i];
@@ -338,13 +340,13 @@ function missionsTable(box, list) {
   const t = document.createElement('table'); t.className = 'missions view';
   const hr = t.createTHead().insertRow();
   [['#', ''], ['Mission', ''], ['Who', ''], ['Open', 'right'], ['Faction', ''], ['Category', ''], ['SCU', 'right'], ['Reward', 'right'], ['MG scrip', 'right'], ['Council scrip', 'right'], ['XP', 'right'], ['Legality', '']]
-    .forEach(function (h) { const th = document.createElement('th'); th.textContent = h[0]; if (h[1]) th.className = h[1]; hr.appendChild(th); });
+    .forEach(function (h) { const th = document.createElement('th'); th.textContent = h[0]; if (h[1]) th.className = h[1]; if (h[0] === '#') th.className = 'idx'; hr.appendChild(th); });
   const tb = t.createTBody();
   list.forEach(function (m, n) {
     const tr = tb.insertRow();
     [String(n + 1), m.title, m.who.join(', '), String(m.open), m.faction, m.category, m.scu, m.reward, m.mg, m.council, m.xp, m.legality].forEach(function (v, i) {
       const td = tr.insertCell(); td.textContent = v;
-      if (i === 1) td.className = 'name'; else if (i === 3 || (i >= 6 && i <= 10)) td.className = 'right';
+      if (i === 0) td.className = 'idx'; else if (i === 1) td.className = 'name'; else if (i === 3 || (i >= 6 && i <= 10)) td.className = 'right';
     });
   });
   const scroll = document.createElement('div'); scroll.className = 'scroll'; scroll.appendChild(t); box.appendChild(scroll);
