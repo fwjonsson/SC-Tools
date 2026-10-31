@@ -17,13 +17,17 @@ public sealed class LiveTracker
     PartyBook? _book;   // what the party tracker said last, for the pieces of log and the members it was worked out with
     long _bookPieces = -1;
     string _bookMembers = "";
+    LocationBook? _locations;   // what the location tracker said last, for the logs, the planner's state, the parties and the places it was worked out with
+    string _locationsKey = "";
+    Atlas? _locationsAtlas;
+    PartyBook? _locationsParties;
+    string _plannerKey = "";   // what the plan was made with of the location tracker's answer (LocationBook.PlannerKey)
 
     /// <summary>The party and the sessions are worked out from the logs again at least this often when nothing came in (else at every piece that does).</summary>
     public static readonly TimeSpan AutoEvery = TimeSpan.FromSeconds(30);
     int _saves;   // how many times the tracker's data was saved (a change on a page, the plan crediting a pickup, a payout...)
     int _builtSaves = -1;
     JobBook? _builtJobs;
-    IReadOnlyDictionary<string, WorkerPosition>? _builtPositions;   // the map's places data.json was made with (PlannerPositions on the server)
     DateTime _builtAt = DateTime.MinValue;
     long _builds;
     volatile LiveSnapshot _snapshot = LiveSnapshot.Empty;
@@ -61,6 +65,40 @@ public sealed class LiveTracker
     /// party tracker works out and whose names it writes as they are written there; without it, the Hauling Planner's party and the players of the logs.
     /// </summary>
     public Func<IReadOnlyCollection<string>>? Players { get; set; }
+
+    /// <summary>The places the location tracker reads the logs with (the server's: the game data and the admin's Map places); the game data's alone when null.</summary>
+    public Func<Atlas>? AtlasSource { get; set; }
+
+    /// <summary>
+    /// What the location tracker says now (see LocationTracker): worked out again when a piece of log came in, the logs were worked out anew, the data was
+    /// saved (the planner's pickups and deliveries are clues), the party tracker or the places changed, or half a minute after the last time (a game that
+    /// stopped writing its log ends after a while; a mission's beacon gets old); else the same answer, so every page and the refresh read one result.
+    /// </summary>
+    public LocationBook Locations(DateTime nowUtc)
+    {
+        lock (Uploads.Sync) return Where(nowUtc);
+    }
+
+    LocationBook Where(DateTime nowUtc)
+    {
+        var atlas = AtlasSource?.Invoke() ?? Atlas.Default;
+        var parties = Book(nowUtc, false);
+        var key = string.Join("|", Uploads.Pieces, _version, _saves, string.Join(",", Tracker.State.Data.Party));
+        if (_locations == null || key != _locationsKey || !ReferenceEquals(atlas, _locationsAtlas) || !ReferenceEquals(parties, _locationsParties)
+            || nowUtc - _locations.Now >= AutoEvery || nowUtc < _locations.Now)
+        {
+            _locations = LocationTracker.Work(Uploads.Logs, Uploads.Games(), Uploads.MissionsSeen(), atlas, nowUtc, parties, Clue);
+            _locationsKey = key;
+            _locationsAtlas = atlas;
+            _locationsParties = parties;
+        }
+        return _locations;
+    }
+
+    /// <summary>The Hauling Planner's own reading of where a member of its party is (Whereabouts.OwnLocationOf, LastMoveOf); null for anybody else.</summary>
+    PlannerClue? Clue(string name) =>
+        Tracker.State.Data.Party.Any(n => PlayerNames.SameName(n, name))
+            ? new PlannerClue(Tracker.Whereabouts.OwnLocationOf(name), Tracker.Whereabouts.LastMoveOf(name)) : null;
 
     /// <summary>
     /// What the party tracker says now (see PartyTracker): worked out again when a piece of log came in, when the members changed, or half a minute after the
@@ -109,7 +147,7 @@ public sealed class LiveTracker
     /// <summary>
     /// Works everything out again when something new was uploaded, moves the status line on, and makes data.json anew when anything in it can have changed: a
     /// new piece of log, somebody coming or going, a session starting or stopping, a save (a change on a page, the plan), the status line, the book of hauling
-    /// jobs, the map's places for the planner, or half a minute gone by (MaxAge). Most ticks change nothing: then data.json stays as it is, and the page, which sends its ETag back, gets 304.
+    /// jobs, where the location tracker has the workers (only a change of what the planner takes from it makes the plan anew), or half a minute gone by (MaxAge). Most ticks change nothing: then data.json stays as it is, and the page, which sends its ETag back, gets 304.
     /// </summary>
     public void Refresh(DateTime nowUtc)
     {
@@ -141,11 +179,19 @@ public sealed class LiveTracker
                     changed = true;
                 }
             }
+            // where everybody is (after the logs are worked out: the planner's pickups and deliveries are clues); the plan starts where it has him
+            var locations = Where(nowUtc);
+            Tracker.State.Locations = locations;
+            if (locations.PlannerKey != _plannerKey)
+            {
+                _plannerKey = locations.PlannerKey;
+                Tracker.Plan.Invalidate();
+                changed = true;
+            }
             Tracker.Status.Advance(nowUtc);   // the status line has an address of its own (/hauling/status.json): it is no reason to make data.json again
             if (!changed)
             {
-                changed = _saves != _builtSaves
-                    || !ReferenceEquals(Tracker.State.Jobs, _builtJobs) || !ReferenceEquals(Tracker.State.Positions, _builtPositions) || nowUtc - _builtAt >= MaxAge;
+                changed = _saves != _builtSaves || !ReferenceEquals(Tracker.State.Jobs, _builtJobs) || nowUtc - _builtAt >= MaxAge;
             }
             if (changed) Build(nowUtc);
         }
@@ -161,7 +207,6 @@ public sealed class LiveTracker
         _builds++;
         _builtSaves = _saves;
         _builtJobs = Tracker.State.Jobs;
-        _builtPositions = Tracker.State.Positions;
         _builtAt = nowUtc;
         _snapshot = new LiveSnapshot(json, "\"" + _run + "-" + _builds.ToString(CultureInfo.InvariantCulture) + "\"");
     }

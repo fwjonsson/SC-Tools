@@ -3,7 +3,6 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Microsoft.Extensions.DependencyInjection;
 using SCTools.Tests.Support;
 
 namespace SCTools.Tests.ServerPages;
@@ -66,13 +65,11 @@ public class LocationPagesAsBeforeTests
         return f;
     }
 
-    /// <summary>What the server's refresh does every two seconds (RefreshService; its loop does not run beside a test): the logs worked out, and the map's places given to the Hauling Planner.</summary>
-    static void Tick(ServerFactory f, DateTime now)
-    {
-        f.Live.Refresh(now);
-        f.Services.GetRequiredService<SCTools.Server.PlannerPositions>().Push(now, force: true);
-        f.Live.Refresh(now);
-    }
+    /// <summary>
+    /// What the server's refresh does every two seconds (RefreshService; its loop does not run beside a test): the logs worked out, with where everybody is
+    /// (before the location tracker, a second step gave the Hauling Planner the map's places: PlannerPositions.Push).
+    /// </summary>
+    static void Tick(ServerFactory f, DateTime now) => f.Live.Refresh(now);
 
     /// <summary>
     /// What a map says about the players and the missions, written out: every field, the times as seconds from now (the page's clocks and moving markers

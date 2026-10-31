@@ -38,6 +38,8 @@ or open `SCTools.slnx` in Visual Studio. The exes come from the Build workflow, 
         Debts/                 who owes whom (DebtCalc)
         Parties/               the party tracker: who plays with whom, now and before, from the party lines of everybody's log (PartyTracker,
                                its answer PartyBook with the history of every party, PartyRecord), for every tool
+        Locations/             the location tracker: where every player is, since when, and whether he is on his way somewhere, from every
+                               clue of the logs and the Hauling Planner (LocationTracker, its answer LocationBook), for every tool
         ContractTracking/      a contract as the contracts tracker knows it (TrackedContract: who had it, how it ended, what it pays)
                                and how its money is split (ContractSplit), for every tool
         Persistence/           the saved data (AppData and the classes in it) and where it is saved (Storage)
@@ -258,7 +260,7 @@ admin (done), then going live.
   on the panel and the Party pages (his own page says Tracker: None), and his last seen is the last time the others' logs showed him (Frank, 31 Oct
   2026; `PartyService.WithoutTracker`).
 - **The Map tool** (`/map`, `MapService`, `wwwroot/map.js`): Pyro, Stanton and Nyx from above (a tab per system over the map; it opens on the system
-  where most players are, `#stanton` in the address opens that one), with everybody playing where his quantum jumps put him and the objectives of
+  where most players are, `#stanton` in the address opens that one), with everybody playing where the location tracker has him (below) and the objectives of
   the missions going on (`map.json`, every 3 seconds). The places are `StarMap` (Core): the stars, planets, moons, cities, gateways and stations of
   the three systems with their positions from the Star Citizen Wiki API (`/api/locations/positions`, downloaded with ScApiTool on 20 Oct 2026;
   Pyro's are the same as `PyroDistances`'), drawn with the system's Y to the right and its X down, like the Trip Planner's Pyro. A moon, city or
@@ -268,12 +270,12 @@ admin (done), then going live.
   [2026442305] -> [685899972]`: the game's numbers for the landing area and the area around him, `AreaChange`; the trackers send it from the update
   of 31 Oct 2026) and when he arrives. A jump picked on a pad or in a hangar starts when he leaves: off the pad, then out of the station's area into
   space a few seconds later; until then he is still at the station, "leaving for" where he picked. The next area, well into the jump, is where he
-  jumped to: he is there, a few seconds before the arrival line (`MapService.JumpTimes`). Measured on zzoega's logs: from leaving to coming in, a
+  jumped to: he is there, a few seconds before the arrival line (`LocationTracker.JumpTimes`). Measured on zzoega's logs: from leaving to coming in, a
   route takes the same time to about 2 seconds (Ruin to Rod's Fuel 281 to 287 s, seven times), from the pick it varied by a minute. Picked out in
-  space there is no area to leave: it is taken to start 10 seconds after the pick (`MapService.JumpDelay`). The page
+  space there is no area to leave: it is taken to start 10 seconds after the pick (`LocationTracker.JumpDelay`). The page
   moves him along his route by his drive (`Crew.QtOf`: his fleet's active ship, crafted as it is; the same motion as `QtDrive.Seconds`), with a
   speed meter (Mm/s, in c, against his drive's top speed; it stays at 0 Mm/s with his drive's top speed while he is not in quantum, so his card keeps its size,
-  on the Trip Planner too; `top` in map.json; Frank, 29 and 30 Oct 2026). `MapService.Follow` walks his jumps: the start name sets his system and place
+  on the Trip Planner too; `top` in map.json; Frank, 29 and 30 Oct 2026). `LocationTracker.Follow` walks his jumps: the start name sets his system and place
   (`StarMap.OfName`: "Pyro System" is the system alone; a name two systems have, like "Nyx Gateway", is the one he is in, and after a gateway the
   system it leads to), the destination is a place (`StarMap.OfQuantumTarget`: the Pyro stations, "pyro3" the third planet, "LOC_RR_S1_L2" HUR-L2,
   "rs_ext_nyx-pyro_jp1" Nyx's Pyro Gateway, else a place whose name is in it, like "levski_all-001"), and the arrival puts him there. The game's own
@@ -285,14 +287,15 @@ admin (done), then going live.
   2026; the system by the start of the id, the place by the rest, `Atlas.OfLocation`; the trackers send these lines from their next update), also after
   a jump to somewhere the map does not know; an area the map does not know is on Map places, where Frank says what each one is. A jump with no destination picked (he jumped at a marker he looked at, or
   he is crew) is a jump too, not nothing: a crew's arrival gets the destination the pilot picked (another player of the site with the arrival of the
-  same ship, by its entity id, within 10 seconds: `MapService.WithPilots`); else it is to the objective of a mission going on then (below); else he
+  same ship, by its entity id, within 10 seconds, the members of his party asked first: `LocationTracker.WithPilots`); else it is to the objective of a mission going on then (below); else he
   is "Off the grid: out of comm-array range" since then, with the last place the map had him at ("last ping at Levski"). A player the map has not
   placed yet has "No signal yet"; an area the map does not know (a mission's spot) leaves him where it had him (Frank, 29 Oct 2026: zzatvo
-  fell to "No signal yet" at Ruin). The Hauling Planner's pickups, deliveries and hand-ins place a member of its party too (`Whereabouts.AutoLocationOf`,
-  `LastMoveOf`), when they are newer than anything his jumps say; his card says so ("the Hauling Planner"). The other way too (Frank's list of 29 Oct 2026: the map and the planner learn from each other): every six
-  seconds the server gives the planner where the map has everybody (`PlannerPositions`, `TrackerState.Positions`), and a worker's Current location and
-  the station he is flying to take the map's place when it is newer than his last pickup or delivery (`Whereabouts`): a crew member's jumps through the
-  pilot's log, a destination or an area named on Map places, a mission's objective. Not in the middle of a run, though: while he flies a run his
+  fell to "No signal yet" at Ruin). The Hauling Planner's pickups, deliveries and hand-ins place a member of its party too (`Whereabouts.OwnLocationOf`,
+  `LastMoveOf`), when they are newer than anything his jumps say; his card says so ("the Hauling Planner"). The other way too (Frank's list of 29 Oct 2026: the map and the planner learn from each other):
+  a worker's Current location and the station he is flying to take the location tracker's place when it is newer than his last pickup or delivery
+  (`Whereabouts`, `TrackerState.Locations`): a crew member's jumps through the pilot's log, a destination or an area named on Map places, a mission's
+  objective. Both sides are one answer since #388 (the location tracker, below): until then the server copied the map's places to the planner every
+  six seconds and the map took the planner's back. Not in the middle of a run, though: while he flies a run his
   trip is planned from his last pickup, and while he carries waste out of Ruin it is planned from Ruin, whatever the map says (Frank, 30 Oct 2026:
   the map put him at Patch City before he had delivered the waste, and the Ruin "Collect Waste" row and the "Deliver Waste" of the Patch City
   row vanished from his Current Route until he had; every row of a route stays until the route is done). The players' cards stand beside the map (under
@@ -308,7 +311,7 @@ admin (done), then going live.
   route in quantum, up when he is at a place) with a ring pulsing out from it and his name beside it in his colour; players at the same place
   are one under the other. Objectives: at a station when their zone is one of the Pyro stations
   (`StationIds`), where they are when the marker is in the system's own frame (in the system the player is in), at the place their text names
-  ("Go to a debris field above Daymar": `MapService.NamedIn`), else only in the list, by what they say and the contract's system (a bounty's marker
+  ("Go to a debris field above Daymar": `LocationTracker.NamedIn`), else only in the list, by what they say and the contract's system (a bounty's marker
   is at 0, 0, 0). Only for the admin until it is shown on the Tools page.
   **One map engine** (Frank, 29 Oct 2026): the map itself is `wwwroot/systemmap.js`, a file of the site both the Map tool's page and the Hauling
   Planner's page load before their own script (with its version in the address, so a browser keeps it until it changes). The Trip Planner's map is the Companion's size (820 px wide, the Map tool's until #380; Frank, 29 Oct 2026), smaller on a
@@ -345,7 +348,7 @@ admin (done), then going live.
   left of the Hauling Planner.
 - **Map places** (Admin → Map places, `/admin/places`, `MapPlaces`, tables `MapPlaces` and `MapAliases`): the admin's changes to the map's places,
   used at once (the map reads them as an `Atlas`: `StarMap`'s places with his changes). **Not known yet** lists the quantum destinations and start
-  names in the logs on the server that the map cannot place (`MapService.Follow` reports them), with how often, when last, who and the system;
+  names in the logs on the server that the map cannot place (`LocationTracker.Follow` reports them), with how often, when last, who and the system;
   for each he says what it is: a place, or *not a place to show* (a mission's marker, an encounter), and a text ending in * is every one that
   starts so (`AsteroidCluster_Pyro_*`). His word comes before the game data's rules; a party member's marker is never a place. **Places** lists
   every place with its name and short name (the label on the map; the full name since 30 Oct 2026, when Frank wanted "Dudley & Daughters" and
@@ -526,6 +529,18 @@ admin (done), then going live.
   in the other, seconds apart since the PCs' clocks differ), so two of those within fifteen seconds are one party. "X connected." and "X
   disconnected." (a party member's game came in or went out) are read too: "connected" puts a player without a tracker in the party of the log
   that says it (he may have been there before that player came), and changes nothing for a player with a tracker (his own log says when he plays).
+- **The location tracker** (`Locations/LocationTracker.cs` in the core, #388): the one place that knows where every player is, since when, and whether
+  he is on his way somewhere. It reads everybody's log once per refresh (`LiveTracker.Locations`: again when a piece of log comes in, the logs are worked
+  out anew, the data is saved, the parties or the Map places change, or after half a minute; else every page gets the same answer, `LocationBook`)
+  and takes in every clue: his quantum picks and arrivals, the areas he goes into (when a jump starts and ends), the inventories he opens, his pilot's
+  destination when he rides as crew (the same ship id in another player's log, his party's logs first), the mission objectives he can jump to, the
+  admin's Map places (the `Atlas`), and the Hauling Planner's own reading (`PlannerClue`: the station of his last pickup, delivery or hand-in, where it
+  is newer than his jumps). Everybody asks it: the Map tool, the Hauling Planner's Route Planner and the Companion draw the same answer (map.json;
+  `LocationTracker.Now` says where the map draws him now with his drive: at a place, on a jump with its UTC start for the moving marker, heading,
+  at a mission, or off the grid), and the planner's Current location, My page and the Party pages take it through `Whereabouts` (as station ids,
+  `PlannerPlace`). The plan is made anew only when what the planner takes from it changes (`LocationBook.PlannerKey`), and nothing in it moves with
+  the clock (the clock rule). Before it (until 31 Oct 2026) the map and the planner each worked it out and the server copied between them every six
+  seconds (`PlannerPositions`); `LocationPagesAsBeforeTests` recorded what every page showed then, and the tracker shows the same.
 - **Who is active comes from the logs** on the server (the party tracker, and `Tracking/AutoParty.cs` writes it into the Active ticks), not from a tick
   set by hand. The game writes the in-game party in its notifications
   ("zzatvo has joined the party.", "Bileh123 has left the party." also when he quits or crashes, "zzoega is now party leader.", "The party has been

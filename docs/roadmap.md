@@ -231,6 +231,22 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       pages, and his last seen from the others' logs.
     - Checked by replaying the three accounts' logs through the old and the new code at 1,488 moments: the same active times for every player with a
       tracker; the differences are parties the new code joins (invites) and tracker-less members a "connected" line shows in the party.
+15. **Location tracker** (#388, Frank 31 Oct 2026): where a player is was worked out in two places, the map (`MapService`: quantum jumps, areas,
+    inventories, a crew member through his pilot's log, mission objectives, Map places) and the Hauling Planner (`Whereabouts`: pickups, deliveries,
+    hand-ins, a station set by hand), with a bridge copying between them every six seconds both ways (`PlannerPositions`). Now one place in the core
+    (`SCTools.Locations`: `LocationTracker`, its answer `LocationBook`) takes in every clue once per refresh (`LiveTracker.Locations`) and answers
+    where every player is, since when, and whether he is on his way; the map, the Route Planner, the Companion, the planner's Current location, My page
+    and the Party pages ask it, and the bridge is gone. **Decided:**
+    - The same answer as before for every page (recorded first, `LocationPagesAsBeforeTests`), so nothing shows differently. The planner's own rules
+      stay the planner's: a run in progress is planned from its last pickup and waste from Ruin, whatever the tracker says, and a station set by hand
+      holds until the logs show him moving. The planner's Active tick decides routes only.
+    - A crew member in a pilot's ship still goes by the ship's id (the arrival of the same ship in another log within 10 seconds); the logs of his
+      in-game party (the party tracker) are asked first.
+    - The clock rule: the book changes only with a new clue (or half a minute on, when a game that went quiet ends), the plan is made anew only when
+      what the planner takes from it changes, and the map's moving markers count from the jump's UTC start in map.json.
+    - Not yet, ideas listed in #388: the Stanton station codes in the inventory lines (`RR_HUR_L1`, `RR_CRU_LEO`; read like Pyro's, it would place
+      players the map has nowhere now), and new line kinds (a tracker update, the players told first): the jurisdiction, armistice and monitored-space
+      notifications, the ATC contact, the elevators and shuttles, "X has started to QT to your current location", the party markers streamed in.
 
 Later, maybe: a party/crew board (who is on which shard, in which jurisdiction, in whose ship) and crash/server statistics.
 

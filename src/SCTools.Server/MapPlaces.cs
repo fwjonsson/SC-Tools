@@ -8,13 +8,13 @@ namespace SCTools.Server;
 /// A destination, a start name or an area of the logs that the map does not know: what it is, how often and when last, by whom, and in which
 /// system (when known).
 /// </summary>
-public sealed record UnknownPlace(string Text, MapService.UnknownKind Kind, int Seen, DateTime LastUtc, IReadOnlyList<string> Players, string? System)
+public sealed record UnknownPlace(string Text, UnknownKind Kind, int Seen, DateTime LastUtc, IReadOnlyList<string> Players, string? System)
 {
     /// <summary>"Quantum destination", "Start name", "Area" (the game's area tag, "RR_P6_LEO", that comes with the inventory lines: the space around a place; Frank, 30 Oct 2026).</summary>
     public string KindText => Kind switch
     {
-        MapService.UnknownKind.Start => "Start name",
-        MapService.UnknownKind.Location => "Area",
+        UnknownKind.Start => "Start name",
+        UnknownKind.Location => "Area",
         _ => "Quantum destination",
     };
 }
@@ -272,12 +272,12 @@ public sealed class MapPlaces
     public List<UnknownPlace> Unknown()
     {
         var atlas = Atlas;
-        var found = new Dictionary<(string, MapService.UnknownKind), Tally>();
+        var found = new Dictionary<(string, UnknownKind), Tally>();
         List<(string Player, List<QtEvent> Qt, List<LocationSeen> Seen)> logs;
         lock (_uploads.Sync) logs = _uploads.Logs.Select(l => (l.Player ?? l.Uploader ?? "", l.Qt.ToList(), l.Locations.ToList())).ToList();
         foreach (var (player, qt, seen) in logs)
         {
-            MapService.Follow(qt, atlas, (time, text, kind, system) =>
+            LocationTracker.Follow(qt, atlas, (time, text, kind, system) =>
             {
                 var k = (text.ToLowerInvariant(), kind);
                 if (!found.TryGetValue(k, out var tally)) found[k] = tally = new Tally(text);

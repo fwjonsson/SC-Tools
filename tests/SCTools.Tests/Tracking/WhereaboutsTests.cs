@@ -28,22 +28,20 @@ public class WhereaboutsTests
         var data = PlayedSession.Data();
         data.Party.Add("Pilot_B");
         var (t, _) = PlayedSession.Load(data, w => w.Minutes(1).LoadingPlatform().Seconds(5).Objective(PlayedSession.M2, "dropoff_m2_0", "COMPLETED").Seconds(1).MissionEnded(PlayedSession.M2, "COMPLETED"));   // his run is handed in: no run in progress
-        var positions = new Dictionary<string, WorkerPosition>(StringComparer.OrdinalIgnoreCase);
-        t.State.Positions = positions;
-        positions[PlayedSession.Player] = new WorkerPosition(PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(10), null, null);
+        Tracked.Place(t, PlayedSession.Player, new PlannerPlace(PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(10), null, null));
         Assert.Equal(PlayedSession.PatchCity, t.Whereabouts.AutoLocationOf(PlayedSession.Player));
         Assert.Equal((PlayedSession.PatchCity, false), t.Whereabouts.LocationOf(PlayedSession.Player));
-        positions["Pilot_B"] = new WorkerPosition(PlayedSession.Gaslight, PlayedSession.LastPickup.AddMinutes(10), null, null);   // a member without a log: the map alone places him
+        Tracked.Place(t, "Pilot_B", new PlannerPlace(PlayedSession.Gaslight, PlayedSession.LastPickup.AddMinutes(10), null, null));   // a member without a log: the map alone places him
         Assert.Equal(PlayedSession.Gaslight, t.Whereabouts.AutoLocationOf("Pilot_B"));
-        positions[PlayedSession.Player] = new WorkerPosition(PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(-10), null, null);   // older than his pickup: the pickup wins
+        Tracked.Place(t, PlayedSession.Player, new PlannerPlace(PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(-10), null, null));   // older than his pickup: the pickup wins
         Assert.Equal(PyroDistances.Ruin, t.Whereabouts.AutoLocationOf(PlayedSession.Player));
-        positions[PlayedSession.Player] = new WorkerPosition(null, null, PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(5));   // on his way, by the map
+        Tracked.Place(t, PlayedSession.Player, new PlannerPlace(null, null, PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(5)));   // on his way, by the map
         Assert.Equal(PlayedSession.PatchCity, t.Whereabouts.HeadingFor(PlayedSession.Player));
         Assert.Equal(PyroDistances.Ruin, t.Whereabouts.AutoLocationOf(PlayedSession.Player));   // on his way: still where he was (Ruin, his run handed in)
         // a station set by hand gives way when the map sees him arrive somewhere after it
         t.Whereabouts.SetLocation(PlayedSession.Player, PlayedSession.PatchCity);
         Assert.Equal((PlayedSession.PatchCity, true), t.Whereabouts.LocationOf(PlayedSession.Player));
-        positions[PlayedSession.Player] = new WorkerPosition(PyroDistances.Ruin, DateTime.UtcNow.AddMinutes(1), null, null);
+        Tracked.Place(t, PlayedSession.Player, new PlannerPlace(PyroDistances.Ruin, DateTime.UtcNow.AddMinutes(1), null, null));
         Assert.Equal((PyroDistances.Ruin, false), t.Whereabouts.LocationOf(PlayedSession.Player));
     }
 
@@ -53,9 +51,7 @@ public class WhereaboutsTests
         // Pilot_A has picked up at Gaslight and not handed in: his trip is planned from Gaslight whatever the map says (Frank, 30 Oct 2026: the map put him at
         // the station he was flying to, and the rows of the trip he was in the middle of vanished from the Current Route)
         var (t, _) = PlayedSession.Load();
-        var positions = new Dictionary<string, WorkerPosition>(StringComparer.OrdinalIgnoreCase);
-        t.State.Positions = positions;
-        positions[PlayedSession.Player] = new WorkerPosition(PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(10), null, null);
+        Tracked.Place(t, PlayedSession.Player, new PlannerPlace(PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(10), null, null));
         Assert.Equal(PlayedSession.Gaslight, t.Whereabouts.AutoLocationOf(PlayedSession.Player));
         Assert.Equal((PlayedSession.Gaslight, false), t.Whereabouts.LocationOf(PlayedSession.Player));
     }

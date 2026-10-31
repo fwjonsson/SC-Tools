@@ -1,8 +1,7 @@
-using SCTools.Server;
 using SCTools.Tests.Support;
-using static SCTools.Server.MapService;
+using static SCTools.Locations.LocationTracker;
 
-namespace SCTools.Tests.GameData;
+namespace SCTools.Tests.Locations;
 
 /// <summary>
 /// The missions on the Map tool: what an objective says, its system and its quantum beacon (from the log); a jump to the beacon is to the objective, also a

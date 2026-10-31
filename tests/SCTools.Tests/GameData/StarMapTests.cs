@@ -87,37 +87,37 @@ public class StarMapTests
     {
         var t = new DateTime(2026, 10, 28, 12, 0, 0, DateTimeKind.Utc);
         var qt = new List<QtEvent> { Picked(t, "rs_ext_pyro-nyx_jp", "Ruin Station") };
-        var w = MapService.Follow(qt);
+        var w = LocationTracker.Follow(qt);
         Assert.Equal(("pyro", "pyro/ruin-station", "pyro/nyx-gateway"), (w.System, w.From?.Key, w.To?.Key));
 
         qt.Add(Arrived(t.AddMinutes(3)));
-        w = MapService.Follow(qt);
+        w = LocationTracker.Follow(qt);
         Assert.Equal(("pyro", "pyro/nyx-gateway", t.AddMinutes(3)), (w.System, w.At?.Key, w.Since));
         Assert.Null(w.Picked);
 
         qt.Add(Picked(t.AddMinutes(8), "levski_all-001", "Pyro Gateway"));   // through the gateway: in Nyx
-        w = MapService.Follow(qt);
+        w = LocationTracker.Follow(qt);
         Assert.Equal(("nyx", "nyx/pyro-gateway", "nyx/levski"), (w.System, w.From?.Key, w.To?.Key));
 
         qt.Add(Arrived(t.AddMinutes(10)));
-        w = MapService.Follow(qt);
+        w = LocationTracker.Follow(qt);
         Assert.Equal(("nyx", "nyx/levski"), (w.System, w.At?.Key));
 
         // he opened his inventory at Levski: he is there, also with no quantum jump at all
-        var levski = MapService.Follow(new List<QtEvent>(), new[] { new LocationSeen(t, "Nyx_Levski") });
+        var levski = LocationTracker.Follow(new List<QtEvent>(), new[] { new LocationSeen(t, "Nyx_Levski") });
         Assert.Equal(("nyx", "nyx/levski", t), (levski.System, levski.At?.Key, levski.Since));
         // after a jump to a party member (somewhere the map does not know), the inventory puts him at Ruin
-        var ruin = MapService.Follow(new List<QtEvent> { Picked(t, "PartyMemberMarker_1", "Levski"), Arrived(t.AddMinutes(1)) },
+        var ruin = LocationTracker.Follow(new List<QtEvent> { Picked(t, "PartyMemberMarker_1", "Levski"), Arrived(t.AddMinutes(1)) },
             new[] { new LocationSeen(t.AddMinutes(5), "Pyro_RuinStation") });
         Assert.Equal(("pyro", "pyro/ruin-station"), (ruin.System, ruin.At?.Key));
         // picked a destination, then opened the inventory where the jump starts: still on his way
-        var going = MapService.Follow(new List<QtEvent> { Picked(t, "rs_ext_pyro5_l2", "Ruin Station") }, new[] { new LocationSeen(t.AddSeconds(5), "Pyro_RuinStation") });
+        var going = LocationTracker.Follow(new List<QtEvent> { Picked(t, "rs_ext_pyro5_l2", "Ruin Station") }, new[] { new LocationSeen(t.AddSeconds(5), "Pyro_RuinStation") });
         Assert.Equal(("pyro/ruin-station", "pyro/gaslight"), (going.From?.Key, going.To?.Key));
 
         // in open space ("Pyro System") he is not at a place; a jump to a party member puts him nowhere the map knows
-        var lost = MapService.Follow(new List<QtEvent> { Picked(t, "pyro3", "Pyro System") });
+        var lost = LocationTracker.Follow(new List<QtEvent> { Picked(t, "pyro3", "Pyro System") });
         Assert.Equal(("pyro", null, "pyro/bloom"), (lost.System, lost.From?.Key, lost.To?.Key));
-        lost = MapService.Follow(new List<QtEvent> { Picked(t, "PartyMemberMarker_1", "Ruin Station"), Arrived(t.AddMinutes(1)) });
+        lost = LocationTracker.Follow(new List<QtEvent> { Picked(t, "PartyMemberMarker_1", "Ruin Station"), Arrived(t.AddMinutes(1)) });
         Assert.Equal(("pyro", null), (lost.System, lost.At?.Key));
     }
 }

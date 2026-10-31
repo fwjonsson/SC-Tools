@@ -1,17 +1,18 @@
 using System.Globalization;
 using SCTools.Tests.Support;
-using Microsoft.Extensions.DependencyInjection;
-using SCTools.Server;
 
 namespace SCTools.Tests.ServerPages;
 
-/// <summary>The map and the Hauling Planner learn from each other: where the map has a worker reaches the planner's Current location (PlannerPositions).</summary>
-public class PlannerPositionsTests
+/// <summary>
+/// The location tracker on the server (LiveTracker.Locations): the Hauling Planner asks it where a worker is, so a crew member's jump in the pilot's log
+/// places him for the plan too; it is worked out once per refresh, and only a change of what the planner takes from it makes the plan anew.
+/// </summary>
+public class LocationTrackerPageTests
 {
     static string Id(DateTime t) => t.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
 
     [Fact]
-    public async Task A_crew_members_jump_in_the_pilots_log_places_him_for_the_planner_too()
+    public void A_crew_members_jump_in_the_pilots_log_places_him_for_the_planner_too()
     {
         using var f = new ServerFactory();
         var now = DateTime.UtcNow;
@@ -21,22 +22,30 @@ public class PlannerPositionsTests
         Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-20)), 0, 1000, pilot.Lines.ToList(), now).Ok);
         Assert.True(f.Live.Uploads.Add("zzatvo", Id(now.AddMinutes(-20)), 0, 1000, crew.Lines.ToList(), now).Ok);
         f.Live.Refresh(now);
-        var positions = f.Services.GetRequiredService<PlannerPositions>();
-        positions.Push(now, force: true);   // the server's refresh loop runs in the test host too and may have given them already: either way they are there now
+        Assert.Equal("pyro/gaslight", f.Live.Locations(now).Where("zzatvo")?.At?.Key);
         Assert.Equal(PlayedSession.Gaslight, f.Live.Read(t => t.Whereabouts.AutoLocationOf("zzoega")));
         Assert.Equal(PlayedSession.Gaslight, f.Live.Read(t => t.Whereabouts.AutoLocationOf("zzatvo")));   // the crew member: his own log has no destination
         Assert.Equal(PlayedSession.Gaslight, f.Live.Read(t => t.Plan.GetPlan().Workers.Single(w => w.Name.Equals("zzatvo", StringComparison.OrdinalIgnoreCase)).LocationId));
-        Assert.False(positions.Push(now.AddSeconds(10)));   // nothing changed: nothing to give
-        f.Live.Refresh(now.AddSeconds(1));
         Assert.Contains("Current location: Gaslight", f.Live.Json);   // the Trip Planner says so
+
+        // nothing new: the same answer, and data.json is not made again (the clock rule: nothing in it moves by itself)
+        var book = f.Live.Locations(now.AddSeconds(5));
+        var builds = f.Live.Builds;
+        f.Live.Refresh(now.AddSeconds(10));
+        Assert.Same(book, f.Live.Locations(now.AddSeconds(10)));
+        Assert.Equal(builds, f.Live.Builds);
+        // half a minute on it is worked out again (a game that went quiet ends); it says the same to the planner, so the plan is not made anew for it
+        var later = f.Live.Locations(now.AddSeconds(40));
+        Assert.NotSame(book, later);
+        Assert.Equal(book.PlannerKey, later.PlannerKey);
     }
 
     [Fact]
-    public void The_map_does_not_move_a_worker_who_is_flying_waste_out_of_Ruin()
+    public void The_tracker_does_not_move_a_worker_for_the_planner_who_is_flying_waste_out_of_Ruin()
     {
         // Frank, 30 Oct 2026: zzoega took waste out at Ruin and flew it to Patch City; the map had him at Patch City before he delivered, the planner then
         // started his trip there, and the Ruin "Collect Waste" row and the "Deliver Waste" of the Patch City row vanished until he had delivered. The
-        // waste he carries is planned from Ruin until it is delivered, whatever the map says
+        // waste he carries is planned from Ruin until it is delivered, whatever the location tracker says
         using var f = new ServerFactory { FollowSessions = true };   // the logs start the session (the accepted contract)
         var now = DateTime.UtcNow;
         var m = GameLogWriter.MissionId(81);
@@ -48,8 +57,7 @@ public class PlannerPositionsTests
             .Minutes(1).QuantumSelected("rs_ext_pyro3_l3").Minutes(6).QuantumArrived();
         Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-30)), 0, 1000, log.Lines.ToList(), now).Ok);
         f.Live.Refresh(now);
-        f.Services.GetRequiredService<PlannerPositions>().Push(now, force: true);
-        Assert.Equal(PlayedSession.PatchCity, f.Live.Read(t => t.State.Positions.First(kv => kv.Key.Equals("zzoega", StringComparison.OrdinalIgnoreCase)).Value.AtStation));   // the map has him at Patch City
+        Assert.Equal(PlayedSession.PatchCity, f.Live.Locations(now).ForPlanner("zzoega")?.At);   // the location tracker has him at Patch City
         Assert.NotNull(f.Live.Read(t => t.Runs.WasteTakenOut("zzoega")));
         Assert.Equal(PyroDistances.Ruin, f.Live.Read(t => t.Whereabouts.AutoLocationOf("zzoega")));   // the planner keeps him at Ruin until the waste is delivered
     }

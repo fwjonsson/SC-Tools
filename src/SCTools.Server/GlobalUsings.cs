@@ -3,6 +3,7 @@ global using SCTools.ContractTracking;
 global using SCTools.Debts;
 global using SCTools.GameData;
 global using SCTools.GameLog;
+global using SCTools.Locations;
 global using SCTools.Parties;
 global using SCTools.Gauntlet;
 global using SCTools.Persistence;

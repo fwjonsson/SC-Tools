@@ -12,15 +12,13 @@ public class PlanServiceTests
         // waves run on the leg home. Once the map has him at Ruin (newer than his last pickup) that leg is passed too: the run has nothing left to draw
         // (Frank, 30 Oct 2026: the arrow with the waves to Ruin stayed on the map after he had arrived, until he handed in)
         var (t, _) = PlayedSession.Load(null, w => w.Minutes(15).Unstow().Seconds(5).Objective(PlayedSession.M2, "pickup_m2_1", "COMPLETED"));
-        var positions = new Dictionary<string, WorkerPosition>(StringComparer.OrdinalIgnoreCase);
-        t.State.Positions = positions;
         var run = Assert.Single(t.Plan.GetPlan().Workers.Single().MapRows.Where(r => r.OnMap));
         Assert.Equal(new[] { PlayedSession.Gaslight, PlayedSession.PatchCity }, run.Stops);
         Assert.Equal(2, run.Passed);   // on his way home: the waves run on the leg to Ruin
-        positions[PlayedSession.Player] = new WorkerPosition(PyroDistances.Ruin, PlayedSession.LastPickup.AddMinutes(40), null, null);
+        Tracked.Place(t, PlayedSession.Player, new PlannerPlace(PyroDistances.Ruin, PlayedSession.LastPickup.AddMinutes(40), null, null));
         run = Assert.Single(t.Plan.GetPlan().Workers.Single().MapRows.Where(r => r.OnMap));
         Assert.Equal(3, run.Passed);   // at Ruin: the leg home is flown too
-        positions[PlayedSession.Player] = new WorkerPosition(PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(1), null, null);   // older than his last pickup: no say
+        Tracked.Place(t, PlayedSession.Player, new PlannerPlace(PlayedSession.PatchCity, PlayedSession.LastPickup.AddMinutes(1), null, null));   // older than his last pickup: no say
         Assert.Equal(2, Assert.Single(t.Plan.GetPlan().Workers.Single().MapRows.Where(r => r.OnMap)).Passed);
     }
 

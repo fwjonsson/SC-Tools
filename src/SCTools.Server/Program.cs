@@ -57,7 +57,6 @@ builder.Services.AddSingleton<DataViews>();    // data.json as each viewer may s
 builder.Services.AddSingleton<MapPlaces>();
 builder.Services.AddSingleton<MapService>();
 builder.Services.AddSingleton<CompanionService>();   // the Companion: a player's own map, contracts and game session (#380)
-builder.Services.AddSingleton<PlannerPositions>();
 builder.Services.AddSingleton<HistoryStore>();
 builder.Services.AddSingleton<MissionLibrary>();
 builder.Services.AddSingleton<ContractTracker>();   // every contract and its money split, for every tool (#383)
@@ -116,6 +115,7 @@ var live = app.Services.GetRequiredService<LiveTracker>();
 live.Players = app.Services.GetRequiredService<PartyService>().Players;   // the party tracker knows everybody the site knows
 var mapPlaces = app.Services.GetRequiredService<MapPlaces>();
 SCTools.GameData.StarRoutes.AtlasSource = () => mapPlaces.Atlas;   // the planner's routes know the places the admin added or renamed
+live.AtlasSource = () => mapPlaces.Atlas;   // and so does the location tracker
 app.Services.GetRequiredService<TrackerKeys>();
 using (var scope = app.Services.CreateScope())
 {

@@ -152,7 +152,7 @@ public class MapPageTests
         Assert.Equal("jump", z.GetProperty("state").GetString());
         Assert.Equal(("pyro", "pyro/ruin-station", "pyro/gaslight"), (z.GetProperty("system").GetString(), z.GetProperty("from").GetString(), z.GetProperty("to").GetString()));
         Assert.Equal(105.09e9, z.GetProperty("dist").GetDouble(), 0);
-        var start = new DateTimeOffset(now.AddMinutes(-1) + SCTools.Server.MapService.JumpDelay).ToUnixTimeMilliseconds();
+        var start = new DateTimeOffset(now.AddMinutes(-1) + LocationTracker.JumpDelay).ToUnixTimeMilliseconds();
         Assert.InRange(z.GetProperty("start").GetInt64(), start - 5, start + 5);   // a few seconds after he picked the destination
         Assert.True(z.GetProperty("motion").GetProperty("v").GetDouble() > 1e8);   // a drive (an assumed one: he set none)
 
