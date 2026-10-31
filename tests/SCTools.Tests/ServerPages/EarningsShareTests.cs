@@ -89,7 +89,7 @@ public class EarningsShareTests
         using var f = Played(now);
         var admin = await f.Admin();
         await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "session"), ("value", "true"));
-        var page = await (await f.Player(f.AddKey("zzatvo"))).GetStringAsync("/session");
+        var page = await (await f.Player(f.AddKey("zzatvo"))).GetStringAsync("/history");
         Assert.Contains("80,000", page);   // 50,000 + 30,000, not 100,000 + 500,000
         Assert.DoesNotContain("600,000", page);
     }

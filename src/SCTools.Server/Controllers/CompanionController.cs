@@ -30,11 +30,17 @@ public sealed class CompanionController : Controller
     /// <summary>The admin may change the library from it, also while he looks as a player (what a page lets the viewer change goes by who is logged in).</summary>
     bool Editor => User.IsInRole(Roles.Admin);
 
+    /// <summary>The Companion's tabs (Frank, 31 Oct 2026): Overview (the map, the players, the objectives, the contracts going on), Session (the game
+    /// session) and Contracts (the ones going on and the ones ended this session). One page: companion.js shows the tab of the address without a reload.</summary>
+    public static readonly string[] Tabs = { "overview", "session", "contracts" };
+
     [HttpGet("")]
-    public IActionResult Index()
+    [HttpGet("{tab:regex(^(overview|session|contracts)$)}")]
+    public IActionResult Index(string? tab)
     {
         if (!_tools.Sees(User, SiteTools.Companion)) return Hidden();
         ViewData["Title"] = "Companion";
+        ViewData["Tab"] = Tabs.Contains(tab) ? tab : "overview";
         ViewData["Visitor"] = Me == null;
         ViewData["Editor"] = Editor;
         return View(Editor ? _companion.Factions() : new List<string>());

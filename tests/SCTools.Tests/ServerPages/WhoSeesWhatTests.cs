@@ -133,12 +133,12 @@ public class WhoSeesWhatTests
             await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", id), ("value", "true"));
         f.Upload(SCTools.Tests.Support.PlayedSession.Player, SCTools.Tests.Support.PlayedSession.Writer().Lines.ToList());
         var visitor = f.Browser();
-        foreach (var page in new[] { "/session", "/party", "/gauntlet", "/gauntlet/stats", "/hauling" })
+        foreach (var page in new[] { "/history", "/party", "/gauntlet", "/gauntlet/stats", "/hauling" })
         {
             var res = await visitor.GetAsync(page);
             Assert.True(res.StatusCode == HttpStatusCode.OK, page + ": " + res.StatusCode);
         }
-        Assert.Contains("Log in", await visitor.GetStringAsync("/session"));
+        Assert.Contains("Log in", await visitor.GetStringAsync("/history"));
         Assert.Contains("Log in", await visitor.GetStringAsync("/party"));
         Assert.Contains("Log in to see your party", await visitor.GetStringAsync("/"));   // the landing page's line of the Hauling Planner
         // the Map is the admin's (31 Oct 2026): a visitor is sent to log in; the Gauntlet Tracker's map gives him the places and nobody on them

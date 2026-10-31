@@ -377,7 +377,11 @@ admin (done), then going live.
   `SessionBuilder.PickedUp`) is off the map at once, and an objective one holder's log says is done is done for everybody with the mission.
 - **The Companion** (`/companion`, `CompanionService`, `CompanionController`, `wwwroot/companion.js`; #380, Frank 30 Oct 2026): a player's own page to keep
   open while playing, made as a copy of the Map tool (no texts under its map and its contracts since 31 Oct 2026, Frank: what the Game session numbers are
-  is the tooltip of its table). **The Gauntlet Tracker's Session tab** has the same map with the Players beside it, over the sessions (`/gauntlet/map.json`,
+  is the tooltip of its table). **Three tabs** since 31 Oct 2026 (Frank), in its row under the bar with the team status line at the end, each with its
+  own address and switched without a reload (one page: the map, the polls, the admin's toast and his cards go on whichever is shown; `companion.js`):
+  **Overview** (`/companion`, `/companion/overview`: the map, the Players, the objectives where the game session was, and the Active Contracts),
+  **Session** (`/companion/session`: the game session) and **Contracts** (`/companion/contracts`: the Active Contracts again, and under them the
+  Completed Contracts, which were on the one page before). **The Gauntlet Tracker's Session tab** has the same map with the Players beside it, over the sessions (`/gauntlet/map.json`,
   `CompanionService.Map`; `map.js` with the feed named on the map, `data-src`, as the admin's Map; Frank, 31 Oct 2026). Personal (`Audience.PartyOf` of the viewer: the player the admin looks as with View as, else who is
   logged in; the admin's own view, View as: Admin, has everybody on the map and everything else his own player's, and View as his own player is a
   player's Companion, Frank 30 Oct 2026): the map with him and his party (map.json cut by `DataViews.MapFor`, with `me`),
@@ -580,7 +584,7 @@ admin (done), then going live.
   contract, else the built-in table by stops: `Earnings.KindReward` with the tracker's `JobBook`; the Contracts tab lists the session's contracts by
   name with what they pay). The first time it runs it reads the missions of the old logs already on the server; what was typed in the
   library when it went by ContractId is carried over to the names once.
-- **The Session tool** (`/session`, `Play/PlayStats` in the core, `Playtime`, `SessionController`): your own play. Time played today, this week (from
+- **The Session History tool** (`/history`; the Session tool at `/session` until 31 Oct 2026, renamed so the Companion's Session tab is not mixed up with it, Frank; `Play/PlayStats` in the core, `Playtime`, `SessionController`): your own play. Time played today, this week (from
   Monday), this month and in all, the games and the crashes (a log without the game's quit line, `SystemQuit`, crashed), the missions you completed
   and what they earned (aUEC, MG and Council scrip as the Mission Library says they pay; the scrip at the Scrip page's value), and per
   hour; the clock of the game you play now; a list of your games. Worked out again on every visit, so a reward typed in later counts for the past.

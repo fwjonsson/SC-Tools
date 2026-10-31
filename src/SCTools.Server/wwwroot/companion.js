@@ -120,6 +120,7 @@
     if (note.textContent) objs.appendChild(note);
 
     contracts('missions', d.missions || [], false, 'No contracts going on.');
+    contracts('missionsAll', d.missions || [], false, 'No contracts going on.');   // the Contracts tab has them too
   }
 
   // ------------------------------------------------------------------ the contract tables
@@ -281,6 +282,27 @@
     if (data && data.systems.some(function (s) { return s.id === h; }) && h !== shown) show(h, true);
   });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) { refresh(); refreshSession(); } });
+
+  // ------------------------------------------------------------------ the tabs (Overview, Session, Contracts; Frank, 31 Oct 2026)
+  // One page: a tab is shown and the others hidden, its address set without a reload (back and forward go between them), so the map and the polls go on.
+  function showTab(key) {
+    document.querySelectorAll('section.companiontab').forEach(function (s) { s.hidden = s.dataset.tab !== key; });
+    document.querySelectorAll('#companionTabs a[data-tab]').forEach(function (a) {
+      const on = a.dataset.tab === key;
+      a.classList.toggle('on', on);
+      if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+  }
+  function tabOf(path) { const m = /^\/companion\/(overview|session|contracts)\/?$/i.exec(path); return m ? m[1].toLowerCase() : 'overview'; }
+  document.querySelectorAll('#companionTabs a[data-tab]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;   // a new tab or window: the browser does it
+      e.preventDefault();
+      if (tabOf(location.pathname) !== a.dataset.tab) history.pushState(null, '', a.getAttribute('href'));
+      showTab(a.dataset.tab);
+    });
+  });
+  window.addEventListener('popstate', function () { showTab(tabOf(location.pathname)); });
   refresh();
   refreshSession();
   setInterval(refresh, 3000);

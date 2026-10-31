@@ -18,7 +18,7 @@ public class ToolsPageTests
         var visitor = f.Browser();
         var home = await visitor.GetStringAsync("/");
         Assert.Contains(Card("Hauling Planner"), home);   // the hauling tracker is shown, the tools still being made are not
-        Assert.DoesNotContain(Card("Session"), home);
+        Assert.DoesNotContain(Card("Session History"), home);
         Assert.DoesNotContain(Card("Mission Library"), home);
         Assert.DoesNotContain(Card("Gauntlet Tracker"), home);
 
@@ -88,7 +88,7 @@ public class ToolsPageTests
         var adminHome = await admin.GetStringAsync("/");
         var navAt = adminHome.IndexOf("<nav class=\"toolnav\">", StringComparison.Ordinal);
         var bar = adminHome[navAt..adminHome.IndexOf("</nav>", navAt, StringComparison.Ordinal)];
-        var order = new[] { "Hauling Planner", "Gauntlet Tracker", "Session", "Mission Library" };
+        var order = new[] { "Hauling Planner", "Gauntlet Tracker", "Session History", "Mission Library" };   // Session History: "Session" until 31 Oct 2026
         Assert.DoesNotContain(">Map</a>", bar);
         var at = order.Select(n => bar.IndexOf(">" + n + "</a>", StringComparison.Ordinal)).ToArray();
         Assert.True(at.All(x => x >= 0) && at.SequenceEqual(at.OrderBy(x => x)), bar);

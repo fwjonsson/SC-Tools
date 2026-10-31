@@ -120,7 +120,7 @@ public class ContractMoneyTests
 
         var admin = await f.Admin();
         await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "session"), ("value", "true"));
-        Assert.Contains("147,750", await (await f.Player(f.AddKey("zzatvo"))).GetStringAsync("/session"));
+        Assert.Contains("147,750", await (await f.Player(f.AddKey("zzatvo"))).GetStringAsync("/history"));
     }
 
     [Fact]
