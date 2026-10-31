@@ -149,10 +149,10 @@ function section(parent, tag, title, g) {
 
 // green when somebody owes the member (+), red when he owes them (-), like in the program
 function signColors(box, col, d, rows) {
-  // the sign is read from the second column (balance) of every row, the colour goes to column col
+  // the sign is read from the balance column of every row (the third: #, Party Member, Balance), the colour goes to column col
   (rows || box.querySelectorAll('tbody tr')).forEach(function (tr) {
     const td = tr.cells[col];
-    const sign = (rows ? tr.cells[1] : td);
+    const sign = (rows ? tr.cells[2] : td);
     if (!td || !sign) return;
     if (sign.textContent.charAt(0) === '+') td.style.background = d.pos;
     else if (sign.textContent.charAt(0) === '-') td.style.background = d.neg;
@@ -500,13 +500,13 @@ function buildDebts() {
   el.textContent = '';
   const d = last.debts;
   section(el, 'h2', 'Earnings', d.earnings);
-  signColors(el.lastChild, 3, d);
+  signColors(el.lastChild, 4, d);   // every table has # first (31 Oct 2026)
   const h = document.createElement('h2'); h.textContent = 'Balances'; el.appendChild(h);
   d.balances.forEach(function (b) {
     section(el, 'h3', b.name, b.grid);
     el.lastChild.classList.add('bal');   // the same column widths in every table
-    signColors(el.lastChild, 1, d);
-    signColors(el.lastChild, 2, d, el.lastChild.querySelectorAll('tbody tr'));   // the meaning has the colour of its balance
+    signColors(el.lastChild, 2, d);
+    signColors(el.lastChild, 3, d, el.lastChild.querySelectorAll('tbody tr'));   // the meaning has the colour of its balance
   });
   section(el, 'h2', 'Money transfers', d.transfers);
   paymentTicks(el.lastChild, d.transfersEdit || [], last.debtsPay);
@@ -520,8 +520,8 @@ function paymentTicks(box, edits, url) {
   const rows = box.querySelectorAll('tbody tr');
   edits.forEach(function (e, i) {
     const row = rows[i];
-    if (!e || !row || !row.cells[4] || (e.from || '').toLowerCase() !== ME) return;
-    const cell = row.cells[4];
+    if (!e || !row || !row.cells[5] || (e.from || '').toLowerCase() !== ME) return;
+    const cell = row.cells[5];   // Payment (after #, Time, From, To, Amount)
     cell.textContent = '';
     const input = document.createElement('input');
     input.type = 'checkbox';

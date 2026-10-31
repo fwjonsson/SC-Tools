@@ -14,6 +14,10 @@ public class WhoSeesWhatTests
     static string Table(string worker0, params string[][] rows) =>
         "{\"headers\":[{\"text\":\"a\"}],\"rows\":[" + string.Join(",", rows.Select(r => "{\"cells\":[" + string.Join(",", r.Select(c => "\"" + c + "\"")) + "]}")) + "]}";
 
+    /// <summary>A table with # first (the Debts, History and Leaderboard tables since 31 Oct 2026): the viewer's rows are numbered 1, 2, 3 again.</summary>
+    static string Numbered(params string[][] rows) =>
+        "{\"headers\":[{\"text\":\"#\"},{\"text\":\"a\"}],\"rows\":[" + string.Join(",", rows.Select(r => "{\"cells\":[" + string.Join(",", r.Select(c => "\"" + c + "\"")) + "]}")) + "]}";
+
     /// <summary>A data.json of a session two parties haul in: zzoega with zzatvo, and bileh123 alone.</summary>
     static LiveSnapshot Snapshot()
     {
@@ -23,13 +27,13 @@ public class WhoSeesWhatTests
             "\"runsLive\":[null,\"2026-10-30T11:00:00Z\"],\"runKeys\":[\"k1\",\"k2\"],\"runsLost\":\"/hauling/runs/lost\"," +
             "\"planRuns\":" + Table("", new[] { "1", "zzoega" }, new[] { "2", "bileh123" }) + "," +
             "\"planner\":{\"summary\":\"everybody's plan\",\"maps\":[{\"id\":\"pyro\"}],\"workers\":[{\"name\":\"zzoega\"},{\"name\":\"zzatvo\"},{\"name\":\"bileh123\"}]}," +
-            "\"debts\":{\"earnings\":" + Table("", new[] { "zzoega", "1" }, new[] { "bileh123", "2" }) + "," +
+            "\"debts\":{\"earnings\":" + Numbered(new[] { "1", "zzoega", "1" }, new[] { "2", "bileh123", "2" }) + "," +
                 "\"balances\":[{\"name\":\"zzoega\",\"grid\":{}},{\"name\":\"bileh123\",\"grid\":{}}]," +
-                "\"transfers\":" + Table("", new[] { "10:00", "zzoega", "zzatvo", "5", "" }, new[] { "11:00", "bileh123", "zzoega", "6", "" }, new[] { "12:00", "zzatvo", "bileh123", "7", "" }) + "," +
-                "\"transfersEdit\":[{\"key\":\"t1\",\"from\":\"zzoega\"},{\"key\":\"t2\",\"from\":\"bileh123\"},{\"key\":\"t3\",\"from\":\"zzatvo\"}]," +
-                "\"payouts\":" + Table("", new[] { "10:00", "m1", "100", "zzoega, zzatvo", "50" }, new[] { "11:00", "m2", "100", "bileh123", "100" }) + "}," +
-            "\"history\":{\"allTime\":" + Table("", new[] { "zzoega", "1" }) + ",\"best\":\"Best session\",\"saved\":" +
-                Table("", new[] { "23 okt", "13:28", "9", "20", "zzatvo 8,842,521, zzoega 7,644,729" }, new[] { "22 okt", "13:28", "9", "20", "bileh123 1,000" }) + "}," +
+                "\"transfers\":" + Numbered(new[] { "1", "09:00", "zzatvo", "bileh123", "4", "" }, new[] { "2", "10:00", "zzoega", "zzatvo", "5", "" }, new[] { "3", "11:00", "bileh123", "zzoega", "6", "" }, new[] { "4", "12:00", "zzatvo", "bileh123", "7", "" }) + "," +
+                "\"transfersEdit\":[{\"key\":\"t0\",\"from\":\"zzatvo\"},{\"key\":\"t1\",\"from\":\"zzoega\"},{\"key\":\"t2\",\"from\":\"bileh123\"},{\"key\":\"t3\",\"from\":\"zzatvo\"}]," +
+                "\"payouts\":" + Numbered(new[] { "1", "11:00", "m2", "100", "bileh123", "100" }, new[] { "2", "10:00", "m1", "100", "zzoega, zzatvo", "50" }) + "}," +
+            "\"history\":{\"allTime\":" + Numbered(new[] { "1", "zzoega", "1" }) + ",\"best\":\"Best session\",\"saved\":" +
+                Numbered(new[] { "1", "22 okt", "13:28", "9", "20", "bileh123 1,000" }, new[] { "2", "23 okt", "13:28", "9", "20", "zzatvo 8,842,521, zzoega 7,644,729" }) + "}," +
             "\"parties\":[" +
                 "{\"title\":\"zzoega's party\",\"leader\":\"zzoega\",\"names\":[\"zzoega\",\"zzatvo\"],\"playing\":true,\"view\":{\"session\":\"Session: zzoega's\",\"runs\":" + Table("", new[] { "1", "zzoega" }) + ",\"runsLive\":[null]}}," +
                 "{\"title\":\"bileh123's party\",\"leader\":\"bileh123\",\"names\":[\"bileh123\"],\"playing\":true,\"view\":{\"session\":\"Session: bileh123's\",\"runs\":" + Table("", new[] { "2", "bileh123" }) + ",\"runsLive\":[\"2026-10-30T11:00:00Z\"]}}]" +
@@ -56,7 +60,7 @@ public class WhoSeesWhatTests
         foreach (var k in new[] { "summary", "pickups", "runs", "planRuns", "runsLive", "runKeys", "debts", "parties" }) Assert.False(d.TryGetProperty(k, out _), k);
         Assert.Empty(d.GetProperty("planner").GetProperty("workers").EnumerateArray());
         Assert.Equal("pyro", d.GetProperty("planner").GetProperty("maps")[0].GetProperty("id").GetString());   // the map is there
-        Assert.Equal(new[] { "zzoega" }, Column(d.GetProperty("history").GetProperty("allTime"), 0));   // the public leaderboard
+        Assert.Equal(new[] { "zzoega" }, Column(d.GetProperty("history").GetProperty("allTime"), 1));   // the public leaderboard (# first, 31 Oct 2026)
         Assert.False(d.GetProperty("history").TryGetProperty("saved", out _));
     }
 
@@ -76,13 +80,17 @@ public class WhoSeesWhatTests
         Assert.Equal("", planner.GetProperty("summary").GetString());   // it was about everybody
 
         var debts = d.GetProperty("debts");
-        Assert.Equal(new[] { "zzoega" }, Column(debts.GetProperty("earnings"), 0));
+        Assert.Equal(new[] { "zzoega" }, Column(debts.GetProperty("earnings"), 1));   // every table has # first (31 Oct 2026)
         Assert.Equal(new[] { "zzoega" }, debts.GetProperty("balances").EnumerateArray().Select(b => b.GetProperty("name").GetString()));
-        Assert.Equal(new[] { "10:00", "11:00" }, Column(debts.GetProperty("transfers"), 0));   // he sent the first and got the second; not zzatvo's to bileh123
+        Assert.Equal(new[] { "10:00", "11:00" }, Column(debts.GetProperty("transfers"), 1));   // he sent the first and got the second; not zzatvo's to bileh123
         Assert.Equal(new[] { "t1", "t2" }, debts.GetProperty("transfersEdit").EnumerateArray().Select(e => e.GetProperty("key").GetString()));   // one for one with the rows
-        Assert.Equal(new[] { "m1" }, Column(debts.GetProperty("payouts"), 1));
-        Assert.Equal(new[] { "23 okt" }, Column(d.GetProperty("history").GetProperty("saved"), 0));   // the saved sessions he carried in
-        Assert.Equal(new[] { "zzoega" }, Column(d.GetProperty("history").GetProperty("allTime"), 0));
+        Assert.Equal(new[] { "m1" }, Column(debts.GetProperty("payouts"), 2));
+        Assert.Equal(new[] { "1", "2" }, Column(debts.GetProperty("transfers"), 0));   // his rows numbered 1, 2 again (they were 2 and 3)
+        Assert.Equal(new[] { "1" }, Column(debts.GetProperty("payouts"), 0));
+        Assert.Equal(new[] { "23 okt" }, Column(d.GetProperty("history").GetProperty("saved"), 1));   // the saved sessions he carried in
+        Assert.Equal("1", Column(d.GetProperty("history").GetProperty("saved"), 0)[0]);   // numbered
+        Assert.Equal(new[] { "zzoega" }, Column(d.GetProperty("history").GetProperty("allTime"), 1));
+        Assert.Equal("1", Column(d.GetProperty("history").GetProperty("allTime"), 0)[0]);
     }
 
     [Fact]
@@ -97,7 +105,7 @@ public class WhoSeesWhatTests
         var admin = View(new Viewer(null, true));
         Assert.Equal("Session: all", admin.GetProperty("session").GetString());
         Assert.Equal(2, admin.GetProperty("parties").GetArrayLength());
-        Assert.Equal(3, admin.GetProperty("debts").GetProperty("transfers").GetProperty("rows").GetArrayLength());
+        Assert.Equal(4, admin.GetProperty("debts").GetProperty("transfers").GetProperty("rows").GetArrayLength());
     }
 
     [Fact]

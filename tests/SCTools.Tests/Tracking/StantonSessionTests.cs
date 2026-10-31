@@ -78,7 +78,7 @@ public class StantonSessionTests
         var line = Assert.Single(stops);
         Assert.Equal(("CRU-L4 Shallow Fields Station", "1/1", "~60", 90_000m.ToString("N0"), "Port Tressler"), (line[1], line[2], line[3], line[5], line[6]));   // the places as the map has them; the SCU a share of the job's
         var rewards = d.GetProperty("rewards").GetProperty("rows").EnumerateArray().Select(x => x.GetProperty("cells").EnumerateArray().Select(c => c.GetString()!).ToArray()).ToList();
-        Assert.Contains(rewards, c => c[0] == Title && c[1] == 90_000m.ToString("N0") && c[2] == "1" && c[3] == "0");   // the Contracts table: the job by its name, going
+        Assert.DoesNotContain(rewards, c => c[1] == Title);   // the Completed Contracts table: not while it is going (31 Oct 2026)
         Assert.Equal("CRU-L4 Shallow Fields Station 60 SCU", t.Contracts.ContractStopsText(m));
         Assert.False(d.TryGetProperty("jobs", out _));   // no Other hauling board any more (30 Oct 2026): the Stops board has the jobs
     }
@@ -111,6 +111,9 @@ public class StantonSessionTests
         Assert.Equal(PickupZone, Assert.Single(run.Pickups).Zone);
         Assert.Equal(90_000m, t.Earnings.RunValue(run));
         Assert.Equal(90_000m, t.Earnings.Earned());   // the session earned it
+        var completed = JsonDocument.Parse(WebSnapshot.Json(t, new WebSnapshotOptions())).RootElement.GetProperty("rewards").GetProperty("rows").EnumerateArray()
+            .Select(x => x.GetProperty("cells").EnumerateArray().Select(c => c.GetString()!).ToArray()).ToList();
+        Assert.Contains(completed, c => c[0] == "1" && c[1] == Title && c[2] == 90_000m.ToString("N0") && c[3] == "1" && c[4] == 90_000m.ToString("N0"));   // the Completed Contracts table
         Assert.Empty(t.State.OpenRows);   // the mission is completed: off the Stops and Finished stops boards, like a completed contract (the Cargo runs keep it)
         var done = Assert.Single(t.State.Rows);
         Assert.Equal((1, 1, true), (done.Delivered, done.Missions, done.DeliveredTime.HasValue));

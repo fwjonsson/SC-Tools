@@ -38,7 +38,7 @@ public class DebtsPayTests
         Assert.True(ok.GetProperty("ok").GetBoolean());
         Assert.Contains("pays off a debt", ok.GetProperty("said").GetString());
         Assert.True(f.Live.Read(t => t.State.Data.Transfers.Single().Payment));
-        Assert.Equal("yes", JsonDocument.Parse(await sender.GetStringAsync("/data.json")).RootElement.GetProperty("debts").GetProperty("transfers").GetProperty("rows")[0].GetProperty("cells")[4].GetString());
+        Assert.Equal("yes", JsonDocument.Parse(await sender.GetStringAsync("/data.json")).RootElement.GetProperty("debts").GetProperty("transfers").GetProperty("rows")[0].GetProperty("cells")[5].GetString());   // Payment, after # (31 Oct 2026)
 
         var denied = await Tick(receiver, "false");   // the one who got the money cannot say
         Assert.False(denied.GetProperty("ok").GetBoolean());

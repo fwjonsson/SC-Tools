@@ -10,8 +10,9 @@
 .hauling .side h2 { margin-top:22px; }   /* the Session heading level with the Stops heading beside it (Frank, 30 Oct 2026: it sat 10 px higher) */
 .hauling .scroll { overflow-x:auto; }
 .hauling .bal table { table-layout:fixed; }
-.hauling .bal th:nth-child(1) { width:24%; }
-.hauling .bal th:nth-child(2) { width:18%; }
+.hauling .bal th:nth-child(1) { width:36px; }   /* # (31 Oct 2026) */
+.hauling .bal th:nth-child(2) { width:24%; }
+.hauling .bal th:nth-child(3) { width:18%; }
 .hauling table { border-collapse:collapse; width:100%; }
 .hauling th, .hauling td { border:1px solid var(--line); padding:4px 8px; white-space:nowrap; }
 /* every title on one line (a column is at least as wide as its title); only the leaderboard on a narrow window may take two (.tight, see alignColumns) */
@@ -20,9 +21,10 @@
 .hauling .kv td:first-child { font-weight:600; width:50%; }
 /* contracts (its own tab) and session: set widths (the contracts' first two columns and the session's two are halves) */
 .hauling #rewards table, .hauling #summary table { table-layout:fixed; }   /* the contracts over the whole width, like the Debts tables (Frank, 30 Oct 2026) */
-.hauling #rewards th:nth-child(1) { width:44%; } .hauling #rewards th:nth-child(2) { width:16%; }   /* Contract: the room; its name wraps when there is still not enough */
-.hauling #rewards td:nth-child(1) { white-space:normal; }
-.hauling #rewards th:nth-child(3) { width:11%; } .hauling #rewards th:nth-child(4) { width:13%; } .hauling #rewards th:nth-child(5) { width:16%; }
+.hauling #rewards th:nth-child(1) { width:36px; }   /* # (31 Oct 2026) */
+.hauling #rewards th:nth-child(2) { width:50%; } .hauling #rewards th:nth-child(3) { width:17%; }   /* Contract: the room; its name wraps when there is still not enough */
+.hauling #rewards td:nth-child(2) { white-space:normal; }
+.hauling #rewards th:nth-child(4) { width:13%; } .hauling #rewards th:nth-child(5) { width:17%; }
 .hauling #runs td:nth-child(3) { white-space:normal; }   /* Pickup Location & Time of Cargo runs: a long run wraps instead of running over the next columns */
 .hauling #pickups td:nth-child(5) { white-space:normal; }   /* Boxes of Stops ("Waste: 4×32 + 24"): it wraps on a narrower window; Drop-off Location is a station name */
 .hauling .empty { opacity:.6; padding:6px 0; }
