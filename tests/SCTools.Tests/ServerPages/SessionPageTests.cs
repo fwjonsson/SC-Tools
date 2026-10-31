@@ -49,6 +49,9 @@ public class SessionPageTests
         var player = await f.Player(f.AddKey("zzoega"));
         var page = await player.GetStringAsync("/history");
         Assert.Contains("Playing now for", page);   // its log grew two minutes ago
+        // the row titles in the tool's colour, as the Gauntlet Tracker's sessions (Frank, 31 Oct 2026): no shade of their own over the colour of the heads
+        Assert.Contains("<table class=\"wide play\">", page);
+        Assert.DoesNotContain("table.play tbody th", await player.GetStringAsync("/site.css"));
         Assert.Contains("1 completed mission has no reward in the library", page);
         Assert.Contains("<td>Quit</td>", page);
         Assert.Contains("<td>Crashed</td>", page);

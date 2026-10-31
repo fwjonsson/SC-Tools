@@ -71,8 +71,15 @@ table.narrow { max-width:720px; }
 .pair { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
 .pair > div { flex:1 1 420px; min-width:0; }
 tr.combined td { color:var(--muted); }   /* one player's accounts added up on a leaderboard (Frank, 30 Oct 2026) */
-.titled { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }   /* a title with a small form right of it (the Gauntlet's Top 10 and its scenario, Frank, 30 Oct 2026) */
-.titled form.line { margin:14px 0 0; }
+.titled { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin:24px 0 8px; }   /* a title with a small form right of it (the Gauntlet's Top 10 and its scenario, Frank, 30 Oct 2026) */
+/* the form takes no height of its own (a smaller pick, and margins under nothing), so the table under the title starts as high as one under a plain title
+   beside it (Frank, 31 Oct 2026: the Top 10 Fastest sat lower than the Earnings) */
+.titled h2 { margin:0; }
+.titled form.line { margin:-6px 0; }
+.titled form.line label { margin:0; }
+.titled form.line select { padding:2px 6px; }
+/* the columns of a pair start level: no title's margin over the first thing in either (the Gauntlet's Earnings and Top 10 Fastest, Frank, 31 Oct 2026) */
+.pair > div > :first-child { margin-top:0; }
 td input, td select { width:100%; padding:4px 6px; }
 td input[type=checkbox] { width:auto; }
 td input[type=color] { width:46px; height:30px; }
@@ -162,7 +169,8 @@ td.small { font-size:12px; }
 .playnow .clock { font-variant-numeric:tabular-nums; }
 table.play { max-width:760px; }
 table.play th:first-child { text-align:left; }
-table.play tbody th { background:var(--cell); color:var(--fg); font-weight:600; }
+/* the row titles in the tool's colour (--header), as the Gauntlet Tracker's Game Session and Grind Session (Frank, 31 Oct 2026): the Session History's
+   table and the Companion's game session, each in its own tool's colour; they were the table's shade before */
 table.play tr.sum td, table.play tr.sum th { font-weight:700; }
 tr.crash td { color:#ff9b9b; }
 /* the Map tool (Frank, 29 Oct 2026): a grid of three columns on a wide screen: the map, the players beside it and the objectives beside them; under all three,
@@ -184,6 +192,9 @@ main:has(.maptool) { max-width:1900px; }
 .mapside.placeside table.unknown { max-width:none; }
 /* the Gauntlet Tracker's map is the Companion's: the same columns, the sessions in the third (Frank, 31 Oct 2026) */
 .maptool.gauntletmap { margin-bottom:18px; }
+/* the Game Session's and the Grind Session's row titles as wide as each other, so the two tables line up (Frank, 31 Oct 2026: each table sized its own) */
+.gauntletsessions table { table-layout:fixed; }
+.gauntletsessions th { width:70%; }   /* about what the Grind Session's took by itself */
 .hint.below { margin-top:6px; }   /* a note under its table (the Gauntlet Tracker's grind session) */
 /* the admin's notice of unknown places (alerts.js, #414): toasts in the top right, a click opens the Map tab's list of them */
 .toasts { position:fixed; top:64px; right:16px; z-index:100; display:flex; flex-direction:column; gap:8px; max-width:min(420px, calc(100vw - 32px)); }

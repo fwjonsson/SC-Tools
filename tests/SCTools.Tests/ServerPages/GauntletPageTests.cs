@@ -9,7 +9,7 @@ namespace SCTools.Tests.ServerPages;
 
 /// <summary>
 /// The Gauntlet Tracker pages: only for a logged in player or the admin, everybody his own runs (his in-game party's together when he is in one), the
-/// grind sessions, the Stats tab with the earnings, the top 10, the earnings per scenario and the times, the History tab with the earlier grind sessions,
+/// grind sessions, the Stats tab with the earnings, the top 10, the earnings per scenario and the times, the History tab with the saved grind sessions,
 /// the leaderboard of everybody, and the rewards on the admin's page.
 /// </summary>
 public class GauntletPageTests
@@ -43,30 +43,38 @@ public class GauntletPageTests
         var stats = await player.GetStringAsync("/gauntlet/stats?scenario=7");
         Assert.Contains("<option value=\"7\" selected=\"selected\">#7</option>", stats);
         Assert.Contains("action=\"/gauntlet/stats#top10\" class=\"line\" data-autosave", stats);   // picking a scenario shows it: no Show button
-        // Stats (Frank, 30 Oct 2026): the earnings (Lifetime before) top left, the top 10 top right, the earnings per scenario (Earnings ranking before) with
-        // Scrip/h under them, the times by scenario last; History has the earlier grind sessions, which were on the Session tab
+        // Stats (Frank, 30 Oct 2026): the earnings (Lifetime before) top left, the top 10 top right; since 31 Oct 2026 the Earnings/Scenario (Earnings per
+        // scenario, the Earnings ranking before) with Scrip/h and the Scenario Times under the Earnings in the left half, the Top 10 Fastest alone in the right
+        // half. History has the Saved Sessions (the earlier grind sessions), which were on the Session tab
         Assert.Contains("<div class=\"pair\">\n  <div>\n  <h2>Earnings</h2>", stats.Replace("\r\n", "\n"));
         Assert.Contains("<div class=\"titled\">", stats);   // the scenario to pick right of the title (30 Oct 2026)
-        Assert.Contains("<h2 id=\"top10\">Top 10 fastest</h2>", stats);
+        Assert.Contains("<h2 id=\"top10\">Top 10 Fastest</h2>", stats);
         Assert.True(stats.IndexOf("<div class=\"titled\">", StringComparison.Ordinal) < stats.IndexOf("<h2 id=\"top10\">", StringComparison.Ordinal));
         Assert.True(stats.IndexOf("<h2 id=\"top10\">", StringComparison.Ordinal) < stats.IndexOf("action=\"/gauntlet/stats#top10\"", StringComparison.Ordinal));
-        Assert.Contains("<h2>Earnings per scenario</h2>", stats);
+        Assert.Contains("<h2>Earnings/Scenario</h2>", stats);
         Assert.Contains("<th>Scrip/h</th>", stats);
         Assert.Contains("<td class=\"right\">192.0</td>", stats);   // 16 scrip in 5 minutes
-        Assert.Contains("<h2>Times by scenario</h2>", stats);
-        Assert.True(stats.IndexOf("<h2>Earnings per scenario</h2>", StringComparison.Ordinal) < stats.IndexOf("<h2>Times by scenario</h2>", StringComparison.Ordinal));
+        Assert.Contains("<h2>Scenario Times</h2>", stats);
+        var earnings = stats.IndexOf("<h2>Earnings</h2>", StringComparison.Ordinal);
+        var perScenario = stats.IndexOf("<h2>Earnings/Scenario</h2>", StringComparison.Ordinal);
+        var times = stats.IndexOf("<h2>Scenario Times</h2>", StringComparison.Ordinal);
+        Assert.True(earnings < perScenario && perScenario < times && times < stats.IndexOf("<div class=\"titled\">", StringComparison.Ordinal));   // the left half
+        Assert.DoesNotContain("Earnings per scenario", stats);
+        Assert.DoesNotContain("Times by scenario", stats);
         Assert.DoesNotContain("<h2>Lifetime</h2>", stats);
         Assert.DoesNotContain("Earnings ranking", stats);
         var history = await player.GetStringAsync("/gauntlet/history");
         Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#e0734a\">", history);   // the tabs: a row under the bar in the tool's colour (30 Oct 2026; orange since 31 Oct)
         Assert.Contains("<a href=\"/gauntlet/history\" class=\"on\">History</a>", history);
         Assert.DoesNotContain("<h1>", history);
-        Assert.Contains("<h2>Earlier grind sessions</h2>", history);   // his run of 30 Sep was a grind session by itself
+        Assert.Contains("<h2>Saved Sessions</h2>", history);   // his run of 30 Sep was a grind session by itself ("Earlier grind sessions" until 31 Oct 2026)
+        Assert.Contains("<th class=\"n\">#</th><th>Started</th>", history);   // a # column as the other tools' tables (31 Oct 2026)
+        Assert.Contains("<td class=\"n\">1</td>", history);
         Assert.DoesNotContain("<h2>Earnings</h2>", history);
         Assert.DoesNotContain("<h2>Earnings</h2>", page);   // the Session tab has the game and grind sessions only, in a column beside the Players (31 Oct 2026)
         Assert.Contains("gauntletsessions", page);
         Assert.Contains("<h2>Grind Session</h2>", page);
-        Assert.DoesNotContain("Earlier grind sessions", page);
+        Assert.DoesNotContain("Saved Sessions", page);
         var old = await player.GetAsync("/gauntlet/ranking");   // the old address
         Assert.Equal(HttpStatusCode.Redirect, old.StatusCode);
         Assert.Equal("/gauntlet/stats", old.Headers.Location?.OriginalString);
@@ -102,8 +110,11 @@ public class GauntletPageTests
         Assert.Equal(now.AddHours(-4).AddMinutes(11), sessions[1].Stop!.Value, TimeSpan.FromSeconds(1));   // 5 minutes after the last thing that happened
 
         var zzoega = await f.Player(f.AddKey("zzoega"));
-        Assert.Contains("Running since", await zzoega.GetStringAsync("/gauntlet"));
-        Assert.Contains("Earlier grind sessions", await zzoega.GetStringAsync("/gauntlet/history"));   // on History since 30 Oct 2026
+        // the one going on: its Start time row under the Grind Session title (the "Running since" line over it went on 31 Oct 2026)
+        var running = await zzoega.GetStringAsync("/gauntlet");
+        Assert.Contains("<th>Start time (UTC)</th>", running[running.IndexOf("<h2>Grind Session</h2>", StringComparison.Ordinal)..]);
+        Assert.DoesNotContain("Running since", running);
+        Assert.Contains("Saved Sessions", await zzoega.GetStringAsync("/gauntlet/history"));   // on History since 30 Oct 2026
 
         // the admin's Start time row (Frank, 31 Oct 2026): in UTC, as the page's times; the grind session counts from it
         Assert.DoesNotContain("action=\"/gauntlet/start\"", await zzoega.GetStringAsync("/gauntlet"));   // not a player's
@@ -112,7 +123,9 @@ public class GauntletPageTests
         var later = sessions[0].Start.AddMinutes(1);
         later = later.AddTicks(-(later.Ticks % TimeSpan.TicksPerMinute));
         await ServerFactory.Send(admin, "/gauntlet", "/gauntlet/start", ("kind", "grind"), ("from", sessions[0].Start.ToString("O")), ("startTime", later.ToString("HH:mm")));
-        Assert.Contains("Running since " + later.ToString("d MMM HH:mm", System.Globalization.CultureInfo.InvariantCulture) + " UTC", WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet")));
+        var moved = await zzoega.GetStringAsync("/gauntlet");
+        var grindStart = moved[moved.IndexOf("<th>Start time (UTC)</th>", moved.IndexOf("<h2>Grind Session</h2>", StringComparison.Ordinal), StringComparison.Ordinal)..];
+        Assert.Contains(later.ToString("HH:mm", CultureInfo.InvariantCulture), grindStart[..grindStart.IndexOf("</tr>", StringComparison.Ordinal)]);
     }
 
     [Fact]
@@ -147,7 +160,7 @@ public class GauntletPageTests
         Assert.DoesNotContain("<th>Who</th>", stats);   // his own top 10: no Who column
         Assert.DoesNotContain("<td>zzatvo</td>", stats);
         var session = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet"));
-        Assert.Contains("Running since", session);   // one grind session for the party
+        Assert.Contains("<th>Start time (UTC)</th>", session[session.IndexOf("<h2>Grind Session</h2>", StringComparison.Ordinal)..]);   // one grind session for the party
         Assert.Contains("when your party accepts a scenario and goes on while your party plays them", session);   // the note under the grind session says whose
 
         var bileh = await f.Player(f.AddKey("bileh123"));
@@ -227,7 +240,10 @@ public class GauntletPageTests
         Assert.True(players > 0 && game > players && grind > game);
         Assert.Contains("mapside objectives gauntletsessions", page[players..game]);
         Assert.Contains("<th>Completed</th>", page[grind..]);   // the Grind Session's table, though no grind session is going on
-        Assert.Contains("No grind session now.", page[grind..]);
+        // nothing between the title and the table (Frank, 31 Oct 2026: "No grind session now." was there), and the two tables' row titles as wide as each other
+        Assert.StartsWith("<table", page[(grind + "<h2>Grind Session</h2>".Length)..].TrimStart());
+        Assert.DoesNotContain("No grind session now.", page);
+        Assert.Contains(".gauntletsessions table { table-layout:fixed; }", await admin.GetStringAsync("/site.css"));
         var note = page.IndexOf("A grind session starts by itself when you accept a scenario and goes on while you play them.", StringComparison.Ordinal);
         Assert.True(note > page.IndexOf("<th>Completed</th>", grind, StringComparison.Ordinal));
         Assert.DoesNotContain("Counted passively", page);

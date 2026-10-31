@@ -8,7 +8,7 @@
 .hauling .top { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
 .hauling .top > .main { min-width:0; flex:1 1 560px; }   /* the tabs and the stops take the width ... */
 .hauling .top > .side { flex:0 0 560px; max-width:100%; }   /* ... the session beside the title, level with it */
-.hauling .side h2 { margin-top:22px; }   /* the Session heading level with the Stops heading beside it (Frank, 30 Oct 2026: it sat 10 px higher) */
+.hauling .side h2 { margin-top:0; }   /* the Session heading level with the Stops heading beside it, which has no margin over it either (Frank, 31 Oct 2026: it sat 22 px lower) */
 .hauling .scroll { overflow-x:auto; }
 .hauling .bal table { table-layout:fixed; }
 /* the admin's fields on the Debts tab (Frank, 31 Oct 2026: his Debts page went): a balance, what a mission paid; saved in the background */
@@ -22,7 +22,7 @@
 /* every title on one line (a column is at least as wide as its title); only the leaderboard on a narrow window may take two (.tight, see alignColumns) */
 .hauling th { background:var(--header); color:#fff; font-weight:600; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hauling table.tight th { white-space:normal; }
-.hauling .kv td:first-child { font-weight:600; width:50%; }
+.hauling .kv td:first-child { font-weight:600; width:50%; background:var(--header); color:#fff; }   /* the row titles in the tool's colour, as the Gauntlet Tracker's sessions (Frank, 31 Oct 2026) */
 /* contracts (its own tab) and session: set widths (the contracts' first two columns and the session's two are halves) */
 .hauling #rewards table, .hauling #summary table { table-layout:fixed; }   /* the contracts over the whole width, like the Debts tables (Frank, 30 Oct 2026) */
 .hauling #rewards th:nth-child(2) { width:50%; } .hauling #rewards th:nth-child(3) { width:17%; }   /* Contract: the room; its name wraps when there is still not enough */

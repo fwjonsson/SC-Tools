@@ -18,7 +18,9 @@ public class HaulingPageTests
         Assert.Contains("<footer class=\"sitefoot\">", page);
         Assert.Contains("href=\"/site.css?v=", page);
         Assert.Contains("href=\"/hauling.css?v=", page);
-        Assert.Contains(".hauling .side h2 { margin-top:22px; }", await visitor.GetStringAsync("/hauling.css"));   // the Session table level with the Stops table (30 Oct 2026)
+        var css = await visitor.GetStringAsync("/hauling.css");
+        Assert.Contains(".hauling .side h2 { margin-top:0; }", css);   // the Session table level with the Stops table, which has no margin over it either (31 Oct 2026)
+        Assert.Contains(".hauling .kv td:first-child { font-weight:600; width:50%; background:var(--header); color:#fff; }", css);   // the Session's row titles in the tool's colour
         Assert.Contains(".hauling table th.idx, .hauling table td.idx { width:36px !important;", await visitor.GetStringAsync("/hauling.css"));   // one width for every # column (31 Oct 2026)
         Assert.Contains("src=\"/systemmap.js?v=", page);   // the map engine, then the page's own script
         Assert.True(page.IndexOf("systemmap.js?v=", StringComparison.Ordinal) < page.IndexOf("src=\"/hauling.js?v=", StringComparison.Ordinal));
