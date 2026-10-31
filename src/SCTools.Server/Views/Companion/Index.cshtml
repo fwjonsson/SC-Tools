@@ -6,8 +6,10 @@
 }
 @* a copy of the Map tool (#380): how the map places everybody is in the README *@
 @section subnav {
-  @* the systems as a row under the bar in the tool's colour, as on the Map tool; companion.js fills it with a button per system *@
-  <nav class="subnav area" id="systems" role="tablist" aria-label="Star system" style="--tool:@SiteTools.Companion.Color"></nav>
+  @* the systems as a row under the bar in the tool's colour, as on the Map tool; companion.js fills it with a button per system. At the right end the team
+     status line (ticker.js), as on the other gameplay tools (Frank, 31 Oct 2026) *@
+  <nav class="subnav area" style="--tool:@SiteTools.Companion.Color"><div class="tabs" id="systems" role="tablist" aria-label="Star system"></div><span class="ticker" data-ticker></span></nav>
+  <script src="~/ticker.js" asp-append-version="true" defer></script>
 }
 <div class="maptool companion" data-editor="@(editor ? "true" : null)">
   <div class="mapbox">

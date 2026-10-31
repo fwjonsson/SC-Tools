@@ -92,6 +92,3 @@
 .hauling .speed .bar span { display:block; height:100%; background:linear-gradient(90deg, #2f7dd1, #7fd3ff); }
 .hauling .speed .num { font-variant-numeric:tabular-nums; font-size:20px; font-weight:700; }
 .hauling .speed .unit { opacity:.75; font-size:12px; margin-left:4px; }
-.hauling .status { padding:4px 10px 8px; font-size:14px; font-style:italic; opacity:.7; min-height:1.3em; }
-.hauling .status.fade { animation:statusfade .6s ease-out; }
-@keyframes statusfade { from { opacity:0; } to { opacity:.7; } }

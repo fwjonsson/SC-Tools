@@ -36,9 +36,12 @@ public class HaulingPageTests
         Assert.True(page.IndexOf("id=\"belowS\"", StringComparison.Ordinal) < page.IndexOf(contracts, StringComparison.Ordinal));
         Assert.True(page.IndexOf(contracts, StringComparison.Ordinal) < page.IndexOf("<h2>Cargo runs</h2>", StringComparison.Ordinal));
         Assert.DoesNotContain("<h1>", page);   // no title of its own: the bar says where you are
-        // the live dot and the time the data was made: in the top bar left of Tracker, not on every tab (30 Oct 2026); hauling.js fills them
-        Assert.Contains("<span class=\"live\" id=\"live\"></span><span class=\"updated\" id=\"updated\"></span><a class=\"dl\" href=\"/tracker\">", page);
-        Assert.Contains("<span id=\"session\" class=\"session\"></span></nav>", page);   // the session shown: at the right end of the tabs (30 Oct 2026)
+        // the live dot in the top bar left of Tracker, as on every page (live.js); the time the data was made went (31 Oct 2026)
+        Assert.Contains("<span class=\"live\" id=\"live\"></span><a class=\"dl\" href=\"/tracker\">", page);
+        Assert.DoesNotContain("id=\"updated\"", page);
+        // the team status line at the right end of the tabs, the session's name gone from there (the Session tab says it; 31 Oct 2026)
+        Assert.Contains("<span class=\"ticker\" data-ticker></span></nav>", page);
+        Assert.DoesNotContain("id=\"session\"", page);
         Assert.DoesNotContain("id=\"partyNote\"", page);   // no line saying whose session on the Session tab any more (30 Oct 2026)
         Assert.Contains("<div id=\"viewP\" class=\"hidden\">", page);   // every view starts hidden: the script shows the first tab there is (30 Oct 2026)
         Assert.Contains("<div id=\"viewS\" class=\"hidden\">", page);

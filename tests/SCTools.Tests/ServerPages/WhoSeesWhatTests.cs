@@ -138,6 +138,6 @@ public class WhoSeesWhatTests
         Assert.NotEmpty(map.GetProperty("systems").EnumerateArray());
         var data = JsonDocument.Parse(await visitor.GetStringAsync("/data.json")).RootElement;
         Assert.False(data.TryGetProperty("pickups", out _));
-        Assert.Equal("", JsonDocument.Parse(await visitor.GetStringAsync("/hauling/status.json")).RootElement.GetProperty("status").GetString());
+        Assert.Equal("", JsonDocument.Parse(await visitor.GetStringAsync("/status.json")).RootElement.GetProperty("status").GetString());
     }
 }

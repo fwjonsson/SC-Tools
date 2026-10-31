@@ -1,5 +1,4 @@
 var last = null;
-var shownStatus = -1;   // the last status line text that was faded in
 
 // who is looking (a player logged in by his tracker, or the admin): the page says (data-me on .hauling); empty for everybody else
 const PAGE = document.querySelector('.hauling') || { dataset: {} };
@@ -373,21 +372,6 @@ async function refreshMap() {
 }
 setInterval(refreshMap, 3000);
 
-// The team status line under the Route Planner's map, from its own address while the tab is shown (it changes every few seconds while somebody plays; in
-// data.json it made all the data be made again for one sentence).
-let statusLine = null;
-async function refreshStatus() {
-  if (document.hidden || shownTab !== 'P') return;
-  try {
-    const res = await fetch('/hauling/status.json', { cache: 'no-store' });
-    if (!res.ok) return;
-    statusLine = await res.json();
-    renderStatus('P');
-  } catch (e) {
-    // the next poll tries again
-  }
-}
-setInterval(refreshStatus, 3000);
 
 // What the Trip Planner shows: Everyone, one party (its members' routes), or Only me (the viewer's own, when he is logged in and one of the workers).
 // The viewer's party first. The plan itself is the same: this only picks whose routes are drawn and listed.
@@ -451,7 +435,6 @@ function buildPlanner(tab) {
     w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, places: r.places, from: r.from, passed: r.passed || 0, bold: !!r.solid, dashed: !r.solid }); });
   });
   mapSvg(mapBox, p, routes, workers.map(function (w) { return w.name || ''; }), tab);
-  renderStatus(tab, mapBox);
   workers.forEach(function (w) {
     const frame = document.createElement('div'); frame.className = 'planworker'; tables.appendChild(frame);   // every worker in his own frame
     const h = document.createElement('h2'); frame.appendChild(h);
@@ -511,21 +494,6 @@ function renderPlanRuns(tab) {
 
 // The small team status line under the map: it fades in only when the text really changed. It is drawn on its own, so a new line (every few seconds while
 // somebody plays) does not draw the map and the tables anew.
-function renderStatus(tab, mapBox) {
-  const p = statusLine;
-  mapBox = mapBox || document.querySelector('#planBody' + tab + ' .mapbox');
-  if (!mapBox) return;
-  let st = mapBox.querySelector('.status');
-  if (!p || !p.status) { if (st) st.remove(); return; }
-  if (!st) { st = document.createElement('div'); st.className = 'status'; mapBox.appendChild(st); }
-  st.textContent = p.status;
-  if (p.key !== shownStatus) {
-    st.classList.remove('fade'); void st.offsetWidth;   // the fade starts again on a line that is already there
-    st.classList.add('fade');
-    shownStatus = p.key;
-  }
-}
-
 function renderDebts() { keepScroll(document.getElementById('viewD'), buildDebts); }
 function buildDebts() {
   const el = document.getElementById('viewD');
@@ -737,9 +705,6 @@ function changed(key, value) {
 // are shown.
 function render() {
   Object.keys(dirty).forEach(function (k) { dirty[k] = true; });
-  const v = partyView();   // whose session: the viewer's party; the session line in the tabs' row on every tab, not only the Session tab (30 Oct 2026)
-  // a visitor (not logged in) sees the tools and the all-time leaderboard, nobody's session (Frank, 30 Oct 2026)
-  document.getElementById('session').textContent = last.visitor ? "Log in to see your party's session (or use Open my page in your tracker)." : v.session || last.session || '';
   renderTab(shownTab);
 }
 
@@ -792,22 +757,20 @@ function renderTab(k) {
 let etag = null;
 async function refresh() {
   if (document.hidden) return;
-  const live = document.getElementById('live');
   try {
     const res = await fetch('/data.json', { cache: 'no-store', headers: etag ? { 'If-None-Match': etag } : {} });
-    if (res.status === 304) { live.textContent = '● live'; live.className = 'live ok'; return; }   // the same data as last time: nothing to draw
+    if (res.status === 304) { if (window.siteLive) siteLive(true); return; }   // the same data as last time: nothing to draw (siteLive: the top bar's live dot, live.js)
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
     etag = res.headers.get('ETag');
     last = d;
     // d.theme (the program's palette) is not applied: the page has the site's colours (site.css) since it became a page of the site, 29 Oct 2026
-    document.getElementById('updated').textContent = 'updated ' + d.updated;
-    live.textContent = '● live'; live.className = 'live ok';
+    if (window.siteLive) siteLive(true);
     render();
   } catch (e) {
-    live.textContent = '● connection lost, trying again'; live.className = 'live bad';
+    if (window.siteLive) siteLive(false);
   }
 }
-document.addEventListener('visibilitychange', function () { if (!document.hidden) { refresh(); refreshMap(); refreshStatus(); tickClocks(); startWaves(); } });
+document.addEventListener('visibilitychange', function () { if (!document.hidden) { refresh(); refreshMap(); tickClocks(); startWaves(); } });
 refresh();
 setInterval(refresh, 3000);
