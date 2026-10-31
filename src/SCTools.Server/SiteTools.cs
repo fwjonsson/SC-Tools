@@ -20,15 +20,15 @@ public static class SiteTools
 
     public static readonly SiteTool Session = new("session", "Session History",   // "Session" until 31 Oct 2026, at /session (Frank: the Companion has a Session tab)
         "Your own playtime and earnings: today, this week, this month and all time, game by game, with crashes and what your completed missions paid at the Mission Library's rewards.", "/history", false,
-        "#8b949e", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13\" r=\"8\"/><path d=\"M12 9v4l3 2M9 2h6\"/></svg>");
+        "#3fb8a4", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13\" r=\"8\"/><path d=\"M12 9v4l3 2M9 2h6\"/></svg>");
 
     public static readonly SiteTool Missions = new("missions", "Mission Library",
         "Every mission the crew has taken, one row per mission: the reward, MG and Council scrip, cargo in SCU, the faction and what the Star Citizen Wiki says. Search and sort it; the admin fills in what the log does not say, and the other tools count with those rewards.", "/missions", false,
-        "#3fb8a4", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><rect x=\"5\" y=\"3\" width=\"14\" height=\"18\" rx=\"2\"/><path d=\"M9 8h6M9 12h6M9 16h4\"/></svg>");
+        "#8b949e", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><rect x=\"5\" y=\"3\" width=\"14\" height=\"18\" rx=\"2\"/><path d=\"M9 8h6M9 12h6M9 16h4\"/></svg>");
 
     public static readonly SiteTool Gauntlet = new("gauntlet", "Gauntlet Tracker",
         "Tracks Combat Gauntlet runs from the game log: earnings, grind sessions, times by scenario with a top 10, what each scenario pays per hour, and a leaderboard of everybody. Nothing to press: run the tracker and play.", "/gauntlet", false,
-        "#d9a441", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 1v5M12 18v5M1 12h5M18 12h5\"/></svg>");
+        "#cf4a5a", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 1v5M12 18v5M1 12h5M18 12h5\"/></svg>");
 
     public static readonly SiteTool Party = new("party", "Party",
         "Who is playing now and with whom (the game's own party), the ship each one flies, when everybody else was last seen, and a page per player.", "/party", false,
@@ -36,7 +36,7 @@ public static class SiteTools
 
     public static readonly SiteTool Companion = new("companion", "Companion",
         "Your own page to keep open while you play: the map with you and your party, your contracts going on and the ones you finished this game session with which party member has which, and your session's playtime and earnings. It updates every few seconds.", "/companion", false,
-        "#d6609a", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M15.5 8.5l-2 5-5 2 2-5 5-2z\"/><circle cx=\"12\" cy=\"12\" r=\"0.8\" fill=\"currentColor\"/></svg>");
+        "#d9a441", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M15.5 8.5l-2 5-5 2 2-5 5-2z\"/><circle cx=\"12\" cy=\"12\" r=\"0.8\" fill=\"currentColor\"/></svg>");
 
     public static readonly IReadOnlyList<SiteTool> All = new[] { Hauling, Missions, Gauntlet, Session, Party, Companion };   // the ones that work first; the Map is an admin's page since 31 Oct 2026 (MapController)
 

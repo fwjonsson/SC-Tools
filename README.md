@@ -381,7 +381,7 @@ admin (done), then going live.
   own address and switched without a reload (one page: the map, the polls, the admin's toast and his cards go on whichever is shown; `companion.js`):
   **Overview** (`/companion`, `/companion/overview`: the map, the Players, the objectives where the game session was, and the Active Contracts),
   **Session** (`/companion/session`: the game session) and **Contracts** (`/companion/contracts`: the Active Contracts again, and under them the
-  Completed Contracts, which were on the one page before). **The Gauntlet Tracker's Session tab** has the same map with the Players beside it, over the sessions (`/gauntlet/map.json`,
+  Completed Contracts, which were on the one page before). **The Gauntlet Tracker's Session tab** has the same map with the Players beside it, and beside them the Game Session with the Grind Session under it (both tables always there, nought while nothing is counted; Frank, 31 Oct 2026) (`/gauntlet/map.json`,
   `CompanionService.Map`; `map.js` with the feed named on the map, `data-src`, as the admin's Map; Frank, 31 Oct 2026). Personal (`Audience.PartyOf` of the viewer: the player the admin looks as with View as, else who is
   logged in; the admin's own view, View as: Admin, has everybody on the map and everything else his own player's, and View as his own player is a
   player's Companion, Frank 30 Oct 2026): the map with him and his party (map.json cut by `DataViews.MapFor`, with `me`),
@@ -478,7 +478,11 @@ admin (done), then going live.
   own pick of a party on its Session tab went with it; what a page lets the viewer change still goes by who is really logged in), his **Party** button (the panel of who is playing, see the Party tool), My page, Admin and
   Log out (or Log in); on a phone all of it is behind a menu button.
   The part of the site you are in is marked in its own colour: a tool (by its address, `/gauntlet/stats` too) in the colour of its card, My page in
-  green, Admin in red on the admin's pages and his account. On an ultrawide screen every page keeps to a band of 1,900 px in the middle: the bar, the
+  green, Admin in red on the admin's pages and his account. The page's tables (their heads) and its buttons are in that colour too (`TopBar.ColorOf`
+  sets `--header`, the colour mixed into the dark as the site's blue is; Frank, 31 Oct 2026: every tool's tables in its colour), and a # column is as narrow
+  as the Hauling Planner's on every tool (`th.n`, `td.n`: the Gauntlet Tracker's Stats and Leaderboard, Session History's Games). The colours since
+  31 Oct 2026: the Hauling Planner blue, the Companion yellow (pink before), the Gauntlet Tracker red (a crimson of its own, not Admin's; yellow
+  before), Session History teal and the Mission Library grey (the other way round before), the Party purple. On an ultrawide screen every page keeps to a band of 1,900 px in the middle: the bar, the
   admin's row and the pages' content (`topbar.css`, `site.css`), like the Hauling Planner's live page (Frank, 29 Oct 2026). A page with a wide table (the
   Mission Library, the Session tool's games, the Gauntlet Tracker) takes the whole band too since 30 Oct 2026 (Frank; 1,400 px before), and the Mission
   Library numbers its rows in a # column on the left, on through its pages. The pages of the site end with a footer: the tracker's download, how to set it up, and the
