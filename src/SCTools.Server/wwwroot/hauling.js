@@ -56,12 +56,11 @@ function tickClocks() {
 }
 setInterval(function () { if (!document.hidden) tickClocks(); }, 1000);
 
-// The first columns of Stops, Finished stops and Cargo runs are as wide as the same columns of the Session leaderboard, so they line up (like in the program).
-// Since the leaderboard has a tab of its own (Frank, 30 Oct 2026) it can only be measured when that tab is shown; on the Session tab its tables get the
-// least widths below, which line them up with each other.
+// The first columns of Cargo runs are as wide as the same columns of the Session leaderboard, so they line up (like in the program). Since the leaderboard
+// has a tab of its own (Frank, 30 Oct 2026) it can only be measured when that tab is shown; on the Session tab they get the least widths below. Stops and
+// Finished stops have set widths of their own since 31 Oct 2026 (stopColumns).
 function alignColumns() {
-  // the lined-up columns are never narrower than Stops needs them: with nobody on the leaderboard yet its columns are only as wide as their titles,
-  // so Pickup Location wrapped and the rest of Stops moved (#, Pickup Location, Batches, Cargo, Value; the last column, Drop-off, takes the rest)
+  // the lined-up columns are never narrower than these: with nobody on the leaderboard yet its columns are only as wide as their titles
   const least = [36, 140, 80, 110, 110];
   const lead = document.querySelector('#leaders table');
   let w = least;
@@ -80,7 +79,18 @@ function alignColumns() {
       else cells[i].style.width = '';   // the last column (or the wide one) takes what is left
     }
   }
-  fix('pickups', 5); fix('finished', 5); fix('runs', 2, 'Pickup Location & Time');
+  stopColumns('pickups'); stopColumns('finished'); fix('runs', 2, 'Pickup Location & Time');
+}
+
+// The columns of Stops and Finished stops, by title (Frank, 31 Oct 2026): Pickup Location and Drop-off Location as wide as each other (about halfway
+// between the 140 px and the half of the rest they had), Value as wide as 10,000,000 needs, Batches (Delivered) and SCU as before. The columns without a
+// width share what is left: on Stops that is Boxes alone, where the boxes are typed out. Finished stops' first four columns line up with Stops'.
+const STOP_WIDTHS = { 'Pickup Location': '21%', 'Drop-off Location': '21%', 'Batches': '80px', 'Delivered': '80px', 'SCU': '110px', 'Value': '90px' };
+function stopColumns(id) {
+  const t = document.querySelector('#' + id + ' table');
+  if (!t || !t.tHead) return;
+  t.style.tableLayout = 'fixed';
+  Array.prototype.forEach.call(t.tHead.rows[0].cells, function (th) { th.style.width = STOP_WIDTHS[th.textContent] || ''; });   // # has its own (.idx)
 }
 
 // The widths of the leaderboard's columns, once it is laid out: every column as wide as its title and its numbers need, never less than least.

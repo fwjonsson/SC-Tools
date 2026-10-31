@@ -29,7 +29,9 @@
 .hauling #rewards td:nth-child(2) { white-space:normal; }
 .hauling #rewards th:nth-child(4) { width:13%; } .hauling #rewards th:nth-child(5) { width:17%; }
 .hauling #runs td:nth-child(3) { white-space:normal; }   /* Pickup Location & Time of Cargo runs: a long run wraps instead of running over the next columns */
-.hauling #pickups td:nth-child(5) { white-space:normal; }   /* Boxes of Stops ("Waste: 4×32 + 24"): it wraps on a narrower window; Drop-off Location is a station name */
+.hauling #pickups td:nth-child(5) { white-space:normal; }   /* Boxes of Stops ("Waste: 4×32 + 24"): it takes the room the other columns leave, and wraps when that is not enough */
+/* the station names of Stops and Finished stops wrap on a narrow window instead of running over the next column (their widths: stopColumns in hauling.js) */
+.hauling #pickups td:nth-child(2), .hauling #pickups td:nth-child(7), .hauling #finished td:nth-child(2) { white-space:normal; }
 .hauling .empty { opacity:.6; padding:6px 0; }
 .hauling .note { opacity:.75; font-size:12px; margin:4px 0 0; }
 /* the SCU field of a drop-off on the Current Route (a hauler logged in): saved in the background, green when it was, red when not (why: on the mouse) */

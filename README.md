@@ -454,7 +454,9 @@ admin (done), then going live.
   to another station: a row of their own, stage 1a, 30 Oct 2026), and every station that drop-offs go
   to is a row of its own with Ruin as the pickup, how many drop-offs, the cargo with its SCU in containers, their value and the station as the drop-off
   (in gold); the most valuable row on top. The SCU and the boxes are two columns, **SCU** and **Boxes**, on the Stops, Finished stops and Current Route
-  tables (Frank, 29 Oct 2026), and the Queued routes have an SCU column beside Batches (everything the trip carries). On the Current Route the drop-off
+  tables (Frank, 29 Oct 2026), and the Queued routes have an SCU column beside Batches (everything the trip carries). Stops has set column widths (`stopColumns` in
+  hauling.js; Frank, 31 Oct 2026): Pickup Location and Drop-off Location as wide as each other, Value as wide as 10,000,000 needs, and Boxes takes the
+  rest; Finished stops' first four columns line up with them. On the Current Route the drop-off
   of a planned trip has its SCU and boxes on the line of the stop it goes to, and the hauler of that trip (or the admin) types the SCU there
   (`/hauling/trips/scu`, sent in the background): it is kept for that drop-off only (`AppData.TypedScu`; the admin's Session page, where he typed them too, went on 31 Oct 2026), not in the Mission Library, the plan is worked out again with it, and the game's own number wins once it writes it. The planner
   leaves a station with a single batch out of the trip he is flying when it can (`RoutePlanner.LoneBatchSeconds`; Frank, 30 Oct 2026: the biggest stops
