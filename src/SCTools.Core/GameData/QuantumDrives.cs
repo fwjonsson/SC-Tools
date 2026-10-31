@@ -75,13 +75,13 @@ public static class QuantumDrives
     /// <summary>
     /// How much faster a crafted drive of this quality is, in percent: 1000 is +20 %, 500 the same as bought, 0 is -20 %, in a straight line between.
     /// </summary>
-    public static double CraftedSpeedPercent(int quality) => (Math.Clamp(quality, 0, MaxQuality) - MaxQuality / 2.0) / (MaxQuality / 2.0) * 20;
+    public static double CraftedSpeedPercent(double quality) => (Math.Clamp(quality, 0, MaxQuality) - MaxQuality / 2.0) / (MaxQuality / 2.0) * 20;
 
     /// <summary>
     /// How much more fuel per distance a drive of this crafted fuel efficiency quality burns, in percent: 1000 is -20 %, 500 the same as bought, 0 is +20 %, in
     /// a straight line between (the game's Crafting Lab, a TS-2: 0.1417 per m as bought, 0.11 at 1000, 0.17 at 0; Frank, 31 Oct 2026).
     /// </summary>
-    public static double CraftedFuelPercent(int quality) => -CraftedSpeedPercent(quality);
+    public static double CraftedFuelPercent(double quality) => -CraftedSpeedPercent(quality);
 
     /// <summary>"+12 %" (nothing for 0).</summary>
     public static string PercentText(double percent) =>

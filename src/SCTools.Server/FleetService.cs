@@ -93,8 +93,8 @@ public sealed class FleetService
     {
         var model = ShipModels.Find(r.Ship);
         var drive = QuantumDrives.Find(r.Drive) ?? QuantumDrives.Find(model?.Drive);   // none picked: the stock drive
-        var bonus = drive != null && r.Quality is int q ? QuantumDrives.CraftedSpeedPercent(q) : 0;
-        var fuel = drive != null && r.FuelQuality is int fq ? QuantumDrives.CraftedFuelPercent(fq) : 0;
+        var bonus = drive != null && r.Quality is double q ? QuantumDrives.CraftedSpeedPercent(q) : 0;
+        var fuel = drive != null && r.FuelQuality is double fq ? QuantumDrives.CraftedFuelPercent(fq) : 0;
         // a hauler by its name, or by the name in it ("Crusader C2 Hercules Starlifter" is the C2 Hercules Starlifter)
         var hauler = Ships.Find(r.Ship) ?? Ships.All.Where(s => r.Ship.Contains(s.Name, StringComparison.OrdinalIgnoreCase)).OrderByDescending(s => s.Name.Length).FirstOrDefault();
         return new FleetShip(r, drive, bonus, hauler, model, fuel);
@@ -138,14 +138,22 @@ public sealed class FleetService
         string.IsNullOrWhiteSpace(typed) ? (true, null) : QuantumDrives.Find(typed.Trim()) is { } d ? (true, d.Key) : (false, null);
 
     /// <summary>What the page says when a quality typed is not one.</summary>
-    public const string BadQuality = "The quality of a crafted drive is a whole number from 0 to 1000 (500: as bought).";
+    public const string BadQuality = "The quality of a crafted drive is a number from 0 to 1000 with one decimal at most, like 786.6 (500: as bought).";
 
-    /// <summary>A quality as typed: (true, it) from 0 to 1000, (true, null) when empty (as bought), (false, _) otherwise.</summary>
-    static (bool Ok, int? Quality) QualityOf(string? typed)
+    /// <summary>
+    /// A quality as typed: (true, it) from 0 to 1000, rounded to one decimal ("786.6"; a decimal comma is taken too), (true, null) when empty (as bought),
+    /// (false, _) otherwise.
+    /// </summary>
+    static (bool Ok, double? Quality) QualityOf(string? typed)
     {
         if (string.IsNullOrWhiteSpace(typed)) return (true, null);
-        return int.TryParse(typed.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var q) && q >= 0 && q <= QuantumDrives.MaxQuality ? (true, q) : (false, null);
+        if (!double.TryParse(typed.Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var q) || double.IsNaN(q)) return (false, null);
+        q = Math.Round(q, 1, MidpointRounding.AwayFromZero);
+        return q >= 0 && q <= QuantumDrives.MaxQuality ? (true, q) : (false, null);
     }
+
+    /// <summary>A quality as the page's field has it: "786.6", "500" (as bought when none is kept).</summary>
+    public static string QualityText(double? quality) => (quality ?? QuantumDrives.MaxQuality / 2.0).ToString("0.#", CultureInfo.InvariantCulture);
 
     /// <summary>Adds a ship to a player's fleet. The sentence for the page when something is wrong, else null.</summary>
     public string? Add(string player, string? ship, string? drive, string? quality, DateTime nowUtc, string? fuelQuality = null)

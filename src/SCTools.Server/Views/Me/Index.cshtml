@@ -34,7 +34,7 @@
         : (active.Picked ? VehicleLines.Pretty(active.Vehicle) : active.Text) + " (your last quantum jump" + (active.Picked || active.Ship != null ? "" : ", not in your fleet") + ")";
 }
 <h2 id="fleet">My fleet</h2>
-<p class="hint">Every ship you own and the quantum drive in it (none picked: the ship's stock drive; only the drives of the size the ship takes are listed). A crafted drive has two qualities, 0 to 1000,
+<p class="hint">Every ship you own and the quantum drive in it (none picked: the ship's stock drive; only the drives of the size the ship takes are listed). A crafted drive has two qualities, 0 to 1000 with one decimal (like 786.6),
   500 as bought: the drive speed's (1000 is 20 % faster, 0 is 20 % slower) and the fuel efficiency's (1000 burns 20 % less fuel per distance, 0 burns 20 % more). The game shows the drive's stats, not
   its qualities: type a quality or click its arrows until the quantum speed and the fuel burn here are the ones the game shows (Vehicles, the drive under the ship's picture). The Hauling Planner flies your active ship: its cargo grid,
   its drive and the drive's speed for the flying times.</p>
@@ -86,14 +86,14 @@
         <td>
           <form method="post" action="/me/fleet/set" asp-antiforgery="true" data-autosave="quiet" data-settle>
             <input type="hidden" name="id" value="@s.Row.Id"><input type="hidden" name="field" value="quality">
-            <input type="number" name="value" value="@(s.Row.Quality ?? 500)" min="0" max="@QuantumDrives.MaxQuality" step="1" inputmode="numeric" aria-label="Speed quality" class="num quality" data-kind="speed" autocomplete="off">
+            <input type="number" name="value" value="@FleetService.QualityText(s.Row.Quality)" min="0" max="@QuantumDrives.MaxQuality" step="0.1" inputmode="decimal" aria-label="Speed quality" class="num quality" data-kind="speed" autocomplete="off">
           </form>
         </td>
         <td class="right nowrap" id="speed-@s.Row.Id">@s.SpeedText</td>
         <td>
           <form method="post" action="/me/fleet/set" asp-antiforgery="true" data-autosave="quiet" data-settle>
             <input type="hidden" name="id" value="@s.Row.Id"><input type="hidden" name="field" value="fuel">
-            <input type="number" name="value" value="@(s.Row.FuelQuality ?? 500)" min="0" max="@QuantumDrives.MaxQuality" step="1" inputmode="numeric" aria-label="Fuel quality" class="num quality" data-kind="fuel" autocomplete="off">
+            <input type="number" name="value" value="@FleetService.QualityText(s.Row.FuelQuality)" min="0" max="@QuantumDrives.MaxQuality" step="0.1" inputmode="decimal" aria-label="Fuel quality" class="num quality" data-kind="fuel" autocomplete="off">
           </form>
         </td>
         <td class="right nowrap" id="fuel-@s.Row.Id">@s.FuelText</td>
@@ -119,8 +119,8 @@
       <option value="@d.Label" data-size="@d.Size">@d.Label</option>
     }
   </select>
-  <label class="small">Speed quality <input type="number" name="quality" value="500" min="0" max="@QuantumDrives.MaxQuality" step="1" inputmode="numeric" class="num quality" autocomplete="off"></label>
-  <label class="small">Fuel quality <input type="number" name="fuel" value="500" min="0" max="@QuantumDrives.MaxQuality" step="1" inputmode="numeric" class="num quality" autocomplete="off"></label>
+  <label class="small">Speed quality <input type="number" name="quality" value="500" min="0" max="@QuantumDrives.MaxQuality" step="0.1" inputmode="decimal" class="num quality" autocomplete="off"></label>
+  <label class="small">Fuel quality <input type="number" name="fuel" value="500" min="0" max="@QuantumDrives.MaxQuality" step="0.1" inputmode="decimal" class="num quality" autocomplete="off"></label>
   <button type="submit">Add ship</button>
 </form>
 <datalist id="shipNames">
@@ -155,8 +155,8 @@
     return ' (' + (p > 0 ? '+' : '-') + (Math.round(a * 10) / 10) + ' %)';
   }
   function show(field) {
-    var row = field.closest('tr'), q = field.value === '' ? MAX / 2 : Number(field.value);
-    if (!row || !(q >= 0 && q <= MAX) || Math.floor(q) !== q) return;
+    var row = field.closest('tr'), q = field.value === '' ? MAX / 2 : Math.round(Number(field.value.replace(',', '.')) * 10) / 10;   // one decimal, as saved
+    if (!row || !(q >= 0 && q <= MAX)) return;
     var speedPct = (q - MAX / 2) / (MAX / 2) * 20;
     if (field.dataset.kind === 'speed' && row.dataset.speed) {
       var mps = Number(row.dataset.speed) * (1 + speedPct / 100);

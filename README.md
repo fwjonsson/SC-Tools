@@ -371,10 +371,10 @@ admin (done), then going live.
   the place). **Add a place**: its system, name, short name, what it is, and where: at a place of that system (in its orbit when it is a
   planet or a moon) or X and Y in Gm; optionally for a text of the log, which is then that place (the *add it* link of a Not known row fills
   it in).
-- **The fleet.** On My page a player keeps every ship he owns, the quantum drive in each, and the two qualities of a crafted drive, 0 to 1000 and 500
-  as bought, in a straight line between: the speed quality (1000 makes the drive speed 20 % higher, 0 20 % lower) and the fuel quality (1000 burns 20 %
+- **The fleet.** On My page a player keeps every ship he owns, the quantum drive in each, and the two qualities of a crafted drive, 0 to 1000 with one
+  decimal (a crafted drive's quality is not a whole number: Frank's C2 is 786.6 and 695.3, 31 Oct 2026) and 500 as bought, in a straight line between: the speed quality (1000 makes the drive speed 20 % higher, 0 20 % lower) and the fuel quality (1000 burns 20 %
   less fuel per distance, 0 20 % more; the game's Crafting Lab, a TS-2 at 0.1417 /m, 0.11 at 1000 and 0.17 at 0; Frank, 31 Oct 2026). The game shows a
-  crafted drive's stats, not its qualities, so each quality is a number field with arrows that starts at 500, and the table shows the drive speed and
+  crafted drive's stats, not its qualities, so each quality is a number field with arrows (a tenth a click) that starts at 500, and the table shows the drive speed and
   the **quantum speed** and the **fuel burn** as the game writes them under the ship in Vehicles ("Quantum Speed: 509.72 Mm/s", "Quantum Fuel Burn:
   141.68 per Km": the game data's `fuel_rate` times a billion, `QtDrive.FuelPerKm`) changing at every click (the page's script works them out as `FleetShip.SpeedText` and `FuelText` do): he clicks until they are the game's. The
   qualities are saved in the background once the clicks stop (autosave.js `data-settle`, the JSON back has the new stats), the rest of a ship's fields
