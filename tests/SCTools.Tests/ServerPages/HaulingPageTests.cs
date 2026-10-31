@@ -19,6 +19,7 @@ public class HaulingPageTests
         Assert.Contains("href=\"/site.css?v=", page);
         Assert.Contains("href=\"/hauling.css?v=", page);
         Assert.Contains(".hauling .side h2 { margin-top:22px; }", await visitor.GetStringAsync("/hauling.css"));   // the Session table level with the Stops table (30 Oct 2026)
+        Assert.Contains(".hauling table th.idx, .hauling table td.idx { width:36px !important;", await visitor.GetStringAsync("/hauling.css"));   // one width for every # column (31 Oct 2026)
         Assert.Contains("src=\"/systemmap.js?v=", page);   // the map engine, then the page's own script
         Assert.True(page.IndexOf("systemmap.js?v=", StringComparison.Ordinal) < page.IndexOf("src=\"/hauling.js?v=", StringComparison.Ordinal));
         Assert.Contains("<div class=\"hauling\" data-me=\"\">", page);   // a watcher: nobody
@@ -85,6 +86,8 @@ public class HaulingPageTests
         Assert.Contains("function renderPlanner(tab) { keepScroll(document.getElementById('planBody' + tab), function () { buildPlanner(tab); }); }", script);   // the page does not jump up when the planner is drawn anew (30 Oct 2026)
         Assert.Contains("players.className = 'planplayers'; players.textContent = 'Players';", script);   // the route cards under a Players heading (31 Oct 2026)
         Assert.Contains("none.textContent = ME ? 'Nobody of your party is playing now.' : 'Log in to see yourself and your party here.';", script);   // and with no card, the heading and that line
+        Assert.Contains("if (h.text === '#') th.className = 'idx';", script);   // every # column has one width (31 Oct 2026)
+        Assert.Contains("if (g.headers[i].text === '#') td.className = 'idx';", script);
         Assert.Contains("function sinceText", script);   // the map's line in the route card's heading, not under it (30 Oct 2026)
         Assert.Contains("if (pick && ownCard && (w.name || '').toLowerCase() === ME) h.appendChild(pick);", script);   // the choice in his own route card (30 Oct 2026)
         Assert.Contains("function renderPlanner", script);
