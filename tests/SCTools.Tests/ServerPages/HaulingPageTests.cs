@@ -68,6 +68,10 @@ public class HaulingPageTests
         using var f = new ServerFactory();
         var visitor = f.Browser();
         var script = await visitor.GetStringAsync("/hauling.js");
+        // Stops (Frank, 31 Oct 2026): the two places as wide as each other, Value as wide as 10,000,000 needs, Boxes takes the rest; Finished stops the same way
+        Assert.Contains("const STOP_WIDTHS = { 'Pickup Location': '21%', 'Drop-off Location': '21%', 'Batches': '80px', 'Delivered': '80px', 'SCU': '110px', 'Value': '90px' };", script);
+        Assert.Contains("stopColumns('pickups'); stopColumns('finished');", script);
+        Assert.DoesNotContain("fix('pickups'", script);
         Assert.Contains("const TABS = { S: 'session', P: 'planner', D: 'debts', H: 'history', L: 'leaderboard' };", script);   // /hauling/planner
         Assert.Contains("function systemIn(d, id)", script);   // the map's data has every system (stage 2)
         Assert.Contains("function legEnds(x, y)", script);   // a leg through a gateway is drawn to the gateway on each system's map
