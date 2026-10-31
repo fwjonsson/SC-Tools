@@ -43,19 +43,26 @@ public sealed class EditMissionsController : Controller
 
     /// <summary>
     /// What the paste box read from a contract screenshot (screenshot.js: Tesseract in the admin's browser, the text of each field) made into values
-    /// (ContractCardReader), with the missions of the library it is most like (the first is the one it is; each with what the library has now) and the known
-    /// faction it is. A reward outside the Star Citizen Wiki's range for the mission gets a note, so a misread number is looked at before it is saved.
+    /// (ContractCardReader), for the mission whose 📷 button opened the box (key; with what the library has for it now) and the known faction it is. Only
+    /// for a mission chosen that way (Frank, 31 Oct 2026: never one guessed by its name, which could be another with a similar name, and never one added:
+    /// a misread name would make a row no log ever joins); a name read that does not look like it gets a note. A reward outside the Star Citizen Wiki's
+    /// range for the mission gets a note, so a misread number is looked at before it is saved.
     /// </summary>
     [HttpPost("screenshot")]
-    public IActionResult Screenshot(string? title, string? reward, string? contractor, string? details)
+    public IActionResult Screenshot(string? title, string? reward, string? contractor, string? details, string? key = null)
     {
         var card = ContractCardReader.Read(title, reward, contractor, details);
         var entries = _library.Entries();
         var byKey = entries.ToDictionary(e => e.Row.Key, StringComparer.OrdinalIgnoreCase);
-        var choices = ContractCardReader.Matches(card.Title, entries.Where(e => !MissionKinds.IsPlaceholder(e.Row.Title)).Select(e => (e.Row.Key, e.Row.Title)));
+        var notes = card.Notes.ToList();
+        if (string.IsNullOrWhiteSpace(key))
+            return Json(new { error = "Choose the mission first: its 📷 button (on its row here, on the Companion or on the Hauling Planner's Session tab)." });
+        if (!byKey.TryGetValue(key, out var target)) return Json(new { error = "That mission is not in the library any more." });
+        var choices = new List<(string Key, string Name, double Alike)> { (target.Row.Key, target.Shown, 1) };
+        if (card.Title != null && ContractCardReader.Alike(ContractCardReader.Plain(card.Title), ContractCardReader.Plain(target.Row.Title)) < 0.6)
+            notes.Insert(0, "The screenshot says \"" + card.Title + "\": is it really " + target.Shown + "?");
         var factions = entries.Select(e => e.FactionShown).Where(g => !string.IsNullOrEmpty(g)).Select(g => g!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var faction = ContractCardReader.Faction(card.Contractor, factions);
-        var notes = card.Notes.ToList();
         if (choices.Count > 0 && byKey[choices[0].Key].Wiki is { } w && card.Reward is { } r
             && ((w.RewardMin is > 0 && r < w.RewardMin) || (w.RewardMax is > 0 && r > w.RewardMax)))
             notes.Add("The reward is outside the Star Citizen Wiki's " + w.RewardText + " for this mission: check it.");
@@ -82,20 +89,16 @@ public sealed class EditMissionsController : Controller
     }
 
     /// <summary>
-    /// Saves what the admin checked of a screenshot: the reward, the scrip and the faction of this mission (key), the ones filled in (an empty one is left as
-    /// it is). Without a key it is a mission nobody played yet (a screenshot of an offer): it is added to the library by its name first.
+    /// Saves what the admin checked of a screenshot: the reward, the scrip and the faction of this mission (key, one the library has: nothing is added), the
+    /// ones filled in (an empty one is left as it is).
     /// </summary>
     [HttpPost("screenshot/save")]
-    public IActionResult SaveScreenshot(string? key, string? title, string? auec, string? mg, string? council, string? giver)
+    public IActionResult SaveScreenshot(string? key, string? auec, string? mg, string? council, string? giver)
     {
         var now = DateTime.UtcNow;
         var who = User.Identity?.Name ?? "";
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            key = MissionKinds.TitleKey(title);
-            if (key == null) return Json(new { ok = false, said = "Not saved: give the mission its name." });
-            _library.Kinds(new[] { new Data.MissionKindRow { Key = key, Title = MissionKinds.KindTitle(title)! } });
-        }
+        if (string.IsNullOrWhiteSpace(key) || _library.EntryOf(key) is not { } entry || !string.Equals(entry.Row.Key, key, StringComparison.OrdinalIgnoreCase))
+            return Json(new { ok = false, said = "Not saved: that mission is not in the library." });
         foreach (var (field, value) in new[] { ("auec", auec), ("mg", mg), ("council", council), ("giver", giver) })
         {
             if (string.IsNullOrWhiteSpace(value)) continue;

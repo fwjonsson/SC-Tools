@@ -36,10 +36,18 @@
   with these rewards, the Gauntlet Tracker with the ones of the Combat Gauntlet scenarios, and the Hauling Planner pays the aUEC of the Hauling rows and
   plans with the SCU. The Faction, Category, Reward, XP and Legality in grey are the Star Citizen Wiki's (a faction or a reward typed in wins). Everybody
   else sees the same list without the fields.</p>
-@* a contract screenshot read into the library (#437): only the admin; the text is read in his browser (screenshot.js, Tesseract), then he checks and saves *@
-<section class="card shot" id="shot" data-read-url="@(EditMissionsController.Path + "/screenshot")" data-save-url="@(EditMissionsController.Path + "/screenshot/save")">
+@* a contract screenshot read into the library (#437): only the admin, and only for the mission whose 📷 button he pressed (on its row here, on the
+   Companion, on the Hauling Planner's Session tab: ?shot=), never one guessed by its name or added (Frank, 31 Oct 2026); hidden until then. The text
+   is read in his browser (screenshot.js, Tesseract), then he checks and saves *@
+<section class="card shot" id="shot" data-read-url="@(EditMissionsController.Path + "/screenshot")" data-save-url="@(EditMissionsController.Path + "/screenshot/save")"
+  data-shot-key="@(ViewData["ShotKey"] as string)" data-shot-name="@(ViewData["ShotName"] as string)"@(ViewData["ShotKey"] == null && ViewData["ShotMissing"] == null ? Html.Raw(" hidden") : null)>
   <form id="shotToken" method="post" action="@(EditMissionsController.Path + "/screenshot/save")" asp-antiforgery="true"></form>
-  <h2>Read a contract screenshot</h2>
+  <h2>A contract screenshot</h2>
+  @if (ViewData["ShotMissing"] is string missing)
+  {
+  <p class="shot-error">No mission of the library is "@missing": it is only in the library once a log has it.</p>
+  }
+  <p class="shot-for" data-shot-for-line></p>
   <div class="paste" tabindex="0" role="button" data-shot-paste>Click here and press <b>Ctrl+V</b> with a screenshot of a contract in the mobiGlas
     (its card: the name, the Reward and Contracted By showing), or drop the screenshot file here.</div>
   <p class="hint" data-shot-status aria-live="polite">The text is read in your browser with Tesseract, a free text reader (the first time it fetches about
@@ -117,6 +125,7 @@ else
     @foreach (var (key, text, cls) in columns)
     {
       <th class="@cls"><a href="@Model.SortLink(key)" class="@(f.Sort == key ? "on" : null)" title="Sort by it">@Html.Raw(text)@Arrow(key)</a></th>
+      @if (edit && key == "legality") { <th title="Read a contract screenshot for the mission">📷</th> }
     }
     </tr></thead>
     <tbody>
@@ -171,6 +180,11 @@ else
           <td class="right">@G(r.CouncilScrip)</td>
           <td class="right">@if (e.Xp != null) { <span class="muted" title="the reputation the Star Citizen Wiki says it gives">@G(e.Xp)</span> }</td>
           <td>@if (e.Legality is { Length: > 0 } leg) { <span class="muted" title="the Star Citizen Wiki's">@leg</span> }</td>
+        }
+        @if (edit)
+        {
+          @* a screenshot of this mission: the box at the top opens for it *@
+          <td><button type="button" class="shotbtn" data-shot-for="@r.Key" data-shot-name="@e.Shown" title="Read a screenshot of this mission's contract">📷</button></td>
         }
         @if (me != null)
         {

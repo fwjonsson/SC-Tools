@@ -367,6 +367,29 @@ function mapSvg(el, p, routes, names, tab) {
 
 // The players and the objectives of the Trip Planner's map (the Map tool's Pyro, /hauling/map.json), every 3 seconds while the tab is shown. The program's
 // own page has no such address (404): then the map shows the routes alone and the poll stops.
+// The admin's 📷 of a contract: the Mission Library's screenshot box for its mission (by its key, or its name as the table has it), in a new tab (#437).
+function shotLink(keyOrName) {
+  const a = document.createElement('a');
+  a.className = 'shotbtn';
+  a.textContent = '📷';
+  a.href = '/missions?shot=' + encodeURIComponent(keyOrName) + '#shot';
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.title = 'Read a screenshot of this contract into the Mission Library';
+  return a;
+}
+// The admin's 📷 column of the Completed Contracts table: one for every kind of contract by its name (not the Total).
+function addShotLinks(box) {
+  const t = box && box.querySelector('table');
+  if (!ADMIN || !t || !t.tHead) return;
+  const th = document.createElement('th'); th.textContent = '📷'; t.tHead.rows[0].appendChild(th);
+  Array.from(t.tBodies[0] ? t.tBodies[0].rows : []).forEach(function (tr) {
+    const td = tr.insertCell();
+    const name = tr.cells[1] ? tr.cells[1].textContent : '';
+    if (name && name !== 'Total') td.appendChild(shotLink(name));
+  });
+}
+
 // The missions going on, as the Map tool lists them under its map: a copy above the contracts of the Session tab (Frank, 30 Oct 2026: Active Contracts).
 function missionsTable(box, list) {
   box.textContent = '';
@@ -374,6 +397,7 @@ function missionsTable(box, list) {
   const t = document.createElement('table'); t.className = 'missions view';
   const hr = t.createTHead().insertRow();
   [['#', ''], ['Mission', ''], ['Who', ''], ['Open', 'right'], ['Faction', ''], ['Category', ''], ['SCU', 'right'], ['Reward', 'right'], ['MG scrip', 'right'], ['Council scrip', 'right'], ['XP', 'right'], ['Legality', '']]
+    .concat(ADMIN ? [['📷', '']] : [])
     .forEach(function (h) { const th = document.createElement('th'); th.textContent = h[0]; if (h[1]) th.className = h[1]; if (h[0] === '#') th.className = 'idx'; hr.appendChild(th); });
   const tb = t.createTBody();
   list.forEach(function (m, n) {
@@ -382,6 +406,7 @@ function missionsTable(box, list) {
       const td = tr.insertCell(); td.textContent = v;
       if (i === 0) td.className = 'idx'; else if (i === 1) td.className = 'name'; else if (i === 3 || (i >= 6 && i <= 10)) td.className = 'right';
     });
+    if (ADMIN) { const td = tr.insertCell(); if (m.key) td.appendChild(shotLink(m.key)); }
   });
   const scroll = document.createElement('div'); scroll.className = 'scroll'; scroll.appendChild(t); box.appendChild(scroll);
 }
@@ -838,7 +863,7 @@ function renderTab(k) {
     // is typed on the Current Route, like a load from Ruin)
     if (changed('summary', v.summary || [])) summary(document.getElementById('summary'), v.summary || []);
     // the contracts of the party shown, under the stops where the Session leaderboard was (Frank, 30 Oct 2026; a tab of their own before)
-    if (changed('rewards', v.rewards)) table(document.getElementById('rewards'), v.rewards);
+    if (changed('rewards', v.rewards)) { table(document.getElementById('rewards'), v.rewards); addShotLinks(document.getElementById('rewards')); }
     document.getElementById('rewardsParty').textContent = partyText;
     if (changed('runs', [v.runs, v.runsLive, v.runKeys])) {
       table(document.getElementById('runs'), v.runs);

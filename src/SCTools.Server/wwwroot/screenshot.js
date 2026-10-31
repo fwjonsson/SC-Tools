@@ -2,6 +2,8 @@
 // paste box, or drops the file), and Tesseract, a free text reader, reads its fields in his browser: the name, the Reward, Contracted By and the
 // description (for "a bonus of 18 MG Scrip"). The server makes values of them and finds the mission and the faction (ContractCardReader); he checks them
 // and saves. Tesseract comes from the jsDelivr CDN the first time a screenshot is pasted (with its English text data, about 10 MB).
+// The box is only for the mission whose 📷 button he pressed (a row of the library, or the Companion's and the Hauling Planner's contract tables:
+// /missions?shot=...), and hidden until then (Frank, 31 Oct 2026: never a mission guessed by its name, which could be another with a similar name).
 (function () {
   'use strict';
   const box = document.getElementById('shot');
@@ -10,6 +12,8 @@
   const status = box.querySelector('[data-shot-status]');
   const result = box.querySelector('[data-shot-result]');
   const token = (document.querySelector('#shotToken input[name="__RequestVerificationToken"]') || {}).value || '';
+  const forLine = box.querySelector('[data-shot-for-line]');
+  let target = box.dataset.shotKey ? { key: box.dataset.shotKey, name: box.dataset.shotName || box.dataset.shotKey } : null;
   const TESSERACT = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 
   // The fields of a contract's card in pixels of a 3840x1600 screenshot (Frank's, 31 Oct 2026): x, y, width, height. The mobiGlas is in the middle of the
@@ -26,6 +30,29 @@
   }
 
   function say(text) { status.textContent = text; }
+
+  // which mission the box is for (its 📷 button), with a way to close it; no mission: the box is hidden and a paste goes nowhere
+  function showTarget() {
+    forLine.textContent = '';
+    if (!target) return;
+    box.hidden = false;
+    forLine.appendChild(document.createTextNode('For: '));
+    forLine.appendChild(el('b', null, target.name));
+    const close = el('button', { type: 'button', class: 'small' }, 'close');
+    close.addEventListener('click', function () { target = null; result.hidden = true; box.hidden = true; showTarget(); });
+    forLine.appendChild(document.createTextNode(' '));
+    forLine.appendChild(close);
+  }
+  document.addEventListener('click', function (e) {
+    const b = e.target.closest && e.target.closest('[data-shot-for]');
+    if (!b) return;
+    target = { key: b.dataset.shotFor, name: b.dataset.shotName || b.dataset.shotFor };
+    result.hidden = true;
+    say('Paste the screenshot of this mission\'s contract.');
+    showTarget();
+    box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    paste.focus({ preventScroll: true });
+  });
 
   let worker = null;
   function load(src) {
@@ -85,6 +112,7 @@
     say('Finding the mission…');
     const form = new FormData();
     form.append('title', title); form.append('reward', reward); form.append('contractor', contractor); form.append('details', details);
+    if (target) form.append('key', target.key);
     form.append('__RequestVerificationToken', token);
     const res = await fetch(box.dataset.readUrl, { method: 'POST', body: form, credentials: 'same-origin' });
     if (!res.ok) throw new Error('The server said ' + res.status + '.');
@@ -103,6 +131,7 @@
   // what was read, beside what the library has for the mission chosen; every field can be changed before it is saved
   function show(d) {
     result.innerHTML = '';
+    if (d.error) { say(d.error); result.hidden = true; return; }
     const f = el('form', { class: 'shot-form' });
     const table = el('table', { class: 'shot-table' });
     const head = el('tr');
@@ -113,11 +142,8 @@
 
     const pick = el('select', { name: 'key', 'aria-label': 'Mission' });
     (d.choices || []).forEach(function (c) { pick.appendChild(el('option', { value: c.key }, c.name)); });
-    pick.appendChild(el('option', { value: '' }, 'A new mission: ' + (d.title || '(no name read)')));
-    const name = el('input', { name: 'title', value: d.title || '', 'aria-label': 'Name of the new mission', class: 'name' });
     const missionCell = el('td');
     missionCell.appendChild(pick);
-    missionCell.appendChild(name);
     const nowCells = {};
     function row(label, input, key) {
       const tr = el('tr');
@@ -134,6 +160,7 @@
     missionRow.appendChild(el('th', null, 'Mission'));
     missionRow.appendChild(missionCell);
     nowCells.mission = el('td', { class: 'muted' });
+    nowCells.mission.textContent = d.title ? 'the screenshot: ' + d.title : '';
     missionRow.appendChild(nowCells.mission);
     body.appendChild(missionRow);
     row('Reward (aUEC)', el('input', { name: 'auec', value: d.reward == null ? '' : String(d.reward), class: 'num', inputmode: 'numeric' }), 'auec');
@@ -144,8 +171,6 @@
 
     function now() {
       const c = (d.choices || []).find(function (x) { return x.key === pick.value; });
-      name.hidden = !!c;
-      nowCells.mission.textContent = c ? '' : 'it is added to the library';
       nowCells.auec.textContent = c ? (n(c.auec) || '–') + (c.wiki ? '  (Wiki: ' + c.wiki + ')' : '') : '';
       nowCells.mg.textContent = c ? (n(c.mg) || '–') : '';
       nowCells.council.textContent = c ? (n(c.council) || '–') : '';
@@ -165,7 +190,6 @@
       e.preventDefault();
       save.disabled = true;
       const data = new FormData(f);
-      if (!name.hidden) data.set('title', name.value); else data.delete('title');
       data.append('__RequestVerificationToken', token);
       try {
         const res = await fetch(box.dataset.saveUrl, { method: 'POST', body: data, credentials: 'same-origin' });
@@ -180,13 +204,16 @@
     });
     result.appendChild(f);
     result.hidden = false;
-    say((d.choices || []).length > 0 ? 'Check what was read, then save.' : 'No mission of the library has this name: check the name, it is added as a new one.');
+    say('Check what was read, then save.');
   }
 
   async function take(file) {
+    if (!target) return;   // only for a mission chosen by its 📷 button
     if (!file || !/^image\//.test(file.type)) { say('That is not a picture: paste or drop a screenshot.'); return; }
     try { await readCard(file); } catch (err) { say('It could not be read: ' + err.message); }
   }
+
+  showTarget();
 
   // Ctrl+V while the paste box (or anything of this section) has the focus; a dropped file anywhere on the box
   document.addEventListener('paste', function (e) {

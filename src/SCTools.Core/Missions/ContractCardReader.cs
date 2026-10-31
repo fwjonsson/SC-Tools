@@ -5,8 +5,8 @@ namespace SCTools.Missions;
 
 /// <summary>
 /// Turns what the text recognition read from a contract screenshot (Tesseract in the admin's browser, field by field: the title, the Reward, "Contracted
-/// By", the description) into a ContractCard, and finds the mission and the faction it is in the Mission Library (Frank, 31 Oct 2026: a free text reader,
-/// no AI). The reward is the part that must be right: it comes read with digits only (the currency sign before it was cut off: read as a digit it made
+/// By", the description) into a ContractCard, and finds the faction it is in the Mission Library (Frank, 31 Oct 2026: a free text reader, no AI; the
+/// mission is the one whose 📷 button the admin pressed, never one guessed by its name). The reward is the part that must be right: it comes read with digits only (the currency sign before it was cut off: read as a digit it made
 /// 35,000 into 135,000), and a number whose commas are not every three digits, or under 1,000, counts as not read.
 /// </summary>
 public static class ContractCardReader
@@ -84,22 +84,6 @@ public static class ContractCardReader
             (prev, cur) = (cur, prev);
         }
         return 1 - (double)prev[b.Length] / Math.Max(a.Length, b.Length);
-    }
-
-    /// <summary>
-    /// The missions of the library (key, its name as the game shows it) most like the name read, the best first, as alike as at least least: the same name
-    /// without its marks first (of those, the one most like it with the marks), then the nearest.
-    /// </summary>
-    public static List<(string Key, string Name, double Alike)> Matches(string? read, IEnumerable<(string Key, string Name)> missions, double least = 0.8, int most = 5)
-    {
-        var plain = Plain(read);
-        if (plain.Length == 0) return new List<(string, string, double)>();
-        var full = (read ?? "").ToLowerInvariant();
-        return missions
-            .Select(m => (m.Key, m.Name, Alike: Alike(plain, Plain(m.Name)), Full: Alike(full, m.Name.ToLowerInvariant())))
-            .Where(m => m.Alike >= least)
-            .OrderByDescending(m => m.Alike).ThenByDescending(m => m.Full).ThenBy(m => m.Key, StringComparer.Ordinal)
-            .Take(most).Select(m => (m.Key, m.Name, m.Alike)).ToList();
     }
 
     /// <summary>The known faction most like the one read (at least 0.75 alike, in small letters), else null.</summary>
