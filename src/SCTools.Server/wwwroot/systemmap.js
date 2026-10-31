@@ -14,7 +14,7 @@
 var SystemMap = (function () {
   'use strict';
   const NS = 'http://www.w3.org/2000/svg';
-  const W = 760, ROOM = 46, FOLD = 10, C = 299792458;
+  const W = 760, ROOM = 16, FOLD = 10, C = 299792458;   // ROOM: the margin round the outermost places (46 until 31 Oct 2026: Frank wanted the edge stations nearer the edge and the middle bigger)
   const STAR = { pyro: '#ff3a18', stanton: '#ffc94a', nyx: '#ffa86b' };
   const INK = '#06090e', PAPER = '#ecece8', GOLD = '#f2c14e';
 

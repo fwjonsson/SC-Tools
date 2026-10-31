@@ -97,13 +97,15 @@ public class HaulingPageTests
         var style = await visitor.GetStringAsync("/hauling.css");
         Assert.Contains(".hauling .planworker", style);   // every rule under .hauling: nothing reaches the other pages
         Assert.DoesNotContain("\nbody", style);
-        Assert.Contains(".hauling .planleft { flex:0 0 820px; max-width:100%; }", style);   // the Trip Planner's map is the Map tool's size
+        // the maps of the Route Planner, the Companion and the Gauntlet Tracker: half the page's width, the same at every width (Frank, 31 Oct 2026), 340 px at
+        // 1200 px or less
+        Assert.Contains(".hauling .planleft { flex:0 0 50%; max-width:100%; }", style);
         var siteCss = await visitor.GetStringAsync("/site.css");
-        // the Companion's and the Gauntlet Tracker's maps as big as the Route Planner's at every width (31 Oct 2026): 820 px, 520 at 1600 px or less, 340 at 1200
-        Assert.Contains(".maptool { --mapw:820px; display:grid; grid-template-columns:minmax(0, var(--mapw))", siteCss);
-        Assert.Contains("@media (max-width:1600px) { .maptool { --mapw:520px; } }", siteCss);
+        Assert.Contains(".maptool { --mapw:50%; display:grid; grid-template-columns:minmax(0, var(--mapw))", siteCss);
         Assert.Contains("@media (max-width:1200px) { .maptool { --mapw:340px; } }", siteCss);
+        Assert.DoesNotContain("--mapw:520px", siteCss);
         var engine = await visitor.GetStringAsync("/systemmap.js");
+        Assert.Contains("const W = 760, ROOM = 16,", engine);   // the outermost places near the edge, the middle bigger (31 Oct 2026; 46 before)
         Assert.StartsWith("var SystemMap = (function ()", engine.Split('\n').First(l => !l.StartsWith("//")));
         Assert.Equal("image/x-icon", (await visitor.GetAsync("/favicon.ico")).Content.Headers.ContentType?.MediaType);
     }

@@ -162,9 +162,9 @@ tr.crash td { color:#ff9b9b; }
 /* the Map tool (Frank, 29 Oct 2026): a grid of three columns on a wide screen: the map, the players beside it and the objectives beside them; under all three,
    from the map's left edge to the objectives' right edge, the missions going on. On a narrower window one column, everything under each other */
 main:has(.maptool) { max-width:1900px; }
-.maptool { --mapw:820px; display:grid; grid-template-columns:minmax(0, var(--mapw)) minmax(260px, 340px) minmax(300px, 1fr); gap:0 18px; align-items:start; }
-/* the map as big as the Route Planner's at every width (Frank, 31 Oct 2026: the Companion's was 820 px at every width, the Gauntlet Tracker's squeezed) */
-@media (max-width:1600px) { .maptool { --mapw:520px; } }
+.maptool { --mapw:50%; display:grid; grid-template-columns:minmax(0, var(--mapw)) minmax(260px, 340px) minmax(300px, 1fr); gap:0 18px; align-items:start; }
+/* the map as big as the Route Planner's at every width: half the page's width (Frank, 31 Oct 2026: about 44 % at 820 px on his screen, a third at 1600 px
+   wide; the Companion's was 820 px at every width, the Gauntlet Tracker's squeezed); 340 px at 1200 px or less, so the columns beside it keep their room */
 @media (max-width:1200px) { .maptool { --mapw:340px; } }
 .mapbox { grid-column:1; grid-row:1; min-width:0; }
 .mapside.players { grid-column:2; grid-row:1; }
