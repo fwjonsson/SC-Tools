@@ -32,7 +32,8 @@ planned, what was decided and why, tool by tool. The to-do list is GitHub Issues
 - Commit secrets or data: `uex-token.txt`, `loginData.json`, tracker keys, the data folder, logs. The UEX token and the tracker keys are shared privately.
 - Force-push, rewrite history, or delete a branch that is not merged.
 - Deploy by hand: a merge to `main` deploys. Server commands are Frank's to run (he gets them written out).
-- Read the clipboard or capture the screen: Frank does not want tools that do.
+- Read the clipboard or capture the screen: Frank does not want tools that do. (A screenshot the admin pastes himself into the Mission Library's paste
+  box is his own doing, Frank 31 Oct 2026: the page reads only what he pastes.)
 
 ## Where things are
 

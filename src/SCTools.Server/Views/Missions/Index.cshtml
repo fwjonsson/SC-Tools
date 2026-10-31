@@ -36,6 +36,16 @@
   with these rewards, the Gauntlet Tracker with the ones of the Combat Gauntlet scenarios, and the Hauling Planner pays the aUEC of the Hauling rows and
   plans with the SCU. The Faction, Category, Reward, XP and Legality in grey are the Star Citizen Wiki's (a faction or a reward typed in wins). Everybody
   else sees the same list without the fields.</p>
+@* a contract screenshot read into the library (#437): only the admin; the text is read in his browser (screenshot.js, Tesseract), then he checks and saves *@
+<section class="card shot" id="shot" data-read-url="@(EditMissionsController.Path + "/screenshot")" data-save-url="@(EditMissionsController.Path + "/screenshot/save")">
+  <form id="shotToken" method="post" action="@(EditMissionsController.Path + "/screenshot/save")" asp-antiforgery="true"></form>
+  <h2>Read a contract screenshot</h2>
+  <div class="paste" tabindex="0" role="button" data-shot-paste>Click here and press <b>Ctrl+V</b> with a screenshot of a contract in the mobiGlas
+    (its card: the name, the Reward and Contracted By showing), or drop the screenshot file here.</div>
+  <p class="hint" data-shot-status aria-live="polite">The text is read in your browser with Tesseract, a free text reader (the first time it fetches about
+    10 MB): the name, the reward, the faction and the MG or Council scrip of the description. You check it before it is saved.</p>
+  <div data-shot-result hidden></div>
+</section>
 }
 else
 {
@@ -192,3 +202,7 @@ else
 }
 </div>
 <script src="~/missions.js" asp-append-version="true" defer></script>
+@if (edit)
+{
+<script src="~/screenshot.js" asp-append-version="true" defer></script>
+}
