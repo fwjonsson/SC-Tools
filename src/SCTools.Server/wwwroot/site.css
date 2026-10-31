@@ -179,6 +179,7 @@ main:has(.maptool) { max-width:1900px; }
 .unknowncard .head code { overflow-wrap:anywhere; }
 .unknowncard form { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:6px; }
 .unknowncard select { max-width:100%; }
+.unknowncard.done { border-left-color:#5fd35f; }   /* saved: says so for a moment, then goes */
 .mapsys { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px; }
 .mapsys a { text-decoration:none; padding:6px 16px; border-radius:4px; background:var(--cell); border:1px solid var(--line); color:var(--fg); font-weight:600; }
 .mapsys a:hover { border-color:var(--muted); }

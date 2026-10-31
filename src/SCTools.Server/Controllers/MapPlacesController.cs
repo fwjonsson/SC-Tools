@@ -45,11 +45,13 @@ public sealed class MapPlacesController : Controller
         return View(new MapPlacesPage(_places.Unknown(), _places.Aliases(), entries, _places.Atlas, shown, add?.Trim() ?? "", DateTime.UtcNow));
     }
 
-    /// <param name="back">the page to go back to (the Companion's card of an unknown place, #414); else Map places</param>
+    /// <param name="back">the page to go back to (the Companion's card of an unknown place without its script, #414); else Map places</param>
     [HttpPost("alias")]
     public IActionResult Alias(string? text, string? key, string? back)
     {
         var said = _places.Alias(text, key, DateTime.UtcNow);
+        // the Companion's card sends it in the background (alerts.js): he stays where he is, the card says what was done (Frank, 31 Oct 2026)
+        if (Request.Headers.ContainsKey(EditMissionsController.AutosaveHeader)) return Json(new { said });
         if (back != null && Url.IsLocalUrl(back) && back != Back)
         {
             TempData["Message"] = said;

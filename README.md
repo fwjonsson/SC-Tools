@@ -408,7 +408,7 @@ admin (done), then going live.
   when somebody else meets an unknown place, the first time anybody does, and when one of his combined accounts comes to one that is still unknown, once
   per visit (sightings less than 10 minutes apart are one visit). Being there is an area he came into, a start name, or a quantum destination he arrived
   at (not one he only picked). On his Companion a card under the map for every unknown place his accounts were at in the last half hour, with Map places'
-  form (Save goes back to the Companion) and **Later**, which hides it until his next visit there. The page asks `/admin/places/unknown.json` every 5
+  form (Save is sent in the background: he stays on the Companion, the card says what was done) and **Later**, which hides it until his next visit there. The page asks `/admin/places/unknown.json` every 5
   seconds; sightings from before the server started are not news (a new version of the site does not announce them all again), and the Laters are kept
   in memory. A browser plays the sound only after the page was clicked once since it loaded; the toast's "Sound" switches it off in that browser.
 - **The fleet.** On My page a player keeps every ship he owns, the quantum drive in each, and the two qualities of a crafted drive, 0 to 1000 with one

@@ -70,9 +70,17 @@ public class UnknownPlaceAlertsTests
         Assert.Single(d.GetProperty("here").EnumerateArray());
         seq = Seq(d);
 
-        // named from the card: back to the Companion, and it is not unknown any more (no card, no notice)
-        res = await ServerFactory.Send(admin, "/companion", "/admin/places/alias", ("text", Castra), ("key", "nyx/stanton-gateway"), ("back", "/companion"));
-        Assert.Equal("/companion", res.Headers.Location!.PathOf());
+        // named from the card, in the background (he stays on the Companion; Frank, 31 Oct 2026): the sentence back, and it is not unknown any more
+        var html = await admin.GetStringAsync("/companion");
+        var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["text"] = Castra, ["key"] = "nyx/stanton-gateway", ["back"] = "/companion", ["__RequestVerificationToken"] = ServerFactory.Token(html),
+        });
+        var post = new HttpRequestMessage(HttpMethod.Post, "/admin/places/alias") { Content = form };
+        post.Headers.Add("X-Autosave", "1");
+        res = await admin.SendAsync(post);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains(Castra, JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement.GetProperty("said").GetString());
         Seen(f, ServerFactory.AdminName, now.AddMinutes(40), "a4.log");
         d = await News(admin, seq);
         Assert.Empty(d.GetProperty("alerts").EnumerateArray());

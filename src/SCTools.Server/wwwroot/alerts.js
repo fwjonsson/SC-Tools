@@ -3,7 +3,8 @@
 // - a toast in the top right for each notice ("Map places: unknown place needs registration"), with a short sound; a click opens Map places. The sound can
 //   be switched off in the toast (kept in this browser). A browser plays sound only after the page was clicked once since it loaded.
 // - on the Companion (#unknownHere under the map) a card for every unknown place his accounts were at lately, with Map places' form to say what it is
-//   (sent to Map places, back to the Companion) and Later (gone until his next visit there; the place stays on Map places).
+//   (sent in the background: he stays on the Companion, the card says what was done; Frank, 31 Oct 2026) and Later (gone until his next visit there;
+//   the place stays on Map places).
 (function () {
   'use strict';
   let seq = null;   // the last notice this page has: what was said before it opened is not news to it
@@ -66,6 +67,7 @@
   let drawn = '';
   function cards(d) {
     if (!box) return;
+    if (box.querySelector('.unknowncard.done')) return;   // a card says it was saved: drawn again when that is gone
     const sig = JSON.stringify(d.here.map(function (h) { return [h.text, h.kindKey, h.when]; }));
     if (sig === drawn) return;
     drawn = sig;
@@ -93,6 +95,20 @@
       });
       f.appendChild(pick);
       const save = el('button', '', 'Save'); save.type = 'submit'; f.appendChild(save);
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();   // in the background: he stays on the Companion
+        if (!pick.value) { pick.focus(); return; }
+        save.disabled = true;
+        fetch(f.action, { method: 'POST', body: new FormData(f), headers: { 'X-Autosave': '1' }, credentials: 'same-origin' })
+          .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+          .then(function (j) {
+            c.textContent = '';
+            c.classList.add('done');
+            c.appendChild(el('span', '', j.said || 'Saved.'));   // "RR_JP_NyxCastra is Stanton Gateway."
+            setTimeout(function () { c.remove(); drawn = ''; }, 6000);
+          })
+          .catch(function () { save.disabled = false; save.textContent = 'Not saved: try again'; });
+      });
       const add = el('a', 'small', 'add it as a new place'); add.href = '/admin/places?add=' + encodeURIComponent(h.text) + '#add'; f.appendChild(add);
       const later = el('button', 'link', 'Later'); later.type = 'button';
       later.addEventListener('click', function () {
