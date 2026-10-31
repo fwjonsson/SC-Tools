@@ -260,7 +260,8 @@ public class MapPageTests
         var css = await f.Browser().GetStringAsync("/site.css");
         Assert.Contains(".maptool.maponly { grid-template-columns:minmax(0, 1060px) minmax(260px, 340px); }", css);   // a little bigger than the 820 px it had
         Assert.Contains(".maptool.gauntletmap { grid-template-columns:minmax(0, 820px) minmax(260px, 340px);", css);   // the Gauntlet Tracker's: the Companion's size (Frank, 31 Oct 2026)
-        Assert.Contains(".mapsys { position:absolute; left:10px; top:10px;", css);   // the systems in the map's corner, on every map
+        Assert.Contains(".mapsys { position:absolute; left:0; top:0; z-index:2; display:flex; gap:0;", css);   // the systems flush in the map's corner, touching, on every map (Frank, 31 Oct 2026: discreet)
+        Assert.Contains(".mapsys button { padding:3px 9px;", css);
         Assert.DoesNotContain(".hauling .mapbox { background", await f.Browser().GetStringAsync("/hauling.css"));   // the planner's map box looks like the others' (Frank, 31 Oct 2026)
         var engine = await f.Browser().GetStringAsync("/systemmap.js");
         Assert.Contains("function systems(items, on, pick)", engine);
