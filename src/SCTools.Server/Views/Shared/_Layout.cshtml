@@ -16,7 +16,12 @@
   <script src="~/alerts.js" asp-append-version="true" defer></script>
 }
 </head>
-<body>
+@{
+    // the tables' heads and the buttons in the colour of the tool the page is (TopBar.ColorOf; Frank, 31 Oct 2026), mixed into the dark as the site's blue is
+    var toolColor = TopBar.ColorOf(Context);
+    var bodyStyle = toolColor == null ? null : "--header:color-mix(in srgb, " + toolColor + " 42%, #0d1117)";
+}
+<body style="@bodyStyle">
 @* the bar of the site (TopBar.cs, the same on the tools' own pages); under it on the admin's pages, his pages *@
 @Html.Raw(TopBar.Html(Context, Tools))
 @if (TopBar.InAdmin(Context))

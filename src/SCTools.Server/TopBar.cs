@@ -23,6 +23,18 @@ public static class TopBar
     public static bool InAdmin(HttpContext context) =>
         context.User.IsInRole(Roles.Admin) && (context.Request.Path.StartsWithSegments("/admin") || context.Request.Path.StartsWithSegments("/account"));
 
+    /// <summary>
+    /// The colour of the part of the site this page is in, for its tables' heads and its buttons (Frank, 31 Oct 2026: every tool's tables in its colour): a
+    /// tool's, Admin's on the admin's pages, My page's on his; null for the rest (the landing page, logging in), which keep the site's blue.
+    /// </summary>
+    public static string? ColorOf(HttpContext context)
+    {
+        var path = context.Request.Path;
+        if (InAdmin(context)) return AdminColor;
+        if (path.StartsWithSegments("/me")) return MeColor;
+        return SiteTools.All.FirstOrDefault(t => t.Path != null && path.StartsWithSegments(t.Path))?.Color;
+    }
+
     /// <summary>A link of the bar: marked (and its colour shown) when it is the part of the site you are in.</summary>
     static string Link(string href, string text, string color, bool on, string? cls = null)
     {

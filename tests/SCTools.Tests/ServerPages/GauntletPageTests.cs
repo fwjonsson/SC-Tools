@@ -58,14 +58,14 @@ public class GauntletPageTests
         Assert.DoesNotContain("<h2>Lifetime</h2>", stats);
         Assert.DoesNotContain("Earnings ranking", stats);
         var history = await player.GetStringAsync("/gauntlet/history");
-        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#d9a441\">", history);   // the tabs: a row under the bar in the tool's colour (30 Oct 2026)
+        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#cf4a5a\">", history);   // the tabs: a row under the bar in the tool's colour (30 Oct 2026; red since 31 Oct)
         Assert.Contains("<a href=\"/gauntlet/history\" class=\"on\">History</a>", history);
         Assert.DoesNotContain("<h1>", history);
         Assert.Contains("<h2>Earlier grind sessions</h2>", history);   // his run of 30 Sep was a grind session by itself
         Assert.DoesNotContain("<h2>Earnings</h2>", history);
-        Assert.DoesNotContain("<h2>Earnings</h2>", page);   // the Session tab has the game and grind sessions only, side by side
-        Assert.Contains("<div class=\"pair\">", page);
-        Assert.Contains("<h2>Grind session</h2>", page);
+        Assert.DoesNotContain("<h2>Earnings</h2>", page);   // the Session tab has the game and grind sessions only, in a column beside the Players (31 Oct 2026)
+        Assert.Contains("gauntletsessions", page);
+        Assert.Contains("<h2>Grind Session</h2>", page);
         Assert.DoesNotContain("Earlier grind sessions", page);
         var old = await player.GetAsync("/gauntlet/ranking");   // the old address
         Assert.Equal(HttpStatusCode.Redirect, old.StatusCode);
@@ -203,16 +203,24 @@ public class GauntletPageTests
         // the map over the game session (Frank, 31 Oct 2026): the systems as the engine's buttons in its corner, the players beside it, its own feed, the
         // Companion's size (gauntletmap)
         var page = (await admin.GetStringAsync("/gauntlet/session")).Replace("\r\n", "\n");
-        Assert.Contains("<div class=\"maptool maponly gauntletmap\">\n    <div class=\"mapbox\">\n      <div id=\"map\" data-src=\"/gauntlet/map.json\"></div>", page);
+        Assert.Contains("<div class=\"maptool gauntletmap\">\n    <div class=\"mapbox\">\n      <div id=\"map\" data-src=\"/gauntlet/map.json\"></div>", page);
         Assert.DoesNotContain("id=\"systems\"", page);
         Assert.Contains("map.js", page);
-        Assert.True(page.IndexOf("id=\"map\"", StringComparison.Ordinal) < page.IndexOf("Grind session", StringComparison.Ordinal));   // over the sessions
+        Assert.True(page.IndexOf("id=\"map\"", StringComparison.Ordinal) < page.IndexOf("Grind Session", StringComparison.Ordinal));
         Assert.DoesNotContain("id=\"map\"", await admin.GetStringAsync("/gauntlet/stats"));   // the Session tab's alone
-        // what a grind session is: in the Grind session's column, under its table (Frank, 31 Oct 2026), and said right; no note under This game session
-        var grind = page.IndexOf("<h2>Grind session</h2>", StringComparison.Ordinal);
+        // beside the Players, a column with the Game Session and under it the Grind Session (Frank, 31 Oct 2026), both tables there with nothing counted
+        // yet; what a grind session is under its table, said right; no note under the Game Session
+        var players = page.IndexOf("<h2>Players</h2>", StringComparison.Ordinal);
+        var game = page.IndexOf("<h2>Game Session</h2>", StringComparison.Ordinal);
+        var grind = page.IndexOf("<h2>Grind Session</h2>", StringComparison.Ordinal);
+        Assert.True(players > 0 && game > players && grind > game);
+        Assert.Contains("mapside objectives gauntletsessions", page[players..game]);
+        Assert.Contains("<th>Completed</th>", page[grind..]);   // the Grind Session's table, though no grind session is going on
+        Assert.Contains("No grind session now.", page[grind..]);
         var note = page.IndexOf("A grind session starts by itself when you accept a scenario and goes on while you play them.", StringComparison.Ordinal);
-        Assert.True(grind > 0 && note > grind && page.IndexOf("</div>", grind, StringComparison.Ordinal) > note);
+        Assert.True(note > page.IndexOf("<th>Completed</th>", grind, StringComparison.Ordinal));
         Assert.DoesNotContain("Counted passively", page);
+        Assert.DoesNotContain("This game session", page);
 
         // its feed is the Companion's map: zzoega, who is playing, is on the admin's, and on his own; a player in no party with him does not see him
         var now = DateTime.UtcNow;

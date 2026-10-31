@@ -46,6 +46,8 @@ form.inline { display:inline; }
 .message { background:#264832; border:1px solid var(--line); padding:8px 12px; max-width:560px; }
 table { border-collapse:collapse; width:100%; max-width:560px; }
 th, td { border:1px solid var(--line); padding:5px 10px; text-align:left; }
+/* a # column (the row's number): as narrow as the Hauling Planner's, centred, the same on every tool's tables (Frank, 31 Oct 2026) */
+th.n, td.n { width:36px; min-width:36px; text-align:center; padding-left:4px; padding-right:4px; white-space:nowrap; }
 td { background:var(--cell); }   /* the tables a shade lighter than the page, as on the live page; the fields in them darker */
 th { background:var(--header); color:#fff; }
 td.right { text-align:right; }

@@ -42,8 +42,10 @@
 else if (Model.Tab == "session")
 {
   @* the map with you and your party, as the Companion's and its size (Frank, 31 Oct 2026): the systems as the engine's buttons in its corner, the players
-     beside it (map.js) *@
-  <div class="maptool maponly gauntletmap">
+     beside it (map.js), and beside them the Game Session with the Grind Session under it (Frank, 31 Oct 2026: under the map side by side before). Both
+     tables are always there, nought while nothing is counted *@
+  var none = new SCTools.Gauntlet.GauntletSessionStats(DateTime.MinValue, DateTime.MinValue, new SCTools.Gauntlet.GauntletTotals(0, 0, 0, 0, 0));
+  <div class="maptool gauntletmap">
     <div class="mapbox">
       <div id="map" data-src="/gauntlet/map.json"></div>
     </div>
@@ -51,36 +53,27 @@ else if (Model.Tab == "session")
       <h2>Players</h2>
       <div id="players"><p class="muted">Loading…</p></div>
     </div>
+    <div class="mapside objectives gauntletsessions">
+      <h2>Game Session</h2>
+      @await Html.PartialAsync("_Totals", Model.Game ?? none)
+      @* what a grind session is: under its own table, as wide as it (Frank, 31 Oct 2026) *@
+      <h2>Grind Session</h2>
+      @if (Model.Grind != null)
+      {
+        <p class="hint">Running since @When(Model.Grind.Stats.Start).</p>
+      }
+      else
+      {
+        <p class="hint">No grind session now.</p>
+      }
+      @await Html.PartialAsync("_Totals", Model.Grind?.Stats ?? none)
+      <p class="hint below">A grind session starts by itself when @whose accept@(Model.InParty ? "s" : "") a scenario and goes on while @whose play@(Model.InParty ? "s" : "") them. After an hour
+        without accepting, completing or abandoning one (also when the game crashed or the tracker was off), it ends 5 minutes after the last one. The earlier
+        ones are on History.</p>
+    </div>
   </div>
   <script src="~/systemmap.js" asp-append-version="true" defer></script>
   <script src="~/map.js" asp-append-version="true" defer></script>
-  @* the game session and the grind session side by side, together as wide as the wide tables (Frank, 30 Oct 2026) *@
-  <div class="pair">
-  @if (Model.Game != null)
-  {
-    <div>
-    <h2>This game session</h2>
-    @await Html.PartialAsync("_Totals", Model.Game)
-    </div>
-  }
-  @* what a grind session is: under its own table, as wide as it (Frank, 31 Oct 2026: under both before, over the whole width; the note under This game
-     session went) *@
-  <div>
-  <h2>Grind session</h2>
-  @if (Model.Grind != null)
-  {
-    <p class="hint">Running since @When(Model.Grind.Stats.Start).</p>
-    @await Html.PartialAsync("_Totals", Model.Grind.Stats)
-  }
-  else
-  {
-    <p class="muted">No grind session now.</p>
-  }
-  <p class="hint below">A grind session starts by itself when @whose accept@(Model.InParty ? "s" : "") a scenario and goes on while @whose play@(Model.InParty ? "s" : "") them. After an hour
-    without accepting, completing or abandoning one (also when the game crashed or the tracker was off), it ends 5 minutes after the last one. The earlier
-    ones are on History.</p>
-  </div>
-  </div>
 }
 else if (Model.Tab == "stats")
 {
@@ -122,11 +115,11 @@ else if (Model.Tab == "stats")
   else
   {
     <table class="wide">
-      <thead><tr><th>#</th><th>Time</th>@if (Model.InParty) { <th>Who</th> }<th>When</th></tr></thead>
+      <thead><tr><th class="n">#</th><th>Time</th>@if (Model.InParty) { <th>Who</th> }<th>When</th></tr></thead>
       <tbody>
       @for (var i = 0; i < top.Count; i++)
       {
-        <tr><td>@(i + 1)</td><td class="right">@Dur(top[i].TimingSec)</td>@if (Model.InParty) { <td>@Model.RunBy.GetValueOrDefault(top[i].MissionId, "")</td> }<td>@When(top[i].EndedUtc)</td></tr>
+        <tr><td class="n">@(i + 1)</td><td class="right">@Dur(top[i].TimingSec)</td>@if (Model.InParty) { <td>@Model.RunBy.GetValueOrDefault(top[i].MissionId, "")</td> }<td>@When(top[i].EndedUtc)</td></tr>
       }
       </tbody>
     </table>
@@ -144,13 +137,13 @@ else if (Model.Tab == "stats")
   else
   {
     <table class="wide">
-      <thead><tr><th>Rank</th><th>Scenario</th><th>Average</th><th>Scrip/h</th><th>Total aUEC/h (average)</th><th>Total aUEC/h (at fastest)</th><th>Lifetime earned</th></tr></thead>
+      <thead><tr><th class="n">#</th><th>Scenario</th><th>Average</th><th>Scrip/h</th><th>Total aUEC/h (average)</th><th>Total aUEC/h (at fastest)</th><th>Lifetime earned</th></tr></thead>
       <tbody>
       @for (var i = 0; i < Model.Ranking.Count; i++)
       {
         var s = Model.Ranking[i];
         <tr>
-          <td>@(i + 1)</td>
+          <td class="n">@(i + 1)</td>
           <td>#@s.Scenario</td>
           <td class="right">@Dur(s.Average)</td>
           <td class="right">@((s.ScripPerHourAtAverage ?? 0).ToString("N1", inv))</td>
@@ -223,7 +216,7 @@ else
   {
     <div class="scroll">
     <table class="wide">
-      <thead><tr><th>#</th><th>Player</th><th>Total earned</th><th>aUEC</th><th>MG scrip</th><th>Total aUEC/h</th><th>Completed</th><th>Completion rate</th>
+      <thead><tr><th class="n">#</th><th>Player</th><th>Total earned</th><th>aUEC</th><th>MG scrip</th><th>Total aUEC/h</th><th>Completed</th><th>Completion rate</th>
         <th>Fastest run</th><th>Favourite</th><th>Best per hour</th><th>Last played</th></tr></thead>
       <tbody>
       @for (var i = 0; i < Model.Leaderboard.Count; i++)
@@ -231,7 +224,7 @@ else
         var l = Model.Leaderboard[i];
         var mine = l.Player.Equals(Model.Player, StringComparison.OrdinalIgnoreCase);
         <tr class="@(mine ? "me" : l.Combined ? "combined" : null)">
-          <td>@(l.Combined ? "" : (i + 1).ToString(inv))</td>
+          <td class="n">@(l.Combined ? "" : (i + 1).ToString(inv))</td>
           <td>@l.Player</td>
           <td class="right">@Money(l.Total)</td>
           <td class="right">@Money(l.Auec)</td>

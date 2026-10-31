@@ -57,11 +57,13 @@ else
 {
   <div class="scroll">
   <table class="wide">
-    <thead><tr><th>Started</th><th>Played</th><th>Ended</th><th>Missions</th><th>Earned</th></tr></thead>
+    <thead><tr><th class="n">#</th><th>Started</th><th>Played</th><th>Ended</th><th>Missions</th><th>Earned</th></tr></thead>
     <tbody>
-    @foreach (var g in Model.Games)
+    @for (var n = 0; n < Model.Games.Count; n++)
     {
+      var g = Model.Games[n];
       <tr class="@(g.Game.Crashed ? "crash" : null)">
+        <td class="n">@(n + 1)</td>
         <td>@When(g.Game.StartUtc)</td>
         <td class="right">@Dur(g.Game.Length)</td>
         <td>@Ended(g.Game)</td>
