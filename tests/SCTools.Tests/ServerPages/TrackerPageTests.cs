@@ -42,7 +42,7 @@ public class TrackerPageTests
         (await updated.GetAsync("/api/me")).EnsureSuccessStatusCode();
         Assert.Contains("Version abcdef1, the newest, in touch just now.", WebUtility.HtmlDecode(await player.GetStringAsync("/tracker")));
         var admin = await f.Admin();
-        Assert.Contains("Version abcdef1, the newest", WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/keys")));   // the admin sees everybody's
+        Assert.Contains("Version abcdef1, the newest", WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/players")));   // the admin sees everybody's
 
         var own = f.Tracker(key);
         own.DefaultRequestHeaders.Add("X-Tracker-Version", "own build");

@@ -1,0 +1,128 @@
+@model PlayersModel
+@{
+    ViewData["Title"] = "Players";
+    var party = Model.Party;
+}
+@* The admin's Players page (Frank, 31 Oct 2026: in place of the Party and Tracker keys pages). A name opens that player's My page, where the admin changes his
+   ship, drive, colour, location and fleet for him *@
+<p class="muted">Every registered player (a tracker key made for him) and every member of the Hauling Planner's party. Click a name to open his My page and change
+  his ship, colour, location and fleet for him. A key is shown once when it is made; the database keeps only a hash of it.</p>
+@if (party.FollowsLogs)
+{
+  <p class="hint">The party follows the game's parties: whoever the logs show in a party with a member is a member too, and whoever they show leaving it is out
+    (his settings and debts stay). Active, how the planner counts him: Auto, the logs decide; In or Out, you decide until the logs show something new about
+    him (In until he leaves, Out until he plays). It is saved with its time, so mission payouts are split between who was there when they paid out.</p>
+  <p><b>In the game now:</b>
+  @if (party.Groups.Count == 0)
+  {
+    <span>nobody.</span>
+  }
+  @for (var g = 0; g < party.Groups.Count; g++)
+  {
+    var group = party.Groups[g];
+    <span>@(g > 0 ? " · " : "")@group.Title@(group.Names.Count > 1 ? ": " + string.Join(", ", group.Names) : " (alone)")</span>
+  }
+  </p>
+}
+
+@if (Model.Players.Count == 0)
+{
+  <p class="muted">No players yet.</p>
+}
+else
+{
+  <div class="scroll">
+  <table class="wide players">
+    <thead><tr><th class="n">#</th><th>Player</th><th>Registered</th><th>Last played</th><th>Tracker</th><th>Active</th><th>Keys</th><th></th></tr></thead>
+    <tbody>
+    @for (var i = 0; i < Model.Players.Count; i++)
+    {
+      var p = Model.Players[i];
+      var m = p.Member;
+      <tr class="@(m == null || !m.Active ? "inactive" : "")">
+        <td class="n">@(i + 1)</td>
+        <td class="member" style="@(m == null ? "" : "background:" + m.Color + ";color:" + m.TextColor)"><a href="/me?player=@Uri.EscapeDataString(p.Name)" style="color:inherit">@p.Name.ToUpperInvariant()</a></td>
+        <td>@(p.Registered ?? "no key")</td>
+        <td>@(p.LastPlayed ?? "")</td>
+        <td class="@(p.Newest == true ? "good" : p.Newest == false ? "stale" : "muted")">@(p.Tracker ?? "")</td>
+        <td>
+          @if (m == null)
+          {
+            <span class="muted">Not in the party</span>
+          }
+          else
+          {
+            @* sent as soon as it changes (data-autosave: autosave.js) *@
+            <form method="post" action="/admin/players/active" asp-antiforgery="true" data-autosave>
+              <input type="hidden" name="name" value="@m.Name">
+              @if (party.FollowsLogs)
+              {
+                <select name="value" aria-label="Active of @m.Name" class="small">
+                  <option value="auto" selected="@(m.Mode == "auto")">Auto</option>
+                  <option value="in" selected="@(m.Mode == "in")">In</option>
+                  <option value="out" selected="@(m.Mode == "out")">Out</option>
+                </select>
+                <div class="hint nowrap">@(p.Gone ? "Out of the party by the logs" : (m.Active ? "Active" : "Not active") + " · " + m.Status)</div>
+              }
+              else
+              {
+                <select name="value" aria-label="Active of @m.Name" class="small">
+                  <option value="in" selected="@m.Active">In</option>
+                  <option value="out" selected="@(!m.Active)">Out</option>
+                </select>
+              }
+            </form>
+          }
+        </td>
+        <td>
+          @foreach (var k in p.Keys)
+          {
+            <form method="post" action="/admin/players/@k.Id/remove" asp-antiforgery="true" class="inline" onsubmit="return confirm('Take back this key of @k.Player? His tracker stops uploading until it gets a new key.');">
+              <span class="muted nowrap">made @k.Created</span> <button type="submit" class="danger">Take back</button>
+            </form>
+          }
+        </td>
+        <td class="right nowrap">
+          @if (m == null)
+          {
+            <form method="post" action="/admin/players/party/add" asp-antiforgery="true" class="inline">
+              <input type="hidden" name="name" value="@p.Name"><button type="submit">Into the party</button>
+            </form>
+          }
+          else
+          {
+            <form method="post" action="/admin/players/party/remove" asp-antiforgery="true" class="inline"
+                  onsubmit="return confirm('Remove @m.Name from the party? His earlier work and debts stay in the Debts tab, he just stops getting a share of new payouts.');">
+              <input type="hidden" name="name" value="@m.Name"><button type="submit" class="danger">Out of the party</button>
+            </form>
+          }
+        </td>
+      </tr>
+    }
+    </tbody>
+  </table>
+  </div>
+}
+
+<div class="cards">
+<form method="post" action="/admin/players" asp-antiforgery="true" class="card">
+  <h2>A new key</h2>
+  <label asp-for="New.Player"></label>
+  <input asp-for="New.Player" list="party" autocomplete="off">
+  <datalist id="party">
+    @foreach (var p in Model.Players.Where(p => p.Keys.Count == 0))
+    {
+      <option value="@p.Name"></option>
+    }
+  </datalist>
+  <span asp-validation-for="New.Player" class="error"></span>
+  <button type="submit">Make a key</button>
+</form>
+<form method="post" action="/admin/players/party/add" asp-antiforgery="true" class="card">
+  <h2>Into the party</h2>
+  <label for="member">His name in the game</label>
+  <input id="member" name="name" autocomplete="off">
+  <button type="submit">Add</button>
+  <p class="hint">For somebody the logs have not shown in the party yet: he is In until they show him leaving.</p>
+</form>
+</div>

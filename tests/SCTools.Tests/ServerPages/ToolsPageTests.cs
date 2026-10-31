@@ -99,10 +99,10 @@ public class ToolsPageTests
         live = await admin.GetStringAsync("/hauling");
         Assert.Contains("<a href=\"/admin\" class=\"area\" style=\"--tool:#e5534b\">Admin</a>", live);
         Assert.Contains("data-admin=\"1\"", live);   // the page lets him pick whose session the tabs show
-        var party = await admin.GetStringAsync("/admin/party");
+        var party = await admin.GetStringAsync("/admin/players");
         Assert.Contains("<a href=\"/admin\" class=\"area on\" aria-current=\"page\" style=\"--tool:#e5534b\">Admin</a>", party);   // in the admin's part
         Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#e5534b\">", party);   // the admin's pages under the bar, in Admin's colour
-        Assert.Contains("<a href=\"/admin/party\" class=\"on\">Party</a>", party);   // the one he is on marked
+        Assert.Contains("<a href=\"/admin/players\" class=\"on\">Players</a>", party);   // the one he is on marked
         Assert.Contains("<a href=\"/admin\">Session</a>", party);
         Assert.Contains("aria-current=\"page\" style=\"--tool:#e5534b\">Admin</a>", await admin.GetStringAsync("/account"));
         Assert.DoesNotContain("<nav class=\"subnav", await admin.GetStringAsync("/"));

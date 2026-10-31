@@ -14,6 +14,9 @@ public sealed record Choice(string Value, string Text);
 public sealed class MeModel
 {
     public string Player { get; set; } = "";
+
+    /// <summary>The admin has this player's page open ("?player=zzoega"): the forms send there; empty on a player's own.</summary>
+    public string Query { get; set; } = "";
     public bool InParty { get; set; }
 
     /// <summary>Where the logs say he is (the Automatic choice).</summary>

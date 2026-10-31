@@ -52,13 +52,14 @@ public sealed class AdminSessionModel
 public sealed record RunInput(string Key, int Number, string Worker, string Started, string Completed, string Places, string Lost);
 public sealed record ScuInput(string Key, string Label, int Scu);
 
-/// <summary>The admin's Party page: every member with what can be set for him, and the lists to choose from.</summary>
+/// <summary>
+/// The Hauling Planner's party on the admin's Players page: every member, active or not and why, and the parties in the game now (his ship, drive, colour
+/// and location are on his My page: the Party page, where the admin set them too, went on 31 Oct 2026).
+/// </summary>
 public sealed class AdminPartyModel
 {
+    /// <summary>Every member, the ones the logs put out of the party too (Gone).</summary>
     public List<MemberInput> Members { get; set; } = new();
-    public List<Choice> Stations { get; set; } = new();
-    public List<Choice> Ships { get; set; } = new();
-    public List<Choice> Drives { get; set; } = new();
 
     /// <summary>The logs decide who is active (the server); otherwise Active is the tick as in the program.</summary>
     public bool FollowsLogs { get; set; }
@@ -66,7 +67,7 @@ public sealed class AdminPartyModel
     /// <summary>The parties now, as the logs show them ("zzoega's party: zzoega, zzatvo").</summary>
     public List<PartyGroup> Groups { get; set; } = new();
 
-    /// <summary>The members the logs put out of the party (Auto, not active): not in the table (Frank, 30 Oct 2026: gone from the page when he leaves), named under it.</summary>
+    /// <summary>The members the logs put out of the party (Auto, not active): back when they show him in a party with a member again, or the admin sets him In.</summary>
     public List<string> Gone { get; set; } = new();
 
     /// <summary>What the logs say about a member now: "In zzoega's party", "Playing alone", "Not playing".</summary>
@@ -91,17 +92,14 @@ public sealed class AdminPartyModel
                 ViewPalette.Hex(Edits.ColorOf(t, n)), t.Crew.ShipOf(n)?.Label ?? "", t.Crew.DriveOf(n)?.Label ?? "",
                 follows ? StatusOf(t, n) : "", mode);
         }).ToList();
-        // with the logs deciding, a member they put out of the party is not in the table: he is back when they show him in a party with a member again (or you set him In)
+        // with the logs deciding, a member they put out of the party is gone: he is back when they show him in a party with a member again (or you set him In)
         bool Gone(MemberInput m) => follows && !m.Active && m.Mode == "auto";
         return new AdminPartyModel
         {
             FollowsLogs = follows,
             Gone = members.Where(Gone).Select(m => m.Name).ToList(),
             Groups = t.State.Parties?.Groups.ToList() ?? new List<PartyGroup>(),
-            Stations = MeModel.StationChoices(),   // the same lists as My page
-            Ships = MeModel.ShipChoices(),
-            Drives = MeModel.DriveChoices(),
-            Members = members.Where(m => !Gone(m)).ToList(),
+            Members = members,
         };
     }
 }

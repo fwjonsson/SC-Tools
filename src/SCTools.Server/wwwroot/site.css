@@ -34,6 +34,9 @@ h2 { font-size:16px; margin:24px 0 8px; }
 .hint { font-size:13px; margin:2px 0 10px; }
 .card { background:var(--cell); border:1px solid var(--line); padding:14px 16px; max-width:560px; }
 form.card { display:flex; flex-direction:column; gap:6px; }
+/* cards side by side (the admin's Players page: a new key, into the party) */
+.cards { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; margin-top:14px; }
+.cards .card h2 { margin:0 0 4px; }
 label { font-weight:600; margin-top:6px; }
 label.check { font-weight:400; display:flex; gap:8px; align-items:center; }
 input, select { font:inherit; color:var(--fg); background:var(--bg); border:1px solid var(--line); padding:6px 8px; border-radius:3px; }

@@ -82,39 +82,46 @@ public class AdminPagesTests
     }
 
     [Fact]
-    public async Task The_party_page_adds_changes_and_removes_members()
+    public async Task The_players_page_adds_sets_active_and_removes_members_and_opens_their_my_page()
     {
         var (f, admin) = await Start();
         using var _ = f;
-        Assert.Contains("PILOT_B", await admin.GetStringAsync("/admin/party"));
+        f.AddKey("Pilot_K");   // registered, not in the party
+        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/players"));
+        Assert.Contains("PILOT_B", page);
+        Assert.Contains("PILOT_K", page);
+        Assert.Contains("href=\"/me?player=Pilot_K\"", page);   // his name opens his My page
 
-        Assert.Contains("Pilot_C joined the party.", await Said(admin, await ServerFactory.Send(admin, "/admin/party", "/admin/party/add", ("name", "Pilot_C")), "/admin/party"));
-        Assert.Contains("Type the name in the game", await Said(admin, await ServerFactory.Send(admin, "/admin/party", "/admin/party/add", ("name", "two words")), "/admin/party"));
+        const string P = "/admin/players";
+        Assert.Contains("Pilot_C joined the party.", await Said(admin, await ServerFactory.Send(admin, P, P + "/party/add", ("name", "Pilot_C")), P));
+        Assert.Contains("Type the name in the game", await Said(admin, await ServerFactory.Send(admin, P, P + "/party/add", ("name", "two words")), P));
 
-        // every field is saved on its own, as soon as it changes (no Save button): the others stay as they are
-        async Task<string> Set(string field, string? value)
-        {
-            var fields = new List<(string, string)> { ("name", "Pilot_C"), ("field", field) };
-            if (value != null) fields.Add(("value", value));   // an unticked box sends nothing
-            return await Said(admin, await ServerFactory.Send(admin, "/admin/party", "/admin/party/set", fields.ToArray()), "/admin/party");
-        }
-        var ship = Ships.All[1];
-        Assert.Contains("Saved for Pilot_C: ship.", await Set("ship", ship.Label));
-        Assert.Equal(ship.Name, Read(f, t => t.State.Data.Ship["Pilot_C"]));
-        Assert.Contains("Saved for Pilot_C: colour.", await Set("color", "#00ff00"));
-        Assert.Equal(unchecked((int)0xFF00FF00), Read(f, t => t.State.Data.WorkerColors["Pilot_C"]));
-        Assert.Equal(ship.Name, Read(f, t => t.State.Data.Ship["Pilot_C"]));   // the colour did not touch the ship
-        Assert.Contains("Pilot_C left", await Set("active", null));
+        // Active, sent as soon as it changes (no Save button)
+        async Task<string> Active(string value) => await Said(admin, await ServerFactory.Send(admin, P, P + "/active", ("name", "Pilot_C"), ("value", value)), P);
+        Assert.Contains("Pilot_C left", await Active("out"));
         Assert.False(Read(f, t => t.Crew.IsActiveAt("Pilot_C", DateTime.UtcNow)));
-        Assert.Equal("#00ff00", ViewPalette.Hex(Read(f, t => t.State.Data.WorkerColors["Pilot_C"])));   // nor the colour
-        Assert.Contains("Pilot_C joined", await Set("active", "true"));
+        Assert.Contains("Pilot_C joined", await Active("in"));
         Assert.True(Read(f, t => t.Crew.IsActiveAt("Pilot_C", DateTime.UtcNow)));
-        Assert.Contains("not one of the choices", await Set("ship", "A ship that does not exist"));
-        Assert.Contains("data-autosave", await admin.GetStringAsync("/admin/party"));
-        Assert.DoesNotContain(">Save<", await admin.GetStringAsync("/admin/party"));
+        Assert.Contains("data-autosave", await admin.GetStringAsync(P));
+        Assert.DoesNotContain(">Save<", await admin.GetStringAsync(P));
 
-        await ServerFactory.Send(admin, "/admin/party", "/admin/party/remove", ("name", "Pilot_C"));
+        // his My page, opened by the admin: what the admin changes there is his (Frank, 31 Oct 2026: the Party page, where he set them, went)
+        var mine = WebUtility.HtmlDecode(await admin.GetStringAsync("/me?player=Pilot_C"));
+        Assert.Contains("PILOT_C", mine);
+        Assert.Contains("action=\"/me?player=Pilot_C\"", mine);
+        Assert.Contains("action=\"/me/fleet/add?player=Pilot_C\"", mine);
+        var saved = await ServerFactory.Send(admin, "/me?player=Pilot_C", "/me?player=Pilot_C", ("Location", ""), ("Color", "#00ff00"));
+        Assert.Equal("/me?player=Pilot_C", saved.Headers.Location?.OriginalString);
+        Assert.Equal(unchecked((int)0xFF00FF00), Read(f, t => t.State.Data.WorkerColors["Pilot_C"]));
+        // a player's address names nobody else: his own page
+        var player = await f.Player(f.AddKey("Pilot_K"));
+        var his = WebUtility.HtmlDecode(await player.GetStringAsync("/me?player=Pilot_C"));
+        Assert.Contains("PILOT_K", his);
+        Assert.DoesNotContain("PILOT_C", his);
+
+        await ServerFactory.Send(admin, P, P + "/party/remove", ("name", "Pilot_C"));
         Assert.DoesNotContain("Pilot_C", Read(f, t => t.State.Data.Party));
+        Assert.Contains("Pilot_K joined the party.", await Said(admin, await ServerFactory.Send(admin, P, P + "/party/add", ("name", "Pilot_K")), P));   // a registered player's button
     }
 
     [Fact]
@@ -154,7 +161,7 @@ public class AdminPagesTests
         var (f, _) = await Start();
         using var __ = f;
         var player = await f.Player(f.AddKey("Pilot_B"));
-        foreach (var url in new[] { "/admin", "/admin/party", "/admin/debts" })
+        foreach (var url in new[] { "/admin", "/admin/players", "/admin/debts" })
         {
             var r = await player.GetAsync(url);
             Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);

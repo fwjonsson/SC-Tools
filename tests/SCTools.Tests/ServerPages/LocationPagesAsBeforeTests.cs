@@ -168,8 +168,8 @@ public class LocationPagesAsBeforeTests
             .Select(w => w.GetProperty("name").GetString() + ": " + w.GetProperty("title").GetString()!.Trim(' ', '–') + " | " + w.GetProperty("location").GetString()));
         Same(PlannerCurrent, current);
 
-        // My page: Automatic is where the logs have him; the admin's Party page: Automatic for every member; the Party tool's page of a member: his
-        // location by the Hauling Planner
+        // My page: Automatic is where the logs have him; the admin's view of every member's My page (the Party page until 31 Oct 2026): Automatic; the
+        // Party tool's page of a member: his location by the Hauling Planner
         var admin = await f.Admin();
         var pages = new StringBuilder();
         foreach (var who in new[] { "zzoega", "zzatvo", PlayedSession.Player, "zzoii" })
@@ -179,8 +179,10 @@ public class LocationPagesAsBeforeTests
             var tool = WebUtility.HtmlDecode(await admin.GetStringAsync("/party/" + who));
             pages.Append(", Party tool ").Append(Regex.Match(tool, "<th>Location</th><td>([^<]*)").Groups[1].Value.Trim()).Append('\n');
         }
-        var party = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/party"));
-        pages.Append("Party page: ").Append(string.Join(", ", Regex.Matches(party, "Automatic: [^<]*").Select(x => x.Value)));
+        var autos = new List<string>();
+        foreach (var member in f.Live.Read(t => t.State.Data.Party.ToList()))
+            autos.Add(Regex.Match(WebUtility.HtmlDecode(await admin.GetStringAsync("/me?player=" + member)), "Automatic: [^<]*").Value);
+        pages.Append("Party page: ").Append(string.Join(", ", autos));
         Same(MemberPages, pages.ToString());
     }
 
