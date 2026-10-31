@@ -496,6 +496,9 @@ namespace SCTools.Server.Data.Migrations
                     b.Property<long?>("Auec")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Category")
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("CouncilScrip")
                         .HasColumnType("INTEGER");
 
@@ -506,6 +509,9 @@ namespace SCTools.Server.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Giver")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Legality")
                         .HasColumnType("TEXT");
 
                     b.Property<long?>("MgScrip")
@@ -535,6 +541,9 @@ namespace SCTools.Server.Data.Migrations
 
                     b.Property<string>("WikiUuid")
                         .HasColumnType("TEXT");
+
+                    b.Property<long?>("Xp")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Key");
 
