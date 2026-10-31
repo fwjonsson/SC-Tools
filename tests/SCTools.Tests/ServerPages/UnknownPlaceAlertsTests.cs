@@ -92,7 +92,7 @@ public class UnknownPlaceAlertsTests
     {
         using var f = new ServerFactory();
         var admin = await f.Admin();
-        Assert.Contains("alerts.js", await admin.GetStringAsync("/session"));   // on every page he has open
+        Assert.Contains("alerts.js", await admin.GetStringAsync("/history"));   // on every page he has open
         Assert.Contains("id=\"unknownHere\"", await admin.GetStringAsync("/companion"));
         await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "companion"), ("value", "true"));
         var player = await f.Player(f.AddKey("bileh123"));

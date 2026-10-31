@@ -47,7 +47,7 @@ public class SessionPageTests
             .EnsureSuccessStatusCode();
 
         var player = await f.Player(f.AddKey("zzoega"));
-        var page = await player.GetStringAsync("/session");
+        var page = await player.GetStringAsync("/history");
         Assert.Contains("Playing now for", page);   // its log grew two minutes ago
         Assert.Contains("1 completed mission has no reward in the library", page);
         Assert.Contains("<td>Quit</td>", page);
@@ -62,7 +62,7 @@ public class SessionPageTests
         library.Set("stop rival attack", "auec", "120000", "zzoega", now);   // its kind: its name
         library.Set("stop rival attack", "council", "10", "zzoega", now);
         f.Services.GetRequiredService<ScripValues>().Set(ScripValues.CouncilKey, 2_000, now);
-        page = await player.GetStringAsync("/session");
+        page = await player.GetStringAsync("/history");
         Assert.DoesNotContain("no reward in the library", page);
         Assert.Contains("140,000", page);   // 120,000 aUEC + 10 Council scrip x 2,000
         Assert.Contains("Playing for", await player.GetStringAsync("/"));   // the Session link on the landing page says it (its hover text)
@@ -77,9 +77,9 @@ public class SessionPageTests
     public async Task The_session_tool_is_only_for_the_admin_until_it_is_shown_and_never_for_somebody_not_logged_in()
     {
         using var f = new ServerFactory();
-        Assert.StartsWith("/login", (await f.Browser().GetAsync("/session")).Headers.Location!.PathOf());
+        Assert.StartsWith("/login", (await f.Browser().GetAsync("/history")).Headers.Location!.PathOf());
         var player = await f.Player(f.AddKey("zzoega"));
-        Assert.StartsWith("/login/denied", (await player.GetAsync("/session")).Headers.Location!.PathOf());
-        Assert.Equal(HttpStatusCode.OK, (await (await f.Admin()).GetAsync("/session")).StatusCode);
+        Assert.StartsWith("/login/denied", (await player.GetAsync("/history")).Headers.Location!.PathOf());
+        Assert.Equal(HttpStatusCode.OK, (await (await f.Admin()).GetAsync("/history")).StatusCode);
     }
 }

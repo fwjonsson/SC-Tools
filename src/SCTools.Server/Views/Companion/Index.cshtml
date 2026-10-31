@@ -3,14 +3,31 @@
     ViewData["Title"] = "Companion";
     var visitor = ViewData["Visitor"] is true;
     var editor = ViewData["Editor"] is true;
+    var tab = ViewData["Tab"] as string ?? "overview";
+    string Tab(string key, string text) => $"<a href=\"/companion/{key}\" data-tab=\"{key}\"{(tab == key ? " class=\"on\" aria-current=\"page\"" : "")}>{text}</a>";
 }
-@* a copy of the Map tool (#380): how the map places everybody is in the README. No texts under the map and the contracts (Frank, 31 Oct 2026) *@
+@* a copy of the Map tool (#380): how the map places everybody is in the README. No texts under the map and the contracts (Frank, 31 Oct 2026). Three tabs
+   since 31 Oct 2026 (Frank): Overview, Session, Contracts; one page, companion.js shows the tab of the address and switches without a reload, so the map,
+   the admin's toast and his cards keep running on every tab *@
 @section subnav {
-  @* the row under the bar in the tool's colour holds the team status line (ticker.js) at its right end, as on the other gameplay tools; the systems are the map
-     engine's buttons in the map's corner since 31 Oct 2026 (a row of them here before; Frank) *@
-  <nav class="subnav area" style="--tool:@SiteTools.Companion.Color"><span class="ticker" data-ticker></span></nav>
+  @* the tabs, and at the right end the team status line (ticker.js), as on the other gameplay tools; the systems are the map engine's buttons in the
+     map's corner *@
+  <nav class="subnav area" style="--tool:@SiteTools.Companion.Color" id="companionTabs">@Html.Raw(Tab("overview", "Overview"))@Html.Raw(Tab("session", "Session"))@Html.Raw(Tab("contracts", "Contracts"))<span class="ticker" data-ticker></span></nav>
   <script src="~/ticker.js" asp-append-version="true" defer></script>
 }
+@if (editor)
+{
+  @Html.AntiForgeryToken()
+  @* every faction so far, to pick in a Faction field (autosave.js adds a new one as soon as it is saved), as on Edit Mission Info *@
+  <datalist id="factions">
+    @foreach (var g in Model)
+    {
+      <option value="@g"></option>
+    }
+  </datalist>
+  <p class="hint autosave-state" id="autosaveState" aria-live="polite"></p>
+}
+<section class="companiontab companion" data-tab="overview"@(tab == "overview" ? null : Html.Raw(" hidden"))>
 <div class="maptool companion" data-editor="@(editor ? "true" : null)">
   <div class="mapbox">
     <div id="map"></div>
@@ -20,46 +37,51 @@
       <div id="unknownHere"></div>
     }
   </div>
-  @* beside the map you and your party; beside them your game session and the objectives *@
+  @* beside the map you and your party; beside them the objectives, where the game session was until it got a tab of its own (Frank, 31 Oct 2026) *@
   <div class="mapside players">
     <h2>Players</h2>
     <div id="players"><p class="muted">Loading…</p></div>
   </div>
   <div class="mapside objectives">
-    <h2>Game session</h2>
-    @if (visitor)
-    {
-      <partial name="~/Views/Shared/LogInNote.cshtml" model="@("Your game session, your party and its contracts are here once you are logged in.")" />
-    }
-    else
-    {
-      <div id="session"><p class="muted">Loading…</p></div>
-    }
     <h2>Objectives</h2>
     <div id="objectives"></div>
   </div>
   @if (!visitor)
   {
-    @* under the map, the players and the session, over the whole width: the contracts going on, then the ones ended this game session *@
+    @* under the map, the players and the objectives, over the whole width: the contracts going on (the Contracts tab has them too) *@
     <div class="mapmissions">
-      @if (editor)
-      {
-        @Html.AntiForgeryToken()
-        @* every faction so far, to pick in a Faction field (autosave.js adds a new one as soon as it is saved), as on Edit Mission Info *@
-        <datalist id="factions">
-          @foreach (var g in Model)
-          {
-            <option value="@g"></option>
-          }
-        </datalist>
-        <p class="hint autosave-state" id="autosaveState" aria-live="polite"></p>
-      }
       <h2>Active Contracts</h2>
       <div id="missions"><p class="muted">Loading…</p></div>
+    </div>
+  }
+</div>
+</section>
+<section class="companiontab companion" data-tab="session"@(tab == "session" ? null : Html.Raw(" hidden"))>
+  <h2>Game session</h2>
+  @if (visitor)
+  {
+    <partial name="~/Views/Shared/LogInNote.cshtml" model="@("Your game session, your party and its contracts are here once you are logged in.")" />
+  }
+  else
+  {
+    <div id="session" class="companionsession"><p class="muted">Loading…</p></div>
+  }
+</section>
+<section class="companiontab companion" data-tab="contracts"@(tab == "contracts" ? null : Html.Raw(" hidden"))>
+  @if (visitor)
+  {
+    <partial name="~/Views/Shared/LogInNote.cshtml" model="@("Your party's contracts are here once you are logged in.")" />
+  }
+  else
+  {
+    @* the contracts going on (as on Overview), and under them the ones ended this game session (on Overview until 31 Oct 2026) *@
+    <div class="mapmissions">
+      <h2>Active Contracts</h2>
+      <div id="missionsAll"><p class="muted">Loading…</p></div>
       <h2>Completed Contracts</h2>
       <div id="completed"><p class="muted">Loading…</p></div>
     </div>
   }
-</div>
+</section>
 <script src="~/systemmap.js" asp-append-version="true" defer></script>
 <script src="~/companion.js" asp-append-version="true" defer></script>

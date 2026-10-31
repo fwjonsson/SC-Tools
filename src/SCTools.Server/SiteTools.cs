@@ -18,8 +18,8 @@ public static class SiteTools
         "Plans the crew's hauling together: the open contracts and stops, a route for every hauler, the cargo runs as they happen, the leaderboards and who owes whom. Keep the SC Tools Tracker running while you play: the planner follows your pickups and hand-ins from the game log, and a session starts and ends by itself.", "/hauling", true,
         "#4682ff", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><path d=\"M3 7l9-4 9 4-9 4-9-4z\"/><path d=\"M3 7v10l9 4 9-4V7\"/><path d=\"M12 11v10\"/></svg>");
 
-    public static readonly SiteTool Session = new("session", "Session",
-        "Your own playtime and earnings: today, this week, this month and all time, game by game, with crashes and what your completed missions paid at the Mission Library's rewards.", "/session", false,
+    public static readonly SiteTool Session = new("session", "Session History",   // "Session" until 31 Oct 2026, at /session (Frank: the Companion has a Session tab)
+        "Your own playtime and earnings: today, this week, this month and all time, game by game, with crashes and what your completed missions paid at the Mission Library's rewards.", "/history", false,
         "#8b949e", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"13\" r=\"8\"/><path d=\"M12 9v4l3 2M9 2h6\"/></svg>");
 
     public static readonly SiteTool Missions = new("missions", "Mission Library",

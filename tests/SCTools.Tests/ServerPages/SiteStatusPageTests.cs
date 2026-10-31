@@ -19,7 +19,7 @@ public class SiteStatusPageTests
         var res = await visitor.GetAsync("/live");
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);   // anybody, nothing in it
         var admin = await f.Admin();
-        foreach (var page in new[] { "/", "/hauling", "/missions", "/session", "/gauntlet", "/companion", "/admin" })
+        foreach (var page in new[] { "/", "/hauling", "/missions", "/history", "/gauntlet", "/companion", "/admin" })
         {
             var html = await admin.GetStringAsync(page);
             Assert.Contains("<span class=\"live\" id=\"live\"></span><a class=\"dl\" href=\"/tracker\">", html);   // left of Tracker
@@ -40,13 +40,13 @@ public class SiteStatusPageTests
             Assert.Contains("ticker.js", html);
             Assert.True(html.IndexOf("data-ticker", StringComparison.Ordinal) < html.IndexOf("</nav>", html.IndexOf("class=\"subnav area\"", StringComparison.Ordinal), StringComparison.Ordinal), page + ": in the row of tabs");
         }
-        foreach (var page in new[] { "/session", "/missions", "/admin/map" })   // no fun facts on the admin's Map (31 Oct 2026)
+        foreach (var page in new[] { "/history", "/missions", "/admin/map" })   // no fun facts on the admin's Map (31 Oct 2026)
             Assert.DoesNotContain("data-ticker", await admin.GetStringAsync(page));
-        // the Companion's row holds the line alone: its systems are the map engine's buttons in the map's corner since 31 Oct 2026
+        // the Companion's row holds its tabs and the line (31 Oct 2026): its systems are the map engine's buttons in the map's corner
         foreach (var page in new[] { "/companion" })
         {
             var html = await admin.GetStringAsync(page);
-            Assert.Contains("\"><span class=\"ticker\" data-ticker></span></nav>", html);
+            Assert.Contains(">Contracts</a><span class=\"ticker\" data-ticker></span></nav>", html);
             Assert.DoesNotContain("id=\"systems\"", html);
         }
     }
