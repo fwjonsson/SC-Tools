@@ -11,7 +11,8 @@ public enum MissionOutcome { Complete, Fail, Abandon }
 /// string mod, his names), whether it was shared to him, when it started and how it ended. Hauling: the Hauling Planner's contract line of a mission it reads
 /// ("2 To Ruin", MissionKinds.WithHauling). Definition: the contract's id as its objective markers say (contractDefinitionId: the Star Citizen Wiki API's
 /// uuid of the mission). The Mission Library groups them by their kind (MissionKinds). For the contracts tracker: PlayerId, the player's own id in the game
-/// (his log's "Ending mission" lines say it); Members, what his log said about the other players of the mission (joined, left); Rewards, the game's
+/// (his login line's geid, the markers that name him, his "Ending mission" lines); Members, what his log said about the other players of the mission (joined,
+/// left); Rewards, the game's
 /// "You've Earned: N Rewards" right after he completed it (the MG or Council scrip it paid him, or items).
 /// </summary>
 public sealed record MissionSeen(string MissionId, string? ContractId, string? Title, bool Shared, DateTime? StartedUtc, DateTime? EndedUtc, MissionOutcome? Outcome,
@@ -25,8 +26,9 @@ public sealed record MissionSeen(string MissionId, string? ContractId, string? T
 
 /// <summary>
 /// Reads every mission of a player's Game.log (any kind, not only hauling): "ContractId: [c]. MissionId: m" says which offer it is, the notifications
-/// (Contract Accepted / Shared / Complete / Failed) its title and how it went, EndMission how it ended otherwise (CompletionType Abandon or Fail). The first
-/// accept or share counts; a mission counts once.
+/// (Contract Accepted / Shared / Complete / Failed) its title and how it went, EndMission how it ended otherwise (CompletionType Abandon or Fail), and the
+/// game's PlayerLeft for the player himself with no EndMission that it took the mission from him (an exit to the menu; LeftFor). The first accept or share
+/// counts; a mission counts once.
 /// </summary>
 public sealed class MissionReader
 {
@@ -44,6 +46,12 @@ public sealed class MissionReader
 
     /// <summary>The player of an "Ending mission" line: always the log's own player (Frank's logs of Aug-Oct 2026, three accounts).</summary>
     static readonly Regex Who = new(@"Player\[[^\]]+\] PlayerId\[(?<id>\d+)\]", RegexOptions.Compiled);
+
+    /// <summary>The player of the log with his id in the game, at the login: "Character: createdAt ... - geid 493008374737 - accountId ... - name zzoega - state STATE_CURRENT".</summary>
+    static readonly Regex Character = new(@"<AccountLoginCharacterStatus_Character> Character: (?:.*? - geid (?<id>\d+))?.* - name (?<n>\S+) - state", RegexOptions.Compiled);
+
+    /// <summary>A line that puts an id to a name ("Added to DataBank of Player: zzoega[493008374737]", with every objective marker): his own id when it is his name.</summary>
+    static readonly Regex Named = new(@"Player: (?<n>[^\s\[\]]+)\[(?<id>\d{8,})\]", RegexOptions.Compiled);
 
     static readonly Regex Member = new(
         @"^<(?<ts>[^>]+)> \[Notice\] <Player(?<k>Joined|Left)> Received Player\k<k> push message for: mission_id (?<m>[0-9a-fA-F-]{36}) - player_id (?<p>\d+)",
@@ -72,10 +80,21 @@ public sealed class MissionReader
         public int Order;
         public List<MissionMember> Members = new();
         public int? Rewards;
+        public DateTime? LeftAt;   // the game's PlayerLeft for himself while it had not ended (see LeftFor)
     }
 
-    string? _playerId;   // the log's own player (his "Ending mission" lines)
+    string? _player;     // the log's own player, by name (the login line)
+    string? _playerId;   // his id in the game (the login line's geid, the id the markers put to his name, his "Ending mission" lines)
+    DateTime _last;      // when the latest line of the log was written (for LeftFor)
     (string Id, DateTime At)? _lastDone;   // the mission he completed last, for what the game says it paid
+
+    /// <summary>
+    /// How long the game's PlayerLeft for his own id with no EndMission stands before it ends the mission: the game took the mission from him (a second after
+    /// an exit to the menu: zzoega, 31 Oct 2026, #399), unless it says "Contract Accepted" for it again (an event mission he left and got back two seconds
+    /// later, 28 Aug 2026). The normal abandon has the EndMission two milliseconds after the PlayerLeft, which says how it ended. HaulingLog ends it at once
+    /// and lets an accept revive it; what this reader says is written down for good (the Mission Library), so it waits for the log to go on past the accept.
+    /// </summary>
+    static readonly TimeSpan LeftFor = TimeSpan.FromSeconds(10);
 
     readonly Dictionary<string, State> _missions = new(StringComparer.OrdinalIgnoreCase);
 
@@ -94,11 +113,19 @@ public sealed class MissionReader
     /// <summary>Every mission seen so far, in the order they first showed up.</summary>
     public IReadOnlyList<MissionSeen> Missions =>
         _missions.OrderBy(m => m.Value.Order)
-            .Select(m => new MissionSeen(m.Key.ToLowerInvariant(), m.Value.ContractId, m.Value.Title, m.Value.Shared, m.Value.Started, m.Value.Ended, m.Value.Outcome,
-                PlayerId: _playerId, Members: Others(m.Value.Members), Rewards: m.Value.Rewards))
+            .Select(m =>
+            {
+                var (outcome, ended) = Outcome(m.Value);
+                return new MissionSeen(m.Key.ToLowerInvariant(), m.Value.ContractId, m.Value.Title, m.Value.Shared, m.Value.Started, ended, outcome,
+                    PlayerId: _playerId, Members: Others(m.Value.Members), Rewards: m.Value.Rewards);
+            })
             .ToList();
 
-    /// <summary>What the log said about the other players (not about himself: his own leaving is his "Ending mission"), or null.</summary>
+    /// <summary>How and when a mission ended for him: as the log said, else abandoned when the game's PlayerLeft for him stood for LeftFor of the log without an accept.</summary>
+    (MissionOutcome? Outcome, DateTime? Ended) Outcome(State s) =>
+        s.Outcome != null ? (s.Outcome, s.Ended) : s.LeftAt is { } left && _last - left >= LeftFor ? (MissionOutcome.Abandon, left) : (null, null);
+
+    /// <summary>What the log said about the other players (not about himself: his own leaving is his "Ending mission", or LeftFor), or null.</summary>
     IReadOnlyList<MissionMember>? Others(List<MissionMember> members)
     {
         var others = members.Where(e => e.PlayerId != _playerId).ToList();
@@ -113,6 +140,15 @@ public sealed class MissionReader
     public void ProcessLine(string line)
     {
         if (line.Length < 30 || line[0] != '<') return;
+        if (GameLog.HaulingLog.TimeOf(line) is { } written && written > _last) _last = written;
+        if (_player == null && line.Contains("AccountLoginCharacterStatus_Character", StringComparison.Ordinal))
+        {
+            var c = Character.Match(line);
+            if (!c.Success) return;
+            _player = c.Groups["n"].Value;
+            if (c.Groups["id"].Success) _playerId ??= c.Groups["id"].Value;
+            return;
+        }
         if (line.Contains(EarnedLine, StringComparison.Ordinal))
         {
             var g = Earned.Match(line);
@@ -122,13 +158,19 @@ public sealed class MissionReader
             return;
         }
         if (!line.Contains("Mission", StringComparison.Ordinal)) return;
+        if (_playerId == null && _player != null && line.Contains("Player: ", StringComparison.Ordinal))
+        {
+            var nm = Named.Match(line);
+            if (nm.Success && string.Equals(nm.Groups["n"].Value, _player, StringComparison.OrdinalIgnoreCase)) _playerId = nm.Groups["id"].Value;
+        }
         if (line.Contains(" push message for: mission_id ", StringComparison.Ordinal))
         {
             var p = Member.Match(line);
             if (!p.Success || Time(p) is not { } when) return;
             var e = new MissionMember(p.Groups["p"].Value, p.Groups["k"].Value == "Left", when);
-            var members = Of(p.Groups["m"].Value).Members;
-            if (!members.Contains(e)) members.Add(e);
+            var s = Of(p.Groups["m"].Value);
+            if (!s.Members.Contains(e)) s.Members.Add(e);
+            if (e.Left && _playerId != null && e.PlayerId == _playerId && s.Outcome == null) s.LeftAt ??= when;   // the game took it from him, unless an accept or the EndMission follows (LeftFor)
             return;
         }
         if (line.Contains("ContractId", StringComparison.Ordinal))
@@ -156,6 +198,7 @@ public sealed class MissionReader
                     // shared with him when a share came just before (and it is not one he had already: the game says them all again at a login)
                     if (s.Started == null && TakeShare(at, title)) s.Shared = true;
                     s.Started ??= at;
+                    s.LeftAt = null;   // he has it (again): the game gave it back after its PlayerLeft for him, or it was shared with him again
                     break;
                 case "Shared":
                     if (s.Started == null) s.Shared = true;

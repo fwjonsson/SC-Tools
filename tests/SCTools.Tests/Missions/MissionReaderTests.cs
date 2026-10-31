@@ -111,4 +111,73 @@ public class MissionReaderTests
         Assert.Equal(new[] { new MissionMember("515604414831", true, new DateTime(2026, 10, 21, 23, 1, 16, 747, DateTimeKind.Utc)) }, m.Members);   // not himself
         Assert.Equal(14, m.Rewards);
     }
+
+    const string Me = "493008374737";
+
+    static string Left(string time, string m, string id) =>
+        $"<2026-10-21T{time}Z> [Notice] <PlayerLeft> Received PlayerLeft push message for: mission_id {m} - player_id {id} [Team_GameServices][Missions]";
+
+    /// <summary>The login line, with his id in the game (the geid) or, should the game leave it out one day, without.</summary>
+    static string Login(string time, string? id = Me) =>
+        $"<2026-10-21T{time}Z> [Notice] <AccountLoginCharacterStatus_Character> Character: createdAt 1791557604958 - updatedAt 1791557605400 - {(id == null ? "" : $"geid {id} - ")}accountId 6552111 - name zzoega - state STATE_CURRENT [Team_GameServices][Login]";
+
+    [Fact]
+    public void A_mission_the_game_took_from_him_at_an_exit_to_the_menu_is_abandoned_for_him()
+    {
+        // zzoega's log of 31 Oct 2026 (#399): the bounty accepted at 03:04, the exit to the menu at 03:25:30, the game's PlayerLeft for his own id a second
+        // later and nothing more about it; he came back and took another bounty
+        const string bounty = "Reclusive Bounty: Burt Gearhart | Extreme Risk <EM4>[300 Rep]</EM4>";
+        var r = new MissionReader();
+        foreach (var line in new[] { Login("02:30:18.076"), Note("03:04:24.709", "Accepted", bounty, M1), Left("03:25:31.720", M1, Me) })
+            r.ProcessLine(line);
+        var gone = Assert.Single(r.Missions);
+        Assert.Equal(Me, gone.PlayerId);   // from the login line: the log has no "Ending mission" line
+        Assert.Null(gone.Outcome);         // not yet: the game may give it back at once (the next test), and the library writes down what this says
+
+        r.ProcessLine(Note("03:42:45.193", "Accepted", "Reclusive Bounty: Hideaki Antal | Extreme Risk", M2));
+        gone = r.Missions.Single(m => m.MissionId == M1);
+        Assert.Equal(MissionOutcome.Abandon, gone.Outcome);
+        Assert.Equal(new DateTime(2026, 10, 21, 3, 25, 31, 720, DateTimeKind.Utc), gone.EndedUtc);
+        Assert.Null(gone.Members);   // his own leaving is not a member event
+        Assert.Null(r.Missions.Single(m => m.MissionId == M2).Outcome);
+    }
+
+    [Fact]
+    public void A_mission_the_game_gave_back_two_seconds_after_its_PlayerLeft_for_him_goes_on()
+    {
+        // zzoega, 28 Aug 2026: an event mission ("Retake Platforms From Nine Tails") said PlayerLeft for him and "Contract Accepted" again 1.7 seconds later
+        const string title = "Retake Platforms From Nine Tails";
+        var seen = Read(Login("19:00:00.000"), Note("19:10:00.000", "Accepted", title, M1), Left("19:16:09.298", M1, Me), Note("19:16:10.999", "Accepted", title, M1),
+            Note("19:40:00.000", "Accepted", "Something Else", M2));
+        var m = seen.Single(m => m.MissionId == M1);
+        Assert.Null(m.Outcome);   // still his, half an hour on
+        Assert.Equal(new DateTime(2026, 10, 21, 19, 10, 0, DateTimeKind.Utc), m.StartedUtc);   // the first accept, as always
+    }
+
+    [Fact]
+    public void His_own_abandon_and_another_player_leaving_are_read_as_before()
+    {
+        // the normal abandon: the game's PlayerLeft for him and his "Ending mission" two milliseconds later (82 of 83 in Frank's logs of Aug-Oct 2026)
+        var m = Read(Login("08:00:00.000"), Note("08:10:00.000", "Accepted", "Secure Site", M1), Left("08:20:00.564", M1, Me), End("08:20:00.566", M1, "Abandon"),
+            Note("09:00:00.000", "Accepted", "Something Else", M2)).Single(m => m.MissionId == M1);
+        Assert.Equal(MissionOutcome.Abandon, m.Outcome);
+        Assert.Equal(new DateTime(2026, 10, 21, 8, 20, 0, 566, DateTimeKind.Utc), m.EndedUtc);   // the "Ending mission" line's time, as before
+
+        // another player left it: a member, nothing more
+        var s = Read(Login("08:00:00.000"), Note("08:10:00.000", "Accepted", "Secure Site", M1), Left("08:20:00.000", M1, "515604414831"),
+            Note("09:00:00.000", "Accepted", "Something Else", M2)).Single(m => m.MissionId == M1);
+        Assert.Null(s.Outcome);
+        Assert.Equal("515604414831", Assert.Single(s.Members!).PlayerId);
+    }
+
+    [Fact]
+    public void His_id_comes_from_the_markers_that_name_him_when_the_login_line_has_none()
+    {
+        // every objective marker of his goes into his data bank with his name and id; a shared mission's markers name the other players too
+        var bank = $"<2026-10-21T08:10:01.000Z> [Notice] <CObjectiveMarkerComponent::AddToPlayerDataBank> MissionObjectiveMarker_3846[3846] - Added to DataBank of Player: zzoega[{Me}] - ZonePos: x: 7005.295223, y: -8307.984549, z: 25017.560228, missionId[{M1}], objectiveId[96bdc0c4-1f4e-374a-82d5-4ded19399564] [Team_MissionFeatures][Missions]";
+        var m = Read(Login("08:00:00.000", id: null), Note("08:10:00.000", "Accepted", "Secure Site", M1), bank.Replace($"zzoega[{Me}]", "zzatvo[515604414831]"), bank,
+            Left("08:20:00.000", M1, Me), Note("09:00:00.000", "Accepted", "Something Else", M2)).Single(m => m.MissionId == M1);
+        Assert.Equal(Me, m.PlayerId);
+        Assert.Equal(MissionOutcome.Abandon, m.Outcome);
+    }
 }

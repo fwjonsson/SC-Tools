@@ -367,10 +367,10 @@ public sealed class MissionLibrary
     /// <summary>
     /// What the old logs are read for (in the history folder, missions-read.txt, when they were read last): 2, the contract ids of their missions (for the Star
     /// Citizen Wiki API); 3, which missions were shared with the player (the share line has no mission id: his accept just after it says which, #385); 4,
-    /// the player's id and what his log said about the other players of a mission (who joined and left it: the contracts tracker). A server that read them
-    /// for less reads them again once.
+    /// the player's id and what his log said about the other players of a mission (who joined and left it: the contracts tracker); 5, the missions the game
+    /// took from the player at an exit to the menu (his own PlayerLeft with no EndMission, #399). A server that read them for less reads them again once.
     /// </summary>
-    public const int HistoryReadVersion = 4;
+    public const int HistoryReadVersion = 5;
 
     /// <summary>The file in the history folder that says what the old logs were read for last (HistoryReadVersion).</summary>
     public const string HistoryMarker = "missions-read.txt";

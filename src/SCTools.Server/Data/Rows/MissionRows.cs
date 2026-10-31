@@ -25,7 +25,7 @@ public sealed class MissionRow
     /// <summary>The contract's id as its objective markers say (contractDefinitionId): the Star Citizen Wiki API's uuid of the mission; null: no marker seen.</summary>
     public string? Definition { get; set; }
 
-    /// <summary>The player's own id in the game (his "Ending mission" lines say it): the others' logs name him by it.</summary>
+    /// <summary>The player's own id in the game (his login line's geid, his "Ending mission" lines): the others' logs name him by it.</summary>
     public string? PlayerId { get; set; }
 
     /// <summary>

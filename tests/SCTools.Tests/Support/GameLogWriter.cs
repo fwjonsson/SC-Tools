@@ -45,8 +45,12 @@ sealed class GameLogWriter
 
     static string F(double v) => v.ToString("0.000000", CultureInfo.InvariantCulture);
 
-    public GameLogWriter Login(string name) =>
-        Add($"{Ts} [Notice] <AccountLoginCharacterStatus_Character> Character: createdAt 1791557604958 - updatedAt 1791557605400 - geid 100000000001 - accountId 1000001 - name {name} - state STATE_CURRENT [Team_GameServices][Login]");
+    /// <summary>The id in the game of the player whose log this is (the login line's geid, his "Ending mission" lines, the game's PlayerLeft for him).</summary>
+    public const string OwnId = "100000000001";
+
+    /// <summary>The login line: who the player is, with his id in the game (OwnId unless a test's other lines name him by another).</summary>
+    public GameLogWriter Login(string name, string id = OwnId) =>
+        Add($"{Ts} [Notice] <AccountLoginCharacterStatus_Character> Character: createdAt 1791557604958 - updatedAt 1791557605400 - geid {id} - accountId 1000001 - name {name} - state STATE_CURRENT [Team_GameServices][Login]");
 
     public GameLogWriter Accepted(string mission) =>
         Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"Contract Accepted:  Senior | Stellar Large Haul | to Ruin Station <EM4>[50/200/250/500/1000/2000/4000 Rep]</EM4>: \" [9] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [] [Missions][Comms]");
@@ -82,7 +86,26 @@ sealed class GameLogWriter
         Add($"{Ts} [Notice] <MissionEnded> Received MissionEnded push message for: mission_id {mission} - mission_state MISSION_STATE_{state} [Team_GameServices][Missions]");
 
     public GameLogWriter Abandoned(string mission, string player) =>
-        Add($"{Ts} [Notice] <EndMission> Ending mission for player. MissionId[{mission}] Player[{player}] PlayerId[100000000001] CompletionType[Abandon] Reason[Player left] [Team_MissionFeatures][Missions]");
+        Add($"{Ts} [Notice] <EndMission> Ending mission for player. MissionId[{mission}] Player[{player}] PlayerId[{OwnId}] CompletionType[Abandon] Reason[Player left] [Team_MissionFeatures][Missions]");
+
+    /// <summary>The game tells him that a player, by his id, joined one of his missions (accepted the share).</summary>
+    public GameLogWriter PlayerJoined(string mission, string playerId) =>
+        Add($"{Ts} [Notice] <PlayerJoined> Received PlayerJoined push message for: mission_id {mission} - player_id {playerId} [Team_GameServices][Missions]");
+
+    /// <summary>
+    /// The game tells him that a player, by his id, left one of his missions. For himself (OwnId) it comes two milliseconds before his Abandoned line, or alone
+    /// when the game took the mission from him at an exit to the menu (zzoega, 31 Oct 2026).
+    /// </summary>
+    public GameLogWriter PlayerLeft(string mission, string playerId) =>
+        Add($"{Ts} [Notice] <PlayerLeft> Received PlayerLeft push message for: mission_id {mission} - player_id {playerId} [Team_GameServices][Missions]");
+
+    /// <summary>He exits to the menu (a line the trackers do not send): the game writes PlayerLeft for the missions it takes from him a second later.</summary>
+    public GameLogWriter ExitToMenu() =>
+        Add($"{Ts} [Notice] <Channel Disconnected> cause=30016 reason=\"DisconnectCmd: disconnect light ExitToMenu\" frame=449237 isRemote=0 viewState=eCVS_InGame map=\"megamap\" gamerules=\"SC_Default\" hostType=\"Replicant\" remoteAddr=34.53.172.206:64311");
+
+    /// <summary>An objective marker of his mission goes into his data bank: the line names him with his id ("Player: zzoega[493008374737]").</summary>
+    public GameLogWriter DataBank(string mission, string objective, string player, string playerId = OwnId) =>
+        Add($"{Ts} [Notice] <CObjectiveMarkerComponent::AddToPlayerDataBank> MissionObjectiveMarker_3846[3846] - Added to DataBank of Player: {player}[{playerId}] - ZonePos: x: 7005.295223, y: -8307.984549, z: 25017.560228, missionId[{mission}], objectiveId[{objective}] [Team_MissionFeatures][Missions]");
 
     public GameLogWriter DeliverPopup(string mission, string objective, int scu, string cargo, string place) =>
         Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"New Objective: Deliver 0/{scu} SCU of {cargo} to {place}: \" [12] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [{objective}] [Missions][Comms]");

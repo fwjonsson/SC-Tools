@@ -133,8 +133,9 @@ public sealed class HaulingLog
     static readonly Regex PlayerIdA = new(@"Player\[(?<n>[^\]]+)\] PlayerId\[(?<id>\d+)\]", RegexOptions.Compiled);
     static readonly Regex PlayerIdB = new(@"Player: (?<n>[^\s\[\]]+)\[(?<id>\d{8,})\]", RegexOptions.Compiled);
 
+    // the player of the log, with his id in the game: "Character: createdAt ... - geid 493008374737 - accountId ... - name zzoega - state STATE_CURRENT"
     static readonly Regex Character = new(
-        @"<AccountLoginCharacterStatus_Character> Character: .* - name (?<n>\S+) - state",
+        @"<AccountLoginCharacterStatus_Character> Character: (?:.*? - geid (?<id>\d+))?.* - name (?<n>\S+) - state",
         RegexOptions.Compiled);
 
     static readonly Regex SentOut = new(@"Added notification ""You sent (?<n>[^:""]+):\s*$", RegexOptions.Compiled);
@@ -218,6 +219,12 @@ public sealed class HaulingLog
 
     /// <summary>Character name of the player whose log this is.</summary>
     public string? Player { get; private set; }
+
+    /// <summary>
+    /// His id in the game, the one the game's PlayerJoined and PlayerLeft name him by: the login line's geid, or the id a line puts to his name (the objective
+    /// markers' "Added to DataBank of Player: zzoega[493008374737]", his "Ending mission" lines). Null until a line says it.
+    /// </summary>
+    public string? PlayerId { get; private set; }
 
     /// <summary>Goes up every time something relevant changed, so the screen knows when to redraw.</summary>
     public int Version { get; private set; }
@@ -459,6 +466,8 @@ public sealed class HaulingLog
             if (cm.Success)
             {
                 Player = cm.Groups["n"].Value;
+                if (cm.Groups["id"].Success) PlayerId = cm.Groups["id"].Value;
+                else PlayerId ??= IdNames.FirstOrDefault(kv => string.Equals(kv.Value, Player, StringComparison.OrdinalIgnoreCase)).Key;
                 Version++;
             }
             return;
@@ -574,18 +583,27 @@ public sealed class HaulingLog
         if (line.Contains("PlayerId["))
         {
             var pa = PlayerIdA.Match(line);
-            if (pa.Success) IdNames[pa.Groups["id"].Value] = pa.Groups["n"].Value;
+            if (pa.Success) Named(pa.Groups["id"].Value, pa.Groups["n"].Value);
         }
         else if (line.Contains("Player: "))
         {
             var pb = PlayerIdB.Match(line);
-            if (pb.Success) IdNames[pb.Groups["id"].Value] = pb.Groups["n"].Value;
+            if (pb.Success) Named(pb.Groups["id"].Value, pb.Groups["n"].Value);
         }
 
         var x = Member.Match(line);
         if (x.Success)
         {
-            MemberEvents.Add(new MemberEvent { Mission = x.Groups["m"].Value, Player = x.Groups["p"].Value, Time = t, Left = x.Groups["k"].Value == "Left" });
+            var left = x.Groups["k"].Value == "Left";
+            MemberEvents.Add(new MemberEvent { Mission = x.Groups["m"].Value, Player = x.Groups["p"].Value, Time = t, Left = left });
+            // the game took the mission from him: his own PlayerLeft with no EndMission, a second after an exit to the menu (zzoega, 31 Oct 2026, #399). The
+            // normal abandon has his PlayerLeft too, with the EndMission two milliseconds later, which then says how it ended; an accept revives it (an event
+            // mission he left and got back two seconds later, 28 Aug 2026)
+            if (left && PlayerId != null && x.Groups["p"].Value == PlayerId && Missions.TryGetValue(x.Groups["m"].Value, out var gone) && gone.EndState == null)
+            {
+                gone.EndedAt = t;
+                gone.EndState = Mission.Left;
+            }
             Touch(t);
             return;
         }
@@ -699,7 +717,7 @@ public sealed class HaulingLog
             if (type != "Complete")
             {
                 var m = Get(x.Groups["m"].Value);
-                if (m.EndState == null)
+                if (m.EndState == null || m.EndState == Mission.Left)   // his PlayerLeft came two milliseconds before: this says how it ended
                 {
                     m.EndedAt = t;
                     m.EndState = type.ToUpperInvariant();
@@ -763,6 +781,13 @@ public sealed class HaulingLog
     {
         Version++;
         if (t > LastTime) LastTime = t;
+    }
+
+    /// <summary>A line put an id to a name (IdNames): the log's own player's id too, when it is his name and the login line did not say it.</summary>
+    void Named(string id, string name)
+    {
+        IdNames[id] = name;
+        if (PlayerId == null && Player != null && string.Equals(name, Player, StringComparison.OrdinalIgnoreCase)) PlayerId = id;
     }
 
     /// <summary>Reads a whole log file (also works on the Game.log of a running game).</summary>

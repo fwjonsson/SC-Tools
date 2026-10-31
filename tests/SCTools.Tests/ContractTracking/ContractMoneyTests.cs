@@ -280,11 +280,14 @@ public class ContractMoneyTests
 
     const string ZzoegaId = "493008374737", ZzatvoId = "515604414831", ZzoiiId = "762737192866";
 
+    /// <summary>The id the game names a player by, the same on his login line and in his "Ending mission" lines.</summary>
+    static string IdOf(string player) => player switch { "zzoega" => ZzoegaId, "zzatvo" => ZzatvoId, "zzoii" => ZzoiiId, _ => GameLogWriter.OwnId };
+
     static ServerFactory Bounty(DateTime now, string mission, Func<DateTime, (string Player, List<string> Lines)[]> logs)
     {
         var f = new ServerFactory();
         var at = now.AddMinutes(-40);
-        foreach (var (player, lines) in logs(at)) f.Upload(player, new GameLogWriter().At(at).Login(player).Lines.Concat(lines).ToList(), T(at));
+        foreach (var (player, lines) in logs(at)) f.Upload(player, new GameLogWriter().At(at).Login(player, IdOf(player)).Lines.Concat(lines).ToList(), T(at));
         var library = f.Services.GetRequiredService<MissionLibrary>();
         library.Collect();
         library.Set("stop rival attack", "auec", "100000", "admin", now);
