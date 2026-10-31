@@ -87,7 +87,7 @@ public sealed class GauntletController : Controller
         var now = DateTime.UtcNow;
         var visitor = Audience.Of(HttpContext).Visitor;   // not logged in: the Leaderboard, and a note to log in on the other tabs (Frank, 30 Oct 2026)
         var rewards = _gauntlet.Rewards();   // the Mission Library's
-        var value = (double)_scrip.Mg;   // the admin's Scrip page
+        var value = (double)_scrip.Mg;   // the admin's Scrip Value page
         // the viewer's in-game party now (the logs): the pages show the party's runs together; alone, or not playing, his own
         var party = _party.Parties(now).FirstOrDefault(g => g.Names.Any(n => string.Equals(n, who, StringComparison.OrdinalIgnoreCase)));
         // the Stats tab is his own (Frank, 30 Oct 2026: the Top 10 fastest and the whole Stats page are personal); the Session and History tabs his party's

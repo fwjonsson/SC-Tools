@@ -182,13 +182,15 @@ public class GauntletPageTests
         Assert.Contains("300,000", await bileh.GetStringAsync("/gauntlet/leaderboard"));   // everybody counts with them
         Assert.Equal(HttpStatusCode.NotFound, (await admin.GetAsync("/admin/gauntlet")).StatusCode);   // no page of its own any more: Edit Mission Info
 
-        // what a MG scrip is worth is on the admin's Scrip page, for every tool: #7 pays 16 scrip
+        // what a MG scrip is worth is on the admin's Scrip Value page, for every tool: #7 pays 16 scrip
         await ServerFactory.Send(admin, "/admin/scrip", "/admin/scrip/set", ("field", "mg"), ("value", "1,000"));
         await ServerFactory.Send(admin, "/admin/scrip", "/admin/scrip/set", ("field", "council"), ("value", "2500"));
         Assert.Contains("316,000", await bileh.GetStringAsync("/gauntlet/leaderboard"));   // 300,000 aUEC + 16 x 1,000
         var scrip = await admin.GetStringAsync("/admin/scrip");
         Assert.Contains("value=\"1000\"", scrip);
         Assert.Contains("value=\"2500\"", scrip);
+        Assert.Contains("<a href=\"/admin/scrip\" class=\"on\">Scrip Value</a>", scrip);   // "Scrip" until 31 Oct 2026
+        Assert.Contains("<h1>Scrip Value</h1>", scrip);
         var bad = await ServerFactory.Send(admin, "/admin/scrip", "/admin/scrip/set", ("field", "mg"), ("value", "cheap"));
         Assert.Contains("Not saved", await admin.GetStringAsync("/admin/scrip"));
         Assert.Equal(HttpStatusCode.Redirect, (await bileh.GetAsync("/admin/scrip")).StatusCode);   // the admin's

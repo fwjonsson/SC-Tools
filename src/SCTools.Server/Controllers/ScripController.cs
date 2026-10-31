@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace SCTools.Server.Controllers;
 
-/// <summary>The admin's Scrip page: what one MG scrip and one Council scrip are worth in aUEC for every tool. A field is saved as soon as it changes.</summary>
+/// <summary>The admin's Scrip Value page ("Scrip" until 31 Oct 2026): what one MG scrip and one Council scrip are worth in aUEC for every tool. A field is saved as soon as it changes.</summary>
 [Authorize(Roles = Roles.Admin)]
 [AutoValidateAntiforgeryToken]
 [Route("/admin/scrip")]
@@ -17,7 +17,7 @@ public sealed class ScripController : Controller
     [HttpGet("")]
     public IActionResult Index()
     {
-        ViewData["Title"] = "Scrip";
+        ViewData["Title"] = "Scrip Value";
         return View("~/Views/Scrip/Index.cshtml", _scrip);
     }
 
