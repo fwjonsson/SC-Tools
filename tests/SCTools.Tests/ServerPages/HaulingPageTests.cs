@@ -32,7 +32,7 @@ public class HaulingPageTests
         Assert.Contains("<h2>All-time leaderboard</h2><div class=\"scroll\" id=\"allTime\"></div>", page);
         Assert.DoesNotContain("id=\"viewC\"", page);
         Assert.Contains("<h2>Active Contracts</h2><div id=\"active\">", page);   // the map's missions going on, above the contracts (30 Oct 2026)
-        var contracts = "<h2>Contracts</h2><p class=\"note\" id=\"rewardsParty\"></p><div class=\"scroll\" id=\"rewards\"></div>";   // the contracts under the Session tab's stops, over the whole width
+        var contracts = "<h2>Completed Contracts</h2><p class=\"note\" id=\"rewardsParty\"></p><div class=\"scroll\" id=\"rewards\"></div>";   // the completed contracts under the Session tab's stops, over the whole width (31 Oct 2026)
         Assert.True(page.IndexOf("id=\"belowS\"", StringComparison.Ordinal) < page.IndexOf(contracts, StringComparison.Ordinal));
         Assert.True(page.IndexOf(contracts, StringComparison.Ordinal) < page.IndexOf("<h2>Cargo runs</h2>", StringComparison.Ordinal));
         Assert.DoesNotContain("<h1>", page);   // no title of its own: the bar says where you are

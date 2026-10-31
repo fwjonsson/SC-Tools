@@ -118,6 +118,7 @@ program, the site has the same thing on its pages (see The web app: the Hauling 
 - **Lost Cargo** is a drop-down: None, Little or All. **All** marks the run as failed: a run still on the way ends there, it does not count as a run, and its value is shown as lost. Pick None or Little again to bring it back.
 - **History tab:** every session is saved with its date, missions, revenue and what each worker carried, so earlier sessions stay after their logs are gone.
 - **Leaderboard tab** (Frank, 30 Oct 2026): the **Session leaderboard** (under the Session tab's stops until then) and the **All-time leaderboard** (on the History tab until then). The Session tab has the stops, the contracts (where the Session leaderboard was) and the Cargo runs.
+- **Completed Contracts and the # columns** (Frank, 31 Oct 2026): the Session tab's contracts table is **Completed Contracts**: only the contracts the session completed, by kind, with their reward, how many and what they paid, and the Total (no Active column: the contracts going on are the Active Contracts above it). Every table of the Session, Debts, History and Leaderboard tabs has a **#** column first (a Total row and one player's accounts added up have none); a player sees his own rows of the Debts and History tables numbered 1, 2, 3 (`DataViews.Rows`).
 
 ### Trip Planner
 
@@ -700,7 +701,7 @@ admin (done), then going live.
     `Whereabouts.LocationOf(name, anyPlace, fallback)`); the old planner starts everybody at Ruin.
   - **The jobs in the session** (stage 4a, 30 Oct 2026): the sessions take every hauling mission (`SessionBuilder.InSession`), so a job of another kind
     is on the **Stops** board (its pickup as the map names it, its drop-offs in the Drop-off Location column, `LocationRow.Job`, `PickupName`), in the
-    **Contracts** table by its name with what the Mission Library says it pays (else the Wiki, else nothing), in the **Cargo runs** when a party member
+    **Completed Contracts** table, once completed, by its name with what the Mission Library says it pays (else the Wiki, else nothing), in the **Cargo runs** when a party member
     picks it up and delivers it (the delivery ends the run, like a hand-in), and in the session's earnings, the leaderboard and the Debts tab's payouts.
     What a part of a mission is worth is reward over its **parcels** (`Mission.Parcels`: the stops of a Red Wind contract, the drop-offs of a from-Ruin
     one, a job's pickups when it has one drop-off, else its drop-offs), which is what reward over stops was. A job's zones are named as the map has their

@@ -153,36 +153,36 @@ public sealed partial class WebSnapshot
     }
 
     /// <summary>
-    /// The Contracts table: the kinds of contract the session has (by their names as the game shows them, as the Mission Library has them; a contract
-    /// without a name by its contract line), each with its payout (what the library says, see Earnings.KindReward), how many are still going (Active) and
-    /// done (Completed), and what they pay together; and the Total. The to-Ruin contracts first, then the from-Ruin ones, by name.
+    /// The Completed Contracts table (Frank, 31 Oct 2026; "Contracts" with an Active column before: the contracts going on are the Active Contracts above it):
+    /// the kinds of contract the session completed (by their names as the game shows them, as the Mission Library has them; a contract without a name by its
+    /// contract line), numbered, each with its payout (what the library says, see Earnings.KindReward), how many were completed and what they paid together;
+    /// and the Total. The to-Ruin contracts first, then the from-Ruin ones, by name.
     /// </summary>
     ViewTable Rewards()
     {
         var table = new ViewTable(_p,
-            new ViewColumn("Contract", "left"), new ViewColumn("Mission Reward", "right"), new ViewColumn("Active", "right"), new ViewColumn("Completed", "right"),
+            new ViewColumn("#"), new ViewColumn("Contract", "left"), new ViewColumn("Mission Reward", "right"), new ViewColumn("Completed", "right"),
             new ViewColumn("Total", "right"));
         if (_s.Current == null || _s.Inputs == null) return table;
         var accepted = _s.Current.Missions.Select(m => (Mission: m, Out: false));
         var waste = _t.Earnings.SessionWaste(_s.Current).Select(m => (Mission: m, Out: true));
         decimal revenue = 0;
-        int active = 0, completed = 0;
+        var completed = 0;
         static string N(int n) => n.ToString(CultureInfo.InvariantCulture);
         static string KindName(Mission m) => SCTools.Missions.MissionKinds.KindTitle(m.Title) ?? Contracts.ContractName(m);
         decimal Pays((Mission Mission, bool Out) x) => x.Out ? _t.Earnings.WasteRewardOf(x.Mission) : _t.Earnings.RewardOf(x.Mission);
-        foreach (var g in accepted.Concat(waste).GroupBy(x => (x.Out, Name: KindName(x.Mission))).OrderBy(g => g.Key.Out).ThenBy(g => g.Key.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (var g in accepted.Concat(waste).Where(x => x.Mission.Completed).GroupBy(x => (x.Out, Name: KindName(x.Mission))).OrderBy(g => g.Key.Out).ThenBy(g => g.Key.Name, StringComparer.OrdinalIgnoreCase))
         {
             var missions = g.ToList();
             var reward = Pays(missions[0]);   // one kind, one reward
-            var done = missions.Count(x => x.Mission.Completed);
             var total = missions.Sum(Pays);
             revenue += total;
-            active += missions.Count - done;
-            completed += done;
-            table.Add(g.Key.Name, reward.ToString("N0", CultureInfo.CurrentCulture), N(missions.Count - done), N(done), total.ToString("N0", CultureInfo.CurrentCulture));
+            completed += missions.Count;
+            table.Add("", g.Key.Name, reward.ToString("N0", CultureInfo.CurrentCulture), N(missions.Count), total.ToString("N0", CultureInfo.CurrentCulture));
         }
-        if (table.Rows.Count > 0) table.Add("Total", "", N(active), N(completed), revenue == 0 ? "" : revenue.ToString("N0", CultureInfo.CurrentCulture)).Bold = true;   // nothing: no Total of zeros
-        return table;
+        var kinds = table.Rows.Count;
+        if (kinds > 0) table.Add("", "Total", "", N(completed), revenue == 0 ? "" : revenue.ToString("N0", CultureInfo.CurrentCulture)).Bold = true;   // nothing: no Total of zeros
+        return table.Number(0, kinds);   // not the Total row
     }
 
     Dictionary<string, HaulJob>? _jobsById;

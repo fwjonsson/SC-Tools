@@ -17,23 +17,24 @@ public sealed partial class WebSnapshot
 
         var balances = party.Select(me =>
         {
-            var grid = new ViewTable(_p, new ViewColumn("Party Member", "left"), new ViewColumn("Balance", "right"), new ViewColumn("Meaning", "left"));
+            var grid = new ViewTable(_p, new ViewColumn("#"), new ViewColumn("Party Member", "left"), new ViewColumn("Balance", "right"), new ViewColumn("Meaning", "left"));
             foreach (var o in party.Where(o => !SameName(o, me)))
             {
                 var shown = DebtCalc.Between(pairs, me, o) + _t.Payouts.GetAdj(me, o);
-                grid.Add(o, Signed(shown), Payouts.Meaning(me, o, shown));
+                grid.Add("", o, Signed(shown), Payouts.Meaning(me, o, shown));
             }
-            return new { name = me, grid };
+            return new { name = me, grid = grid.Number() };
         }).ToList();
 
         var transfers = new ViewTable(_p,
-            new ViewColumn("Time"), new ViewColumn("From"), new ViewColumn("To"), new ViewColumn("Amount", "right"),
+            new ViewColumn("#"), new ViewColumn("Time"), new ViewColumn("From"), new ViewColumn("To"), new ViewColumn("Amount", "right"),
             new ViewColumn("Payment"));
         var transfersEdit = new List<object>();
         foreach (var t in data.Transfers.OrderByDescending(t => t.Time))
         {
             transfersEdit.Add(new { key = t.Key, from = t.From, payment = t.Payment });
             transfers.Add(
+                "",
                 t.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture),
                 t.From,
                 t.To,
@@ -42,11 +43,12 @@ public sealed partial class WebSnapshot
         }
 
         var payouts = new ViewTable(_p,
-            new ViewColumn("Time"), new ViewColumn("Mission", "left"), new ViewColumn("Payout", "right"),
+            new ViewColumn("#"), new ViewColumn("Time"), new ViewColumn("Mission", "left"), new ViewColumn("Payout", "right"),
             new ViewColumn("Shared Between", "left"), new ViewColumn("Each", "right"));
         foreach (var r in data.Payouts.OrderByDescending(r => r.Time))
         {
             payouts.Add(
+                "",
                 r.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture),
                 r.Contract,
                 r.Payout.ToString("N0", CultureInfo.InvariantCulture),
@@ -56,7 +58,7 @@ public sealed partial class WebSnapshot
 
         // earnings: what every member carried this session and in all sessions, and his net balance (green: owed to him, red: he owes)
         var earnings = new ViewTable(_p,
-            new ViewColumn("Worker", "left"), new ViewColumn("This Session", "right"), new ViewColumn("All Sessions", "right"), new ViewColumn("Net Balance (+ Owed to Them)", "right"));
+            new ViewColumn("#"), new ViewColumn("Worker", "left"), new ViewColumn("This Session", "right"), new ViewColumn("All Sessions", "right"), new ViewColumn("Net Balance (+ Owed to Them)", "right"));
         decimal sumNow = 0;
         decimal sumAll = 0;
         foreach (var p in party)
@@ -66,8 +68,8 @@ public sealed partial class WebSnapshot
             nets.TryGetValue(p, out var net);
             sumNow += now;
             sumAll += all;
-            var row = earnings.Add(p, now.ToString("N0", CultureInfo.InvariantCulture), all.ToString("N0", CultureInfo.InvariantCulture), Signed(net));
-            if (Math.Abs(net) >= 0.5m) row.Color(3, net > 0 ? _p.Green : _p.Red);
+            var row = earnings.Add("", p, now.ToString("N0", CultureInfo.InvariantCulture), all.ToString("N0", CultureInfo.InvariantCulture), Signed(net));
+            if (Math.Abs(net) >= 0.5m) row.Color(4, net > 0 ? _p.Green : _p.Red);
         }
         // one player's accounts added up (Frank, 30 Oct 2026): a look at what he earns in all; the balances and the debts stay each account's own
         foreach (var group in data.CombinedAccounts)
@@ -77,24 +79,28 @@ public sealed partial class WebSnapshot
             var now = _s.Inputs == null ? 0m : members.Sum(m => Payouts.CarriedBy(_s.Inputs.Carried, m));
             var all = members.Sum(m => data.Sessions.Values.Sum(s => Payouts.CarriedBy(s.Carried, m)));
             var net = members.Sum(m => nets.TryGetValue(m, out var n) ? n : 0m);
-            earnings.Add(string.Join(" + ", members), now.ToString("N0", CultureInfo.InvariantCulture), all.ToString("N0", CultureInfo.InvariantCulture), Signed(net)).Color(0, _p.Cell, _p.Muted);
+            earnings.Add("", string.Join(" + ", members), now.ToString("N0", CultureInfo.InvariantCulture), all.ToString("N0", CultureInfo.InvariantCulture), Signed(net)).Color(1, _p.Cell, _p.Muted);
         }
-        earnings.Add("Total", sumNow.ToString("N0", CultureInfo.InvariantCulture), sumAll.ToString("N0", CultureInfo.InvariantCulture), "").Bold = true;
+        earnings.Add("", "Total", sumNow.ToString("N0", CultureInfo.InvariantCulture), sumAll.ToString("N0", CultureInfo.InvariantCulture), "").Bold = true;
+        earnings.Number(0, party.Count);   // the players; not one player's accounts added up, not the Total
 
-        return new { earnings, balances, transfers, transfersEdit, payouts, pos = ViewPalette.Hex(_p.Green), neg = ViewPalette.Hex(_p.Red) };
+        // every table numbered (Frank, 31 Oct 2026)
+        return new { earnings, balances, transfers = transfers.Number(), transfersEdit, payouts = payouts.Number(), pos = ViewPalette.Hex(_p.Green), neg = ViewPalette.Hex(_p.Red) };
     }
 
     /// <summary>The History tab: the all-time leaderboard, the best session, and every saved session with the Total.</summary>
     object History()
     {
         var lines = _t.Leaderboard.AllTimeLines(out var sessions, out var totalSeconds);
-        var allTime = Board(lines, true, false, sessions, totalSeconds);
+        var allTime = Board(lines, true, true, sessions, totalSeconds);   // numbered like the Session leaderboard (Frank, 31 Oct 2026)
 
         var saved = new ViewTable(_p,
-            new ViewColumn("Date"), new ViewColumn("Time"), new ViewColumn("Missions", "right"), new ViewColumn("Revenue", "right"), new ViewColumn("Carried by Worker", "left"));
-        foreach (var s in _t.Leaderboard.HistoryRows()) saved.Add(s.Date, s.Time, s.Missions.ToString(CultureInfo.InvariantCulture), s.Revenue, s.Carried);
+            new ViewColumn("#"), new ViewColumn("Date"), new ViewColumn("Time"), new ViewColumn("Missions", "right"), new ViewColumn("Revenue", "right"), new ViewColumn("Carried by Worker", "left"));
+        foreach (var s in _t.Leaderboard.HistoryRows()) saved.Add("", s.Date, s.Time, s.Missions.ToString(CultureInfo.InvariantCulture), s.Revenue, s.Carried);
+        var count = saved.Rows.Count;
         var (missions, revenue) = _t.Leaderboard.HistoryTotals();
-        saved.Add("Total", "", missions.ToString(CultureInfo.InvariantCulture), revenue.ToString("N0", CultureInfo.InvariantCulture), "").Bold = true;
+        saved.Add("", "Total", "", missions.ToString(CultureInfo.InvariantCulture), revenue.ToString("N0", CultureInfo.InvariantCulture), "").Bold = true;
+        saved.Number(0, count);   // not the Total row
 
         return new { allTime, best = _t.Leaderboard.BestLine(), saved };
     }

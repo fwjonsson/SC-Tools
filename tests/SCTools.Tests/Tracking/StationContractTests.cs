@@ -81,9 +81,9 @@ public class StationContractTests
         var cells = d.GetProperty("pickups").GetProperty("rows").EnumerateArray().Select(r => r.GetProperty("cells").EnumerateArray().Select(c => c.GetString()!).ToArray()).ToList();
         Assert.Equal(2, cells.Count(c => c[1] == "Gaslight"));
         Assert.Equal(new[] { "Rod's Fuel 'N Supplies", PyroDistances.NameOf(PyroDistances.Ruin) }, cells.Where(c => c[1] == "Gaslight").Select(c => c[6]).OrderBy(x => x));
-        // the Contracts tab has it by its name, paying what a 2-stop contract pays (no library here)
-        var rewards = d.GetProperty("rewards").GetProperty("rows").EnumerateArray().Select(r => r.GetProperty("cells")[0].GetString()).ToList();
-        Assert.Contains(Title, rewards);
+        // the Completed Contracts table (31 Oct 2026) has it once it is completed, not while it is going
+        var rewards = d.GetProperty("rewards").GetProperty("rows").EnumerateArray().Select(r => r.GetProperty("cells")[1].GetString()).ToList();
+        Assert.DoesNotContain(Title, rewards);
 
         // the planner plans all four: the two for Rod's Fuel in a trip that ends there, the two for Ruin in one that ends at Ruin (stage 1b)
         var plan = t.Plan.GetPlan();

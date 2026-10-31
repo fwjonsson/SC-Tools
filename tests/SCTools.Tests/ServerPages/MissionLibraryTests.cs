@@ -281,7 +281,7 @@ public class MissionLibraryTests
         Assert.Equal(1_500_000m, f.Live.Read(t => t.Earnings.RewardOf(t.State.Current!.Missions[0])));
         f.Live.Refresh(DateTime.UtcNow);   // data.json is made anew on the next refresh (the server's every two seconds)
         var contracts = JsonDocument.Parse(await admin.GetStringAsync("/data.json")).RootElement.GetProperty("rewards").GetProperty("rows")[0].GetProperty("cells").EnumerateArray().Select(c => c.GetString()).ToArray();
-        Assert.Equal(new[] { game, 1_500_000m.ToString("N0"), "1", "1", 3_000_000m.ToString("N0") }, contracts);
+        Assert.Equal(new[] { "1", game, 1_500_000m.ToString("N0"), "1", 1_500_000m.ToString("N0") }, contracts);   // the completed one (Completed Contracts, 31 Oct 2026)
 
         // the kinds named by their contract line from before 29 Oct 2026 go to the kinds by name when the server starts, with what was typed for them
         using (var db = f.Store.Open())

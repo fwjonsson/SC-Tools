@@ -121,21 +121,22 @@ public sealed class DataViews
             p["workers"] = kept;
         }
 
-        // the debts: his own (the Earnings line of his, his balances, the transfers he sent or got, the payouts he had a share of)
+        // the debts: his own (the Earnings line of his, his balances, the transfers he sent or got, the payouts he had a share of). Every table has # first
+        // (31 Oct 2026), so the columns are one to the right, and the rows he keeps are numbered 1, 2, 3 again
         if (d["debts"] is JsonObject debts)
         {
-            Rows(debts["earnings"], cells => Same(Cell(cells, 0), me));
+            Rows(debts["earnings"], cells => Same(Cell(cells, 1), me));
             if (debts["balances"] is JsonArray balances)
                 debts["balances"] = new JsonArray(balances.OfType<JsonObject>().Where(b => Same(b["name"]?.GetValue<string>(), me)).Select(b => (JsonNode)b.DeepClone()).ToArray());
-            var keptTransfers = Rows(debts["transfers"], cells => Same(Cell(cells, 1), me) || Same(Cell(cells, 2), me));
+            var keptTransfers = Rows(debts["transfers"], cells => Same(Cell(cells, 2), me) || Same(Cell(cells, 3), me));
             if (debts["transfersEdit"] is JsonArray edits)   // the payment ticks go with the transfers' rows, one for one
                 debts["transfersEdit"] = new JsonArray(keptTransfers.Where(i => i < edits.Count).Select(i => edits[i]?.DeepClone()).ToArray());
-            Rows(debts["payouts"], cells => Names(Cell(cells, 3)).Any(n => Same(n, me)));
+            Rows(debts["payouts"], cells => Names(Cell(cells, 4)).Any(n => Same(n, me)));
         }
 
         // the saved sessions: the ones he carried in
         if (d["history"] is JsonObject history)
-            Rows(history["saved"], cells => Names(Cell(cells, 4)).Any(n => Same(n, me)));
+            Rows(history["saved"], cells => Names(Cell(cells, 5)).Any(n => Same(n, me)));
     }
 
     static bool Same(string? a, string? b) => a != null && b != null && string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
@@ -146,21 +147,32 @@ public sealed class DataViews
     static IEnumerable<string> Names(string? cell) =>
         (cell ?? "").Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).Where(w => !w.All(c => char.IsDigit(c) || c == '.' || c == '%' || c == '+' || c == '-'));
 
-    /// <summary>Keeps the rows of a table ({ headers, rows }) whose cells pass; returns the indexes of the rows kept (in the table as it was).</summary>
+    /// <summary>
+    /// Keeps the rows of a table ({ headers, rows }) whose cells pass; returns the indexes of the rows kept (in the table as it was). A table whose first
+    /// column is # has the rows it keeps numbered 1, 2, 3 again (a row without a number, a Total, stays without).
+    /// </summary>
     static List<int> Rows(JsonNode? table, Func<JsonArray?, bool> keep)
     {
         var kept = new List<int>();
         if (table is not JsonObject t || t["rows"] is not JsonArray rows) return kept;
+        var numbered = t["headers"] is JsonArray headers && headers.Count > 0 && FirstHeader(headers[0]) == "#";
         var left = new JsonArray();
+        var n = 0;
         for (var i = 0; i < rows.Count; i++)
         {
             if (!keep(rows[i]?["cells"] as JsonArray)) continue;
             kept.Add(i);
-            left.Add(rows[i]!.DeepClone());
+            var row = rows[i]!.DeepClone();
+            if (numbered && row["cells"] is JsonArray cells && cells.Count > 0 && !string.IsNullOrEmpty(Cell(cells, 0)))
+                cells[0] = (++n).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            left.Add(row);
         }
         t["rows"] = left;
         return kept;
     }
+
+    /// <summary>The text of a table's header (a column is { text, align }, or a plain text).</summary>
+    static string? FirstHeader(JsonNode? h) => h is JsonObject o ? o["text"]?.GetValue<string>() : h is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
 
     /// <summary>The Map tool's data (map.json) as this viewer may see it: the players of his party, their objectives and their missions; a visitor the places alone.</summary>
     public static JsonNode MapFor(object snapshot, IReadOnlySet<string>? allowed)
