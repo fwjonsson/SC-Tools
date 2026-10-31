@@ -690,8 +690,9 @@ admin (done), then going live.
     the mission. A job with a stop the map has no place for (or only the planet) stays out with a note; one whose cargo is picked up already is noted and
     left to stage 4 (the runs do not follow jobs yet); several pickups to several drop-offs are not planned (the game does not say which goes where). The
     map's place for a worker in any system is where his trip starts (`Whereabouts.LocationOf(name, anyPlace)`; the old planner keeps to the Pyro stations).
-    The map on the planner tabs gets the **systems' buttons** in its corner, the engine's as on every map, when the routes touch more than one (Frank's answer 8;
-    `data.freePlanner.maps`, `places` with the system of every place); a leg through a gateway is drawn to the gateway on the system it leaves, with the far end's name, and from the
+    The map on the planner tabs has the **systems' buttons** in its corner, the engine's as on every map, for every system with how many of the players shown
+    are in each (since 31 Oct 2026, Frank: only when the routes touched more than one before, Frank's answer 8; `data.freePlanner.maps`, `places` with the
+    system of every place); it opens on Pyro, or on the system the routes are in when they are not in Pyro; a leg through a gateway is drawn to the gateway on the system it leaves, with the far end's name, and from the
     gateway on the system it enters; `/hauling/map.json` has every system.
   - **The other systems** (stage 3, 30 Oct 2026): any hauling mission starts a session, a courier too (`AutoSessions.HaulingActivity`, Frank's answer 7),
     so a party hauling in Stanton alone has a session and a plan on the Route Planner (new) tab. A stop the texts and the zones do not place is placed by
