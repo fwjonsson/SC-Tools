@@ -376,6 +376,8 @@ public class MapPageTests
         Assert.Contains("svg.addEventListener('click', function (ev) { marks.push(pointOf(ev)); drawMeasure(); });", script);
         Assert.Contains("svg.addEventListener('contextmenu', function (ev) { ev.preventDefault(); if (marks.length) { marks = []; drawMeasure(); } });", script);
         Assert.Contains("profile(own.d, gm * 1e9).total : null;   // a jump of its own", script);
+        Assert.Contains("lines.push(gmText(totalGm) + (own && totalGm > 0 ? ' · ' + clock(totalS)", script);   // the total: Gm and time, no "5 jumps" next to the last stop's number (Frank, 31 Oct 2026)
+        Assert.DoesNotContain("' jumps, '", script);
     }
 
     [Fact]
