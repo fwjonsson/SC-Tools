@@ -3,8 +3,10 @@
 }
 @* no text over the map (Frank, 30 Oct 2026); how the map places everybody is in the README *@
 @section subnav {
-  @* the systems as a row under the bar in the tool's colour, like the admin's pages (Frank, 30 Oct 2026); map.js fills it with a button per system *@
-  <nav class="subnav area" id="systems" role="tablist" aria-label="Star system" style="--tool:@SiteTools.Map.Color"></nav>
+  @* the systems as a row under the bar in the tool's colour, like the admin's pages (Frank, 30 Oct 2026); map.js fills it with a button per system. At the
+     right end the team status line (ticker.js), as on the other gameplay tools (Frank, 31 Oct 2026) *@
+  <nav class="subnav area" style="--tool:@SiteTools.Map.Color"><div class="tabs" id="systems" role="tablist" aria-label="Star system"></div><span class="ticker" data-ticker></span></nav>
+  <script src="~/ticker.js" asp-append-version="true" defer></script>
 }
 <div class="maptool maponly">
   <div class="mapbox">

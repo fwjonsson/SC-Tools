@@ -12,13 +12,12 @@
 .topbar .who a.area { text-decoration:none; padding:5px 12px; border-radius:4px; font-weight:600; }
 /* the admin's pick of a player to look at the tools as (TopBar.ViewAs) */
 .topbar .who form.pov { margin:0; display:flex; align-items:center; gap:6px; }
-.topbar .who form.pov label { color:#9aa7b4; font-size:13px; white-space:nowrap; }
+.topbar .who form.pov label { color:#9aa7b4; white-space:nowrap; }   /* the bar's own size, so it is level with the name beside it (13px sat low; Frank, 31 Oct 2026) */
 .topbar .who form.pov select { background:#151b23; color:#e6edf3; border:1px solid #2f3a48; border-radius:4px; padding:4px 8px; font:inherit; font-weight:600; max-width:160px; }
-/* the live dot and the time the page's data was made (the Hauling Planner's script fills them; empty on the other pages) */
+/* the live dot, on every page (live.js fills it: green while the site answers, red when it does not; empty until the first answer) */
 .topbar .who .live { font-weight:600; font-size:13px; white-space:nowrap; }
 .topbar .who .live.ok { color:#5fd35f; } .topbar .who .live.bad { color:#ff6b6b; }
-.topbar .who .updated { color:#8b949e; font-size:12px; white-space:nowrap; }
-.topbar .who .live:empty, .topbar .who .updated:empty { display:none; }
+.topbar .who .live:empty { display:none; }
 .topbar .who a.area:hover { background:#151b23; }
 .topbar .who a.area.on:hover { background:color-mix(in srgb, var(--tool, #4682ff) 38%, transparent); }
 .topbar .who { display:flex; gap:14px; align-items:center; color:#c9d1d9; }

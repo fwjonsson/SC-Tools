@@ -138,28 +138,6 @@ public sealed class PageController : Controller
     }
 
     /// <summary>
-    /// The team status line under the Route Planner's map, on its own: it changes every few seconds while somebody plays, and some of its lines are clocks
-    /// ("has spent 12m 04s on this trip"), so in data.json it made the whole data be made anew every few seconds for one sentence. The page asks for it
-    /// with the map, while the tab is shown.
-    /// </summary>
-    [HttpGet("/hauling/status.json")]
-    public IActionResult Status()
-    {
-        if (!_tools.Sees(User, SiteTools.Hauling)) return StatusCode(StatusCodes.Status403Forbidden);
-        Response.Headers.CacheControl = "no-store";
-        var viewer = Audience.Of(HttpContext);
-        var (status, key) = _live.Read(t => (t.Status.Text, t.Status.Seq));
-        if (!viewer.Everything)
-        {
-            // the line is about the session's players: only for a player whose party is the whole of the session's (Frank, 30 Oct 2026); nobody else
-            var allowed = _audience.Allowed(viewer, DateTime.UtcNow)!;
-            var mine = allowed.Count > 0 && _live.Read(t => t.State.Current != null && t.State.Data.Party.Count > 0 && t.State.Data.Party.All(n => allowed.Contains(n)));
-            if (!mine) status = "";
-        }
-        return Json(new { status, key });
-    }
-
-    /// <summary>
     /// The map of the Trip Planner tab: the Map tool's data for Pyro alone (MapService.Snapshot: everybody playing where the location tracker has him, the objectives
     /// going on), polled every few seconds while the tab is shown, by whoever sees the Hauling Planner; the page draws the planner's routes on it.
     /// </summary>

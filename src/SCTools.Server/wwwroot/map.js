@@ -102,8 +102,10 @@
       data.clockOffset = Date.parse(data.updated) - Date.now();   // the server's clock against this browser's, when the data came (not when it is drawn)
       show(choose(data), false);
       state.textContent = 'Updated ' + new Date().toLocaleTimeString();
+      if (window.siteLive) siteLive(true);   // the top bar's live dot (live.js)
     } catch (e) {
       state.textContent = 'The map could not be updated: trying again.';
+      if (window.siteLive) siteLive(false);
     }
   }
   window.addEventListener('hashchange', function () {

@@ -16,13 +16,16 @@
     var whose = Model.InParty ? "your party" : "you";
 }
 @section subnav {
-  @* the tabs as a row under the bar in the tool's colour, like the admin's pages (Frank, 30 Oct 2026) *@
+  @* the tabs as a row under the bar in the tool's colour, like the admin's pages (Frank, 30 Oct 2026); at the right end the team status line (ticker.js), as
+     on the other gameplay tools (Frank, 31 Oct 2026) *@
   <nav class="subnav area" style="--tool:@SiteTools.Gauntlet.Color">
   @Html.Raw(Tab("session", "Session"))
   @Html.Raw(Tab("stats", "Stats"))
   @Html.Raw(Tab("history", "History"))
   @Html.Raw(Tab("leaderboard", "Leaderboard"))
+  <span class="ticker" data-ticker></span>
   </nav>
+  <script src="~/ticker.js" asp-append-version="true" defer></script>
 }
 
 @* the tabs say nothing about whose runs they show (Frank, 30 Oct 2026): the Party panel in the top bar says who plays with whom *@

@@ -64,7 +64,7 @@ public class DataPollTests
         using var f = new ServerFactory();
         f.Upload(PlayedSession.Player, PlayedSession.Writer().Lines.ToList());
         var c = f.Browser();
-        var status = System.Text.Json.JsonDocument.Parse(await c.GetStringAsync("/hauling/status.json")).RootElement;
+        var status = System.Text.Json.JsonDocument.Parse(await c.GetStringAsync("/status.json")).RootElement;
         Assert.True(status.TryGetProperty("status", out _));
         Assert.True(status.TryGetProperty("key", out _));
         var planner = System.Text.Json.JsonDocument.Parse(await c.GetStringAsync("/data.json")).RootElement.GetProperty("planner");
