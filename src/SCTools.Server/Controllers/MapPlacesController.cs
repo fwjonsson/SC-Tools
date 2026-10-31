@@ -17,8 +17,16 @@ public sealed class MapPlacesController : Controller
 {
     const string Back = "/admin/places";
     readonly MapPlaces _places;
+    readonly UnknownPlaceAlerts _alerts;
 
-    public MapPlacesController(MapPlaces places) => _places = places;
+    public MapPlacesController(MapPlaces places, UnknownPlaceAlerts alerts)
+    {
+        _places = places;
+        _alerts = alerts;
+    }
+
+    /// <summary>The admin's own player (his login: zzoega), whose accounts the notices and the Companion's cards go by.</summary>
+    string Admin => User.Identity?.Name ?? "";
 
     IActionResult Said(string message, string anchor = "")
     {
@@ -37,8 +45,52 @@ public sealed class MapPlacesController : Controller
         return View(new MapPlacesPage(_places.Unknown(), _places.Aliases(), entries, _places.Atlas, shown, add?.Trim() ?? "", DateTime.UtcNow));
     }
 
+    /// <param name="back">the page to go back to (the Companion's card of an unknown place, #414); else Map places</param>
     [HttpPost("alias")]
-    public IActionResult Alias(string? text, string? key) => Said(_places.Alias(text, key, DateTime.UtcNow), "#unknown");
+    public IActionResult Alias(string? text, string? key, string? back)
+    {
+        var said = _places.Alias(text, key, DateTime.UtcNow);
+        if (back != null && Url.IsLocalUrl(back) && back != Back)
+        {
+            TempData["Message"] = said;
+            return LocalRedirect(back);
+        }
+        return Said(said, "#unknown");
+    }
+
+    /// <summary>
+    /// The notices of unknown places and the Companion's cards (UnknownPlaceAlerts.News; alerts.js asks every few seconds on every page the admin has open):
+    /// after: the number of the last notice the page has (none the first time). With the cards, every place to pick, as Map places has them.
+    /// </summary>
+    [HttpGet("unknown.json")]
+    public IActionResult News(int? after)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var news = _alerts.News(Admin, after, DateTime.UtcNow);
+        var atlas = _places.Atlas;
+        return Json(new
+        {
+            seq = news.Seq,
+            alerts = news.Alerts.Select(a => new { seq = a.Seq, text = a.Text, kind = a.KindText, player = a.Player, his = a.His, system = a.System }),
+            here = news.Here.Select(s => new { text = s.Text, kindKey = s.Kind.ToString(), kind = s.KindText, player = s.Player, when = s.TimeUtc, system = s.System }),
+            places = news.Here.Count == 0 ? null : StarMap.Systems.Select(sys => new
+            {
+                name = sys.Name,
+                places = atlas.Of(sys.Id).Where(p => p.Kind != PlaceKind.Star).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(p => new { key = p.Key, name = p.Name + (p.Short != p.Name ? " (" + p.Short + ")" : "") }),
+            }),
+            notAPlace = MapPlaces.NotAPlace,
+        });
+    }
+
+    /// <summary>Later on a card of the Companion: it goes until his next visit there; the place stays on Map places (sent in the background, alerts.js).</summary>
+    [HttpPost("later")]
+    public IActionResult Later(string? text, string? kind)
+    {
+        if (string.IsNullOrWhiteSpace(text) || !Enum.TryParse<UnknownKind>(kind, out var k)) return BadRequest();
+        _alerts.Later(Admin, text, k);
+        return Json(new { ok = true });
+    }
 
     [HttpPost("unalias")]
     public IActionResult Unalias(int id) => Said(_places.Unalias(id), "#aliases");

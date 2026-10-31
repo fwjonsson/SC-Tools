@@ -14,6 +14,11 @@
 <div class="maptool companion" data-editor="@(editor ? "true" : null)">
   <div class="mapbox">
     <div id="map"></div>
+    @if (editor)
+    {
+      @* the admin: a card for every unknown place his accounts were at lately, with Map places' form and Later (alerts.js, #414) *@
+      <div id="unknownHere"></div>
+    }
   </div>
   @* beside the map you and your party; beside them your game session and the objectives *@
   <div class="mapside players">

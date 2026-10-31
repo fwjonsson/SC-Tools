@@ -403,7 +403,14 @@ admin (done), then going live.
   "Rod's Fuel 'N Supplies" written out on the maps as the Hauling Planner has them again, instead of "Dudley", "Rod's Fuel", "HUR-L1"), which he can change (empty: the game's again; the game's name still finds
   the place). **Add a place**: its system, name, short name, what it is, and where: at a place of that system (in its orbit when it is a
   planet or a moon) or X and Y in Gm; optionally for a text of the log, which is then that place (the *add it* link of a Not known row fills
-  it in).
+  it in). **The admin's notice of unknown places** (#414, Frank 31 Oct 2026; `UnknownPlaceAlerts`, `MapPlaces.Sightings`, `wwwroot/alerts.js`, loaded for
+  the admin alone on every page): a toast in the top right with a short sound ("Map places: unknown place needs registration"; a click opens Map places)
+  when somebody else meets an unknown place, the first time anybody does, and when one of his combined accounts comes to one that is still unknown, once
+  per visit (sightings less than 10 minutes apart are one visit). Being there is an area he came into, a start name, or a quantum destination he arrived
+  at (not one he only picked). On his Companion a card under the map for every unknown place his accounts were at in the last half hour, with Map places'
+  form (Save goes back to the Companion) and **Later**, which hides it until his next visit there. The page asks `/admin/places/unknown.json` every 5
+  seconds; sightings from before the server started are not news (a new version of the site does not announce them all again), and the Laters are kept
+  in memory. A browser plays the sound only after the page was clicked once since it loaded; the toast's "Sound" switches it off in that browser.
 - **The fleet.** On My page a player keeps every ship he owns, the quantum drive in each, and the two qualities of a crafted drive, 0 to 1000 with one
   decimal (a crafted drive's quality is not a whole number: Frank's C2 is 786.6 and 695.3, 31 Oct 2026) and 500 as bought, in a straight line between: the speed quality (1000 makes the drive speed 20 % higher, 0 20 % lower) and the fuel quality (1000 burns 20 %
   less fuel per distance, 0 20 % more; the game's Crafting Lab, a TS-2 at 0.1417 /m, 0.11 at 1000 and 0.17 at 0; Frank, 31 Oct 2026). The game shows a

@@ -290,6 +290,36 @@ public sealed class MapPlaces
             .OrderByDescending(u => u.LastUtc).ToList();
     }
 
+    /// <summary>
+    /// Every time a player of the logs (on the server now) met a text the map does not know, in the order of the logs: who, when, and whether it puts him at
+    /// the place (Here): an area he came into and a start name the game gave when he picked a route from there do; a quantum destination does when he arrived
+    /// at it (the arrival right after the pick, at the arrival's time), not when he only picked it. For the admin's notice of unknown places (UnknownPlaceAlerts).
+    /// </summary>
+    public List<UnknownSighting> Sightings()
+    {
+        var atlas = Atlas;
+        var all = new List<UnknownSighting>();
+        List<(string Player, List<QtEvent> Qt, List<LocationSeen> Seen)> logs;
+        lock (_uploads.Sync) logs = _uploads.Logs.Select(l => (l.Player ?? l.Uploader ?? "", l.Qt.ToList(), l.Locations.ToList())).ToList();
+        foreach (var (player, qt, seen) in logs)
+        {
+            if (player.Length == 0) continue;
+            LocationTracker.Follow(qt, atlas, (time, text, kind, system) =>
+            {
+                if (kind != UnknownKind.Destination)
+                {
+                    all.Add(new UnknownSighting(text, kind, player, time, true, system));
+                    return;
+                }
+                // picked: there only when the next step of his jumps is the arrival
+                var next = qt.FirstOrDefault(e => e.Time > time || (e.Time == time && e.Kind == QtKind.Arrived));
+                var arrived = next?.Kind == QtKind.Arrived;
+                all.Add(new UnknownSighting(text, kind, player, arrived ? next!.Time : time, arrived, system));
+            }, seen);
+        }
+        return all.OrderBy(s => s.TimeUtc).ToList();
+    }
+
     sealed class Tally
     {
         public Tally(string text) => Text = text;
