@@ -38,3 +38,16 @@ zone id to spot. With the hidden places loaded as known-but-not-drawn (issue 398
 What can be done today: draw the two rings of Nyx (15 and 48 Gm) like orbit rings, so "at the mission: Return to Glaciem Ring Cluster" has a
 ring to point at; load the hidden stations (the Breaker ones) as places, drawn or hidden; put a player at a mission whose text names a ring
 on that ring.
+
+## The fuel estimate is a distance (31 Oct 2026)
+
+Every route the player sets writes `<Calculate Route> ... Successfully calculated route to <destination> fuel estimate <n>` (a `[QuantumTravel]` line, so the
+trackers already send it). The estimate is linear in the distance, for one ship: the Pyro jumps of 29 and 30 Oct (Ruin to the Nyx Gateway 85.5 Gm, Patch City
+to Ruin 85.9 Gm, Ruin to Orbituary 51.9 Gm, Orbituary to the Nyx Gateway 47.7 Gm) all give 35,035 per Gm within 0.03 %. The Perseus of 31 Oct gives 32,270 per Gm:
+Levski to the BRK-304 spot 1,450,849 (44.96 Gm), and then Levski to the Glaciem beacon 738,770 is 22.89 Gm, exactly the distance to the Glaciem spot at
+X 12.92, Y -7.62. The constant is the ship's (its drive); a jump between two known places by that ship gives it. The jump he set from the BRK-304 spot
+to social_001_keeger_segment_rckcrk_095 was 17,344, 537 Mm: the nav point is at BRK-204, so the alias is exact.
+
+So a beacon can be placed from the log alone: the start place and the fuel estimate give its distance; the game data's hidden mission spots on the rings
+give the candidates; the ones at that distance are one or two (mirror images round the ring); the next route he sets from there, or the drive's travel time,
+settles it. Frank's reports (the debug overlay's position) are still the way to learn spots and nav points the game data does not have.
