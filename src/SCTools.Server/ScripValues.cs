@@ -3,7 +3,7 @@ using SCTools.Server.Data;
 namespace SCTools.Server;
 
 /// <summary>
-/// What one MG scrip and one Council scrip are worth in aUEC: the price the admin thinks they can be sold for now (his Scrip Value page). Every tool counts with
+/// What one MG scrip and one Council scrip are worth in aUEC: the price the admin thinks they can be sold for now (his Settings page). Every tool counts with
 /// them (the Gauntlet Tracker's totals, the Session tool's earnings), so a new price changes the totals of the past too. The MG scrip value was the Gauntlet
 /// Tracker's own before: until the admin sets one here, that one is used.
 /// </summary>

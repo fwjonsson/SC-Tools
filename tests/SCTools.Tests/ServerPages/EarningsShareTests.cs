@@ -106,7 +106,7 @@ public class EarningsShareTests
         var s = JsonDocument.Parse(await (await f.Player(f.AddKey("zzoega"))).GetStringAsync("/companion/session.json")).RootElement.GetProperty("session");
         // zzoega 50,000 + 30,000 and 10 MG scrip, zzatvo 50,000 + 30,000 and none: together the bounty's whole reward and both payout shares
         Assert.Equal((160_000L, 10L), (s.GetProperty("auec").GetInt64(), s.GetProperty("mg").GetInt64()));
-        Assert.Equal(170_000, s.GetProperty("value").GetDouble());   // the MG scrip at the Scrip Value page's 1,000
+        Assert.Equal(170_000, s.GetProperty("value").GetDouble());   // the MG scrip at the Settings page's 1,000
         Assert.Equal(2, s.GetProperty("completed").GetInt32());   // the missions completed stay his own
         Assert.Equal(new[] { "zzoega", "zzatvo" }, s.GetProperty("accounts").EnumerateArray().Select(a => a.GetString()));
 

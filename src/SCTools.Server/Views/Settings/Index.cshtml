@@ -1,0 +1,56 @@
+@model ScripValues
+@using System.Globalization
+@using SCTools.Server.Controllers
+@{
+    var lists = new[] { (MissionLibrary.FactionList, "Factions", ViewData["Factions"] as List<string>), (MissionLibrary.CategoryList, "Categories", ViewData["Categories"] as List<string>) };
+}
+<h1>Settings</h1>
+
+<h2>Scrip value</h2>
+<p class="muted">What one scrip is worth in aUEC: the price you think it sells for now. Every tool counts scrip with these (the Gauntlet Tracker's totals and
+  rankings, the Session tool's earnings), the past included, so a new price changes the old totals too. A field is saved as soon as you leave it.</p>
+<table class="narrow">
+  <thead><tr><th>Scrip</th><th>aUEC for one</th></tr></thead>
+  <tbody>
+  @foreach (var (field, name, value) in new[] { ("mg", "MG scrip (Mercenary Guild)", Model.Mg), ("council", "Council scrip", Model.Council) })
+  {
+    <tr>
+      <td>@name</td>
+      <td>
+        <form method="post" action="@(SettingsController.Path + "/scrip")" asp-antiforgery="true" data-autosave>
+          <input type="hidden" name="field" value="@field">
+          <input name="value" type="number" min="0" step="1" class="num" value="@value.ToString(CultureInfo.InvariantCulture)" aria-label="@name in aUEC">
+        </form>
+      </td>
+    </tr>
+  }
+  </tbody>
+</table>
+<p class="hint">0 counts that scrip as worth nothing.</p>
+
+@* the lists the Faction and Category drop-downs of the missions pick from (the Mission Library, the Companion, the Hauling Planner, the 📷 box) *@
+<h2 id="lists">Factions and categories</h2>
+<p class="muted">What the Faction and Category drop-downs of the missions offer, wherever you edit them. A mission that has one you take out keeps it: it is
+  only no longer offered. Legality is Legal or Illegal.</p>
+<div class="choices">
+  @foreach (var (list, title, values) in lists)
+  {
+    <div class="card">
+      <h3>@title</h3>
+      <ul>
+        @foreach (var v in values ?? new List<string>())
+        {
+          <li><span>@v</span>
+            <form method="post" action="@(SettingsController.Path + "/choices/remove")" asp-antiforgery="true">
+              <input type="hidden" name="list" value="@list"><input type="hidden" name="value" value="@v">
+              <button type="submit" class="x" title="Take @v out of the list">×</button>
+            </form></li>
+        }
+      </ul>
+      <form method="post" action="@(SettingsController.Path + "/choices/add")" asp-antiforgery="true" class="line">
+        <input type="hidden" name="list" value="@list"><input name="value" placeholder="Add one" aria-label="Add to @title" autocomplete="off">
+        <button type="submit">Add</button>
+      </form>
+    </div>
+  }
+</div>

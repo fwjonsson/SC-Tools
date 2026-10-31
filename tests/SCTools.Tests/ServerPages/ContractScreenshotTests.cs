@@ -116,19 +116,39 @@ public class ContractScreenshotTests
         // the list starts with what the library has
         Assert.Equal(new[] { "Headhunters", "Intersec Defense Solutions" }, library.Choices(MissionLibrary.FactionList));
 
-        await ServerFactory.Send(admin, "/missions", "/admin/missions/choices/add", ("list", "faction"), ("value", "Foxwell Enforcement"));
-        await ServerFactory.Send(admin, "/missions", "/admin/missions/choices/add", ("list", "category"), ("value", "Mercenary"));
-        await ServerFactory.Send(admin, "/missions", "/admin/missions/choices/remove", ("list", "faction"), ("value", "Headhunters"));
+        // on his Settings page (Frank, 31 Oct 2026; a box above the library's table before)
+        await ServerFactory.Send(admin, "/admin/settings", "/admin/settings/choices/add", ("list", "faction"), ("value", "Foxwell Enforcement"));
+        await ServerFactory.Send(admin, "/admin/settings", "/admin/settings/choices/add", ("list", "category"), ("value", "Mercenary"));
+        await ServerFactory.Send(admin, "/admin/settings", "/admin/settings/choices/remove", ("list", "faction"), ("value", "Headhunters"));
         Assert.Equal(new[] { "Foxwell Enforcement", "Intersec Defense Solutions" }, library.Choices(MissionLibrary.FactionList));
         Assert.Equal(new[] { "Mercenary" }, library.Choices(MissionLibrary.CategoryList));
+        var settings = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/settings"));
+        Assert.Contains("<h2 id=\"lists\">Factions and categories</h2>", settings);
+        Assert.Contains("<input type=\"hidden\" name=\"value\" value=\"Foxwell Enforcement\">", settings);   // with its × to take it out
+        Assert.Contains("<h2>Scrip value</h2>", settings);   // the scrip on the same page
+        var player = await f.Player(f.AddKey("zzatvo"));
+        Assert.Equal(HttpStatusCode.Redirect, (await ServerFactory.Send(player, "/", "/admin/settings/choices/add", ("list", "faction"), ("value", "Mine"))).StatusCode);
+        Assert.DoesNotContain("Mine", library.Choices(MissionLibrary.FactionList));
 
         var page = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));
-        Assert.Contains("id=\"choices\"", page);   // the box of the lists
+        Assert.DoesNotContain("id=\"choices\"", page);   // no box of the lists on the library any more
         // a mission that has a faction taken out of the list keeps it: its drop-down still offers it
         Assert.Contains("<option value=\"Headhunters\" selected=\"selected\">Headhunters</option>", page);
         Assert.Contains("<option value=\"Foxwell Enforcement\">Foxwell Enforcement</option>", page);
         Assert.Contains("<option value=\"Mercenary\">Mercenary</option>", page);   // the Category drop-down
         Assert.Contains("<option value=\"Illegal\">Illegal</option>", page);   // Legality: Legal or Illegal
+    }
+
+    [Fact]
+    public async Task A_field_is_saved_by_the_mission_s_name_as_a_table_shows_it()
+    {
+        // the Hauling Planner's Completed Contracts have the kinds' names, not their keys (Frank, 31 Oct 2026: its Mission Reward is a field)
+        using var f = Library();
+        var admin = await f.Admin();
+        await ServerFactory.Send(admin, "/missions", "/admin/missions/set", ("id", "Space Patrol [150 Rep]"), ("field", "auec"), ("value", "45000"));
+        var e = f.Services.GetRequiredService<MissionLibrary>().Entries().Single(x => x.Row.Key == "space patrol [150 rep]");
+        Assert.Equal(45000, e.Row.Auec);
+        Assert.Single(f.Services.GetRequiredService<MissionLibrary>().Entries(), x => x.Row.Title == "Space Patrol [150 Rep]");   // no new row
     }
 
     [Fact]

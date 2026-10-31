@@ -55,11 +55,13 @@
 </div>
 </div>
 <script src="~/systemmap.js" asp-append-version="true"></script>
+<script src="~/missionfields.js" asp-append-version="true"></script>
 <script src="~/hauling.js" asp-append-version="true"></script>
 <script src="~/ticker.js" asp-append-version="true"></script>
 @if (admin)
 {
-  @* the admin's 📷 of the Session tab's contracts (#437): a little box reads a screenshot into the mission (screenshot.js), its Faction from his list *@
+  @* the admin edits the Session tab's contracts right in the tables (missionfields.js, saved by autosave.js), and his 📷 reads a screenshot into a mission
+     (screenshot.js, #437): the Faction, Category and Legality drop-downs are his lists (Admin › Settings) and Legal or Illegal *@
   @Html.AntiForgeryToken()
   <datalist id="factions">
     @foreach (var g in Library.Choices(SCTools.Server.MissionLibrary.FactionList))
@@ -67,5 +69,13 @@
       <option value="@g"></option>
     }
   </datalist>
+  <datalist id="categories">
+    @foreach (var c in Library.Choices(SCTools.Server.MissionLibrary.CategoryList))
+    {
+      <option value="@c"></option>
+    }
+  </datalist>
+  <datalist id="legalities"><option value="Legal"></option><option value="Illegal"></option></datalist>
+  <p class="hint autosave-state floating" id="autosaveState" aria-live="polite"></p>
   <script src="~/screenshot.js" asp-append-version="true" defer></script>
 }

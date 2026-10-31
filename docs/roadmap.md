@@ -18,8 +18,8 @@ became a site with several Star Citizen tools (one server, one tracker on every 
   out. The admin pages are a second row under it.
 - **Tools page** (`/admin/tools`): Frank ticks which tools everybody sees; an unticked tool is admin-only (its card and its page). Default: Hauling
   Planner shown, the others only for Frank.
-- **Scrip page** (`/admin/scrip`, PR #230): what one MG scrip and one Council scrip are worth in aUEC, the price Frank thinks they sell for now; every
-  tool counts scrip with these.
+- **Settings page** (`/admin/settings`; the Scrip page `/admin/scrip`, PR #230, until 31 Oct 2026): what one MG scrip and one Council scrip are worth
+  in aUEC, the price Frank thinks they sell for now (every tool counts scrip with these), and his lists of factions and categories.
 - **SC Tools Tracker** (`SCToolsTracker.exe`, was HaulingTrackerSender): uploads the live log, and the old backup logs the server does not have yet
   (all of them the first time, then the new ones; PR #227; streamed line by line since PR #231). Its menu shows its version, the old logs' progress and
   "Check for an update now". Old trackers update and rename themselves; the `.old.exe` an update leaves is removed when the new one starts (PR #232).
@@ -50,8 +50,9 @@ All the tools track at the same time, all the time. The tracking runs on the ser
      the MG or Council scrip and the XP with a free text reader (Tesseract in his browser; Frank did not want an AI that costs tokens), he checks it and
      saves. The reward is read with digits only, after the currency sign is cut off, and checked (commas, at least 1,000, the Wiki's range). Only for that
      mission: never one guessed by its name or added (Frank: a similar name could be another mission, a new one would not be joined to the logs').
-   - **Drop-downs and the admin's lists** (Frank, 31 Oct 2026): Faction and Category are picked from lists he keeps in a box above the library (add,
-     take out), Legality is Legal or Illegal; Category, XP and Legality can be filled in, and win over the Wiki's.
+   - **Drop-downs and the admin's lists** (Frank, 31 Oct 2026): Faction and Category are picked from lists he keeps on his Settings page (add, take
+     out; a box above the library for a day), Legality is Legal or Illegal; Category, XP and Legality can be filled in, and win over the Wiki's. He edits
+     a mission wherever it is shown, as in the library: the Companion's contract tables and the Hauling Planner's Active and Completed Contracts too.
    - **Read-only for everybody, editable for Frank** (Frank, 29 Oct; #267, #268): `/missions` is a library to look things up in (everybody when the
      tool is shown, a visitor too; else only Frank): no fields, a search, one giver, with/without rewards, only the kinds the viewer played, sorted by
      a clicked column (names A to Z, numbers biggest first, the other way on the second click; the choices in the address). Not ordered by last

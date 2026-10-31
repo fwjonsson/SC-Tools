@@ -491,7 +491,7 @@ admin (done), then going live.
   1600 px or less before; 340 at 1200, the whole width at 900; `.maptool`'s `--mapw` and `.planleft`), the outermost places 16 px from the map's edge (46 before, `ROOM` in `systemmap.js`), with the Players and the next column's title level with the map's top. A page with a wide table (the
   Mission Library, the Session tool's games, the Gauntlet Tracker) takes the whole band too since 30 Oct 2026 (Frank; 1,400 px before), and the Mission
   Library numbers its rows in a # column on the left, on through its pages. The pages of the site end with a footer: the tracker's download, how to set it up, and the
-  disclaimer. The admin's pages have a second row under it with his pages (Players, Scrip Value, Map, Tools, Account; Admin in the top bar opens Players), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
+  disclaimer. The admin's pages have a second row under it with his pages (Players, Settings, Map, Tools, Account; Admin in the top bar opens Players), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
 - **The admin's pages** change the data with the core's logic (`Editing/Edits.cs`, each change saved and worked out again at once):
   the **Session** page (`/admin`) went on 31 Oct 2026 (Frank): the sessions start and stop by themselves (below), the lost cargo of a run is picked in
   the Hauling Planner's Cargo runs table, the SCU of a drop-off the game did not tell is typed on its Current Route, and the **start time** is a row of
@@ -531,8 +531,9 @@ admin (done), then going live.
   MG scrip, total aUEC per hour over the timed runs, completed and completion rate, fastest run, favourite and best scenario, last played. The rewards
   are the same for everybody: the Mission Library's "Combat Gauntlet - Scenario #n", typed in the library's rows (the admin's Gauntlet page and his
   Contracts page went on 29 Oct 2026).
-- **What scrip is worth** is the admin's **Scrip** page (`/admin/scrip`, `ScripValues`, the table `SiteValues`): aUEC for one MG scrip and for one Council
-  scrip, the price he thinks they sell for now. Every tool counts scrip with these, the past included (a new price changes old totals too).
+- **What scrip is worth** is on the admin's **Settings** page (`/admin/settings`, `SettingsController`, `ScripValues`, the table `SiteValues`; the Scrip
+  Value page `/admin/scrip` until 31 Oct 2026, which comes there now): aUEC for one MG scrip and for one Council scrip, the price he thinks they sell for
+  now. Every tool counts scrip with these, the past included (a new price changes old totals too).
 - **The contracts tracker** (`ContractTracker` on the server, `ContractTracking/` in the core; #383, Frank 30 Oct 2026) is the one place that knows
   every contract and from which every tool gets its contract money. For every contract (one mission: two copies of the same contract taken separately
   are two) it knows, from what is kept for good, who took it, who accepted the share, how and when it ended for each of them (the Mission Library's
@@ -584,11 +585,15 @@ admin (done), then going live.
   Scrip" in the description, the XP of "Reputation Awarded: 250" (else the "[250 Rep]" of the name), the faction of his list nearest to the one read; a
   reward outside the Star Citizen Wiki's range gets a note. Tried on Frank's screenshots: every reward of the clear ones exact (35,000 to 1,370,500),
   every scrip found, also on a picture at half the size with a light behind the scrip; the one with a lamp on the reward was not read, and says so.
-- **The admin's lists and drop-downs** (Frank, 31 Oct 2026): Faction and Category are picked from his lists, kept in the box above the Mission Library's
-  table on the right (add one, or × to take one out; `LibraryChoices`, `MissionLibrary.Choices`); they started with what the library had then (typed in,
-  and the Wiki's). A mission that has one taken out keeps it (its drop-down still shows it). Legality is Legal or Illegal. Category, XP and Legality can
-  be filled in like the reward (the kinds' `Category`, `Xp`, `Legality`): one filled in wins over the Wiki's, in grey until then. The same drop-downs are
-  in the Companion's contract tables, and the 📷 box's Faction.
+- **The admin's lists and drop-downs** (Frank, 31 Oct 2026): Faction and Category are picked from his lists, kept on his Settings page beside the scrip
+  (`/admin/settings`: add one, or × to take one out; `LibraryChoices`, `MissionLibrary.Choices`); they started with what the library had then (typed
+  in, and the Wiki's). A mission that has one taken out keeps it (its drop-down still shows it). Legality is Legal or Illegal. Category, XP and Legality
+  can be filled in like the reward (the kinds' `Category`, `Xp`, `Legality`): one filled in wins over the Wiki's, in grey until then.
+- **The admin edits a mission wherever it is shown** (Frank, 31 Oct 2026): the Mission Library's rows, the Companion's Active and Completed Contracts,
+  and the Hauling Planner's Session tab have the same fields and drop-downs (`wwwroot/missionfields.js`; saved in the background through
+  `/admin/missions/set`, autosave.js). The Active Contracts get them from map.json (`edit`, `ContractEdit.AddTo`: by the mission's key, or its name when
+  the map was made before the library had it); the Hauling Planner's Completed Contracts have only the kinds' names, so their Mission Reward is saved by
+  the name (`MissionLibrary.EntryOf`). A table is not drawn again while he is in one of its fields, so what he types is not lost.
 - **The Mission Library** (`/missions`, `Missions/MissionReader` and `Missions/MissionKinds` in the core, `MissionLibrary`) has every kind of mission
   the players took, by itself: the missions of the live logs and of the old logs are kept for good (`Missions`), grouped by their name as the game shows
   it (`MissionKinds`; the game's ContractId is one per offer, so the same mission at another place has another one). The contracts the Hauling Planner
@@ -622,7 +627,7 @@ admin (done), then going live.
   library when it went by ContractId is carried over to the names once.
 - **The Session History tool** (`/history`; the Session tool at `/session` until 31 Oct 2026, renamed so the Companion's Session tab is not mixed up with it, Frank; `Play/PlayStats` in the core, `Playtime`, `SessionController`): your own play. Time played today, this week (from
   Monday), this month and in all, the games and the crashes (a log without the game's quit line, `SystemQuit`, crashed), the missions you completed
-  and what they earned (aUEC, MG and Council scrip as the Mission Library says they pay; the scrip at the Scrip Value page's value), and per
+  and what they earned (aUEC, MG and Council scrip as the Mission Library says they pay; the scrip at the Settings page's value), and per
   hour; the clock of the game you play now; a list of your games. Worked out again on every visit, so a reward typed in later counts for the past.
   What a mission earned is your part of it (the contracts tracker's `ContractTracker.Earned`, Frank 30 Oct 2026; before, every member of the party
   counted the whole reward of a contract they all completed): the aUEC is split evenly among the players who completed the same mission, a Hauling

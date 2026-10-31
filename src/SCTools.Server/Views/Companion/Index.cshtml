@@ -19,7 +19,7 @@
 @if (editor)
 {
   @Html.AntiForgeryToken()
-  @* the admin's lists (the box above the Mission Library) and Legal or Illegal: what the Faction, Category and Legality drop-downs of the contracts offer
+  @* the admin's lists (Admin › Settings) and Legal or Illegal: what the Faction, Category and Legality drop-downs of the contracts offer
      (companion.js), and the 📷 box's Faction (screenshot.js) *@
   <datalist id="factions">
     @foreach (var g in Model)
@@ -93,6 +93,7 @@
   }
 </section>
 <script src="~/systemmap.js" asp-append-version="true" defer></script>
+<script src="~/missionfields.js" asp-append-version="true" defer></script>
 <script src="~/companion.js" asp-append-version="true" defer></script>
 @if (editor)
 {

@@ -124,38 +124,8 @@
   }
 
   // ------------------------------------------------------------------ the contract tables
-  // A field of the Mission Library, as on Edit Mission Info: a little form of its own that autosave.js sends in the background when it changes.
-  // Faction, Category and Legality are drop-downs of the admin's lists (the page's datalists: the box above the Mission Library, and Legal or Illegal), with
-  // the one it has when it is not in the list any more; empty: the Wiki's, in grey.
-  const LISTS = { giver: 'factions', category: 'categories', legality: 'legalities' };
-  function field(edit, name, value, hint, cls) {
-    const form = el('form');
-    form.method = 'post';
-    form.action = '/admin/missions/set';
-    form.setAttribute('data-autosave', 'quiet');
-    [['__RequestVerificationToken', tokenField.value], ['id', edit.key], ['field', name]].forEach(function (h) {
-      const i = el('input'); i.type = 'hidden'; i.name = h[0]; i.value = h[1]; form.appendChild(i);
-    });
-    const source = LISTS[name] && document.getElementById(LISTS[name]);
-    let input;
-    if (source) {
-      input = el('select', cls);
-      const empty = el('option', '', hint ? '– ' + hint : '–'); empty.value = ''; input.appendChild(empty);
-      const values = Array.from(source.querySelectorAll('option')).map(function (o) { return o.value; });
-      if (value && values.indexOf(value) < 0) values.unshift(value);
-      values.forEach(function (v) { const o = el('option', '', v); o.value = v; if (v === value) o.selected = true; input.appendChild(o); });
-    } else {
-      input = el('input', cls);
-      input.value = value || '';
-      input.placeholder = hint || '';
-      input.autocomplete = 'off';
-    }
-    input.name = 'value';
-    input.setAttribute('aria-label', name === 'giver' ? 'faction' : name);
-    form.appendChild(input);
-    form.addEventListener('submit', function (e) { e.preventDefault(); input.blur(); });   // Enter saves it (the change), the page stays
-    return form;
-  }
+  // The admin's fields of a mission, as in the Mission Library (missionfields.js, the Hauling Planner's too).
+  const F = window.SCToolsMissionFields;
 
   // The admin's 📷 of a contract: a little box beside it reads a screenshot of the contract into its mission (screenshot.js; #437).
   function shotLink(key, name) {
@@ -173,7 +143,7 @@
     if (!box) return;   // a visitor: no tables
     const sig = JSON.stringify(rows);
     if (made[id] === sig) return;
-    if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;   // not while the admin types in it: again after
+    if (F.busy(box)) return;   // not while the admin types or picks in it: again after
     made[id] = sig;
     box.textContent = '';
     if (rows.length === 0) { box.appendChild(muted(none)); return; }
@@ -188,24 +158,13 @@
       const tr = tb.insertRow();
       if (ended) tr.className = m.outcome === 'Completed' ? '' : 'failed';
       const e = editor ? m.edit : null;
-      const cells = [
-        [String(n + 1)],
-        [m.title, 'name', e && ['name', e.name, e.nameHint, 'name']],
-        [m.who.join(', ')],
-        [ended ? m.outcome + ' ' + hhmm(m.ended) : String(m.open), ended ? 'nowrap' : 'right'],
-        [m.faction, '', e && ['giver', e.giver, e.giverHint, 'giver']],
-        [m.category, '', e && ['category', e.category, e.categoryHint, 'category']],
-        [m.scu, 'right', e && ['scu', e.scu, e.scuHint, 'num scu']],
-        [m.reward, 'right', e && ['auec', e.auec, e.auecHint, 'num']],
-        [m.mg, 'right', e && ['mg', e.mg, '', 'num scrip']],
-        [m.council, 'right', e && ['council', e.council, '', 'num scrip']],
-        [m.xp, 'right', e && ['xp', e.xp, e.xpHint, 'num']],
-        [m.legality, '', e && ['legality', e.legality, e.legalityHint, 'legality']],
-      ];
+      const fields = F.cells(m, e);
+      const cells = [[String(n + 1)], fields[0], [m.who.join(', ')],
+        [ended ? m.outcome + ' ' + hhmm(m.ended) : String(m.open), ended ? 'nowrap' : 'right']].concat(fields.slice(1));
       cells.forEach(function (c) {
         const td = tr.insertCell();
         if (c[1]) td.className = c[1];
-        if (c[2]) td.appendChild(field(e, c[2][0], c[2][1], c[2][2], c[2][3]));
+        if (c[2]) td.appendChild(F.field(e.key, c[2][0], c[2][1], c[2][2], c[2][3]));
         else td.textContent = c[0];
       });
       if (edits) { const td = tr.insertCell(); if (e) td.appendChild(shotLink(e.key, m.title)); }
