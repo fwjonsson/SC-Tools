@@ -26,9 +26,10 @@ public class CraftedDriveTests
         Assert.Equal(0, QuantumDrives.CraftedFuelPercent(500), 6);
         Assert.Equal(20, QuantumDrives.CraftedFuelPercent(0), 6);
         var ts2 = QuantumDrives.Find("TS-2 S3")!;
-        Assert.Equal(0.1417, ts2.FuelPerM, 4);                         // the game's crafting: "Fuel per distance 0.1417 /m"
-        Assert.Equal(0.11, ts2.FuelPerM * (1 - 20 / 100.0), 2);        // quality 1000: 0.11 /m
-        Assert.Equal(0.17, ts2.FuelPerM * (1 + 20 / 100.0), 2);        // quality 0: 0.17 /m
+        Assert.Equal(141.68, ts2.FuelPerKm, 2);                        // the game: "Quantum Fuel Burn: 141.68 per Km"
+        // Frank's crafted TS-2s (31 Oct 2026): the C2's burns 130.61 per km, the Perseus's 120.33; the fuel estimates of their routes in his log, 35,035
+        // and 32,270 per Gm, are the same factor of the two
+        Assert.Equal(35_035 / 130.61, 32_270 / 120.33, 0);
         Assert.Equal(0, QuantumDrives.Find("Mauler S4")!.FuelRate);    // not in the game data: no fuel per distance shown
         Assert.All(QuantumDrives.All.Where(d => d.Name != "Mauler"), d => Assert.True(d.FuelRate > 0, d.Key));
     }

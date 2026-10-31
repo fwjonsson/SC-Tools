@@ -9,10 +9,11 @@ namespace SCTools.GameData;
 public sealed record QtDrive(string Name, string Maker, int Size, string Grade, double Speed, double Accel1, double Accel2, double Engage, double FuelRate = 0)
 {
     /// <summary>
-    /// The fuel per distance as the game's crafting shows it ("Fuel per distance 0.1417 /m" for a TS-2): the game data's fuel_rate times a million, or 0
-    /// when the data has none.
+    /// The fuel burn as the game shows it in the Vehicle Loadout Manager ("Quantum Fuel Burn: 141.68 per Km" for a TS-2): the game data's fuel_rate times a
+    /// billion, or 0 when the data has none. The quantum route line's fuel estimate is this times the distance, times one factor for every ship (Frank's C2
+    /// and Perseus, 31 Oct 2026).
     /// </summary>
-    public double FuelPerM => FuelRate * 1e6;
+    public double FuelPerKm => FuelRate * 1e9;
 
     public string Key => Name + " S" + Size;
     public string Label => Key;   // the name only (the speed in Mm/s used to be shown after it)

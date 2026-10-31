@@ -36,7 +36,7 @@
 <h2 id="fleet">My fleet</h2>
 <p class="hint">Every ship you own and the quantum drive in it (none picked: the ship's stock drive; only the drives of the size the ship takes are listed). A crafted drive has two qualities, 0 to 1000,
   500 as bought: the drive speed's (1000 is 20 % faster, 0 is 20 % slower) and the fuel efficiency's (1000 burns 20 % less fuel per distance, 0 burns 20 % more). The game shows the drive's stats, not
-  its qualities: type a quality or click its arrows until the drive speed and the fuel per distance here are the ones the game shows. The Hauling Planner flies your active ship: its cargo grid,
+  its qualities: type a quality or click its arrows until the quantum speed and the fuel burn here are the ones the game shows (Vehicles, the drive under the ship's picture). The Hauling Planner flies your active ship: its cargo grid,
   its drive and the drive's speed for the flying times.</p>
 <form method="post" action="/me/fleet/active" asp-antiforgery="true" class="line" data-autosave>
   <label for="activeShip">Active ship</label>
@@ -52,11 +52,11 @@
 {
   <div class="scroll">
   <table class="wide fleet">
-    <thead><tr><th>Ship</th><th>Quantum drive</th><th>Speed quality</th><th class="right">Drive speed</th><th>Fuel quality</th><th class="right">Fuel per distance</th><th></th></tr></thead>
+    <thead><tr><th>Ship</th><th>Quantum drive</th><th>Speed quality</th><th class="right">Quantum speed</th><th>Fuel quality</th><th class="right">Fuel burn</th><th></th></tr></thead>
     <tbody>
     @foreach (var s in Model.Fleet)
     {
-      <tr class="@(active?.Ship?.Row.Id == s.Row.Id ? "on" : null)" data-id="@s.Row.Id" data-speed="@s.Drive?.Speed.ToString("R", inv)" data-fuel="@(s.Drive is { FuelRate: > 0 } fd ? fd.FuelPerM.ToString("R", inv) : null)">
+      <tr class="@(active?.Ship?.Row.Id == s.Row.Id ? "on" : null)" data-id="@s.Row.Id" data-speed="@s.Drive?.Speed.ToString("R", inv)" data-fuel="@(s.Drive is { FuelRate: > 0 } fd ? fd.FuelPerKm.ToString("R", inv) : null)">
         <td>
           <form method="post" action="/me/fleet/set" asp-antiforgery="true" data-autosave>
             <input type="hidden" name="id" value="@s.Row.Id"><input type="hidden" name="field" value="ship">
@@ -144,7 +144,7 @@
   fit();
 })();
 
-// The qualities of the fleet: the drive speed and the fuel per distance follow every click of the arrows or key at once (the same as the server's
+// The qualities of the fleet: the quantum speed and the fuel burn, as the game writes them, follow every click of the arrows or key at once (the same as the server's
 // FleetShip.SpeedText and FuelText), and the last value is saved in the background once the clicks stop (autosave.js, data-settle). Enter saves too,
 // without loading the page again.
 (function () {
@@ -160,11 +160,11 @@
     var speedPct = (q - MAX / 2) / (MAX / 2) * 20;
     if (field.dataset.kind === 'speed' && row.dataset.speed) {
       var mps = Number(row.dataset.speed) * (1 + speedPct / 100);
-      document.getElementById('speed-' + row.dataset.id).textContent = Math.round(mps).toLocaleString('en-US') + ' m/s' + change(speedPct);
+      document.getElementById('speed-' + row.dataset.id).textContent = (mps / 1e6).toFixed(2) + ' Mm/s' + change(speedPct);
     }
     if (field.dataset.kind === 'fuel' && row.dataset.fuel) {
       var fuel = Number(row.dataset.fuel) * (1 - speedPct / 100);
-      document.getElementById('fuel-' + row.dataset.id).textContent = fuel.toFixed(4) + ' /m' + change(-speedPct);
+      document.getElementById('fuel-' + row.dataset.id).textContent = fuel.toFixed(2) + ' per km' + change(-speedPct);
     }
   }
   Array.prototype.forEach.call(document.querySelectorAll('table.fleet input.quality'), function (field) {

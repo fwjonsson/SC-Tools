@@ -27,16 +27,16 @@ public sealed record FleetShip(FleetShipRow Row, QtDrive? Drive, double Bonus, S
     public double? Speed => Drive?.Crafted(Bonus).Speed;
 
     /// <summary>
-    /// "611,661,360 m/s (+20 %)": its drive speed and how much faster crafting made it, or "" without a drive. The page's script writes the same while the
-    /// quality is changed (Views/Me/Index.cshtml), so the two must agree.
+    /// "611.66 Mm/s (+20 %)": its drive speed as the game writes it ("Quantum Speed: 509.72 Mm/s") and how much faster crafting made it, or "" without a
+    /// drive. The page's script writes the same while the quality is changed (Views/Me/Index.cshtml), so the two must agree.
     /// </summary>
-    public string SpeedText => Speed is not { } mps ? "" : mps.ToString("N0", CultureInfo.InvariantCulture) + " m/s" + Change(Bonus);
+    public string SpeedText => Speed is not { } mps ? "" : (mps / 1e6).ToString("0.00", CultureInfo.InvariantCulture) + " Mm/s" + Change(Bonus);
 
-    /// <summary>Its drive's fuel per distance as the game shows it, crafted as it is.</summary>
-    public double? FuelPerM => Drive is { FuelRate: > 0 } d ? d.FuelPerM * (1 + FuelPercent / 100) : null;
+    /// <summary>Its drive's fuel burn per km, crafted as it is, or null when the game data has none for the drive.</summary>
+    public double? FuelPerKm => Drive is { FuelRate: > 0 } d ? d.FuelPerKm * (1 + FuelPercent / 100) : null;
 
-    /// <summary>"0.1133 /m (-20 %)": its drive's fuel per distance, as the game's crafting shows it, and how much crafting changed it; "" when not known.</summary>
-    public string FuelText => FuelPerM is not { } f ? "" : f.ToString("0.0000", CultureInfo.InvariantCulture) + " /m" + Change(FuelPercent);
+    /// <summary>"113.34 per km (-20 %)": its drive's fuel burn as the game writes it ("Quantum Fuel Burn: 141.68 per Km") and how much crafting changed it; "" when not known.</summary>
+    public string FuelText => FuelPerKm is not { } f ? "" : f.ToString("0.00", CultureInfo.InvariantCulture) + " per km" + Change(FuelPercent);
 
     static string Change(double percent) => QuantumDrives.PercentText(percent) is { Length: > 0 } t ? " (" + t + ")" : "";
 }
