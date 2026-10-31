@@ -295,6 +295,19 @@ namespace SCTools.Server.Data.Migrations
                     b.ToTable("GauntletRuns", (string)null);
                 });
 
+            modelBuilder.Entity("SCTools.Server.Data.LibraryChoiceRow", b =>
+                {
+                    b.Property<string>("Kind")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Kind", "Value");
+
+                    b.ToTable("LibraryChoices", (string)null);
+                });
+
             modelBuilder.Entity("SCTools.Server.Data.LocationNameRow", b =>
                 {
                     b.Property<string>("LocationId")
