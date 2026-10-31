@@ -245,7 +245,7 @@ public class MapPageTests
         var admin = await f.Admin();
         // the Map tool: the map and the players (the objectives list and the Active Contracts went to the Companion, #380; the map got the room)
         var page = await admin.GetStringAsync("/map");
-        Assert.Contains("<nav class=\"subnav area\" id=\"systems\" role=\"tablist\" aria-label=\"Star system\" style=\"--tool:#e0734a\"></nav>", page);   // the systems: the tool's row of tabs (30 Oct 2026)
+        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#e0734a\"><div class=\"tabs\" id=\"systems\" role=\"tablist\" aria-label=\"Star system\"></div>", page);   // the systems: the tool's row of tabs (30 Oct 2026), the status line beside them (31 Oct)
         Assert.DoesNotContain("<h1>", page);
         Assert.Contains("<div class=\"maptool maponly\">", page);
         Assert.True(page.IndexOf("<div class=\"mapbox\">", StringComparison.Ordinal) < page.IndexOf("<div class=\"mapside players\">", StringComparison.Ordinal));

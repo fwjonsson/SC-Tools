@@ -1,5 +1,5 @@
 // The team status line ("zzoega has spent 12m 04s on this trip", the fun facts of the session), at the right end of a gameplay tool's row of tabs (the
-// Hauling Planner, the Companion, the Gauntlet Tracker: an element with data-ticker; Frank, 31 Oct 2026: under the Route Planner's map before, where the
+// Hauling Planner, the Companion, the Gauntlet Tracker, the Map: an element with data-ticker; Frank, 31 Oct 2026: under the Route Planner's map before, where the
 // page had to make room for it when it came). The row is there from the start, so nothing moves when a line comes. Asked for every 3 seconds while the
 // page is shown (/status.json, SiteStatusController); a new line fades in, the whole of it in its tooltip when the row is too narrow for it.
 (function () {
