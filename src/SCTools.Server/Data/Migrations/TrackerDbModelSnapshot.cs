@@ -249,6 +249,9 @@ namespace SCTools.Server.Data.Migrations
                     b.Property<string>("Drive")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("FuelQuality")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Player")
                         .IsRequired()
                         .HasColumnType("TEXT");
