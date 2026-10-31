@@ -5,7 +5,7 @@ namespace SCTools.Tests.ServerPages;
 
 /// <summary>
 /// On the server the logs decide who is in the party (whoever is in an in-game party with a member) and who is active (the in-game party and the trackers);
-/// the admin's Party page shows it and can override Active.
+/// the admin's Players page shows it and can override Active (the Party page until 31 Oct 2026).
 /// </summary>
 public class AutoPartyPageTests
 {
@@ -13,9 +13,9 @@ public class AutoPartyPageTests
 
     static async Task<string> Set(ServerFactory f, HttpClient admin, string name, string value)
     {
-        var r = await ServerFactory.Send(admin, "/admin/party", "/admin/party/set", ("name", name), ("field", "active"), ("value", value));
+        var r = await ServerFactory.Send(admin, "/admin/players", "/admin/players/active", ("name", name), ("value", value));
         Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);
-        return WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/party"));
+        return WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/players"));
     }
 
     [Fact]
@@ -30,14 +30,13 @@ public class AutoPartyPageTests
         f.Live.Refresh(now);
         var admin = await f.Admin();
 
-        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/party"));
+        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/players"));
         Assert.Contains("zzoega's party: zzatvo, zzoega", page);
         Assert.Equal(new[] { "zzoega", "bileh123", "zzatvo" }, f.Live.Read(t => t.State.Data.Party.ToList()));   // in the party with a member: a member by himself
         Assert.Contains("ZZATVO", page);
         Assert.Contains("Leads his party", page);
         Assert.Contains("In zzoega's party", page);   // zzatvo, seen through zzoega's log
-        Assert.DoesNotContain("BILEH123", page);      // bileh123 is out of the party by the logs: not in the table (Frank, 30 Oct 2026), named under it
-        Assert.Contains("Out of the party by the logs, so not in the table: bileh123.", page);
+        Assert.Contains("Out of the party by the logs", page);   // bileh123: still a player, out of the party by the logs
         Assert.True(f.Live.Read(t => t.Crew.IsActiveAt("zzatvo", DateTime.UtcNow)));
         Assert.False(f.Live.Read(t => t.Crew.IsActiveAt("bileh123", DateTime.UtcNow)));
         Assert.Equal(new[] { "bileh123" }, f.Live.Read(t => t.State.Data.InactiveParty.ToList()));
@@ -49,13 +48,12 @@ public class AutoPartyPageTests
         page = await Set(f, admin, "bileh123", "in");
         Assert.Contains("bileh123 is In until the logs show him leaving.", page);
         Assert.Contains("value=\"in\" selected", page);
-        Assert.Contains("BILEH123", page);   // In by hand: in the table again
-        Assert.DoesNotContain("Out of the party by the logs", page);
+        Assert.DoesNotContain("Out of the party by the logs", page);   // In by hand: in the party again
         Assert.True(f.Live.Read(t => t.Crew.IsActiveAt("bileh123", DateTime.UtcNow)));
 
         page = await Set(f, admin, "bileh123", "auto");
         Assert.Contains("bileh123 follows the logs again.", page);
-        Assert.DoesNotContain("BILEH123", page);   // and out of the table again
+        Assert.Contains("Out of the party by the logs", page);   // and out of it again
         Assert.False(f.Live.Read(t => t.Crew.IsActiveAt("bileh123", DateTime.UtcNow)));   // the logs: not playing
         Assert.Null(f.Live.Read(t => t.Crew.OverrideOf("bileh123")));
     }

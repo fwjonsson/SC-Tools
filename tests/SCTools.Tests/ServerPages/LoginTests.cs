@@ -40,7 +40,7 @@ public class LoginTests
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/data.json")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/site.css")).StatusCode);
 
-        foreach (var url in new[] { "/me", "/admin/keys", "/account", "/account/password" })
+        foreach (var url in new[] { "/me", "/admin/players", "/account", "/account/password" })
         {
             var r = await c.GetAsync(url);
             Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);
@@ -57,26 +57,26 @@ public class LoginTests
         Assert.Contains("Wrong name or password.", await wrong.Content.ReadAsStringAsync());
 
         var admin = await f.Admin();
-        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/admin/keys")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/admin/players")).StatusCode);
 
         // a name that cannot be a name in the game: no key
-        var bad = await ServerFactory.Send(admin, "/admin/keys", "/admin/keys", ("New.Player", "not a name!"));
+        var bad = await ServerFactory.Send(admin, "/admin/players", "/admin/players", ("New.Player", "not a name!"));
         Assert.Contains("only letters, digits", await bad.Content.ReadAsStringAsync());
         Assert.Empty(f.Store.TrackerKeys());
 
         // a key for Pilot_B: shown once, and his tracker can upload with it
-        var made = await ServerFactory.Send(admin, "/admin/keys", "/admin/keys", ("New.Player", "Pilot_B"));
+        var made = await ServerFactory.Send(admin, "/admin/players", "/admin/players", ("New.Player", "Pilot_B"));
         var html = await made.Content.ReadAsStringAsync();
         var key = Regex.Match(html, "[0-9A-F]{48}").Value;
         Assert.Equal(48, key.Length);
         var me = await f.Tracker(key).GetAsync("/api/me");
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
         Assert.Contains("Pilot_B", await me.Content.ReadAsStringAsync());
-        Assert.DoesNotContain(key, await admin.GetStringAsync("/admin/keys"));   // never shown again
+        Assert.DoesNotContain(key, await admin.GetStringAsync("/admin/players"));   // never shown again
 
         // taken back: the tracker is refused
         var row = f.Store.TrackerKeys().Single();
-        var removed = await ServerFactory.Send(admin, "/admin/keys", "/admin/keys/" + row.Id + "/remove");
+        var removed = await ServerFactory.Send(admin, "/admin/players", "/admin/players/" + row.Id + "/remove");
         Assert.Equal(HttpStatusCode.Redirect, removed.StatusCode);
         Assert.Empty(f.Store.TrackerKeys());
         Assert.Equal(HttpStatusCode.Unauthorized, (await f.Tracker(key).GetAsync("/api/me")).StatusCode);
@@ -118,7 +118,7 @@ public class LoginTests
         // the same again: nothing changes; the admin pages are not his
         await ServerFactory.Send(player, "/me", "/me", ("Location", station), ("Color", "#112233"));
         Assert.Contains("Nothing changed.", await player.GetStringAsync("/me"));
-        var keys = await player.GetAsync("/admin/keys");
+        var keys = await player.GetAsync("/admin/players");
         Assert.Equal(HttpStatusCode.Redirect, keys.StatusCode);
         Assert.StartsWith("/login/denied", keys.Headers.Location!.PathOf());
     }
@@ -139,7 +139,7 @@ public class LoginTests
         using var f = new ServerFactory();
         var player = await f.Player(f.AddKey(ServerFactory.AdminName));   // the admin plays too (Frank is zzoega)
         Assert.Equal(HttpStatusCode.OK, (await player.GetAsync("/me")).StatusCode);
-        foreach (var url in new[] { "/admin", "/admin/keys", "/account" })
+        foreach (var url in new[] { "/admin", "/admin/players", "/account" })
         {
             var r = await player.GetAsync(url);   // checked again on every request in the tests: the tracker's login stays a player's
             Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);
