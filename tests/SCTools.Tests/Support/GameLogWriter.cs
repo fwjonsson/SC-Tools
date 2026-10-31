@@ -68,8 +68,8 @@ sealed class GameLogWriter
         Add($"{Ts} [Notice] <CLocalMissionPhaseMarker::CreateMarker> Creating objective marker: missionId [{mission}], generator name [RedWind_Hauling], contract [{contract}], contractDefinitionId[{definition}], objectiveId [{objective}], markerEntityId [1474], zoneHostId [{zone}], position [x: {F(at.X)}, y: {F(at.Y)}, z: {F(at.Z)}] [Team_MissionFeatures][Missions]");
 
     /// <summary>The marker of an objective the game gives no position (a bounty's: 0, 0, 0), with the marker's entity id.</summary>
-    public GameLogWriter MissionMarker(string mission, string contract, string objective, string marker) =>
-        Add($"{Ts} [Notice] <CLocalMissionPhaseMarker::CreateMarker> Creating objective marker: missionId [{mission}], generator name [BountyHuntersGuild_ShipWaveAttack], contract [{contract}], contractDefinitionId[d071209e-85e2-4946-99e4-8c1d9714dd06], objectiveId [{objective}], markerEntityId [{marker}], zoneHostId [862311775534], position [x: 0.000000, y: 0.000000, z: 0.000000] [Team_MissionFeatures][Missions]");
+    public GameLogWriter MissionMarker(string mission, string contract, string objective, string marker, string zone = "862311775534") =>
+        Add($"{Ts} [Notice] <CLocalMissionPhaseMarker::CreateMarker> Creating objective marker: missionId [{mission}], generator name [BountyHuntersGuild_ShipWaveAttack], contract [{contract}], contractDefinitionId[d071209e-85e2-4946-99e4-8c1d9714dd06], objectiveId [{objective}], markerEntityId [{marker}], zoneHostId [{zone}], position [x: 0.000000, y: 0.000000, z: 0.000000] [Team_MissionFeatures][Missions]");
 
     /// <summary>The popup of a new objective: what it says.</summary>
     public GameLogWriter ObjectivePopup(string mission, string objective, string text) =>

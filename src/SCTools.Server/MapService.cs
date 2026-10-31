@@ -64,7 +64,25 @@ public sealed class MapService
         // everybody playing, where the location tracker has him, with a copy of his missions (the tracker adds to them meanwhile)
         var book = _live.Locations(nowUtc);
         List<(string Name, HaulingLog Log, PlayerLocation Where, Dictionary<string, Mission> Missions)> playing;
-        lock (_uploads.Sync) playing = book.Players.Select(p => (p.Name, p.Log, p.Where, new Dictionary<string, Mission>(p.Log.Missions))).ToList();
+        // the beacons placed by a route's fuel estimate (anybody's: a shared mission's beacon is the same), and each objective's beacon, by mission and
+        // objective; then the zone of every placed objective is that spot too (the game's id of the cluster it is in, the same for every objective there
+        // on that server: a later objective in it, or another mission there, needs no route of its own)
+        var byBeacon = new Dictionary<string, Place>(StringComparer.OrdinalIgnoreCase);
+        var beaconOf = new Dictionary<(string, string), string>();
+        var byZone = new Dictionary<string, Place>();
+        lock (_uploads.Sync)
+        {
+            playing = book.Players.Select(p => (p.Name, p.Log, p.Where, new Dictionary<string, Mission>(p.Log.Missions))).ToList();
+            foreach (var p in playing)
+            {
+                foreach (var (beacon, spot) in p.Where.Ranged ?? new Dictionary<string, Place>()) byBeacon.TryAdd(beacon, spot);
+                foreach (var b in p.Log.Beacons) beaconOf[(b.MissionId.ToLowerInvariant(), b.Objective)] = b.NavPoint;
+            }
+            foreach (var p in playing)
+                foreach (var b in p.Log.Beacons)
+                    if (byBeacon.TryGetValue(b.NavPoint, out var spot) && p.Missions.TryGetValue(b.MissionId, out var bm) && bm.ObjZone.TryGetValue(b.Objective, out var z))
+                        byZone.TryAdd(z, spot);
+        }
         // the hidden spots somebody is at or flies to (a mission's beacon placed by its fuel estimate): the map needs where they are, nothing more
         var spots = playing.SelectMany(p => new[] { p.Where.At, p.Where.From, p.Where.To, p.Where.LastPing })
             .Where(x => x is { Hidden: true }).Select(x => x!.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -115,6 +133,12 @@ public sealed class MapService
                         o = new MapObjective(name, title, where.System, null, pos.X / 1e9, pos.Y / 1e9, text ?? "in space");   // in the system's own frame (metres): where it is in the system he is in
                     else if (text != null && LocationTracker.NamedIn(text, m.System, atlas) is { } named)   // "Go to a debris field above Daymar": at Daymar
                         o = new MapObjective(name, title, named.System, named.Key, null, null, text);
+                    else if ((beaconOf.TryGetValue(id, out var nav) && byBeacon.TryGetValue(nav, out var ranged) ? ranged : byZone.GetValueOrDefault(zone)) is { } spot)
+                    {
+                        // its beacon was placed by somebody's route to it (or another objective in the same cluster's was): at that hidden spot
+                        o = new MapObjective(name, title, spot.System, spot.Key, null, null, text ?? spot.Name);
+                        spots.Add(spot.Key);
+                    }
                     else
                     {
                         // the game does not say where (a bounty's marker is at 0, 0, 0): in the list, by what it says and the contract's system

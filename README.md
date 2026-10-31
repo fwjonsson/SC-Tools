@@ -336,7 +336,12 @@ admin (done), then going live.
   next spot over 370 Mm away. The map knows the spots but draws none of them: map.json's systems carry a spot only while a player is at it or flies
   to it (`hidden`; the engine places him there and draws nothing for it), so he flies there and stands there "at the mission". At such a spot the
   game names only the system as the start of his next route ("Projected Start Location is Nyx"): he is still there. A beacon with no spot at that
-  distance, or a ship whose fuel is not known, stays "at the mission" with no point, as before. A jump whose start is not known shows as a ring at the destination with his name and an arrow. A player is an arrow in his colour (pointing along his
+  distance, or a ship whose fuel is not known, stays "at the mission" with no point, as before. **Its objective is there too**: once anybody has
+  set a route to a beacon (picking it in the starmap is enough, no jump needed), the objective's gold diamond is at that spot for everybody with the
+  mission (`PlayerLocation.Ranged`, by the beacon's id). And every objective whose marker is in the same zone (the marker's `zoneHostId`: the game's
+  id of the cluster it is in, the same for every objective there on that server; zzoega's log of 31 Oct 2026 had the bounty's "Go to" and "Return
+  to Glaciem Ring Cluster" in one zone) is at that spot without a route of its own. Before anybody set a route, the objective is in the list only:
+  the marker's own position is the same offset in every cluster, so it cannot tell which one. A jump whose start is not known shows as a ring at the destination with his name and an arrow. A player is an arrow in his colour (pointing along his
   route in quantum, up when he is at a place) with a ring pulsing out from it and his name beside it in his colour; players at the same place
   are one under the other. Objectives: at a station when their zone is one of the Pyro stations
   (`StationIds`), where they are when the marker is in the system's own frame (in the system the player is in), at the place their text names

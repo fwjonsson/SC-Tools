@@ -7,10 +7,13 @@ namespace SCTools.Locations;
 /// (JumpTimes; taking off into the station's own area is not one of them); PickedLanded: was he at a station when he picked it, in its hangar or taking off
 /// in its area (null: the log does not say, a tracker from before 31 Oct 2026). Hangar: landed or taking off now (null: neither).
 /// ByPlanner: the Hauling Planner's pickups, deliveries or hand-ins put him at that station, being newer than anything his jumps say.
+/// Ranged: the missions' beacons he set a route to that were placed by the route's fuel estimate (BeaconRanging), by the beacon's id: the Map tool puts
+/// their objectives there.
 /// </summary>
 public sealed record PlayerLocation(string? System, Place? At, DateTime? Since, QtEvent? Picked, Place? From, Place? To,
     MissionPoint? AtMission = null, MissionPoint? ToMission = null, bool Jumped = false, Place? LastPing = null,
-    IReadOnlyList<AreaChange>? Moves = null, bool? PickedLanded = null, bool ByPlanner = false, HangarState? Hangar = null)
+    IReadOnlyList<AreaChange>? Moves = null, bool? PickedLanded = null, bool ByPlanner = false, HangarState? Hangar = null,
+    IReadOnlyDictionary<string, Place>? Ranged = null)
 {
     /// <summary>
     /// Where he is for the Hauling Planner, as its ids (a Pyro station's id, else the place's key: StarRoutes): the place he is at and since when, and the
