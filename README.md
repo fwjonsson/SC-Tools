@@ -483,7 +483,10 @@ admin (done), then going live.
   as the Hauling Planner's on every tool (`th.n`, `td.n`: the Gauntlet Tracker's Stats and Leaderboard, Session History's Games). The colours since
   31 Oct 2026: the Hauling Planner blue, the Companion yellow (pink before), the Gauntlet Tracker orange (the Map tool's colour
   before it became an admin page; yellow before, not red: the admin's pages are), Session History teal and the Mission Library grey (the other way round before), the Party purple. On an ultrawide screen every page keeps to a band of 1,900 px in the middle: the bar, the
-  admin's row and the pages' content (`topbar.css`, `site.css`), like the Hauling Planner's live page (Frank, 29 Oct 2026). A page with a wide table (the
+  admin's row and the pages' content (`topbar.css`, `site.css`), like the Hauling Planner's live page (Frank, 29 Oct 2026). Every page and tab has the same room
+  under the row of tabs (14 px, the Route Planner's: `main`'s padding, and the first thing on a page brings no margin of its own on top; Frank, 31 Oct
+  2026), and the maps of the Route Planner, the Companion and the Gauntlet Tracker are the same size at every width (820 px, 520 at 1600 px or less, 340
+  at 1200, the whole width at 900; `.maptool`'s `--mapw` and `.planleft`), with the Players and the next column's title level with the map's top. A page with a wide table (the
   Mission Library, the Session tool's games, the Gauntlet Tracker) takes the whole band too since 30 Oct 2026 (Frank; 1,400 px before), and the Mission
   Library numbers its rows in a # column on the left, on through its pages. The pages of the site end with a footer: the tracker's download, how to set it up, and the
   disclaimer. The admin's pages have a second row under it with his pages (Session, Party, Contracts, Debts, Gauntlet, Edit Mission Info, Scrip, Map

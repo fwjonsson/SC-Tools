@@ -221,6 +221,10 @@ public class GauntletPageTests
         Assert.True(note > page.IndexOf("<th>Completed</th>", grind, StringComparison.Ordinal));
         Assert.DoesNotContain("Counted passively", page);
         Assert.DoesNotContain("This game session", page);
+        // no runs yet: said under the map on this tab, so the map, the Players and the Game Session start level at the top (31 Oct 2026); over the other tabs
+        Assert.True(page.IndexOf("No gauntlet missions seen yet", StringComparison.Ordinal) > page.IndexOf("<h2>Grind Session</h2>", StringComparison.Ordinal));
+        var stats = await admin.GetStringAsync("/gauntlet/stats");
+        Assert.True(stats.IndexOf("No gauntlet missions seen yet", StringComparison.Ordinal) < stats.IndexOf("<h2>", StringComparison.Ordinal));
 
         // its feed is the Companion's map: zzoega, who is playing, is on the admin's, and on his own; a player in no party with him does not see him
         var now = DateTime.UtcNow;

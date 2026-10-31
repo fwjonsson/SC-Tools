@@ -22,7 +22,12 @@ a { color:inherit; }
 @keyframes tickerfade { from { opacity:0; } to { opacity:1; } }
 @media (max-width:720px) { .subnav .ticker { display:none; } }
 /* every page keeps to a band of 1,900 px in the middle of an ultrawide screen (the bar and the admin's row too), so nothing is stretched out or far apart */
-main { padding:8px 18px 40px; max-width:900px; margin-left:max(0px, calc((100% - 1900px) / 2)); }
+main { padding:14px 18px 40px; max-width:900px; margin-left:max(0px, calc((100% - 1900px) / 2)); }
+/* the same room under the row of tabs (or the bar) on every page and tab: main's 14 px, the Route Planner's (Frank, 31 Oct 2026; 12 to 32 px before, by
+   the margin of whatever came first). So the first thing on a page, however deep, brings no margin of its own on top */
+main > :first-child, main > :first-child > :first-child, main > :first-child > :first-child > :first-child,
+main > :first-child > :first-child > :first-child > :first-child,
+section.companiontab > :first-child, section.companiontab > :first-child > :first-child { margin-top:0; }
 h1 { font-size:22px; margin:18px 0 8px; }
 h2 { font-size:16px; margin:24px 0 8px; }
 .muted, .hint { color:var(--muted); }
@@ -157,15 +162,18 @@ tr.crash td { color:#ff9b9b; }
 /* the Map tool (Frank, 29 Oct 2026): a grid of three columns on a wide screen: the map, the players beside it and the objectives beside them; under all three,
    from the map's left edge to the objectives' right edge, the missions going on. On a narrower window one column, everything under each other */
 main:has(.maptool) { max-width:1900px; }
-.maptool { display:grid; grid-template-columns:minmax(0, 820px) minmax(260px, 340px) minmax(300px, 1fr); gap:0 18px; align-items:start; }
+.maptool { --mapw:820px; display:grid; grid-template-columns:minmax(0, var(--mapw)) minmax(260px, 340px) minmax(300px, 1fr); gap:0 18px; align-items:start; }
+/* the map as big as the Route Planner's at every width (Frank, 31 Oct 2026: the Companion's was 820 px at every width, the Gauntlet Tracker's squeezed) */
+@media (max-width:1600px) { .maptool { --mapw:520px; } }
+@media (max-width:1200px) { .maptool { --mapw:340px; } }
 .mapbox { grid-column:1; grid-row:1; min-width:0; }
 .mapside.players { grid-column:2; grid-row:1; }
 .mapside.objectives { grid-column:3; grid-row:1; }
 .mapmissions { grid-column:1 / span 3; grid-row:2; min-width:0; }
 /* the Map tool alone has the map and the players since the Companion took the objectives and the contracts (#380): the map gets a little bigger */
 .maptool.maponly { grid-template-columns:minmax(0, 1060px) minmax(260px, 340px); }
-/* the Gauntlet Tracker's map is the Companion's size (Frank, 31 Oct 2026: a little too big at the admin's Map's 1060 px) */
-.maptool.gauntletmap { grid-template-columns:minmax(0, 820px) minmax(260px, 340px); margin-bottom:18px; }
+/* the Gauntlet Tracker's map is the Companion's: the same columns, the sessions in the third (Frank, 31 Oct 2026) */
+.maptool.gauntletmap { margin-bottom:18px; }
 .hint.below { margin-top:6px; }   /* a note under its table (the Gauntlet Tracker's grind session) */
 /* the admin's notice of unknown places (alerts.js, #414): toasts in the top right, a click opens Map places */
 .toasts { position:fixed; top:64px; right:16px; z-index:100; display:flex; flex-direction:column; gap:8px; max-width:min(420px, calc(100vw - 32px)); }
@@ -197,7 +205,7 @@ main:has(.maptool) { max-width:1900px; }
 .mapcard b + b, .mapcard .shops + b { margin-top:6px; }
 .mapcard .svc { color:#f2c14e; }
 .mapcard .shops { color:#a7adb8; }
-@media (max-width:1200px) {
+@media (max-width:900px) {
   .maptool, .maptool.maponly { grid-template-columns:minmax(0, 1fr); }
   .mapbox, .mapside.players, .mapside.objectives, .mapmissions { grid-column:1; grid-row:auto; }
 }
@@ -257,6 +265,10 @@ input.saving { opacity:.6; }
 input.saved { border-color:var(--good); transition:border-color 2s ease-out; }
 input.unsaved { border-color:var(--bad); }
 .autosave-state { min-height:1.3em; margin:4px 0; }
+/* on the Companion it floats at the bottom right, shown only while it says something: in the page it took a line over the map (Frank, 31 Oct 2026) */
+.autosave-state.floating { position:fixed; right:16px; bottom:12px; min-height:0; margin:0; padding:5px 12px; background:var(--cell); border:1px solid var(--line);
+  border-radius:6px; z-index:90; }
+.autosave-state.floating:empty { display:none; }
 /* the Mission Library: a mission the viewer is playing now (taken, not ended), and the pages */
 table.missions tr.running td { background:color-mix(in srgb, var(--good) 10%, var(--cell)); }
 .pager { display:flex; gap:18px; align-items:center; margin:10px 0; }
