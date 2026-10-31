@@ -367,16 +367,17 @@ function mapSvg(el, p, routes, names, tab) {
 
 // The players and the objectives of the Trip Planner's map (the Map tool's Pyro, /hauling/map.json), every 3 seconds while the tab is shown. The program's
 // own page has no such address (404): then the map shows the routes alone and the poll stops.
-// The admin's 📷 of a contract: the Mission Library's screenshot box for its mission (by its key, or its name as the table has it), in a new tab (#437).
-function shotLink(keyOrName) {
-  const a = document.createElement('a');
-  a.className = 'shotbtn';
-  a.textContent = '📷';
-  a.href = '/missions?shot=' + encodeURIComponent(keyOrName) + '#shot';
-  a.target = '_blank';
-  a.rel = 'noopener';
-  a.title = 'Read a screenshot of this contract into the Mission Library';
-  return a;
+// The admin's 📷 of a contract: a little box beside it reads a screenshot of the contract into its mission (screenshot.js: by its key, or its name as the
+// table has it; #437).
+function shotLink(keyOrName, name) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'shotbtn';
+  b.textContent = '📷';
+  b.dataset.shotFor = keyOrName;
+  b.dataset.shotName = name || keyOrName;
+  b.title = 'Read a screenshot of this contract (Ctrl+V)';
+  return b;
 }
 // The admin's 📷 column of the Completed Contracts table: one for every kind of contract by its name (not the Total).
 function addShotLinks(box) {
@@ -406,7 +407,7 @@ function missionsTable(box, list) {
       const td = tr.insertCell(); td.textContent = v;
       if (i === 0) td.className = 'idx'; else if (i === 1) td.className = 'name'; else if (i === 3 || (i >= 6 && i <= 10)) td.className = 'right';
     });
-    if (ADMIN) { const td = tr.insertCell(); if (m.key) td.appendChild(shotLink(m.key)); }
+    if (ADMIN) { const td = tr.insertCell(); if (m.key) td.appendChild(shotLink(m.key, m.title)); }
   });
   const scroll = document.createElement('div'); scroll.className = 'scroll'; scroll.appendChild(t); box.appendChild(scroll);
 }

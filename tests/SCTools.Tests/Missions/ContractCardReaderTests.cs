@@ -20,6 +20,11 @@ public class ContractCardReaderTests
         // the number of scrip on one line, "Council Scrip" on the next
         var offer = ContractCardReader.Read("Looking For Trouble [200 Rep]", "158,750", "a Headtiunters", "You make it to the end and I'll give the main contractor a bonus 14\nCouncil Scrip as thanks.");
         Assert.Equal((158_750L, (long?)null, 14L, "Headtiunters"), (offer.Reward!.Value, offer.Mg, offer.Council!.Value, offer.Contractor));   // the reflection's "a" is gone
+
+        // Red Lvl. Contract: Defend Fuel Tanks (Foxwell Enforcement, 31 Oct 2026): the scrip in the middle of a sentence, the reputation at the end
+        var fuel = ContractCardReader.Read("Red Lvl. Contract: Defend Fuel Tanks [250\nRep] [BP]*", "387,000", "Foxwell Enforcement",
+            "If you and the\nassets make it out intact, we're offering a well-earned 7 MG Scrip\nto the main contractor.\n\nReputation Awarded: 250");
+        Assert.Equal((387_000L, 7L, 250L), (fuel.Reward!.Value, fuel.Mg!.Value, fuel.Xp!.Value));
     }
 
     [Fact]

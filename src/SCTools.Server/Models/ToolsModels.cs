@@ -117,7 +117,8 @@ public sealed record LibraryFilter(string Q = "", string Faction = "", string Re
 /// no Played by me), and whether it is the admin's editable one (Edit Mission Info: a field per cell) under Path.
 /// </summary>
 public sealed record MissionLibraryPage(IReadOnlyList<LibraryEntry> Entries, LibraryFilter Filter, int Total, int Found, int ToDo, int Known, int Mine,
-    int Page, int Pages, int Version, IReadOnlyList<string> Factions, string? Viewer, string Path, bool Editable)
+    int Page, int Pages, int Version, IReadOnlyList<string> Factions, string? Viewer, string Path, bool Editable, IReadOnlyList<string>? Categories = null,
+    IReadOnlyList<string>? FactionChoices = null)
 {
     /// <summary>The address of this list: a page of it.</summary>
     public string Link(int page) => Filter.Link(Path, page);

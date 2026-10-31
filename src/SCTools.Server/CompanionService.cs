@@ -92,10 +92,8 @@ public sealed class CompanionService
         return node;
     }
 
-    /// <summary>Every faction in the library so far (typed in, or the Wiki's), for the admin's Faction fields to pick from, as on Edit Mission Info.</summary>
-    public List<string> Factions() =>
-        _library.Entries().Select(e => e.FactionShown).Where(g => !string.IsNullOrEmpty(g)).Select(g => g!).Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(g => g, StringComparer.OrdinalIgnoreCase).ToList();
+    /// <summary>The admin's list of factions (MissionLibrary.Choices: kept in the box above the Mission Library), for his Faction drop-downs to pick from.</summary>
+    public List<string> Factions() => _library.Choices(MissionLibrary.FactionList);
 
     /// <summary>
     /// The session part for this viewer, and its ETag: the same data again is the same tag (the page's poll gets a 304). Made again when a piece of a log

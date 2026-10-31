@@ -35,10 +35,10 @@ public sealed record LibraryEntry(MissionKindRow Row, int Taken, int Completed, 
     /// <summary>The faction the page shows: the one typed in (the Giver field, as it was called), else the Star Citizen Wiki's.</summary>
     public string? FactionShown => Row.Giver?.Trim() is { Length: > 0 } g ? g : Wiki?.Faction;
 
-    /// <summary>The Star Citizen Wiki's category of the mission (Hauling, Bounty Hunter, Security...), the reputation it gives and Legal or Illegal; null: not known.</summary>
-    public string? Category => Wiki?.Category;
-    public long? Xp => Wiki?.Xp;
-    public string? Legality => Wiki?.Legality;
+    /// <summary>The category of the mission (Hauling, Bounty Hunter, Security...), the reputation it gives (XP) and Legal or Illegal: the admin's, else the Star Citizen Wiki's; null: not known.</summary>
+    public string? Category => Row.Category?.Trim() is { Length: > 0 } c ? c : Wiki?.Category;
+    public long? Xp => Row.Xp ?? Wiki?.Xp;
+    public string? Legality => Row.Legality?.Trim() is { Length: > 0 } l ? l : Wiki?.Legality;
 
     /// <summary>Nothing typed in about its rewards yet.</summary>
     public bool NeedsInfo => Row.Auec == null && Row.MgScrip == null && Row.CouncilScrip == null;
@@ -249,6 +249,9 @@ public sealed class MissionLibrary
                 to.Scu ??= was.Scu;
                 if (to.ScuSuggested == null) (to.ScuSuggested, to.ScuSuggestedBy, to.ScuSuggestedUtc) = (was.ScuSuggested, was.ScuSuggestedBy, was.ScuSuggestedUtc);
                 to.Notes ??= was.Notes;
+                to.Category ??= was.Category;
+                to.Xp ??= was.Xp;
+                to.Legality ??= was.Legality;
                 if (was.EditedUtc != null && (to.EditedUtc == null || was.EditedUtc > to.EditedUtc)) (to.EditedBy, to.EditedUtc) = (was.EditedBy, was.EditedUtc);
             }
             left.Add(m.Kind!);
@@ -545,8 +548,74 @@ public sealed class MissionLibrary
         }
     }
 
+    // ------------------------------------------------------------------ the admin's lists for the drop-downs (Frank, 31 Oct 2026)
+
+    /// <summary>The admin's lists the Faction and the Category drop-downs pick from.</summary>
+    public const string FactionList = "faction", CategoryList = "category";
+
+    static bool IsList(string kind) => kind is FactionList or CategoryList;
+
+    /// <summary>
+    /// A list of the drop-downs, A to Z. The first time it starts with what the library has then (the factions and categories typed in, and the Star Citizen
+    /// Wiki's); after that it is what the admin added and removed (an empty list stays empty).
+    /// </summary>
+    public List<string> Choices(string kind)
+    {
+        if (!IsList(kind)) return new List<string>();
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            var marker = "ChoicesStarted:" + kind;
+            if (db.SiteValues.Find(marker) == null)
+            {
+                var start = Entries().Select(e => kind == FactionList ? e.FactionShown : e.Category).Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var have = db.LibraryChoices.Where(c => c.Kind == kind).Select(c => c.Value).ToList();
+                foreach (var v in start.Where(v => !have.Contains(v, StringComparer.OrdinalIgnoreCase)))
+                    db.LibraryChoices.Add(new LibraryChoiceRow { Kind = kind, Value = v });
+                db.SiteValues.Add(new SiteValueRow { Key = marker, Value = 1, ChangedUtc = DateTime.UtcNow });
+                db.SaveChanges();
+            }
+            return db.LibraryChoices.AsNoTracking().Where(c => c.Kind == kind).Select(c => c.Value).ToList()
+                .OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+    }
+
+    /// <summary>Adds an entry to a list (not again when it is there in any capitals). False when it is no list or no entry.</summary>
+    public bool AddChoice(string kind, string? value)
+    {
+        value = value?.Trim();
+        if (!IsList(kind) || string.IsNullOrEmpty(value) || value.Length > 80) return false;
+        var have = Choices(kind);
+        if (have.Contains(value, StringComparer.OrdinalIgnoreCase)) return true;
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            db.LibraryChoices.Add(new LibraryChoiceRow { Kind = kind, Value = value });
+            db.SaveChanges();
+            Changed();
+        }
+        return true;
+    }
+
+    /// <summary>Takes an entry out of a list (a mission that has it keeps it: it is only no longer offered).</summary>
+    public void RemoveChoice(string kind, string? value)
+    {
+        if (!IsList(kind) || string.IsNullOrWhiteSpace(value)) return;
+        Choices(kind);   // started first, so it does not come back with the start
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            var rows = db.LibraryChoices.Where(c => c.Kind == kind).ToList().Where(c => string.Equals(c.Value, value.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+            if (rows.Count == 0) return;
+            db.LibraryChoices.RemoveRange(rows);
+            db.SaveChanges();
+            Changed();
+        }
+    }
+
     /// <summary>The fields a player can type in.</summary>
-    public static readonly string[] Fields = { "name", "giver", "scu", "auec", "mg", "council", "notes" };
+    public static readonly string[] Fields = { "name", "giver", "scu", "auec", "mg", "council", "notes", "category", "xp", "legality" };
 
     /// <summary>
     /// Changes one field of a kind of mission (empty: not known). The aUEC of a kind the Hauling Planner reads is what the planner pays for every such
@@ -556,7 +625,7 @@ public sealed class MissionLibrary
     {
         value = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         long? number = null;
-        if (field is "auec" or "mg" or "council" or "scu" && value != null)
+        if (field is "auec" or "mg" or "council" or "scu" or "xp" && value != null)
         {
             if (!long.TryParse(value.Replace(" ", "").Replace(",", "").Replace(".", ""), out var n) || n < 0) return null;
             number = n;
@@ -576,6 +645,9 @@ public sealed class MissionLibrary
                 case "mg": row.MgScrip = number; break;
                 case "council": row.CouncilScrip = number; break;
                 case "scu": row.Scu = number; break;
+                case "category": row.Category = value; break;
+                case "xp": row.Xp = number; break;
+                case "legality": row.Legality = value; break;
                 default: return null;
             }
             row.EditedBy = who;

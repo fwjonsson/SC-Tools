@@ -41,6 +41,7 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
     public DbSet<MapPlaceRow> MapPlaces => Set<MapPlaceRow>();
     public DbSet<MapAliasRow> MapAliases => Set<MapAliasRow>();
     public DbSet<SiteValueRow> SiteValues => Set<SiteValueRow>();
+    public DbSet<LibraryChoiceRow> LibraryChoices => Set<LibraryChoiceRow>();
     public DbSet<GauntletRunRow> GauntletRuns => Set<GauntletRunRow>();
 
     /// <summary>
@@ -232,6 +233,12 @@ public sealed class TrackerDb : IdentityDbContext<IdentityUser>
         {
             e.ToTable("SiteValues");
             e.HasKey(x => x.Key);
+        });
+
+        b.Entity<LibraryChoiceRow>(e =>
+        {
+            e.ToTable("LibraryChoices");
+            e.HasKey(x => new { x.Kind, x.Value });
         });
 
         b.Entity<GauntletRunRow>(e =>

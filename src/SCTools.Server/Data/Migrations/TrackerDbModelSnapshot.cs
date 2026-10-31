@@ -295,6 +295,19 @@ namespace SCTools.Server.Data.Migrations
                     b.ToTable("GauntletRuns", (string)null);
                 });
 
+            modelBuilder.Entity("SCTools.Server.Data.LibraryChoiceRow", b =>
+                {
+                    b.Property<string>("Kind")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Kind", "Value");
+
+                    b.ToTable("LibraryChoices", (string)null);
+                });
+
             modelBuilder.Entity("SCTools.Server.Data.LocationNameRow", b =>
                 {
                     b.Property<string>("LocationId")
@@ -496,6 +509,9 @@ namespace SCTools.Server.Data.Migrations
                     b.Property<long?>("Auec")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Category")
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("CouncilScrip")
                         .HasColumnType("INTEGER");
 
@@ -506,6 +522,9 @@ namespace SCTools.Server.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Giver")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Legality")
                         .HasColumnType("TEXT");
 
                     b.Property<long?>("MgScrip")
@@ -535,6 +554,9 @@ namespace SCTools.Server.Data.Migrations
 
                     b.Property<string>("WikiUuid")
                         .HasColumnType("TEXT");
+
+                    b.Property<long?>("Xp")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Key");
 

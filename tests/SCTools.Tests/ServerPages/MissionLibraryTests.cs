@@ -89,8 +89,8 @@ public class MissionLibraryTests
         Assert.Equal(1536L, entry.Row.Scu);   // its cargo
         var withGiver = await admin.GetStringAsync("/missions");
         Assert.Contains("Not saved", withGiver);
-        Assert.Contains("<option value=\"Red Wind\"></option>", withGiver);   // to pick in the other Faction fields
-        Assert.Contains("list=\"factions\"", withGiver);
+        Assert.Contains("<option value=\"Red Wind\" selected=\"selected\">Red Wind</option>", withGiver);   // its Faction drop-down (Frank, 31 Oct 2026)
+        Assert.Contains("<select name=\"value\" class=\"giver\" aria-label=\"faction\">", withGiver);
         Assert.Contains("name=\"value\" value=\"1536\" placeholder=\"\" class=\"num scu\"", withGiver);   // in the SCU column
         Assert.DoesNotContain(RivalShown, WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?rewards=todo")));   // it has rewards now
 
