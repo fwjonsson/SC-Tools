@@ -202,6 +202,9 @@
   function renderSession() {
     const box = document.getElementById('session');
     if (!box || !sess) return;
+    // the admin is typing the start time: drawn when he leaves the field, so what he types is not lost
+    const a = document.activeElement;
+    if (a && box.contains(a) && a.tagName === 'INPUT') { a.addEventListener('blur', renderSession, { once: true }); return; }
     box.textContent = '';
     const s = sess.session;
     if (!s) {
@@ -220,6 +223,9 @@
         const td = tr.insertCell(); td.className = 'right'; td.textContent = value;
         return td;
       };
+      // the start: a field for the admin (Frank, 31 Oct 2026: the same row as the Hauling Planner's), in this browser's time zone
+      const startCell = line('Start time', hhmm(s.start));
+      if (editor) startField(startCell, s);
       const time = line('Time played', clock(played(s)));
       time.classList.add('clock');
       line('Crashes', String(s.crashes));
@@ -241,6 +247,25 @@
         (s.withoutReward > 0 ? ' ' + s.withoutReward + (s.withoutReward === 1 ? ' completed mission has' : ' completed missions have') + ' no reward in the library yet.' : '');
     }
     contracts('completed', sess.completed || [], true, 'No contracts ended this session.');
+  }
+  // The admin's Start time of the session shown: 19:30 in this browser's time zone, or empty for the start the logs give; sent as soon as it changes.
+  function startField(td, s) {
+    td.textContent = '';
+    const input = el('input', 'time startin' + (s.startSet ? ' typed' : ''));
+    const d = new Date(s.start);
+    input.value = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); input.placeholder = '19:30'; input.setAttribute('aria-label', 'Start time');
+    input.title = s.startSet ? 'Set by you. Empty: the start the logs give again.' : 'When the game started. Type when the session really started (19:30).';
+    input.addEventListener('change', function () {
+      const body = new FormData();
+      [['__RequestVerificationToken', tokenField.value], ['player', sess.me], ['from', s.from], ['startTime', input.value.trim()],
+        ['tz', String(new Date(s.from).getTimezoneOffset())]].forEach(function (h) { body.append(h[0], h[1]); });
+      input.classList.add('saving');
+      fetch('/companion/start', { method: 'POST', body: body, credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (d) { input.classList.remove('saving'); input.classList.add(d.ok ? 'saved' : 'unsaved'); input.title = d.said || ''; if (d.ok) refreshSession(); })
+        .catch(function () { input.classList.remove('saving'); input.classList.add('unsaved'); input.title = 'Not saved: the site could not be reached. Try again.'; });
+    });
+    td.appendChild(input);
   }
   // Every second: the time played and the per hour of a game going on.
   function tick() {

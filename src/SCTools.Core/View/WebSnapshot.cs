@@ -19,6 +19,9 @@ public sealed class WebSnapshotOptions
 
     /// <summary>Where the Submit button of a worker's Current Route goes (the server's address; Frank, 30 Oct 2026): his run on the way ends, counted as it is. The program has none.</summary>
     public string? TripEnd { get; init; }
+
+    /// <summary>Where the admin's Start Time of the session goes (the server's address; Frank, 31 Oct 2026: a row of the Session table, his Session page went).</summary>
+    public string? StartTime { get; init; }
 }
 
 /// <summary>
@@ -65,6 +68,7 @@ public sealed partial class WebSnapshot
             runsLive = runs.Live,    // runs on the way: when each started (UTC), the page counts its Time up from that by its own clock (null: not running)
             runKeys = runs.Keys,     // the runs' keys, for the admin's Lost Cargo pick (RunsLost)
             runsLost = _o.RunsLost,
+            startTimeSet = _s.Inputs == null ? null : _o.StartTime,   // the admin's Start Time field, while there is a session
             planner = Planner(_t.Plan),
             debts = Debts(),
             debtsPay = _o.DebtsPay,

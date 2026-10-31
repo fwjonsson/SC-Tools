@@ -80,6 +80,9 @@ input.num { text-align:right; }
 input.small, select.small { max-width:80px; }
 td form { margin:0; }
 input.time { width:90px; }
+/* the admin's Start time row of a tool's session (Frank, 31 Oct 2026): the Hauling Planner's, the Companion's, the Gauntlet Tracker's; gold when he set it */
+input.startin { width:70px; text-align:right; }
+input.startin.typed { color:#f2c14e; }
 input.typed { border-color:#c8a400; }
 td button { margin:0; padding:4px 12px; }
 td.center { text-align:center; }

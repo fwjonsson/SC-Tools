@@ -34,7 +34,7 @@ builder.Services.AddSingleton(sp =>
     var log = sp.GetRequiredService<ILogger<DataStore>>();
     var data = store.LoadOrImport(sp.GetRequiredService<ServerPaths>().DataFile, m => log.LogInformation("{Message}", m));
     var settings = sp.GetRequiredService<ServerSettings>();
-    return new LiveTracker(data, store.Changed, sp.GetRequiredService<LogUploads>(), new WebSnapshotOptions { DebtsPay = "/hauling/debts/payment", RunsLost = "/hauling/runs/lost", TripScu = "/hauling/trips/scu", TripEnd = "/hauling/trips/end" },
+    return new LiveTracker(data, store.Changed, sp.GetRequiredService<LogUploads>(), new WebSnapshotOptions { DebtsPay = "/hauling/debts/payment", RunsLost = "/hauling/runs/lost", TripScu = "/hauling/trips/scu", TripEnd = "/hauling/trips/end", StartTime = "/hauling/session/start" },
         followParty: settings.FollowParty, followSessions: settings.FollowSessions);
 });
 builder.Services.AddSingleton(sp =>
@@ -49,6 +49,7 @@ builder.Services.AddSingleton(_ => new TrackerVersions());
 builder.Services.AddSingleton<ToolAccess>();
 builder.Services.AddSingleton<GauntletService>();
 builder.Services.AddSingleton<ScripValues>();
+builder.Services.AddSingleton<SessionStarts>();   // the admin's start of a tool's session (31 Oct 2026)
 builder.Services.AddSingleton<Playtime>();
 builder.Services.AddSingleton<FleetService>();
 builder.Services.AddSingleton<PartyService>();

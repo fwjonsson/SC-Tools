@@ -19,7 +19,7 @@ public class SiteStatusPageTests
         var res = await visitor.GetAsync("/live");
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);   // anybody, nothing in it
         var admin = await f.Admin();
-        foreach (var page in new[] { "/", "/hauling", "/missions", "/history", "/gauntlet", "/companion", "/admin" })
+        foreach (var page in new[] { "/", "/hauling", "/missions", "/history", "/gauntlet", "/companion", "/admin/players" })
         {
             var html = await admin.GetStringAsync(page);
             Assert.Contains("<span class=\"live\" id=\"live\"></span><a class=\"dl\" href=\"/tracker\">", html);   // left of Tracker

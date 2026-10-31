@@ -30,16 +30,15 @@ public class AdminPagesTests
     }
 
     [Fact]
-    public async Task The_session_page_has_the_buttons_stops_and_runs()
+    public async Task The_hauling_session_takes_the_admins_start_time_and_lost_cargo_and_the_session_page_is_gone()
     {
         var (f, admin) = await Start();
         using var _ = f;
-        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin"));
-        Assert.DoesNotContain("Mission rewards", page);   // the rewards are the Mission Library's, not on this page
-        Assert.Contains("Register lost cargo", page);
-        Assert.Contains("Patch City", page);
-        Assert.DoesNotContain("Next Stops", page);   // no lock button since 30 Oct 2026: the planner keeps everybody's Current Route by itself
-        Assert.Contains("Stop Session", page);   // the played session was started by hand and runs
+        // the admin's Session page went (Frank, 31 Oct 2026): Admin opens his Players tab, the start time is a row of the Session table
+        var home = await admin.GetAsync("/admin");
+        Assert.Equal("/admin/players", home.Headers.Location?.OriginalString);
+        Assert.DoesNotContain(">Session</a>", await admin.GetStringAsync("/admin/players"));
+        Assert.Equal("/hauling/session/start", System.Text.Json.JsonDocument.Parse(await admin.GetStringAsync("/data.json")).RootElement.GetProperty("startTimeSet").GetString());
 
         // the rewards are in the Mission Library, by the contract's own name (the game's), typed on Edit Mission Info: the planner pays it for every such contract
         var kind = SCTools.Missions.MissionKinds.TitleKey("Senior | Stellar Large Haul | to Ruin Station [50/200/250/500/1000/2000/4000 Rep]")!;
@@ -47,24 +46,23 @@ public class AdminPagesTests
         Assert.Equal(1_300_000m, Read(f, t => t.Earnings.RewardOf(t.State.Current!.Missions[0])));
         Assert.Equal(Earnings.DefaultReward2, Read(f, t => t.State.Inputs!.Reward2));   // the session's table by stops is only the fallback
 
-        Assert.Contains("The session time runs from 07:05.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/start-time", ("startTime", "7:05")), "/admin"));
-        Assert.Contains("Type the start time as 19:30.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/start-time", ("startTime", "soon")), "/admin"));
+        const string Tab = "/hauling/session";
+        Assert.Contains("The session time runs from 07:05.", await Said(admin, await ServerFactory.Send(admin, "/hauling", Tab + "/start", ("startTime", "7:05")), Tab));
+        Assert.Contains("Type the start time as 19:30.", await Said(admin, await ServerFactory.Send(admin, "/hauling", Tab + "/start", ("startTime", "soon")), Tab));
         Assert.Equal("07:05", Read(f, t => t.State.Inputs!.Start));
+        Assert.Contains("comes from the logs again", await Said(admin, await ServerFactory.Send(admin, "/hauling", Tab + "/start", ("startTime", "")), Tab));
+        Assert.Null(Read(f, t => t.State.Inputs!.Start));
 
-        Assert.DoesNotContain("<h2>Stops</h2>", page);   // no names of his own for the stops any more (30 Oct 2026): the game's full names
-        Assert.Equal(HttpStatusCode.NotFound, (await ServerFactory.Send(admin, "/admin", "/admin/stop", ("zone", PlayedSession.PatchZone), ("name", "Patchy"))).StatusCode);
-
+        // the lost cargo of a run: in the Cargo runs table of the Session tab (RunsLost, since 29 Oct 2026)
         var done = Read(f, t => PlayedSession.Runs(t).Done.Key);
-        Assert.Contains("lost cargo Little", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/run", ("key", done), ("level", "Little")), "/admin"));
+        Assert.Contains("lost cargo Little", await Said(admin, await ServerFactory.Send(admin, "/hauling", "/hauling/runs/lost", ("key", done), ("level", "Little")), Tab));
         Assert.Equal("Little", Read(f, t => t.Runs.LostLevel(done)));
 
-        Assert.DoesNotContain("Next Stops", await admin.GetStringAsync("/admin"));   // no lock button since 30 Oct 2026: the planner keeps everybody's stops by itself
-        Assert.Equal(HttpStatusCode.NotFound, (await ServerFactory.Send(admin, "/admin", "/admin/locks")).StatusCode);
-
-        Assert.Contains("Session stopped.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/session"), "/admin"));
-        Assert.Null(Read(f, t => t.State.Data.ManualSessions.LastOrDefault(s => !s.StopUtc.HasValue)));
-        Assert.Contains("Session started.", await Said(admin, await ServerFactory.Send(admin, "/admin", "/admin/session"), "/admin"));
-        Assert.Equal(2, Read(f, t => t.State.Data.ManualSessions.Count));
+        // a player: not his to change
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "hauling"), ("value", "true"));
+        var player = await f.Player(f.AddKey("Pilot_B"));
+        Assert.StartsWith("/login/denied", (await ServerFactory.Send(player, "/hauling", Tab + "/start", ("startTime", "8:00"))).Headers.Location!.PathOf());
+        Assert.Null(Read(f, t => t.State.Inputs!.Start));
     }
 
     [Fact]
@@ -72,11 +70,10 @@ public class AdminPagesTests
     {
         using var f = new ServerFactory();   // no data, no logs: no session
         var admin = await f.Admin();
-        Assert.DoesNotContain("Mission Reward", await admin.GetStringAsync("/admin"));   // the rewards are only in the library now
         var library = WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));
         Assert.DoesNotContain("Hauling: 2 To Ruin", library);   // the planner's contracts are kinds by their game names, like every mission: none until one is seen
 
-        await ServerFactory.Send(admin, "/admin", "/admin/session");   // Start Session
+        f.Live.Edit(t => SCTools.Server.Editing.Edits.ToggleSession(t, DateTime.UtcNow), DateTime.UtcNow);   // Start Session (by hand: the test server does not follow the logs)
         Assert.Equal(Earnings.DefaultReward2, Read(f, t => t.State.Inputs!.Reward2));   // the built-in table by stops, for a contract the library knows nothing about
         Assert.Equal(Earnings.DefaultReward3, Read(f, t => Earnings.RewardOf(new Mission { Multi = 3, Title = "Nobody knows" }, t.State.Inputs!, t.State.Jobs)));
     }
@@ -178,7 +175,7 @@ public class AdminPagesTests
         var (f, _) = await Start();
         using var __ = f;
         var player = await f.Player(f.AddKey("Pilot_B"));
-        foreach (var url in new[] { "/admin", "/admin/players" })
+        foreach (var url in new[] { "/admin/players", "/admin/map" })
         {
             var r = await player.GetAsync(url);
             Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);

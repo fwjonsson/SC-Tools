@@ -3,55 +3,6 @@ using SCTools.Server.Editing;
 
 namespace SCTools.Server.Models;
 
-/// <summary>The admin's Session page: the session buttons, the start time, the stops, the runs (to register lost cargo) and the SCU of the from-Ruin drop-offs.</summary>
-public sealed class AdminSessionModel
-{
-    public string Session { get; set; } = "";
-    public bool HasSession { get; set; }
-
-    /// <summary>When the running session began (local time), or null when none runs.</summary>
-    public string? OpenSince { get; set; }
-
-    /// <summary>The logs start and stop the sessions (AutoSessions): no Start / Stop Session button.</summary>
-    public bool Auto { get; set; }
-
-    public string StartTime { get; set; } = "";
-    public List<RunInput> Runs { get; set; } = new();
-    public List<ScuInput> Scu { get; set; } = new();
-
-    public static AdminSessionModel Of(Tracker t)
-    {
-        var s = t.State;
-        var inp = s.Inputs;
-        var open = Edits.OpenSession(t);
-        var m = new AdminSessionModel
-        {
-            HasSession = s.Current != null && inp != null,
-            Session = s.Current == null ? "No session yet: it starts by itself when somebody in the party accepts a hauling contract." : BoardTexts.DescribeSession(s.Current),
-            OpenSince = open?.StartUtc.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture),
-            StartTime = inp?.Start ?? "",
-        };
-        if (inp == null) return m;
-
-        m.Runs = s.Trips.Select(r => new RunInput(
-            r.Key, r.Number, r.Worker,
-            r.Start.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture),
-            r.End.HasValue ? r.End.Value.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture) : "on the way",
-            string.Join(", ", r.Pickups.Select(p => t.Places.LocationName(p.Zone)).Distinct()),
-            t.Runs.LostLevel(r.Key))).ToList();
-        var typed = t.State.Data.TypedScu;
-        m.Scu = t.DropOffs.OpenDrops()
-            .Select(d => (Key: d.Mission.Id + "|" + d.Objective, d.Scu))
-            .Where(d => d.Scu <= 0 || typed.ContainsKey(d.Key))
-            .Select(d => new ScuInput(d.Key, t.DropOffs.DropLabel(d.Key), typed.GetValueOrDefault(d.Key)))
-            .ToList();
-        return m;
-    }
-}
-
-public sealed record RunInput(string Key, int Number, string Worker, string Started, string Completed, string Places, string Lost);
-public sealed record ScuInput(string Key, string Label, int Scu);
-
 /// <summary>
 /// The Hauling Planner's party on the admin's Players page: every member, active or not and why, and the parties in the game now (his ship, drive, colour
 /// and location are on his My page: the Party page, where the admin set them too, went on 31 Oct 2026).

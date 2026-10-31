@@ -28,10 +28,12 @@ public sealed class GauntletController : Controller
 
     readonly LiveTracker _live;
     readonly CompanionService _companion;
+    readonly SessionStarts _starts;
 
     public GauntletController(GauntletService gauntlet, ToolAccess tools, LogUploads uploads, ScripValues scrip, PartyService party, LiveTracker live,
-        CompanionService companion)
+        CompanionService companion, SessionStarts starts)
     {
+        _starts = starts;
         _live = live;
         _companion = companion;
         _gauntlet = gauntlet;
@@ -59,6 +61,21 @@ public sealed class GauntletController : Controller
         return Json(_companion.Map(PointOfView.Name(HttpContext), false, DateTime.UtcNow, Audience.Of(HttpContext).Everything));
     }
 
+    /// <summary>
+    /// The admin's Start time of the Game Session or the Grind Session shown (kind: game or grind; from: the start the logs give it), typed in UTC as the
+    /// page shows its times (19:30; empty: the logs' start again). Sent as soon as it changes (autosave.js), back to the Session tab.
+    /// </summary>
+    [HttpPost("start")]
+    [Authorize(Roles = Roles.Admin)]
+    public IActionResult Start(string? kind, DateTime from, string? startTime)
+    {
+        var said = _starts.Set(kind == "grind" ? SessionStarts.GauntletGrind : SessionStarts.GauntletGame, "", from.ToUniversalTime(), startTime, 0, DateTime.UtcNow);
+        if (Request.Headers.ContainsKey(EditMissionsController.AutosaveHeader))
+            return Json(new { ok = !said.StartsWith("Type", StringComparison.Ordinal) && !said.StartsWith("That is", StringComparison.Ordinal), said });
+        TempData["Message"] = said;
+        return LocalRedirect("/gauntlet");
+    }
+
     [HttpGet("{tab?}")]
     public IActionResult Index(string? tab, int scenario = 1)
     {
@@ -84,8 +101,11 @@ public sealed class GauntletController : Controller
 
         // the game session: from the start of the game, for a party from the first of their games (everybody in a party is playing now)
         var gameStart = members.Select(m => _uploads.GameStart(m)).Where(s => s != null).Min();
+        // a session's start: the admin's (his Start time row, SessionStarts; Frank, 31 Oct 2026), else the logs'
+        var gameAt = gameStart == null ? null : _starts.Of(SessionStarts.GauntletGame, "", gameStart.Value) ?? gameStart;
         var sessions = _gauntlet.GrindSessions(members, runs, now);   // newest first; they start and stop by themselves (the runs read once)
-        GrindLine Line(SCTools.Sessions.AutoSessions.Window s) => new(GauntletStats.Session(runs, s.Start, s.Stop ?? now, rewards, value), s.Stop == null);
+        GrindLine Line(SCTools.Sessions.AutoSessions.Window s) =>
+            new(GauntletStats.Session(runs, _starts.Of(SessionStarts.GauntletGrind, "", s.Start) ?? s.Start, s.Stop ?? now, rewards, value), s.Stop == null);
         var scenarios = GauntletStats.Scenarios(runs, rewards, value);
         var running = sessions.FirstOrDefault(s => s.Stop == null);
 
@@ -100,8 +120,10 @@ public sealed class GauntletController : Controller
             ScripValue = value,
             Rewards = rewards,
             Lifetime = GauntletStats.Totals(runs, rewards, value),
-            Game = gameStart == null ? null : GauntletStats.Session(runs, gameStart.Value, now, rewards, value),
+            Game = gameAt == null ? null : GauntletStats.Session(runs, gameAt.Value, now, rewards, value),
+            GameFrom = gameStart,
             Grind = running == null ? null : Line(running),
+            GrindFrom = running?.Start,
             PastGrinds = sessions.Where(s => s.Stop != null).Take(10).Select(Line).ToList(),
             Scenarios = scenarios,
             Ranking = GauntletStats.Ranking(scenarios),

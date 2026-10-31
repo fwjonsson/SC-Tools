@@ -68,6 +68,37 @@ public class CompanionPageTests
     }
 
     [Fact]
+    public async Task The_admin_sets_when_a_players_game_session_started()
+    {
+        var (f, _) = Played();
+        using var _f = f;
+        var admin = await f.Admin();
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "companion"), ("value", "true"));
+        var zzoega = await f.Player(f.AddKey("zzoega"));
+        var s = Json(await zzoega.GetStringAsync("/companion/session.json")).GetProperty("session");
+        var from = s.GetProperty("from").GetDateTime().ToUniversalTime();
+        Assert.False(s.GetProperty("startSet").GetBoolean());
+
+        // a minute later (UTC: tz 0), as his Start time row sends it
+        var later = from.AddMinutes(1);
+        later = later.AddTicks(-(later.Ticks % TimeSpan.TicksPerMinute));
+        var r = await ServerFactory.Send(admin, "/companion", "/companion/start", ("player", "zzoega"), ("from", from.ToString("O")), ("startTime", later.ToString("HH:mm")), ("tz", "0"));
+        Assert.Contains("The session runs from", await r.Content.ReadAsStringAsync());
+        s = Json(await zzoega.GetStringAsync("/companion/session.json")).GetProperty("session");
+        Assert.True(s.GetProperty("startSet").GetBoolean());
+        Assert.Equal(later, s.GetProperty("start").GetDateTime().ToUniversalTime());
+        Assert.Equal(from, s.GetProperty("from").GetDateTime().ToUniversalTime());   // the same session
+        Assert.Equal(later, s.GetProperty("running").GetDateTime().ToUniversalTime());   // the game going on counts from it
+
+        Assert.Contains("Type the start time as 19:30.", await (await ServerFactory.Send(admin, "/companion", "/companion/start", ("player", "zzoega"), ("from", from.ToString("O")), ("startTime", "soon"), ("tz", "0"))).Content.ReadAsStringAsync());
+        await ServerFactory.Send(admin, "/companion", "/companion/start", ("player", "zzoega"), ("from", from.ToString("O")), ("startTime", ""), ("tz", "0"));
+        Assert.False(Json(await zzoega.GetStringAsync("/companion/session.json")).GetProperty("session").GetProperty("startSet").GetBoolean());   // the logs' again
+
+        // a player cannot
+        Assert.StartsWith("/login/denied", (await ServerFactory.Send(zzoega, "/companion", "/companion/start", ("player", "zzoega"), ("from", from.ToString("O")), ("startTime", "00:00"), ("tz", "0"))).Headers.Location!.PathOf());
+    }
+
+    [Fact]
     public async Task A_player_sees_himself_and_his_party_their_contracts_and_his_game_session()
     {
         var (f, _) = Played();

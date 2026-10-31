@@ -146,7 +146,7 @@ public class LoginTests
             Assert.StartsWith("/login/denied", r.Headers.Location!.PathOf());
         }
         var admin = await f.Admin();   // the password still opens everything
-        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/admin")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/admin/players")).StatusCode);
     }
 
     [Fact]
@@ -196,7 +196,7 @@ public class LoginTests
         var admin = await f.Admin();
         var r = await ServerFactory.Send(admin, "/account", "/account/name", ("Rename.NewName", "zzoega"));
         Assert.Contains("Your name is zzoega now", await r.Content.ReadAsStringAsync());
-        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/admin")).StatusCode);   // still logged in, with the new name
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/admin/players")).StatusCode);   // still logged in, with the new name
 
         var old = await ServerFactory.Send(f.Browser(), "/login", "/login", ("UserName", ServerFactory.AdminName), ("Password", ServerFactory.AdminPassword));
         Assert.Contains("Wrong name or password.", await old.Content.ReadAsStringAsync());
