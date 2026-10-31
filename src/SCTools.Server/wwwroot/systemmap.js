@@ -144,13 +144,18 @@ var SystemMap = (function () {
       const star = places.find(function (p) { return p.kind === 'star'; }) || { x: 0, y: 0, name: sys.name };
       const planets = places.filter(function (p) { return p.kind === 'planet' && !p.parent; });
       const orbit = function (q) { return Math.hypot(q.x - star.x, q.y - star.y); };
-      // the scale: everything (the places and the orbits) as big as the square holds it, in the middle; across is the system's Y, down its X
+      // turned as the game's starmap shows the system (sys.turn, degrees counterclockwise): Stanton and Nyx with X to the right and Y up, Pyro a quarter
+      // turn clockwise, its Y to the right and its X down (Frank, 31 Oct 2026: Stanton and Nyx were drawn like Pyro, a quarter turn off)
+      const turn = (sys.turn || 0) * Math.PI / 180, cos = Math.cos(turn), sin = Math.sin(turn);
+      const flat = function (x, y) { return [x * cos - y * sin, -(x * sin + y * cos)]; };   // across and down the map, in Gm
+      // the scale: everything (the places and the orbits) as big as the square holds it, in the middle
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
       const grow = function (across, down) { x0 = Math.min(x0, across); x1 = Math.max(x1, across); y0 = Math.min(y0, down); y1 = Math.max(y1, down); };
-      places.forEach(function (p) { if (!p.hidden) grow(p.y, p.x); });   // a hidden spot does not change the scale
-      planets.forEach(function (q) { const r = orbit(q); grow(star.y - r, star.x - r); grow(star.y + r, star.x + r); });
+      places.forEach(function (p) { if (!p.hidden) { const f = flat(p.x, p.y); grow(f[0], f[1]); } });   // a hidden spot does not change the scale
+      const sun = flat(star.x, star.y);
+      planets.forEach(function (q) { const r = orbit(q); grow(sun[0] - r, sun[1] - r); grow(sun[0] + r, sun[1] + r); });
       const sc = (W - 2 * ROOM) / Math.max(x1 - x0, y1 - y0, 1), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
-      const at = function (x, y) { return [W / 2 + (y - mx) * sc, W / 2 + (x - my) * sc]; };
+      const at = function (x, y) { const f = flat(x, y); return [W / 2 + (f[0] - mx) * sc, W / 2 + (f[1] - my) * sc]; };
       const cx = at(star.x, star.y)[0], cy = at(star.x, star.y)[1];
       const svg = document.createElementNS(NS, 'svg');
       svg.setAttribute('viewBox', '0 0 ' + W + ' ' + W);

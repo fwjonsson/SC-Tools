@@ -18,8 +18,12 @@ public sealed record Place(string System, string Id, string Name, string Short, 
     public string Key => System + "/" + Id;
 }
 
-/// <summary>A star system of the map.</summary>
-public sealed record StarSystem(string Id, string Name);
+/// <summary>
+/// A star system of the map. Turn: how the game's starmap turns the system as it shows it, in degrees counterclockwise from its X to the right and its Y
+/// up. Stanton and Nyx are not turned. Pyro is turned a quarter clockwise (-90: its Y to the right, its X down), though its positions are in the same
+/// frame as the others' (Frank's screenshots of the game's starmap, 31 Oct 2026: the site drew Stanton and Nyx turned like Pyro, a quarter turn off).
+/// </summary>
+public sealed record StarSystem(string Id, string Name, int Turn = 0);
 
 /// <summary>
 /// The star systems from above, for the Map tool: the stars, planets, moons, cities, gateways and stations of Pyro, Stanton and Nyx, with their positions from the
@@ -28,7 +32,7 @@ public sealed record StarSystem(string Id, string Name);
 /// </summary>
 public static class StarMap
 {
-    public static readonly StarSystem[] Systems = { new("pyro", "Pyro"), new("stanton", "Stanton"), new("nyx", "Nyx") };
+    public static readonly StarSystem[] Systems = { new("pyro", "Pyro", -90), new("stanton", "Stanton"), new("nyx", "Nyx") };
 
     public static readonly Place[] Places =
     {

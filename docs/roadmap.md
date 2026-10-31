@@ -83,7 +83,9 @@ All the tools track at the same time, all the time. The tracking runs on the ser
    logs still counted him).
 6. **Map tool** (`/map`, PR #242; all three systems in PR #243): Pyro, Stanton and Nyx from above, one tab per system (it opens on the system where
    most players are). The places (stars, planets, moons, cities, gateways, stations: 26 + 52 + 19) come from the Star Citizen Wiki API positions in
-   Frank's ScApiTool download of 20 Oct 2026 (`StarMap` in the core; Pyro's match the Trip Planner's distances). Everybody playing is placed where
+   Frank's ScApiTool download of 20 Oct 2026 (`StarMap` in the core; Pyro's match the Trip Planner's distances). Each system is turned as the game's
+   starmap shows it: Pyro a quarter turn clockwise, Stanton and Nyx not, although the three are in one frame (Frank's screenshots, 31 Oct 2026: the
+   site had drawn Stanton and Nyx turned like Pyro). Everybody playing is placed where
    their quantum jumps put them, through gateways into the next system too, moving along the route at their drive's speed (crafted bonus included)
    with a speed meter. The jump start is a guess (10 s after picking the destination); the arrival line corrects it. Objectives at stations, in
    space, at the place their text names, else listed by text and system (#258). A jump with no destination picked: to the mission's objective, to
