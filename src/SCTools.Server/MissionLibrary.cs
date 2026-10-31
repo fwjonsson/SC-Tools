@@ -434,6 +434,19 @@ public sealed class MissionLibrary
         return read;
     }
 
+    /// <summary>
+    /// The kind of mission a link names (a screenshot button: #437), by its key, else by its name as the game shows it (MissionKinds.TitleKey: a bounty by its
+    /// kind), else a Hauling Planner contract line ("2 To Ruin"); null when the library has none.
+    /// </summary>
+    public LibraryEntry? EntryOf(string? keyOrName)
+    {
+        if (string.IsNullOrWhiteSpace(keyOrName)) return null;
+        var byKey = Entries().ToDictionary(e => e.Row.Key, StringComparer.OrdinalIgnoreCase);
+        foreach (var key in new[] { keyOrName.Trim(), MissionKinds.TitleKey(keyOrName), MissionKinds.HaulingKey(keyOrName) })
+            if (key != null && byKey.TryGetValue(key, out var e)) return e;
+        return null;
+    }
+
     /// <summary>Every kind of mission in the library with how it was played, by name (the pages sort them as the viewer asks).</summary>
     public List<LibraryEntry> Entries()
     {

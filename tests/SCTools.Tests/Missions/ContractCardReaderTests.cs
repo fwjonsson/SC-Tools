@@ -45,23 +45,6 @@ public class ContractCardReaderTests
     }
 
     [Fact]
-    public void The_mission_is_the_library_s_with_the_same_name_and_the_nearest_marks()
-    {
-        var library = new (string Key, string Name)[]
-        {
-            ("patrol to prevent possible attack [150 rep]", "Patrol to Prevent Possible Attack [150 Rep]"),
-            ("patrol to prevent possible attack [250 rep] [bp]*", "Patrol to Prevent Possible Attack [250 Rep] [BP]*"),
-            ("eliminate vanduul ship [300 rep] [bp]*", "Eliminate Vanduul Ship [300 Rep] [BP]*"),
-            ("reclusive bounty | very-high risk [250 rep]", "Reclusive Bounty | Very-High Risk [250 Rep]"),
-        };
-        var found = ContractCardReader.Matches("Patrol to Prevent Possible Attack [ 250 Rep] [BPT*", library);
-        Assert.Equal(new[] { "patrol to prevent possible attack [250 rep] [bp]*", "patrol to prevent possible attack [150 rep]" }, found.Select(m => m.Key));
-        Assert.Equal("reclusive bounty | very-high risk [250 rep]",
-            ContractCardReader.Matches("Reclusive Bounty: Lamond Carrigan | Very-High Risk [250 Rep]", library)[0].Key);   // a bounty by its kind, not its target
-        Assert.Empty(ContractCardReader.Matches("Looking For Trouble [200 Rep]", library));   // not in the library: a new one
-    }
-
-    [Fact]
     public void The_faction_is_the_nearest_known_one()
     {
         var factions = new[] { "Headhunters", "Bounty Hunters Guild", "Intersec Defense Solutions", "Red Wind Linehaul" };

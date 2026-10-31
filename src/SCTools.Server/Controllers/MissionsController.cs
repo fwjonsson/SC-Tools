@@ -57,12 +57,19 @@ public sealed class MissionsController : Controller
     /// <param name="sort">the column (LibraryFilter.Sorts; name when empty)</param>
     /// <param name="dir">asc or desc (empty: A to Z for a name, the biggest first for a number)</param>
     /// <param name="page">the page</param>
+    /// <param name="shot">the admin's screenshot box for this mission (its key, or its name as a contract table shows it: the 📷 buttons, #437)</param>
     [HttpGet("")]
-    public IActionResult Index(string? q, string? faction, string? giver, string? rewards, string? mine, string? sort, string? dir, string? show, int page = 1)
+    public IActionResult Index(string? q, string? faction, string? giver, string? rewards, string? mine, string? sort, string? dir, string? show, int page = 1,
+        string? shot = null)
     {
         if (!_tools.Sees(User, SiteTools.Missions)) return Hidden();
         ViewData["Title"] = "Mission Library";
         var viewer = ViewerOf(HttpContext);
+        if (shot != null && User.IsInRole(Roles.Admin))
+        {
+            if (_library.EntryOf(shot) is { } target) (ViewData["ShotKey"], ViewData["ShotName"]) = (target.Row.Key, target.Shown);
+            else ViewData["ShotMissing"] = shot;
+        }
         // the admin edits it right here, a field in every cell (Edit Mission Info, a page of its own, went on 31 Oct 2026: Frank)
         return View(PageOf(_library, LibraryFilter.From(q, faction ?? giver, rewards ?? show, mine, sort, dir, viewer != null), page, viewer, Path,
             editable: User.IsInRole(Roles.Admin)));

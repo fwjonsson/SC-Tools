@@ -294,3 +294,6 @@ table.missions tr.running td { background:color-mix(in srgb, var(--good) 10%, va
 .shot-table input.num { width:9em; text-align:right; }
 .shot-table input.name { display:block; margin-top:4px; width:28em; }
 .shot-notes { margin:4px 0 8px; padding-left:18px; color:#e0b040; }
+.shotbtn { background:none; border:0; padding:0 2px; cursor:pointer; text-decoration:none; font-size:15px; }
+.shot-for { margin:0 0 6px; }
+.shot-error { color:var(--bad); }

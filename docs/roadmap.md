@@ -48,6 +48,9 @@ All the tools track at the same time, all the time. The tracking runs on the ser
    - **A contract screenshot** (#437, Frank 31 Oct 2026, the admin's only): he pastes a screenshot of a contract's card and the page reads the name, the
      reward, the faction and the MG or Council scrip with a free text reader (Tesseract in his browser; Frank did not want an AI that costs tokens), he
      checks it and saves. The reward is read with digits only, after the currency sign is cut off, and checked (commas, at least 1,000, the Wiki's range).
+     Only from a mission's 📷 button (the library's rows, the Companion's contract tables, the Hauling Planner's Session tables), for that mission: no
+     paste box of its own, never a mission guessed by its name or added (Frank: a similar name could be another mission, a new one would not be joined to
+     the logs' missions).
    - **Read-only for everybody, editable for Frank** (Frank, 29 Oct; #267, #268): `/missions` is a library to look things up in (everybody when the
      tool is shown, a visitor too; else only Frank): no fields, a search, one giver, with/without rewards, only the kinds the viewer played, sorted by
      a clicked column (names A to Z, numbers biggest first, the other way on the second click; the choices in the address). Not ordered by last

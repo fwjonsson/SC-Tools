@@ -145,6 +145,16 @@
     return form;
   }
 
+  // The admin's 📷 of a contract: the Mission Library's screenshot box for its mission, in a new tab (the map goes on here; #437).
+  function shotLink(key) {
+    const a = el('a', 'shotbtn', '📷');
+    a.href = '/missions?shot=' + encodeURIComponent(key) + '#shot';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.title = 'Read a screenshot of this contract into the Mission Library';
+    return a;
+  }
+
   // Active Contracts (ended: false) or Completed Contracts (ended: true): the same columns, but how it ended and when in place of the open objectives.
   function contracts(id, rows, ended, none) {
     const box = document.getElementById(id);
@@ -159,7 +169,7 @@
     const t = el('table', 'missions' + (edits ? '' : ' view'));
     const hr = t.createTHead().insertRow();
     [['#', ''], ['Mission', ''], ['Who', ''], [ended ? 'Ended' : 'Open', ended ? '' : 'right'], ['Faction', ''], ['Category', ''], ['SCU', 'right'], ['Reward', 'right'],
-      ['MG scrip', 'right'], ['Council scrip', 'right'], ['XP', 'right'], ['Legality', '']]
+      ['MG scrip', 'right'], ['Council scrip', 'right'], ['XP', 'right'], ['Legality', '']].concat(edits ? [['📷', '']] : [])
       .forEach(function (h) { const th = el('th', h[1], h[0]); hr.appendChild(th); });
     const tb = t.createTBody();
     rows.forEach(function (m, n) {
@@ -186,6 +196,7 @@
         if (c[2]) td.appendChild(field(e, c[2][0], c[2][1], c[2][2], c[2][3]));
         else td.textContent = c[0];
       });
+      if (edits) { const td = tr.insertCell(); if (e) td.appendChild(shotLink(e.key)); }
     });
     const scroll = el('div', 'scroll'); scroll.appendChild(t); box.appendChild(scroll);
   }
