@@ -28,7 +28,7 @@ public class MapPlacesPageTests
             .Minutes(1).QuantumSelected(Encounter).RouteStart("Spot Seven", Encounter).Minutes(1).QuantumArrived();
         Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-6)), 0, 1000, log.Lines.ToList(), now).Ok);
         var admin = await f.Admin();
-        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/places"));
+        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/map"));
         Assert.Contains(Asteroid, page);
         Assert.Contains(Encounter, page);
         Assert.Contains("Spot Seven", page);
@@ -36,19 +36,19 @@ public class MapPlacesPageTests
         Assert.Equal("unknown", Player(await Map(), "zzoega").GetProperty("state").GetString());
 
         // every asteroid cluster of Pyro is Bloom (for this test); the encounters are not places
-        Assert.Equal(HttpStatusCode.Redirect, (await ServerFactory.Send(admin, "/admin/places", "/admin/places/alias", ("text", "AsteroidCluster_Pyro_*"), ("key", "pyro/bloom"))).StatusCode);
-        await ServerFactory.Send(admin, "/admin/places", "/admin/places/alias", ("text", "RegionB_*"), ("key", MapPlaces.NotAPlace));
-        await ServerFactory.Send(admin, "/admin/places", "/admin/places/alias", ("text", "Somewhere"), ("key", ""));
-        page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/places"));
+        Assert.Equal(HttpStatusCode.Redirect, (await ServerFactory.Send(admin, "/admin/map", "/admin/places/alias", ("text", "AsteroidCluster_Pyro_*"), ("key", "pyro/bloom"))).StatusCode);
+        await ServerFactory.Send(admin, "/admin/map", "/admin/places/alias", ("text", "RegionB_*"), ("key", MapPlaces.NotAPlace));
+        await ServerFactory.Send(admin, "/admin/map", "/admin/places/alias", ("text", "Somewhere"), ("key", ""));
+        page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/map"));
         Assert.Contains("Pick what Somewhere is", page);
         Assert.DoesNotContain("<code>" + Asteroid + "</code>", page);
         Assert.DoesNotContain("<code>" + Encounter + "</code>", page);
 
         // a place he adds for the start name; a name of his own for Bloom
-        await ServerFactory.Send(admin, "/admin/places", "/admin/places/add",
+        await ServerFactory.Send(admin, "/admin/map", "/admin/places/add",
             ("system", "pyro"), ("name", "Spot Seven Outpost"), ("shortName", "Spot 7"), ("kind", "Station"), ("at", "pyro/bloom"), ("x", ""), ("y", ""), ("alias", "Spot Seven"));
-        await ServerFactory.Send(admin, "/admin/places", "/admin/places/rename", ("key", "pyro/bloom"), ("field", "name"), ("value", "Bloom (home)"), ("back", "/admin/places"));
-        page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/places"));
+        await ServerFactory.Send(admin, "/admin/map", "/admin/places/rename", ("key", "pyro/bloom"), ("field", "name"), ("value", "Bloom (home)"), ("back", "/admin/places"));
+        page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/map"));
         Assert.Contains("Nothing: the map knows every destination", page);
         Assert.Contains("Bloom (home) (Pyro)", page);   // what he said about the asteroids
 
@@ -67,14 +67,15 @@ public class MapPlacesPageTests
         Assert.Equal("pyro/spot-seven-outpost", LocationTracker.Follow(qt.Take(3).ToList(), places.Atlas).From?.Key);
 
         // taking the added place off: Spot Seven is not known again; the game's name back for Bloom
-        await ServerFactory.Send(admin, "/admin/places", "/admin/places/remove", ("key", "pyro/spot-seven-outpost"));
-        await ServerFactory.Send(admin, "/admin/places", "/admin/places/rename", ("key", "pyro/bloom"), ("field", "name"), ("value", ""), ("back", "/admin/places"));
-        page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/places"));
+        await ServerFactory.Send(admin, "/admin/map", "/admin/places/remove", ("key", "pyro/spot-seven-outpost"));
+        await ServerFactory.Send(admin, "/admin/map", "/admin/places/rename", ("key", "pyro/bloom"), ("field", "name"), ("value", ""), ("back", "/admin/places"));
+        page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/map"));
         Assert.Contains("value=\"Spot Seven\"", page);   // in Not known yet again
         Assert.Equal("Bloom", places.Atlas.Find("pyro/bloom")?.Name);
 
         // only the admin
         var player = await f.Player(f.AddKey("zzoega"));
         Assert.StartsWith("/login/denied", (await player.GetAsync("/admin/places")).Headers.Location!.PathOf());
+        Assert.Equal("/admin/map?system=pyro", (await admin.GetAsync("/admin/places?system=pyro")).Headers.Location?.OriginalString);   // one tab with the Map since 31 Oct 2026
     }
 }

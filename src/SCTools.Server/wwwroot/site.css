@@ -175,10 +175,14 @@ main:has(.maptool) { max-width:1900px; }
 .mapmissions { grid-column:1 / span 3; grid-row:2; min-width:0; }
 /* the Map tool alone has the map and the players since the Companion took the objectives and the contracts (#380): the map gets a little bigger */
 .maptool.maponly { grid-template-columns:minmax(0, 1060px) minmax(260px, 340px); }
+/* the admin's Map tab: the map, and beside it what the map does not know yet with the players under it (Frank, 31 Oct 2026: Map and Map places one tab) */
+.maptool.placesmap { grid-template-columns:minmax(0, var(--mapw)) minmax(300px, 1fr); margin-bottom:18px; }
+.mapside.placeside { grid-column:2; grid-row:1; min-width:0; }
+.mapside.placeside table.unknown { max-width:none; }
 /* the Gauntlet Tracker's map is the Companion's: the same columns, the sessions in the third (Frank, 31 Oct 2026) */
 .maptool.gauntletmap { margin-bottom:18px; }
 .hint.below { margin-top:6px; }   /* a note under its table (the Gauntlet Tracker's grind session) */
-/* the admin's notice of unknown places (alerts.js, #414): toasts in the top right, a click opens Map places */
+/* the admin's notice of unknown places (alerts.js, #414): toasts in the top right, a click opens the Map tab's list of them */
 .toasts { position:fixed; top:64px; right:16px; z-index:100; display:flex; flex-direction:column; gap:8px; max-width:min(420px, calc(100vw - 32px)); }
 .toast { background:var(--cell); border:1px solid var(--line); border-left:4px solid #e5534b; border-radius:6px; padding:10px 14px; cursor:pointer;
   box-shadow:0 6px 18px rgba(0,0,0,.45); animation:toastin .25s ease-out; }
@@ -209,8 +213,8 @@ main:has(.maptool) { max-width:1900px; }
 .mapcard .svc { color:#f2c14e; }
 .mapcard .shops { color:#a7adb8; }
 @media (max-width:900px) {
-  .maptool, .maptool.maponly { grid-template-columns:minmax(0, 1fr); }
-  .mapbox, .mapside.players, .mapside.objectives, .mapmissions { grid-column:1; grid-row:auto; }
+  .maptool, .maptool.maponly, .maptool.placesmap { grid-template-columns:minmax(0, 1fr); }
+  .mapbox, .mapside.players, .mapside.objectives, .mapside.placeside, .mapmissions { grid-column:1; grid-row:auto; }
 }
 .mapmissions table { max-width:none; }   /* the missions going on, with the library's columns; the Mission column takes the room */
 .mapmissions table.missions td { white-space:nowrap; }

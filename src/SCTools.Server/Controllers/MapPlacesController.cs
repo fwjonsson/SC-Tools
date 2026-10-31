@@ -6,16 +6,17 @@ using Microsoft.AspNetCore.Mvc;
 namespace SCTools.Server.Controllers;
 
 /// <summary>
-/// Map places (admin only): the places of the Map tool as the admin wants them (MapPlaces). What the map does not know in the logs (a quantum destination,
-/// a start name) he says is a place, or not a place to show; a place gets a name of his own; and he adds places the game data does not have. Saved at once,
-/// and the map uses it at once.
+/// The admin's Map tab (admin only): the map with the places it does not know beside it, and under them the places as the admin wants them (MapPlaces;
+/// Frank, 31 Oct 2026: the Map and Map places one tab). What the map does not know in the logs (a quantum destination, a start name, an area) he says is a
+/// place, or not a place to show; a place gets a name of his own; and he adds places the game data does not have. Saved at once, and the map uses it at
+/// once. The changes still send to /admin/places (the notices and the Companion's card too); the map's feed is MapController's.
 /// </summary>
 [Authorize(Roles = Roles.Admin)]
 [AutoValidateAntiforgeryToken]
 [Route("/admin/places")]
 public sealed class MapPlacesController : Controller
 {
-    const string Back = "/admin/places";
+    const string Back = "/admin/map";
     readonly MapPlaces _places;
     readonly UnknownPlaceAlerts _alerts;
 
@@ -36,14 +37,18 @@ public sealed class MapPlacesController : Controller
 
     /// <param name="system">the system whose places are listed (all when empty)</param>
     /// <param name="add">a text of the log to add a place for (the Add a place form is filled in for it)</param>
-    [HttpGet("")]
+    [HttpGet("/admin/map")]
     public IActionResult Index(string? system, string? add)
     {
-        ViewData["Title"] = "Map places";
+        ViewData["Title"] = "Map";
         var shown = StarMap.Systems.Any(s => s.Id == system) ? system! : "";
         var entries = _places.Entries().Where(e => shown.Length == 0 || e.Place.System == shown).ToList();
         return View(new MapPlacesPage(_places.Unknown(), _places.Aliases(), entries, _places.Atlas, shown, add?.Trim() ?? "", DateTime.UtcNow));
     }
+
+    /// <summary>Map places, a tab of its own until 31 Oct 2026: the Map tab now, with what was asked.</summary>
+    [HttpGet("")]
+    public IActionResult Old() => LocalRedirect(Back + Request.QueryString);
 
     /// <param name="back">the page to go back to (the Companion's card of an unknown place without its script, #414); else Map places</param>
     [HttpPost("alias")]

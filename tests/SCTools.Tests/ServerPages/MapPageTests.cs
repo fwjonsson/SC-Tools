@@ -46,7 +46,7 @@ public class MapPageTests
 
         // a location the map does not know: on the admin's Map places, and he is still where the map had him (not "no signal yet")
         Assert.True(f.Live.Uploads.Add("zzoii", Id(now.AddMinutes(-3)), 1000, 2000, log.Lines.Skip(log.Lines.Count - 1).ToList(), now).Ok);
-        var page = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/places"));
+        var page = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/map"));
         Assert.Contains("Stanton9_Nowhere", page);
         Assert.Contains("Area", page);
         z = Player(JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement, "zzoii");
@@ -253,8 +253,8 @@ public class MapPageTests
         Assert.DoesNotContain("id=\"mapState\"", page);
         Assert.DoesNotContain("Positions: the", page);
         Assert.DoesNotContain("<h1>", page);
-        Assert.Contains("<div class=\"maptool maponly\">", page);
-        Assert.True(page.IndexOf("<div class=\"mapbox\">", StringComparison.Ordinal) < page.IndexOf("<div class=\"mapside players\">", StringComparison.Ordinal));
+        Assert.Contains("<div class=\"maptool placesmap\">", page);
+        Assert.True(page.IndexOf("<div class=\"mapbox\">", StringComparison.Ordinal) < page.IndexOf("<div class=\"mapside placeside\">", StringComparison.Ordinal));
         Assert.DoesNotContain("<div class=\"mapside objectives\">", page);
         Assert.DoesNotContain("<div class=\"mapmissions\">", page);
         var css = await f.Browser().GetStringAsync("/site.css");

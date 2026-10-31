@@ -5,7 +5,7 @@
     var inv = CultureInfo.InvariantCulture;
     string SystemName(string? id) => StarMap.Systems.FirstOrDefault(s => s.Id == id)?.Name ?? "";
     string Gm(double v) => v.ToString("0.###", inv);
-    var back = "/admin/places" + (Model.System.Length > 0 ? "?system=" + Model.System : "");
+    var back = "/admin/map" + (Model.System.Length > 0 ? "?system=" + Model.System : "");
 
     // every place to pick, by system and by name
     async Task PlaceOptions(string? selected)
@@ -21,24 +21,22 @@
         }
     }
 }
-<h1>Map places</h1>
-<p class="muted">The places of the <a href="/admin/map">Map</a>: the planets, moons, cities, gateways and stations of Pyro, Stanton and Nyx from the Star Citizen
-  Wiki, with your changes. When the logs name a place the map does not know, say here what it is; give a place a name of your own; add a place the game
-  data does not have. A change is saved at once, and the map uses it at once.</p>
-
+@* The admin's Map tab (Frank, 31 Oct 2026: the Map and Map places one tab): the map in the top left, what it does not know yet to its right with the
+   players under that, and the places, what he said and Add a place under them. No text over the map; the systems are the map engine's buttons in its
+   corner (map.js) *@
+<div class="maptool placesmap">
+  <div class="mapbox">
+    <div id="map" data-src="/admin/map/map.json"></div>
+  </div>
+  <div class="mapside placeside">
 <h2 id="unknown">Not known yet</h2>
-<p class="hint">Quantum destinations, start names ("Projected Start Location is …") and areas ("Location[RR_P6_LEO]": the area the game put somebody in when
-  he came near a place, the space around it where a hangar can be called; the game names it with his inventory lines) in the logs on the server that the
-  map cannot place. Say what each one
-  is: a place (a player who jumps there shows there), or <em>not a place to show</em> (a mission's marker, an encounter). With * at the end of the text it
-  is every one that starts so (<code>AsteroidCluster_Pyro_*</code>). A place that is not in the list: <em>add it</em>.</p>
 @if (Model.Unknown.Count == 0)
 {
   <p class="muted">Nothing: the map knows every destination and start name in the logs on the server.</p>
 }
 else
 {
-  <table class="wide">
+  <table class="wide unknown">
     <thead><tr><th>From the log</th><th>Seen</th><th>It is</th></tr></thead>
     <tbody>
     @foreach (var u in Model.Unknown)
@@ -55,7 +53,7 @@ else
               @{ await PlaceOptions(null); }
             </select>
             <button>Save</button>
-            <a href="/admin/places?add=@Uri.EscapeDataString(u.Text)#add" class="small">add it</a>
+            <a href="/admin/map?add=@Uri.EscapeDataString(u.Text)#add" class="small">add it</a>
           </form>
         </td>
       </tr>
@@ -63,6 +61,21 @@ else
     </tbody>
   </table>
 }
+<p class="hint">Quantum destinations, start names ("Projected Start Location is …") and areas ("Location[RR_P6_LEO]": the area the game put somebody in when
+  he came near a place, the space around it where a hangar can be called; the game names it with his inventory lines) in the logs on the server that the
+  map cannot place. Say what each one is: a place (a player who jumps there shows there), or <em>not a place to show</em> (a mission's marker, an
+  encounter). With * at the end of the text it is every one that starts so (<code>AsteroidCluster_Pyro_*</code>). A place that is not in the list:
+  <em>add it</em>.</p>
+    <h2>Players</h2>
+    <div id="players"><p class="muted">Loading…</p></div>
+  </div>
+</div>
+<script src="~/systemmap.js" asp-append-version="true" defer></script>
+<script src="~/map.js" asp-append-version="true" defer></script>
+
+<p class="muted">The places of the map: the planets, moons, cities, gateways and stations of Pyro, Stanton and Nyx from the Star Citizen Wiki, with your
+  changes. When the logs name a place the map does not know, say above what it is; give a place a name of your own; add a place the game data does not
+  have. A change is saved at once, and the map uses it at once.</p>
 
 @if (Model.Aliases.Count > 0)
 {
@@ -98,7 +111,7 @@ else
     }
     else
     {
-      <a href="/admin/places@(id.Length > 0 ? "?system=" + id : "")#places">@name</a>
+      <a href="/admin/map@(id.Length > 0 ? "?system=" + id : "")#places">@name</a>
     }
   }
 </p>
