@@ -57,6 +57,7 @@ public class BeaconRangingTests
         // the Burt Gearhart bounty: 1,450,849 from Levski is 44.96 Gm, the hidden QV Breaker Station BRK-304 (where his debug overlay had him, to a Mm)
         w = Follow(new List<QtEvent> { Picked(T, Burt, "Levski", 1450849.375) }, Atlas.Default, missions: Bounties, fuelPerGm: Fleet);
         Assert.Equal("nyx/qv-breaker-station-brk-304", w.To?.Key);
+        Assert.Equal("nyx/qv-breaker-station-brk-304", w.Ranged?[Burt].Key);   // kept for the Map tool's objectives
 
         // there: at the spot, at the mission; the game then names only the system as the start of his next route, and he is still there
         w = Follow(new List<QtEvent> { Picked(T, Hideaki, "Levski", 738770.25), Arrived(T.AddMinutes(3)), Picked(T.AddMinutes(4), Burt, "Nyx", null) },
@@ -125,5 +126,36 @@ public class BeaconRangingTests
         var player = map.GetProperty("players").EnumerateArray().Single(p => p.GetProperty("name").GetString() == "zzoega");
         var where = player.GetProperty("state").GetString() == "jump" ? player.GetProperty("to").GetString() : player.GetProperty("at").GetString();
         Assert.Equal(Glaciem.Key, where);
+        // the objective he set the route to is at the spot too (its gold diamond), not "the game does not say where"
+        var objective = Assert.Single(map.GetProperty("objectives").EnumerateArray());
+        Assert.Equal((Glaciem.Key, "Go to Glaciem Ring Cluster"), (objective.GetProperty("place").GetString(), objective.GetProperty("where").GetString()));
+    }
+
+    [Fact]
+    public async Task An_objective_is_at_the_spot_once_anybody_set_a_route_to_it_or_to_another_in_its_cluster()
+    {
+        using var f = new ServerFactory();
+        f.Services.GetRequiredService<FleetService>().Add("zzoega", "RSI Perseus", "TS-2 S3", "857.7", DateTime.UtcNow, "876.7");
+        var m = GameLogWriter.MissionId(9);
+        var other = GameLogWriter.MissionId(10);
+        var start = DateTime.UtcNow.AddMinutes(-30);
+        // zzoega's log of 31 Oct 2026: the bounty's first objective in zone 906735902202, its beacon, a route to it set at Levski (no jump yet);
+        // then a second objective of the mission in the same zone ("Return to Glaciem Ring Cluster"), and another bounty's objective somewhere else
+        var w = new GameLogWriter().At(start).Login("zzoega")
+            .MissionMarker(m, GameLogWriter.BountyContract, "obj-1", "22226", "906735902202").ObjectivePopup(m, "obj-1", "Go to Glaciem Ring Cluster").BeaconPaired("22226", Hideaki)
+            .MissionMarker(other, GameLogWriter.BountyContract, "obj-9", "3846", "906735904623").ObjectivePopup(other, "obj-9", "Go to QV Breaker Station")
+            .Minutes(1).RouteStart("Levski", Hideaki).RouteFuel(Hideaki, 738770.25, Perseus, "910650678563")
+            .QuantumSelected(Hideaki, Perseus, "910650678563").RouteStart("Levski", Hideaki).RouteFuel(Hideaki, 738770.25, Perseus, "910650678563")
+            .Minutes(5).QuantumArrived(Perseus, "910650678563").Seconds(5).Objective(m, "obj-1", "COMPLETED")
+            .Minutes(10).MissionMarker(m, GameLogWriter.BountyContract, "obj-2", "22227", "906735902202").ObjectivePopup(m, "obj-2", "Return to Glaciem Ring Cluster");
+        f.Upload("zzoega", w.Lines.ToList());
+        var admin = await f.Admin();
+        var map = JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement;
+        var objectives = map.GetProperty("objectives").EnumerateArray().ToDictionary(o => o.GetProperty("where").GetString()!);
+        Assert.Equal(Glaciem.Key, objectives["Return to Glaciem Ring Cluster"].GetProperty("place").GetString());   // the same cluster: at the spot
+        Assert.False(objectives["Go to QV Breaker Station"].TryGetProperty("place", out _));   // nobody set a route to it: in the list only
+        Assert.DoesNotContain("Go to Glaciem Ring Cluster", objectives.Keys);   // done
+        var nyx = map.GetProperty("systems").EnumerateArray().Single(s => s.GetProperty("id").GetString() == "nyx");
+        Assert.Contains(nyx.GetProperty("places").EnumerateArray(), p => p.GetProperty("key").GetString() == Glaciem.Key && p.GetProperty("hidden").GetBoolean());
     }
 }

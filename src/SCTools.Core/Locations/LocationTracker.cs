@@ -76,7 +76,7 @@ public static class LocationTracker
             // the Hauling Planner saw him pick up, deliver or hand in later than the jumps say anything: he is at that station
             if (planner?.Invoke(name) is { } clue && clue.At > (where.Since ?? DateTime.MinValue) && clue.At > (where.Picked?.Time ?? DateTime.MinValue)
                 && atlas.OfPyroStation(clue.Station) is { } there && !Equals(there, where.At))
-                where = new PlayerLocation(there.System, there, clue.At, null, null, null, ByPlanner: true);
+                where = new PlayerLocation(there.System, there, clue.At, null, null, null, ByPlanner: true, Ranged: where.Ranged);
             book.Players.Add(new LocatedPlayer(name, log, where));
         }
         return book;
@@ -237,7 +237,7 @@ public static class LocationTracker
             }
         }
         return new PlayerLocation(system, at, since, picked, from, to, atMission, toMission, jumped, lastPing,
-            picked != null ? moves : null, picked != null ? pickedLanded : null, Hangar: hangar);
+            picked != null ? moves : null, picked != null ? pickedLanded : null, Hangar: hangar, Ranged: ranged.Count > 0 ? ranged : null);
     }
 
     /// <summary>
