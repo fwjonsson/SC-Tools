@@ -165,6 +165,7 @@ sealed class GameLogWriter
     public GameLogWriter NewLeader(string name) => Note("New Party Leader", name + " is now party leader.");
     public GameLogWriter PartyLaunch(string leader) => Note("Party Launch", "Initiated by party leader " + leader + ".");
     public GameLogWriter Disbanded() => Note("Party Disbanded", "The party has been disbanded.");
+    public GameLogWriter Invited(string by) => Note(by, "Party Invite Received: Accept Invitation?");   // the notification's first line is who invites
     public GameLogWriter Connected(string name) => Note("Party", name + " connected.");        // a member of his party came into the game
     public GameLogWriter Disconnected(string name) => Note("Party", name + " disconnected.");  // a member's game went out (Frank's logs, 17 Sep 2026)
     public GameLogWriter ChannelJoined(string name) => Note("New Member Joined", name + " has joined the channel 'RSI Perseus : zzoega'.");   // a ship's channel, not the party

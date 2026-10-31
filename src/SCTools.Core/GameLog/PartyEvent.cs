@@ -29,6 +29,12 @@ public enum PartyEventKind
     /// about six minutes later, unless he comes back first.
     /// </summary>
     Disconnected,
+
+    /// <summary>
+    /// "Party Invite Received: Accept Invitation?": somebody invited the player of this log. His "You have joined party" follows when he accepts; the one
+    /// who made the party has no invite before his "You have created party" (Frank's three accounts' logs, Aug-Oct 2026: 175 of 176 and 264 of 270).
+    /// </summary>
+    Invited,
 }
 
 /// <summary>A notification about the party, as the game wrote it in the log of one player. Name is the other player (null for Self and Disbanded).</summary>

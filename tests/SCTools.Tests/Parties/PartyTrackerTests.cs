@@ -70,6 +70,24 @@ public class PartyTrackerTests
     }
 
     [Fact]
+    public void Who_made_a_party_from_an_invite_leads_it_whatever_the_clocks_say()
+    {
+        // Frank, 1 Nov 2026: zzatvo made the party and invited zzoega, and the site said "zzoega's party". Nobody's log says who leads a party that was just
+        // made; zzoega's log has the invite before his "party", zzatvo's has none. zzoega's PC clock is 5 s ahead, so his "party" is the first of the two.
+        var u = new LogUploads();
+        Upload(u, "zzatvo", new GameLogWriter().Login("zzatvo").Minutes(2).Seconds(5).PartyCreated().Minutes(30).Noise(), At(40));
+        Upload(u, "zzoega", new GameLogWriter().Login("zzoega").Minutes(1).Seconds(56).Invited("zzatvo").Seconds(4).PartyJoined().Minutes(30).Noise(), At(40));
+        var book = PartyTracker.Work(u.Logs, Members, At(40));
+        var party = Assert.Single(book.Groups);
+        Assert.Equal("zzatvo's party", party.Title);   // before: "zzoega's party" (the first who came in by the clocks)
+        Assert.Equal("zzatvo", Assert.Single(book.History).Leader);
+
+        // when the game names a leader after that, it is the one it named
+        Upload(u, "zzoega", new GameLogWriter().At(At(33)).NewLeader("zzoega"), At(41));
+        Assert.Equal("zzoega's party", Assert.Single(PartyTracker.Work(u.Logs, Members, At(41)).Groups).Title);
+    }
+
+    [Fact]
     public void A_member_without_a_tracker_is_known_from_the_others_lines()
     {
         // zzatvo joins zzoega's party, where Bileh123 (no tracker) already is: no line says Bileh123 joined, the game says he connected
@@ -146,12 +164,14 @@ public class PartyTrackerTests
     public void Connected_and_disconnected_lines_are_read_and_do_not_reload_the_session()
     {
         var log = new HaulingLog();
-        var w = new GameLogWriter().Login("zzoega").Minutes(1).Connected("zzatvo").Disconnected("Bileh123");
+        var w = new GameLogWriter().Login("zzoega").Minutes(1).Connected("zzatvo").Disconnected("Bileh123").Invited("zzatvo");
         foreach (var line in w.Lines.Take(1)) log.ProcessLine(line);
         var version = log.Version;
         foreach (var line in w.Lines.Skip(1)) log.ProcessLine(line);
-        Assert.Equal(new[] { (PartyEventKind.Connected, (string?)"zzatvo"), (PartyEventKind.Disconnected, "Bileh123") }, log.PartyEvents.Select(e => (e.Kind, e.Name)));
+        Assert.Equal(new[] { (PartyEventKind.Connected, (string?)"zzatvo"), (PartyEventKind.Disconnected, "Bileh123"), (PartyEventKind.Invited, null) },
+            log.PartyEvents.Select(e => (e.Kind, e.Name)));
         Assert.Equal(version, log.Version);   // the hauling session is not read again for these (they come every few minutes)
-        Assert.All(w.Lines.Where(l => l.Contains("connected.: \" [") && l.Contains("to queue")), l => Assert.True(new LineFilter().Keep(l)));   // the trackers send them already
+        Assert.All(w.Lines.Where(l => (l.Contains("connected.: \" [") || l.Contains("Accept Invitation?: \" [")) && l.Contains("to queue")),
+            l => Assert.True(new LineFilter().Keep(l)));   // the trackers send them already
     }
 }
