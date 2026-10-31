@@ -138,14 +138,22 @@ public sealed class Atlas
     }
 
     /// <summary>
-    /// The place the game's own code for a station or a gateway is ("RR_P6_L5" and "PYR6 L5" are Megumi Refueling, "RR_JP_PyroStanton" is the Stanton Gateway
-    /// in Pyro), or null.
+    /// The place the game's own code for a station or a gateway is ("RR_P6_L5" and "PYR6 L5" are Megumi Refueling, "RR_CRU_L1" and "CRU L1" CRU-L1 Ambitious
+    /// Dream Station, "RR_HUR_LEO" Everus Harbor, "RR_JP_PyroStanton" the Stanton Gateway in Pyro), or null.
     /// </summary>
     Place? OfCode(string text)
     {
         var t = text.Trim();
         var m = StarMap.PyroStop.Match(t);
         if (m.Success) return OfPyroStation(PyroDistances.IdOfQuantumTarget("rs_ext_pyro" + m.Groups["n"].Value + "_" + m.Groups["l"].Value));
+        m = StarMap.StantonStop.Match(t);
+        if (m.Success)
+        {
+            var planet = m.Groups["p"].Value.ToUpperInvariant();
+            var l = m.Groups["l"].Value;
+            return l.Equals("LEO", StringComparison.OrdinalIgnoreCase) ? Find(StarMap.StantonLeo[planet])
+                : Of("stanton").FirstOrDefault(p => p.Kind == PlaceKind.Station && (StarMap.Find(p.Key)?.Name ?? p.Name).StartsWith(planet + "-" + l.ToUpperInvariant() + " ", StringComparison.OrdinalIgnoreCase));
+        }
         m = StarMap.RestStopGate.Match(t);
         return m.Success ? Find(m.Groups["a"].Value.ToLowerInvariant() + "/" + m.Groups["b"].Value.ToLowerInvariant() + "-gateway") : null;
     }
