@@ -12,7 +12,8 @@ namespace SCTools.Tests.ServerPages;
 /// learning from each other through PlannerPositions): the Map tool's map.json, the Hauling Planner's map.json and its Current location, the Companion's
 /// map, My page, the admin's Party page and the Party tool's page of a member. The location tracker has to show the same. One change on purpose: a player at
 /// a place has whether he is landed or taking off (hangar; Frank, 31 Oct 2026), so zzoega, in a hangar at Gaslight, is "landed" now. Another: a player off
-/// the grid has the place of his last ping too (lastPingAt), where the page keeps his marker, faded (Frank, 31 Oct 2026).
+/// the grid has the place of his last ping too (lastPingAt), where the page keeps his marker, faded (Frank, 31 Oct 2026). And a jump picked out in open
+/// space starts 47 seconds after the pick, not 10 (rather late than early, Frank 31 Oct 2026): bileh123 and stantonian set off 13 seconds ago now.
 /// </summary>
 public class LocationPagesAsBeforeTests
 {
@@ -198,9 +199,9 @@ public class LocationPagesAsBeforeTests
         ,
         {name="zzoii" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="nyx" state="at" at="nyx/levski" atName="Levski" mission=null since=now-540s via=null leaving=null hangar=null }
         ,
-        {name="bileh123" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="jump" from="pyro/ruin-station" fromName="Ruin Station" to="pyro/gaslight" toName="Gaslight" start=now-50s dist=105090000000 seconds=476.80504749488534 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
+        {name="bileh123" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="jump" from="pyro/ruin-station" fromName="Ruin Station" to="pyro/gaslight" toName="Gaslight" start=now-13s dist=105090000000 seconds=476.80504749488534 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
         ,
-        {name="stantonian" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="stanton" state="jump" from="stanton/aberdeen" fromName="Aberdeen" to="stanton/hur-l2-faithful-dream-station" toName="HUR-L2 Faithful Dream Station" start=now-50s dist=1234549083.6738737 seconds=29.419823426399002 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
+        {name="stantonian" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="stanton" state="jump" from="stanton/aberdeen" fromName="Aberdeen" to="stanton/hur-l2-faithful-dream-station" toName="HUR-L2 Faithful Dream Station" start=now-13s dist=1234549083.6738737 seconds=29.419823426399002 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
         ,
         {name="trila" color="#4682ff" ship="RSI Perseus" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="nyx" state="mission" atName="the mission: Go to Asteroid Cluster" mission="A mission" since=now-240s }
         ,
@@ -228,9 +229,9 @@ public class LocationPagesAsBeforeTests
         ,
         {name="zzoii" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="nyx" state="at" at="nyx/levski" atName="Levski" mission=null since=now-540s via=null leaving=null hangar=null }
         ,
-        {name="bileh123" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="jump" from="pyro/ruin-station" fromName="Ruin Station" to="pyro/gaslight" toName="Gaslight" start=now-50s dist=105090000000 seconds=476.80504749488534 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
+        {name="bileh123" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="jump" from="pyro/ruin-station" fromName="Ruin Station" to="pyro/gaslight" toName="Gaslight" start=now-13s dist=105090000000 seconds=476.80504749488534 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
         ,
-        {name="stantonian" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="stanton" state="jump" from="stanton/aberdeen" fromName="Aberdeen" to="stanton/hur-l2-faithful-dream-station" toName="HUR-L2 Faithful Dream Station" start=now-50s dist=1234549083.6738737 seconds=29.419823426399002 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
+        {name="stantonian" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="stanton" state="jump" from="stanton/aberdeen" fromName="Aberdeen" to="stanton/hur-l2-faithful-dream-station" toName="HUR-L2 Faithful Dream Station" start=now-13s dist=1234549083.6738737 seconds=29.419823426399002 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
         ,
         {name="trila" color="#4682ff" ship="RSI Perseus" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="nyx" state="mission" atName="the mission: Go to Asteroid Cluster" mission="A mission" since=now-240s }
         ,

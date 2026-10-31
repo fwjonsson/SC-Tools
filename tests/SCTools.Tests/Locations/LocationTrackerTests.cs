@@ -155,12 +155,12 @@ public class LocationTrackerTests
         var seconds = drive.Seconds(StarMap.JumpGm(ruin, gaslight));
 
         // picked in the hangar and not out of it yet: still at Ruin, leaving for Gaslight
-        var inHangar = new PlayerLocation("pyro", ruin, T.AddMinutes(-5), picked, ruin, gaslight, Moves: new List<AreaChange>(), PickedLanded: true);
+        var inHangar = new PlayerLocation("pyro", ruin, T.AddMinutes(-5), picked, ruin, gaslight, Moves: new List<AreaChange>(), PickedInArea: true);
         var now = LocationTracker.Now(inHangar, drive, T.AddSeconds(30));
         Assert.Equal((PlayerState.At, "pyro/ruin-station", "Gaslight", (DateTime?)T.AddMinutes(-5)), (now.State, now.At?.Key, now.Leaving, now.Since));
 
         // picked out in space: the jump starts a few seconds later, and the map moves him from then on
-        var inSpace = inHangar with { PickedLanded = false };
+        var inSpace = inHangar with { PickedInArea = false };
         now = LocationTracker.Now(inSpace, drive, T.AddSeconds(30));
         Assert.Equal((PlayerState.Jump, T + LocationTracker.JumpDelay, seconds), (now.State, now.Start, now.Seconds));
         Assert.Equal(("pyro/ruin-station", "pyro/gaslight", "Gaslight"), (now.From?.Key, now.To?.Key, now.ToName));
