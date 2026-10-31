@@ -116,10 +116,16 @@ public class MapPageTests
         var w = new GameLogWriter().At(now.AddMinutes(-10)).Login("zzoega").AreaChange("zzoega", 0, pad, ruinArea, pad)
             .Minutes(5).QuantumSelected(Gaslight).RouteStart("Ruin Station", Gaslight);
         var z = await Zzoega(w);
-        Assert.Equal(("at", "pyro/ruin-station", "Gaslight"), (z.GetProperty("state").GetString(), z.GetProperty("at").GetString(), z.GetProperty("leaving").GetString()));
+        Assert.Equal(("at", "pyro/ruin-station", "Gaslight", "landed"),
+            (z.GetProperty("state").GetString(), z.GetProperty("at").GetString(), z.GetProperty("leaving").GetString(), z.GetProperty("pad").GetString()));
 
-        // off the pad, then out of Ruin's area into space three seconds later: the jump starts then
-        w.Seconds(30).AreaChange("zzoega", pad, 0, pad, ruinArea).Seconds(3).AreaChange("zzoega", pad, 0, ruinArea, space);
+        // off the pad into Ruin's own area: taking off, not gone yet (Frank, 31 Oct 2026: only leaving the station's area starts the jump)
+        w.Seconds(30).AreaChange("zzoega", pad, 0, pad, ruinArea);
+        z = await Zzoega(w);
+        Assert.Equal(("at", "takeoff", "Gaslight"), (z.GetProperty("state").GetString(), z.GetProperty("pad").GetString(), z.GetProperty("leaving").GetString()));
+
+        // out of Ruin's area into space three seconds later: the jump starts then
+        w.Seconds(3).AreaChange("zzoega", pad, 0, ruinArea, space);
         z = await Zzoega(w);
         Assert.Equal(("jump", "pyro/ruin-station", "pyro/gaslight"), (z.GetProperty("state").GetString(), z.GetProperty("from").GetString(), z.GetProperty("to").GetString()));
         var start = new DateTimeOffset(now.AddMinutes(-5).AddSeconds(33)).ToUnixTimeMilliseconds();
@@ -286,5 +292,7 @@ public class MapPageTests
         // the speed meter stays at 0 Mm/s when a player is not in quantum, so his card keeps its size (Frank, 29 Oct 2026)
         Assert.DoesNotContain("m.speed.style.display", script);
         Assert.Contains("m.unit.textContent = 'Mm/s · 0.00 c'", script);
+        // landed on a pad, or taking off in the station's area (Frank, 31 Oct 2026)
+        Assert.Contains("pl.pad === 'landed' ? 'Landed at ' : pl.pad === 'takeoff' ? 'Taking off from ' : 'At '", script);
     }
 }

@@ -51,8 +51,10 @@ public static class LocationTracker
         Func<string, PlannerClue?>? planner = null)
     {
         var book = new LocationBook { Now = nowUtc };
+        var all = logs.ToList();
+        var stations = StationAreas.Learn(all);
         var playing = new List<(HaulingLog Log, string Name)>();
-        foreach (var log in logs)
+        foreach (var log in all)
         {
             var name = log.Player ?? log.Uploader;
             if (string.IsNullOrWhiteSpace(name)) continue;
@@ -67,7 +69,7 @@ public static class LocationTracker
             var others = playing.Where(o => !ReferenceEquals(o.Log, log)).OrderBy(o => party.Any(n => SameName(n, o.Name)) ? 0 : 1)
                 .Select(o => (IReadOnlyList<QtEvent>)o.Log.Qt).ToList();
             var points = Points(log.Beacons.Where(b => b.Time >= nowUtc - MissionAge), log.Missions, m => TitleOf(m, titles), atlas);
-            var where = Follow(WithPilots(log.Qt, others), atlas, null, log.Locations, points, log.Areas);
+            var where = Follow(WithPilots(log.Qt, others), atlas, null, log.Locations, points, log.Areas, stations);
             // the Hauling Planner saw him pick up, deliver or hand in later than the jumps say anything: he is at that station
             if (planner?.Invoke(name) is { } clue && clue.At > (where.Since ?? DateTime.MinValue) && clue.At > (where.Picked?.Time ?? DateTime.MinValue)
                 && atlas.OfPyroStation(clue.Station) is { } there && !Equals(there, where.At))
@@ -97,11 +99,15 @@ public static class LocationTracker
     /// told every start name, destination and location the map does not know (and nobody said is not a place), with when, what it is and the system he is in.
     /// Missions: the objectives he can jump to (MissionPoints). A destination that is one's beacon is that objective; an arrival with no destination picked
     /// (he jumped at a marker he looked at) is at the one of a mission going on then, the latest; else it is somewhere the map does not know. Areas: the areas
-    /// he went into since he picked the jump he is on, and whether he was landed when he picked it, go with it (JumpTimes makes the jump's times of them).
+    /// he went into since he picked the jump he is on, and whether he was at a station when he picked it, go with it (JumpTimes makes the jump's times of
+    /// them); the area lines also say whether he is landed or taking off (Pad). Off the pad into a station's own area (stations: StationAreas; the known
+    /// ones when not given) is taking off, not leaving: the jump starts when he leaves that area (Frank, 31 Oct 2026).
     /// </summary>
     public static PlayerLocation Follow(IReadOnlyList<QtEvent> qt, Atlas atlas, Action<DateTime, string, UnknownKind, string?>? unknown = null,
-        IReadOnlyList<LocationSeen>? seen = null, IReadOnlyList<MissionPoint>? missions = null, IReadOnlyList<AreaChange>? areas = null)
+        IReadOnlyList<LocationSeen>? seen = null, IReadOnlyList<MissionPoint>? missions = null, IReadOnlyList<AreaChange>? areas = null,
+        IReadOnlySet<long>? stations = null)
     {
+        stations ??= StationAreas.Known;
         string? system = null;
         Place? at = null;
         DateTime? since = null;
@@ -110,7 +116,8 @@ public static class LocationTracker
         MissionPoint? atMission = null, toMission = null;
         var jumped = false;
         Place? lastPing = null;
-        bool? landed = null, pickedLanded = null;
+        bool? landed = null, pickedLanded = null;   // landed: at a station now (on a pad, in a hangar, or taking off in its area)
+        PadState? pad = null;
         var moves = new List<AreaChange>();
         var steps = qt.Select(e => (e.Time, Qt: (QtEvent?)e, Seen: (LocationSeen?)null, Area: (AreaChange?)null))
             .Concat((seen ?? Array.Empty<LocationSeen>()).Select(s => (s.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)s, Area: (AreaChange?)null)))
@@ -120,8 +127,10 @@ public static class LocationTracker
         {
             if (step.Area is { } area)
             {
-                landed = area.Landed;
-                if (picked != null) moves.Add(area);   // on his way: when the jump starts and ends (JumpTimes)
+                var takingOff = StationAreas.OffPad(area) && stations.Contains(area.To);
+                pad = area.Landed ? PadState.Landed : takingOff ? PadState.TakingOff : null;
+                landed = pad != null;
+                if (picked != null && !takingOff) moves.Add(area);   // on his way: when the jump starts and ends (JumpTimes)
                 continue;
             }
             if (step.Seen is { } s)
@@ -192,10 +201,12 @@ public static class LocationTracker
                 from = to = null;
                 toMission = null;
                 moves = new List<AreaChange>();
+                pad = null;   // out in space where he jumped to, until a line says he landed
+                if (landed != null) landed = false;
             }
         }
         return new PlayerLocation(system, at, since, picked, from, to, atMission, toMission, jumped, lastPing,
-            picked != null ? moves : null, picked != null ? pickedLanded : null);
+            picked != null ? moves : null, picked != null ? pickedLanded : null, Pad: pad);
     }
 
     /// <summary>
@@ -237,8 +248,9 @@ public static class LocationTracker
 
     /// <summary>
     /// When a jump started and when it got there (null: not yet, as far as the log says), from the areas he went into since he picked it (moves) and how long
-    /// his drive takes (seconds). Picked on a pad or in a hangar (landed), it starts when he leaves: off the pad, and out of the station's area a few seconds
-    /// later (a leave line soon after the one before moves the start on); until then it has not started. Picked out in space (or a log that does not say),
+    /// his drive takes (seconds). Picked at a station (landed: on a pad, in a hangar, or taking off in its area), it starts when he leaves: out of the
+    /// station's area into space (Follow leaves taking off into the station's own area out of the moves; where the pad lets out straight into space, off the
+    /// pad is leaving), and a leave line soon after the one before moves the start on; until then it has not started. Picked out in space (or a log that does not say),
     /// JumpDelay after the pick, or when he leaves the area he is in soon after. A line well into the jump (three quarters of his drive's time) is the area of
     /// where he jumped to: he is there. Measured on zzoega's logs (31 Oct 2026): from leaving to coming in, a route takes the same time to 2 seconds (Ruin to
     /// Rod's Fuel 281 to 287 s, seven times; from the pick it was 323 to 388 s); the arrival line comes 2 seconds (gateways) to 14 (stations) after coming in.
@@ -254,7 +266,7 @@ public static class LocationTracker
             if (m.Time < picked.Time) continue;
             if (start == null)
             {
-                if (!m.Landed) start = m.Time;   // off the pad (one still landed is walking about the station)
+                if (!m.Landed) start = m.Time;   // out of the station's area (one still landed is walking about the station)
                 continue;
             }
             if (!m.Landed && m.Time - start.Value <= soon)
@@ -276,11 +288,12 @@ public static class LocationTracker
     public static PlayerNow Now(PlayerLocation w, QtDrive drive, DateTime nowUtc)
     {
         static string AtMission(MissionPoint p) => "the mission: " + p.Text;
-        // leaving: the destination he picked while he is still on the pad or in the hangar (the jump starts when he is off it)
+        // leaving: the destination he picked while he is still at the station (the jump starts when he leaves its area); landed or taking off there
         PlayerNow At(Place place, DateTime? since, MissionPoint? mission, string? leaving = null) =>
             new(PlayerState.At, place.System)
             {
                 At = place, AtName = mission != null ? AtMission(mission) : place.Name, Mission = mission?.Title, Since = since, ByPlanner = w.ByPlanner, Leaving = leaving,
+                Pad = w.Pad,
             };
 
         if (w.Picked is { } picked && (w.To != null || w.ToMission != null))
@@ -291,7 +304,7 @@ public static class LocationTracker
                 var gm = StarMap.JumpGm(from, to);
                 var seconds = drive.Seconds(gm);
                 var (left, there) = JumpTimes(picked, w.Moves, w.PickedLanded, seconds);
-                if (left is not { } start) return At(from, w.Since, null, toName);   // still on the pad: not gone yet
+                if (left is not { } start) return At(from, w.Since, null, toName);   // still at the station (landed, or taking off): not gone yet
                 if (there != null) return At(to, there, w.ToMission);   // in the area of where he jumped to: there (the arrival line comes a few seconds later)
                 if (nowUtc > start + TimeSpan.FromSeconds(seconds) + LateArrival) return At(to, start + TimeSpan.FromSeconds(seconds), w.ToMission);   // long over: he is there
                 return new PlayerNow(PlayerState.Jump, to.System) { From = from, To = to, ToName = toName, Start = start, Gm = gm, Seconds = seconds };

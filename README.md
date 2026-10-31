@@ -268,8 +268,15 @@ admin (done), then going live.
   The log says when a player picks a destination ("Projected Start Location is Ruin Station for route to destination rs_ext_pyro5_l2"), when he
   goes from one area into another (`<Update Inventory Location> Player [zzoega] is changing location. Landing [2026442305] -> [0]. Location
   [2026442305] -> [685899972]`: the game's numbers for the landing area and the area around him, `AreaChange`; the trackers send it from the update
-  of 31 Oct 2026) and when he arrives. A jump picked on a pad or in a hangar starts when he leaves: off the pad, then out of the station's area into
-  space a few seconds later; until then he is still at the station, "leaving for" where he picked. The next area, well into the jump, is where he
+  of 31 Oct 2026) and when he arrives. On a pad or in a hangar he is **Landed** at the place; off the pad and still in the station's own area he is
+  **Taking off** (the card says "Landed at Ruin Station", "Taking off from Ruin Station", with ", leaving for Gaslight" when he picked a destination;
+  `pad` in map.json). A jump picked at a station starts when he leaves the station's area into space, not when he leaves the pad (Frank, 31 Oct
+  2026: "no one really flies out from a station's area without quantum jumping"; in the three accounts' logs a player sometimes flew about inside the
+  station's area for minutes after taking off). Which area is a station's own is not in the numbers: `StationAreas` knows the ones of the three
+  accounts' logs (the numbers are the same for every account) and learns more from the logs on the server (a pad lets out into it, and he leaves it
+  again within half a minute, three times or more and in at least three of ten take-offs); where the pad lets out straight into open space (Levski,
+  Orbituary, the Pyro Gateway, Everus Harbor) taking off is leaving. Replayed on 4,549 jumps: 2,553 start later than before (10 seconds is the median),
+  1,838 the same. The next area, well into the jump, is where he
   jumped to: he is there, a few seconds before the arrival line (`LocationTracker.JumpTimes`). Measured on zzoega's logs: from leaving to coming in, a
   route takes the same time to about 2 seconds (Ruin to Rod's Fuel 281 to 287 s, seven times), from the pick it varied by a minute. Picked out in
   space there is no area to leave: it is taken to start 10 seconds after the pick (`LocationTracker.JumpDelay`). The page

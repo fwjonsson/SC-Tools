@@ -10,7 +10,8 @@ namespace SCTools.Tests.ServerPages;
 /// <summary>
 /// What the pages that say where a player is showed before the location tracker (recorded on 31 Oct 2026, with the map and the Hauling Planner still
 /// learning from each other through PlannerPositions): the Map tool's map.json, the Hauling Planner's map.json and its Current location, the Companion's
-/// map, My page, the admin's Party page and the Party tool's page of a member. The location tracker has to show the same.
+/// map, My page, the admin's Party page and the Party tool's page of a member. The location tracker has to show the same. One change on purpose: a player at
+/// a place has whether he is landed or taking off (pad; Frank, 31 Oct 2026), so zzoega, on the pad at Gaslight, is "landed" now.
 /// </summary>
 public class LocationPagesAsBeforeTests
 {
@@ -187,11 +188,11 @@ public class LocationPagesAsBeforeTests
 
     const string AdminMap = """
         players: [
-        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" }
+        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" pad="landed" }
         ,
-        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null }
+        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null pad=null }
         ,
-        {name="zzoii" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="at" at="nyx/levski" atName="Levski" mission=null since=now-540s via=null leaving=null }
+        {name="zzoii" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="at" at="nyx/levski" atName="Levski" mission=null since=now-540s via=null leaving=null pad=null }
         ,
         {name="bileh123" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="jump" from="pyro/ruin-station" fromName="Ruin Station" to="pyro/gaslight" toName="Gaslight" start=now-50s dist=105090000000 seconds=476.80504749488534 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
         ,
@@ -203,7 +204,7 @@ public class LocationPagesAsBeforeTests
         ,
         {name="lost" color="#4682ff" ship="Anvil Arrow" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="unknown" off=true since=now-120s lastPing="Levski" }
         ,
-        {name="Pilot_A" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=2026-10-21T09:10:21.000 via="the Hauling Planner" leaving=null }
+        {name="Pilot_A" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=2026-10-21T09:10:21.000 via="the Hauling Planner" leaving=null pad=null }
         ,]
         objectives: [
         {player="trila" title="A mission" system="nyx" where="Go to Asteroid Cluster" who=["trila",] },
@@ -216,11 +217,11 @@ public class LocationPagesAsBeforeTests
         """;
     const string AdminCompanion = """
         players: [
-        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" }
+        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" pad="landed" }
         ,
-        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null }
+        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null pad=null }
         ,
-        {name="zzoii" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="at" at="nyx/levski" atName="Levski" mission=null since=now-540s via=null leaving=null }
+        {name="zzoii" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="at" at="nyx/levski" atName="Levski" mission=null since=now-540s via=null leaving=null pad=null }
         ,
         {name="bileh123" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="jump" from="pyro/ruin-station" fromName="Ruin Station" to="pyro/gaslight" toName="Gaslight" start=now-50s dist=105090000000 seconds=476.80504749488534 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
         ,
@@ -232,7 +233,7 @@ public class LocationPagesAsBeforeTests
         ,
         {name="lost" color="#4682ff" ship="Anvil Arrow" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="unknown" off=true since=now-120s lastPing="Levski" }
         ,
-        {name="Pilot_A" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=2026-10-21T09:10:21.000 via="the Hauling Planner" leaving=null }
+        {name="Pilot_A" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=2026-10-21T09:10:21.000 via="the Hauling Planner" leaving=null pad=null }
         ,]
         objectives: [
         {player="trila" title="A mission" system="nyx" where="Go to Asteroid Cluster" who=["trila",] },
@@ -245,9 +246,9 @@ public class LocationPagesAsBeforeTests
         """;
     const string PlayerMap = """
         players: [
-        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" }
+        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" pad="landed" }
         ,
-        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null }
+        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null pad=null }
         ,]
         objectives: []
         unplaced: 2
@@ -256,9 +257,9 @@ public class LocationPagesAsBeforeTests
         """;
     const string PlayerCompanion = """
         players: [
-        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" }
+        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" pad="landed" }
         ,
-        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null }
+        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null pad=null }
         ,]
         objectives: []
         unplaced: 2

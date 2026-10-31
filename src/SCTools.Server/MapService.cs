@@ -172,7 +172,8 @@ public sealed class MapService
         return w.State switch
         {
             PlayerState.At => new { name, color, ship, drive = shown, top = drive.Speed, system = w.System, state = "at", at = w.At!.Key, atName = w.AtName,
-                mission = w.Mission, since = w.Since, via = w.ByPlanner ? "the Hauling Planner" : null, leaving = w.Leaving },
+                mission = w.Mission, since = w.Since, via = w.ByPlanner ? "the Hauling Planner" : null, leaving = w.Leaving,
+                pad = w.Pad switch { PadState.Landed => "landed", PadState.TakingOff => "takeoff", _ => null } },   // on a pad or in a hangar, or off it in the station's area
             PlayerState.Jump => new
             {
                 name, color, ship, drive = shown, top = drive.Speed,
