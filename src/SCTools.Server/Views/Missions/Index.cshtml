@@ -3,8 +3,7 @@
 @using SCTools.Server.Controllers
 @using SCTools.Tracking
 @{
-    // the Mission Library to look up (/missions, read-only) and Edit Mission Info (/admin/missions, the admin's, a field in every cell): the same list,
-    // choices and order
+    // the Mission Library: to look up, and for the admin a field in every cell to fill in (Edit Mission Info, his page of its own, went on 31 Oct 2026)
     var inv = CultureInfo.InvariantCulture;
     string N(long? v) => v?.ToString(inv) ?? "";   // in a field: no thousands separators
     string G(long? v) => v?.ToString("N0", inv) ?? "";   // in a cell
@@ -31,13 +30,12 @@
 }
 @if (edit)
 {
-<p class="muted">The Mission Library as you change it: every mission anybody took is here by itself, from the logs (the old ones too), one row per name
-  (the same mission at another place is the same row; the contracts the Hauling Planner reads are rows by their names too, and the planner pays each
-  contract what its row says).
-  Type in what the log does not say: it is saved as soon as you leave the field. The Session tool counts what everybody's missions earned with these
-  rewards, the Gauntlet Tracker with the ones of the Combat Gauntlet scenarios, and the Hauling Planner pays the aUEC of the Hauling rows and plans with
-  the SCU. The Faction, Category, Reward, XP and Legality in grey are the Star Citizen Wiki's (a faction or a reward typed in wins). Everybody else sees it
-  read-only on the <a href="@MissionsController.Path">Mission Library</a>.</p>
+<p class="muted">Every mission anybody took is here by itself, from the logs (the old ones too), one row per name (the same mission at another place is the
+  same row; the contracts the Hauling Planner reads are rows by their names too, and the planner pays each contract what its row says).
+  As the admin you type in what the log does not say: it is saved as soon as you leave the field. Session History counts what everybody's missions earned
+  with these rewards, the Gauntlet Tracker with the ones of the Combat Gauntlet scenarios, and the Hauling Planner pays the aUEC of the Hauling rows and
+  plans with the SCU. The Faction, Category, Reward, XP and Legality in grey are the Star Citizen Wiki's (a faction or a reward typed in wins). Everybody
+  else sees the same list without the fields.</p>
 }
 else
 {
@@ -46,7 +44,7 @@ else
   Star Citizen Wiki says about the mission (the faction, the category, the reward, the XP and whether it is legal) and what we fill in ourselves (the reward
   in aUEC, MG scrip and Council scrip, its cargo in SCU, the faction). The Session tool counts what your missions earned with these rewards, the Gauntlet
   Tracker with the ones of the Combat Gauntlet scenarios, and the Hauling Planner pays the aUEC of the Hauling rows and plans with the SCU. Choose what
-  to see below, and click a column to sort by it.@if (admin) { <text> You change it on <a href="@EditMissionsController.Path">Edit Mission Info</a>.</text> }</p>
+  to see below, and click a column to sort by it.</p>
 }
 
 <form method="get" action="@path" class="line filters">
@@ -142,7 +140,7 @@ else
               continue;
             }
             <td>
-              <form method="post" action="@(path + "/set")" asp-antiforgery="true" data-autosave="quiet">
+              <form method="post" action="@(EditMissionsController.Path + "/set")" asp-antiforgery="true" data-autosave="quiet">
                 <input type="hidden" name="id" value="@r.Key"><input type="hidden" name="field" value="@field"><input type="hidden" name="back" value="@back">
                 <input name="value" value="@value" placeholder="@hint" class="@cls" aria-label="@(field == "giver" ? "faction" : field)" autocomplete="off" list="@(field == "giver" ? "factions" : null)">
               </form>

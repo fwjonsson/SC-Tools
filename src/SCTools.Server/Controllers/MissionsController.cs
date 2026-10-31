@@ -1,3 +1,4 @@
+using SCTools.Server.Accounts;
 using SCTools.Server.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -5,7 +6,7 @@ namespace SCTools.Server.Controllers;
 
 /// <summary>
 /// The Mission Library, to look things up: every kind of mission the players took (from their logs, one row per name, or per contract line of the Hauling
-/// Planner) with what the admin typed in about it (the reward in aUEC, MG scrip and Council scrip, its SCU, the faction; Edit Mission Info, /admin/missions)
+/// Planner) with what the admin typed in about it (the reward in aUEC, MG scrip and Council scrip, its SCU, the faction; in its own rows for him)
 /// and what the Star Citizen Wiki says (the faction, the category, the reward, the XP and the legality; WikiMissions). Read-only: for everybody when the
 /// tool is shown (the admin's Tools page), like the Hauling Planner's live page, else only for the admin. The viewer chooses what to see (a search, a
 /// faction, with or without rewards, the ones he played) and the order (a column's header), and sees how often he played
@@ -35,7 +36,7 @@ public sealed class MissionsController : Controller
     public static string? ViewerOf(HttpContext context) =>
         context.User.Identity?.IsAuthenticated == true && !string.IsNullOrEmpty(context.User.Identity.Name) ? context.User.Identity.Name : null;
 
-    /// <summary>One page of the library as the viewer asked for it (here and on Edit Mission Info): what came in since the last time is in it.</summary>
+    /// <summary>One page of the library as the viewer asked for it: what came in since the last time is in it.</summary>
     public static MissionLibraryPage PageOf(MissionLibrary library, LibraryFilter filter, int page, string? viewer, string path, bool editable)
     {
         library.Collect();   // what came in since the last refresh (nothing new: the list is not made again)
@@ -62,7 +63,9 @@ public sealed class MissionsController : Controller
         if (!_tools.Sees(User, SiteTools.Missions)) return Hidden();
         ViewData["Title"] = "Mission Library";
         var viewer = ViewerOf(HttpContext);
-        return View(PageOf(_library, LibraryFilter.From(q, faction ?? giver, rewards ?? show, mine, sort, dir, viewer != null), page, viewer, Path, editable: false));
+        // the admin edits it right here, a field in every cell (Edit Mission Info, a page of its own, went on 31 Oct 2026: Frank)
+        return View(PageOf(_library, LibraryFilter.From(q, faction ?? giver, rewards ?? show, mine, sort, dir, viewer != null), page, viewer, Path,
+            editable: User.IsInRole(Roles.Admin)));
     }
 
     /// <summary>What the open page asks every few seconds: when the version is not the one it shows, it gets the list again (missions.js).</summary>

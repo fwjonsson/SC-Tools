@@ -96,10 +96,12 @@ public class WikiMissionsTests
         Assert.Equal(0, library.LinkWiki());
         var entry = library.Entries().Single(e => e.Row.Title == "Master Hauler Needed for Large Shipment");
         Assert.Equal((Uuid, "2,000,000–2,200,000"), (entry.Row.WikiUuid, entry.Wiki?.AuecText));
-        var page = await admin.GetStringAsync("/admin/missions");
+        var page = await admin.GetStringAsync("/missions");
         Assert.Contains("placeholder=\"2,000,000–2,200,000\" class=\"num\"", System.Net.WebUtility.HtmlDecode(page));
         Assert.Contains("placeholder=\"~500\" class=\"num scu\"", page);
-        var shown = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));   // read-only: the Wiki's in grey
+        // a player's library is read-only: the Wiki's in grey (the admin's has the fields, 31 Oct 2026)
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "missions"), ("value", "true"));
+        var shown = System.Net.WebUtility.HtmlDecode(await (await f.Player(f.AddKey("bileh123"))).GetStringAsync("/missions"));
         Assert.Contains("<span class=\"muted\" title=\"the Star Citizen Wiki's reward\">2,000,000–2,200,000</span>", shown);
         Assert.Contains("<span class=\"muted\" title=\"the Star Citizen Wiki's hauling orders\">~500</span>", shown);
     }
@@ -167,7 +169,9 @@ public class WikiMissionsTests
         Assert.Equal(1, library.LinkWiki());
         var entry = library.Entries().Single(e => e.Row.Title.StartsWith("Stop Rival", StringComparison.Ordinal));
         Assert.Equal((rival, "Red Wind", "Security", 250L, "Legal"), (entry.Row.WikiUuid, entry.FactionShown, entry.Category, entry.Xp, entry.Legality));
-        var page = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions"));
+        // a player's library is read-only: the Wiki's in grey (the admin's has the fields, 31 Oct 2026)
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "missions"), ("value", "true"));
+        var page = System.Net.WebUtility.HtmlDecode(await (await f.Player(f.AddKey("bileh123"))).GetStringAsync("/missions"));
         Assert.Contains("<span class=\"muted\" title=\"the Star Citizen Wiki's faction\">Red Wind</span>", page);
         Assert.Contains("<span class=\"muted\" title=\"the Star Citizen Wiki's category\">Security</span>", page);
         Assert.Contains(">250</span>", page);
@@ -176,7 +180,7 @@ public class WikiMissionsTests
         Assert.Contains("<option value=\"Red Wind\">Red Wind</option>", page);   // the Wiki's faction to pick
         Assert.Contains("Stop Rival Attack", System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?faction=Red%20Wind")));
         Assert.Contains("Stop Rival Attack", System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?q=security")));
-        Assert.Contains("placeholder=\"Red Wind\" class=\"giver\"", await admin.GetStringAsync("/admin/missions"));   // the Wiki's faction until one is typed in
+        Assert.Contains("placeholder=\"Red Wind\" class=\"giver\"", await admin.GetStringAsync("/missions"));   // the Wiki's faction until one is typed in
         Assert.Contains(">Faction", page);
         Assert.Contains(">Reward", page);
         Assert.DoesNotContain(">Giver<", page);
