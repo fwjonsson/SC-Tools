@@ -125,34 +125,51 @@ public class AdminPagesTests
     }
 
     [Fact]
-    public async Task The_debts_page_ticks_payments_corrects_balances_and_payouts()
+    public async Task The_admin_ticks_payments_corrects_balances_and_payouts_on_the_debts_tab()
     {
+        // his Debts page went (Frank, 31 Oct 2026): the Hauling Planner's Debts tab has his fields, sent in the background
         var (f, admin) = await Start(w => w.Minutes(1).Sent("Pilot_B", 100_000));
         using var _ = f;
-        var page = WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/debts?me=" + PlayedSession.Player));
-        Assert.Contains("Balances of " + PlayedSession.Player, page);
+        const string Tab = "/hauling/debts";
+        var debts = System.Text.Json.JsonDocument.Parse(await admin.GetStringAsync("/data.json")).RootElement.GetProperty("debts");
+        Assert.Equal(System.Text.Json.JsonValueKind.Array, debts.GetProperty("payoutsEdit").ValueKind);   // the admin's: what he changes
+        Assert.Equal(System.Text.Json.JsonValueKind.Array, debts.GetProperty("sessionParty").ValueKind);
 
         var transfer = Read(f, t => t.State.Data.Transfers.Single());
         var key = SCTools.Server.Editing.Edits.TransferKey(transfer);
-        var r = await ServerFactory.Send(admin, "/admin/debts", "/admin/debts/payment", ("key", key), ("payment", "true"), ("me", PlayedSession.Player));
-        Assert.Contains("pays off a debt", await Said(admin, r, "/admin/debts"));
+        var r = await ServerFactory.Send(admin, Tab, Tab + "/payment", ("key", key), ("payment", "true"));   // he did not send it: the admin may still
+        Assert.Contains("pays off a debt", await Said(admin, r, Tab));
         Assert.True(Read(f, t => t.State.Data.Transfers.Single().Payment));
 
-        r = await ServerFactory.Send(admin, "/admin/debts", "/admin/debts/balance", ("me", PlayedSession.Player), ("other", "Pilot_B"), ("balance", "+5 000"));
-        Assert.Contains("Pilot_B owes " + PlayedSession.Player, await Said(admin, r, "/admin/debts?me=" + PlayedSession.Player));
+        r = await ServerFactory.Send(admin, Tab, Tab + "/balance", ("me", PlayedSession.Player), ("other", "Pilot_B"), ("balance", "+5 000"));
+        Assert.Contains("Pilot_B owes " + PlayedSession.Player, await Said(admin, r, Tab));
         Assert.Equal(5_000m, Read(f, t => SCTools.Server.Editing.Edits.Balances(t, PlayedSession.Player).Single(b => b.Other == "Pilot_B").Shown));
+        Assert.Contains("Type the balance as a number", await Said(admin, await ServerFactory.Send(admin, Tab, Tab + "/balance", ("me", PlayedSession.Player), ("other", "Pilot_B"), ("balance", "lots")), Tab));
 
         var payout = Read(f, t => t.State.Data.Payouts.FirstOrDefault()?.MissionId);
         if (payout != null)
         {
-            await ServerFactory.Send(admin, "/admin/debts", "/admin/debts/payout", ("id", payout), ("payout", "1000000"));
+            await ServerFactory.Send(admin, Tab, Tab + "/payout", ("id", payout), ("payout", "1000000"));
             Assert.Equal(1_000_000m, Read(f, t => t.State.Data.PayoutOverrides[payout]));
-            await ServerFactory.Send(admin, "/admin/debts", "/admin/debts/payout", ("id", payout), ("payout", ""));
+            await ServerFactory.Send(admin, Tab, Tab + "/payout", ("id", payout), ("payout", ""));
             Assert.False(Read(f, t => t.State.Data.PayoutOverrides.ContainsKey(payout)));
         }
 
-        await ServerFactory.Send(admin, "/admin/debts", "/admin/debts/party", ("names", PlayedSession.Player));
+        await ServerFactory.Send(admin, Tab, Tab + "/party", ("names", PlayedSession.Player));
         Assert.Equal(new[] { PlayedSession.Player }, Read(f, t => t.State.Inputs!.Party));
+
+        // a player: none of it (his own Payment ticks only), and his data has no admin's fields
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "hauling"), ("value", "true"));
+        var player = await f.Player(f.AddKey("Pilot_B"));
+        foreach (var (action, fields) in new[] { ("/balance", new[] { ("me", "Pilot_B"), ("other", PlayedSession.Player), ("balance", "0") }), ("/party", new[] { ("names", "Pilot_B") }) })
+            Assert.StartsWith("/login/denied", (await ServerFactory.Send(player, Tab, Tab + action, fields)).Headers.Location!.PathOf());
+        Assert.Equal(new[] { PlayedSession.Player }, Read(f, t => t.State.Inputs!.Party));
+        var his = System.Text.Json.JsonDocument.Parse(await player.GetStringAsync("/data.json")).RootElement;
+        if (his.TryGetProperty("debts", out var hisDebts))
+        {
+            Assert.False(hisDebts.TryGetProperty("payoutsEdit", out var _1));
+            Assert.False(hisDebts.TryGetProperty("sessionParty", out var _2));
+        }
     }
 
     [Fact]
@@ -161,7 +178,7 @@ public class AdminPagesTests
         var (f, _) = await Start();
         using var __ = f;
         var player = await f.Player(f.AddKey("Pilot_B"));
-        foreach (var url in new[] { "/admin", "/admin/players", "/admin/debts" })
+        foreach (var url in new[] { "/admin", "/admin/players" })
         {
             var r = await player.GetAsync(url);
             Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);

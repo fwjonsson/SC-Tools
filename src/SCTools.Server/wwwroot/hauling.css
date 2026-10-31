@@ -11,6 +11,10 @@
 .hauling .side h2 { margin-top:22px; }   /* the Session heading level with the Stops heading beside it (Frank, 30 Oct 2026: it sat 10 px higher) */
 .hauling .scroll { overflow-x:auto; }
 .hauling .bal table { table-layout:fixed; }
+/* the admin's fields on the Debts tab (Frank, 31 Oct 2026: his Debts page went): a balance, what a mission paid; saved in the background */
+.hauling input.debtin { width:100%; max-width:140px; text-align:right; }
+.hauling input.debtin.typed { color:#f2c14e; }
+.hauling .sessionparty { display:flex; flex-wrap:wrap; gap:6px 18px; margin-bottom:14px; }
 .hauling .bal th:nth-child(2) { width:24%; }
 .hauling .bal th:nth-child(3) { width:18%; }
 .hauling table { border-collapse:collapse; width:100%; }

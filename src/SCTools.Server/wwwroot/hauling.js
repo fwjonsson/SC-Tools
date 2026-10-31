@@ -515,33 +515,104 @@ function renderPlanRuns(tab) {
 
 // The small team status line under the map: it fades in only when the text really changed. It is drawn on its own, so a new line (every few seconds while
 // somebody plays) does not draw the map and the tables anew.
-function renderDebts() { keepScroll(document.getElementById('viewD'), buildDebts); }
+function renderDebts() {
+  const el = document.getElementById('viewD');
+  // the admin is typing in one of its fields: drawn when he leaves it, so what he types is not lost
+  const a = document.activeElement;
+  if (a && el.contains(a) && a.tagName === 'INPUT' && a.type !== 'checkbox') { a.addEventListener('blur', renderDebts, { once: true }); return; }
+  keepScroll(el, buildDebts);
+}
 function buildDebts() {
   const el = document.getElementById('viewD');
   el.textContent = '';
   const d = last.debts;
+  // the admin changes the debts right here (Frank, 31 Oct 2026: his Debts page went); the site sends what he may change only to him
+  const admin = ADMIN && !!last.debtsPay && !!d.payoutsEdit;
+  const send = function (what) { return last.debtsPay.replace(/payment$/, what); };
   section(el, 'h2', 'Earnings', d.earnings);
   signColors(el.lastChild, 4, d);   // every table has # first (31 Oct 2026)
   const h = document.createElement('h2'); h.textContent = 'Balances'; el.appendChild(h);
+  if (admin) hint(el, '+ they owe the member, − the member owes them. Type over a balance to correct it.');
   d.balances.forEach(function (b) {
     section(el, 'h3', b.name, b.grid);
     el.lastChild.classList.add('bal');   // the same column widths in every table
     signColors(el.lastChild, 2, d);
     signColors(el.lastChild, 3, d, el.lastChild.querySelectorAll('tbody tr'));   // the meaning has the colour of its balance
+    if (admin) el.lastChild.querySelectorAll('tbody tr').forEach(function (tr) {
+      const other = tr.cells[1] && tr.cells[1].textContent;
+      if (other) adminField(tr.cells[2], tr.cells[2].textContent, 'Balance of ' + b.name + ' with ' + other, send('balance'), { me: b.name, other: other }, 'balance');
+    });
   });
   section(el, 'h2', 'Money transfers', d.transfers);
   paymentTicks(el.lastChild, d.transfersEdit || [], last.debtsPay);
   section(el, 'h2', 'Mission payouts', d.payouts);
+  if (admin) {
+    const rows = el.lastChild.querySelectorAll('tbody tr');
+    d.payoutsEdit.forEach(function (p, i) {
+      if (!p || !rows[i] || !rows[i].cells[3]) return;
+      const input = adminField(rows[i].cells[3], p.value, 'What ' + (rows[i].cells[2].textContent || 'this mission') + ' paid', send('payout'), { id: p.id }, 'payout');
+      if (p.typed) input.classList.add('typed');
+      input.title = p.typed ? 'Typed by you. Empty: the reward of its contract again.' : 'The reward of its contract. Type what it really paid (a short delivery pays less).';
+    });
+    if (d.sessionParty) sessionParty(el, d.sessionParty, send('party'));
+  }
+}
+
+// A note under a title of the Debts tab, for the admin.
+function hint(el, text) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = text; el.appendChild(p); }
+
+// The admin's field in a cell of the Debts tab: sent in the background as soon as it changes (as the SCU field), the tab drawn again with what was saved.
+function adminField(cell, value, label, url, fields, name) {
+  cell.textContent = '';
+  const input = document.createElement('input');
+  input.className = 'num debtin'; input.value = value; input.setAttribute('aria-label', label);
+  input.addEventListener('change', function () {
+    const body = new FormData();
+    Object.keys(fields).forEach(function (k) { body.append(k, fields[k]); });
+    body.append(name, input.value.trim());
+    post(url, body, input);
+  });
+  cell.appendChild(input);
+  return input;
+}
+
+// Who is in the party of the session (the admin's): the payouts of the session are split equally between them, also somebody who carried nothing.
+function sessionParty(el, party, url) {
+  const h = document.createElement('h2'); h.textContent = 'Session party'; el.appendChild(h);
+  hint(el, 'Everyone who was in the party this session, also someone who carried nothing: the reward of the session is split equally between them.');
+  const box = document.createElement('div'); box.className = 'sessionparty'; el.appendChild(box);
+  party.forEach(function (m) {
+    const label = document.createElement('label'); label.className = 'check';
+    const input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!m.in; input.value = m.name;
+    input.addEventListener('change', function () {
+      const body = new FormData();
+      box.querySelectorAll('input:checked').forEach(function (c) { body.append('names', c.value); });
+      post(url, body, input);
+    });
+    label.appendChild(input); label.appendChild(document.createTextNode(' ' + m.name));
+    box.appendChild(label);
+  });
+}
+
+// Sends one of the admin's changes in the background; the field says whether it was saved (its title says what was done), and the tab is drawn again.
+function post(url, body, input) {
+  const token = document.querySelector('input[name="__RequestVerificationToken"]');
+  if (token) body.append('__RequestVerificationToken', token.value);
+  input.classList.remove('saved', 'unsaved'); input.classList.add('saving');
+  fetch(url, { method: 'POST', body: body, headers: { 'X-Autosave': '1' }, credentials: 'same-origin' })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function (d) { input.classList.remove('saving'); input.classList.add(d.ok ? 'saved' : 'unsaved'); input.title = d.said || ''; if (d.ok) refresh(); })
+    .catch(function () { input.classList.remove('saving'); input.classList.add('unsaved'); input.title = 'Not saved: the site could not be reached. Try again.'; });
 }
 
 // The Payment column of the money transfers: the player who sent the money ticks whether it pays off a debt (sent at once in the background, as the SCU
-// field); everybody else sees yes or nothing. Watching (not logged in), or the program's own page: text only.
+// field), and the admin any; everybody else sees yes or nothing. Watching (not logged in), or the program's own page: text only.
 function paymentTicks(box, edits, url) {
   if (!url || !ME) return;
   const rows = box.querySelectorAll('tbody tr');
   edits.forEach(function (e, i) {
     const row = rows[i];
-    if (!e || !row || !row.cells[5] || (e.from || '').toLowerCase() !== ME) return;
+    if (!e || !row || !row.cells[5] || !(ADMIN || (e.from || '').toLowerCase() === ME)) return;
     const cell = row.cells[5];   // Payment (after #, Time, From, To, Amount)
     cell.textContent = '';
     const input = document.createElement('input');

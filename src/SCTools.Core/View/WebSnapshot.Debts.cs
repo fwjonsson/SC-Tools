@@ -6,7 +6,9 @@ public sealed partial class WebSnapshot
 {
     /// <summary>
     /// The Debts tab for everybody: earnings, the balance of every member with the others, all money transfers (transfersEdit: the key and sender of each, so
-    /// the sender logged in can tick Payment on the page) and the mission payouts.
+    /// the sender logged in can tick Payment on the page) and the mission payouts. For the admin (the site cuts them from a player's view, DataViews) what he
+    /// changes on the tab (Frank, 31 Oct 2026: his Debts page went): payoutsEdit, the id of every payout and whether its payout was typed, one for one with
+    /// the rows; sessionParty, who of the members is in the party of the session (null: no session).
     /// </summary>
     object Debts()
     {
@@ -45,8 +47,10 @@ public sealed partial class WebSnapshot
         var payouts = new ViewTable(_p,
             new ViewColumn("#"), new ViewColumn("Time"), new ViewColumn("Mission", "left"), new ViewColumn("Payout", "right"),
             new ViewColumn("Shared Between", "left"), new ViewColumn("Each", "right"));
+        var payoutsEdit = new List<object>();
         foreach (var r in data.Payouts.OrderByDescending(r => r.Time))
         {
+            payoutsEdit.Add(new { id = r.MissionId, typed = data.PayoutOverrides.ContainsKey(r.MissionId), value = Math.Round(r.Payout).ToString("0", CultureInfo.InvariantCulture) });
             payouts.Add(
                 "",
                 r.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture),
@@ -84,8 +88,16 @@ public sealed partial class WebSnapshot
         earnings.Add("", "Total", sumNow.ToString("N0", CultureInfo.InvariantCulture), sumAll.ToString("N0", CultureInfo.InvariantCulture), "").Bold = true;
         earnings.Number(0, party.Count);   // the players; not one player's accounts added up, not the Total
 
+        // who is in the party of the session: the payouts of the session are split between them (the admin ticks them)
+        var inSession = _s.Inputs == null ? null : _s.Inputs.Party ?? _s.Inputs.Members;
+        var sessionParty = inSession == null ? null : party.Select(n => new { name = n, @in = inSession.Any(x => SameName(x, n)) }).ToList();
+
         // every table numbered (Frank, 31 Oct 2026)
-        return new { earnings, balances, transfers = transfers.Number(), transfersEdit, payouts = payouts.Number(), pos = ViewPalette.Hex(_p.Green), neg = ViewPalette.Hex(_p.Red) };
+        return new
+        {
+            earnings, balances, transfers = transfers.Number(), transfersEdit, payouts = payouts.Number(), payoutsEdit, sessionParty,
+            pos = ViewPalette.Hex(_p.Green), neg = ViewPalette.Hex(_p.Red),
+        };
     }
 
     /// <summary>The History tab: the all-time leaderboard, the best session, and every saved session with the Total.</summary>

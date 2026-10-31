@@ -490,15 +490,15 @@ admin (done), then going live.
   1600 px or less before; 340 at 1200, the whole width at 900; `.maptool`'s `--mapw` and `.planleft`), the outermost places 16 px from the map's edge (46 before, `ROOM` in `systemmap.js`), with the Players and the next column's title level with the map's top. A page with a wide table (the
   Mission Library, the Session tool's games, the Gauntlet Tracker) takes the whole band too since 30 Oct 2026 (Frank; 1,400 px before), and the Mission
   Library numbers its rows in a # column on the left, on through its pages. The pages of the site end with a footer: the tracker's download, how to set it up, and the
-  disclaimer. The admin's pages have a second row under it with his pages (Session, Players, Debts, Scrip, Map, Tools, Account), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
+  disclaimer. The admin's pages have a second row under it with his pages (Session, Players, Scrip, Map, Tools, Account), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
 - **The admin's pages** change the data with the core's logic (`Editing/Edits.cs`, each change saved and worked out again at once):
   **Session** (`/admin`: the session, which starts and stops by itself (below), the start time, the names and notes of the
   stops, **Register lost cargo** (the runs, with what was lost on each), the SCU of from-Ruin drop-offs the game did not tell; the rewards are the
   Mission Library's and not on this page since 29 Oct 2026), **Players** (`/admin/players`, in place of the Party and Tracker keys pages since 31 Oct 2026: every
   registered player and every member of the Hauling Planner's party, with when he registered, when he last played, his tracker, Active (Auto, In or
   Out, sent as soon as it is changed), his keys with Take back, Make a key, and Into and Out of the party; his name opens his **My page** as he sees it
-  (`/me?player=`), where the admin sets his location, colour and fleet for him; the party follows the game's parties, see below) and **Debts** (a member's balances typed over, the Payment tick of his transfers, what a
-  mission really paid, the party of the session).
+  (`/me?player=`), where the admin sets his location, colour and fleet for him; the party follows the game's parties, see below). The admin's Debts page went on 31 Oct 2026: he changes
+  the debts on the Hauling Planner's **Debts** tab, below.
 - **Sessions start and stop by themselves** (`Sessions/AutoSessions` in the core): a session starts when a mission of the tool is accepted and goes on
   while anything happens with its missions; after an hour with nothing (also a crash, or the trackers off) it ended 5 minutes after the last thing that
   happened. The Hauling Planner: one session for the party (everybody's hauling contracts to and from Ruin: accepted, picked up, delivered, ended; and
@@ -755,7 +755,10 @@ admin (done), then going live.
     whenever the library changes, so the tracker never waits for the library.
 - **The Payment tick on the live page** (Frank, 29 Oct 2026): on the Debts tab, the player who sent a money transfer ticks whether it pays off a debt
   (sent in the background to `/hauling/debts/payment`, `DebtsPayController`; `data.json` says where, `debtsPay`, and whose every transfer is,
-  `transfersEdit`); only the sender can (the admin on his Debts page), everybody else sees yes or nothing.
+  `transfersEdit`); only the sender can, and the admin, everybody else sees yes or nothing. The admin changes the rest of the debts right there too
+  (Frank, 31 Oct 2026: his Debts page went; `/hauling/debts/balance`, `/payout`, `/party`, admin only): a **balance** typed over (+ they owe the member,
+  − he owes them), what a **mission really paid** (empty: the reward of its contract; typed ones in gold; `payoutsEdit`), and the **Session party**
+  ticks (who shares the session's reward; `sessionParty`). Each is sent as soon as it changes, and a player's `data.json` has neither list.
 - **Parties never owe each other.** Who carried a mission and who shared its payout are one party (`SessionInputs.Groups`, worked out with the payouts),
   so two parties that hauled in the same session are two groups, and the Debts tab works out who owes whom inside each of them only (`DebtCalc.Pairs`). A
   session from before has no groups and stays as it was.
