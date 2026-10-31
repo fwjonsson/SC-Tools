@@ -166,6 +166,20 @@ main:has(.maptool) { max-width:1900px; }
    under the bar before, on the Map tool) */
 .gauntletmap { margin-bottom:18px; }
 .hint.below { margin-top:6px; }   /* a note under its table (the Gauntlet Tracker's grind session) */
+/* the admin's notice of unknown places (alerts.js, #414): toasts in the top right, a click opens Map places */
+.toasts { position:fixed; top:64px; right:16px; z-index:100; display:flex; flex-direction:column; gap:8px; max-width:min(420px, calc(100vw - 32px)); }
+.toast { background:var(--cell); border:1px solid var(--line); border-left:4px solid #e5534b; border-radius:6px; padding:10px 14px; cursor:pointer;
+  box-shadow:0 6px 18px rgba(0,0,0,.45); animation:toastin .25s ease-out; }
+.toast .title { font-weight:700; }
+.toast .what { color:var(--muted); font-size:13px; margin-top:2px; overflow-wrap:anywhere; }
+.toast .row { display:flex; gap:12px; justify-content:flex-end; margin-top:6px; font-size:12px; }
+@keyframes toastin { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+/* under the Companion's map: an unknown place he is at, with Map places' form (#414) */
+.unknowncard { background:var(--cell); border:1px solid var(--line); border-left:4px solid #e5534b; border-radius:6px; padding:8px 12px; margin-top:10px; }
+.unknowncard .head code { overflow-wrap:anywhere; }
+.unknowncard form { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:6px; }
+.unknowncard select { max-width:100%; }
+.unknowncard.done { border-left-color:#5fd35f; }   /* saved: says so for a moment, then goes */
 .mapsys { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px; }
 .mapsys a { text-decoration:none; padding:6px 16px; border-radius:4px; background:var(--cell); border:1px solid var(--line); color:var(--fg); font-weight:600; }
 .mapsys a:hover { border-color:var(--muted); }
