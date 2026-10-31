@@ -111,47 +111,6 @@ public sealed record MemberInput(
     public string TextColor => ViewPalette.Hex(ViewPalette.TextOn(Convert.ToInt32(Color.TrimStart('#'), 16)));
 }
 
-/// <summary>The admin's Debts page: the balances of one member (typed over to correct them), the money transfers, the mission payouts, and the session party.</summary>
-public sealed class AdminDebtsModel
-{
-    public string Me { get; set; } = "";
-    public List<string> Names { get; set; } = new();
-    public List<BalanceInput> Balances { get; set; } = new();
-    public List<TransferInput> Transfers { get; set; } = new();
-    public List<PayoutInput> Payouts { get; set; } = new();
-    public bool HasSession { get; set; }
-    public List<(string Name, bool In)> SessionParty { get; set; } = new();
-
-    public static AdminDebtsModel Of(Tracker t, string? me)
-    {
-        var names = t.Payouts.DebtPartyNames();
-        var who = names.FirstOrDefault(n => me != null && PlayerNames.SameName(n, me)) ?? names.FirstOrDefault() ?? "";
-        var data = t.State.Data;
-        var inp = t.State.Inputs;
-        var party = inp == null ? new List<string>() : inp.Party ?? inp.Members;
-        return new AdminDebtsModel
-        {
-            Me = who,
-            Names = names,
-            Balances = who.Length == 0 ? new() : Edits.Balances(t, who)
-                .Select(b => new BalanceInput(b.Other, Amounts.Signed(b.Shown), global::SCTools.Tracking.Payouts.Meaning(who, b.Other, b.Shown))).ToList(),
-            Transfers = data.Transfers.OrderByDescending(x => x.Time)
-                .Where(x => who.Length == 0 || PlayerNames.SameName(x.From, who) || PlayerNames.SameName(x.To, who))
-                .Select(x => new TransferInput(Edits.TransferKey(x), x.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture), x.From, x.To,
-                    x.Amount.ToString("N0", CultureInfo.CurrentCulture), x.Payment)).ToList(),
-            Payouts = data.Payouts.OrderByDescending(r => r.Time)
-                .Select(r => new PayoutInput(r.MissionId, r.Time.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture), r.Contract,
-                    Amounts.Edit(r.Payout), data.PayoutOverrides.ContainsKey(r.MissionId), string.Join(", ", r.Members), r.Each.ToString("N0", CultureInfo.CurrentCulture))).ToList(),
-            HasSession = inp != null,
-            SessionParty = names.Select(n => (n, party.Any(x => PlayerNames.SameName(x, n)))).ToList(),
-        };
-    }
-}
-
-public sealed record BalanceInput(string Other, string Balance, string Meaning);
-public sealed record TransferInput(string Key, string Time, string From, string To, string Amount, bool Payment);
-public sealed record PayoutInput(string MissionId, string Time, string Contract, string Payout, bool Typed, string Members, string Each);
-
 /// <summary>Amounts in the forms: written without spaces (1268250), read with or without them (1 268 250, 1,268,250, −1 250).</summary>
 public static class Amounts
 {

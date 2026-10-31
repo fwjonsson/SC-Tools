@@ -132,6 +132,8 @@ public sealed class DataViews
             if (debts["transfersEdit"] is JsonArray edits)   // the payment ticks go with the transfers' rows, one for one
                 debts["transfersEdit"] = new JsonArray(keptTransfers.Where(i => i < edits.Count).Select(i => edits[i]?.DeepClone()).ToArray());
             Rows(debts["payouts"], cells => Names(Cell(cells, 4)).Any(n => Same(n, me)));
+            debts.Remove("payoutsEdit");   // what the admin changes: not a player's
+            debts.Remove("sessionParty");
         }
 
         // the saved sessions: the ones he carried in
