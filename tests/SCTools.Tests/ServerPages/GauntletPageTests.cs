@@ -169,7 +169,7 @@ public class GauntletPageTests
         Assert.Contains("227,750", board);
 
         // the rewards are in the Mission Library (the admin's Gauntlet page shows them), the same for everybody
-        await ServerFactory.Send(admin, "/admin/missions", "/admin/missions/set", ("id", GauntletService.LibraryKey(7)), ("field", "auec"), ("value", "300000"));
+        await ServerFactory.Send(admin, "/missions", "/admin/missions/set", ("id", GauntletService.LibraryKey(7)), ("field", "auec"), ("value", "300000"));
         Assert.Contains("300,000", await bileh.GetStringAsync("/gauntlet/leaderboard"));   // everybody counts with them
         Assert.Equal(HttpStatusCode.NotFound, (await admin.GetAsync("/admin/gauntlet")).StatusCode);   // no page of its own any more: Edit Mission Info
 

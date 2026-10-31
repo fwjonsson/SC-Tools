@@ -1,5 +1,5 @@
-// The Mission Library (and the admin's Edit Mission Info) keeps itself up to date while it is open: every few seconds it asks the server for the library's
-// version (data-version-url: /missions/version or /admin/missions/version), and when that is not the one the page shows (a mission came in or went on, a
+// The Mission Library keeps itself up to date while it is open: every few seconds it asks the server for the library's
+// version (data-version-url: /missions/version), and when that is not the one the page shows (a mission came in or went on, a
 // field was saved) it gets the page again and puts the new list in place, with the same choices and order. Not while you are typing in it (the window
 // has the focus and a field of the list has it): then it waits until you leave the list.
 (function () {

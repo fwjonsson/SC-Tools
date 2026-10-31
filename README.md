@@ -521,7 +521,7 @@ admin (done), then going live.
   on the leaderboard, so a party's or one player's combined accounts' earnings count it once. It is timed from each member's own accept (the one who
   gets a share has an accept line too, seconds later: Frank's logs of 29-30 Oct 2026), so a shared run is timed once per member. What a scenario pays (the Stats tab's per hour) stays its whole reward. The old address `/gauntlet/ranking` goes to Stats. The **Leaderboard** ("All-time leaderboard") is everybody's: total earned, aUEC,
   MG scrip, total aUEC per hour over the timed runs, completed and completion rate, fastest run, favourite and best scenario, last played. The rewards
-  are the same for everybody: the Mission Library's "Combat Gauntlet - Scenario #n", typed on Edit Mission Info (the admin's Gauntlet page and his
+  are the same for everybody: the Mission Library's "Combat Gauntlet - Scenario #n", typed in the library's rows (the admin's Gauntlet page and his
   Contracts page went on 29 Oct 2026).
 - **What scrip is worth** is the admin's **Scrip** page (`/admin/scrip`, `ScripValues`, the table `SiteValues`): aUEC for one MG scrip and for one Council
   scrip, the price he thinks they sell for now. Every tool counts scrip with these, the past included (a new price changes old totals too).
@@ -579,8 +579,8 @@ admin (done), then going live.
   header: names A to Z, numbers the biggest first, again for the other way round; the kinds without a value in the column last; `LibraryFilter` keeps
   it all in the address), 20 to a page. What is played is his own: **Failed / Completed** (how often he failed and completed it, hover for taken and
   abandoned) and **Last played** (sort by it for the latest he played; a mission he is playing now, taken in the last six hours and not ended, says so
-  and has a green row), never anybody else's, and a visitor not logged in sees no plays at all. The admin changes the library on **Edit Mission Info** (`/admin/missions`, `EditMissionsController`, in his row
-  of pages): the same list, choices and order with a field in every cell (the faction to type, or to pick from every faction so far: a datalist, a
+  and has a green row), never anybody else's, and a visitor not logged in sees no plays at all. The admin changes the library **in its own rows** (`/missions`: for him a field in every cell; Edit
+  Mission Info, his page of its own at `/admin/missions`, went on 31 Oct 2026, Frank; the fields send to `/admin/missions/set`, `EditMissionsController`): the same list, choices and order with a field in every cell (the faction to type, or to pick from every faction so far: a datalist, a
   new one is in it as soon as it is saved; each field saved as soon as it changes, in the background; the Notes column is gone, what was typed in it
   stays in the database). Both pages keep themselves up to date (`missions.js` asks the page's `version` address every few seconds and gets the list
   again when it changed, not while you type in it). A mission the player took himself is in it also when the log never says which offer it is (most

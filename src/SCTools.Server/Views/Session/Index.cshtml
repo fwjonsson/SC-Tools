@@ -46,7 +46,7 @@ else
   the same mission (a Hauling Planner contract: its payout split, as on the Debts tab), the scrip only for the one who took the contract, with MG scrip at @Model.MgValue.ToString("N0", inv) aUEC
   and Council scrip at @Model.CouncilValue.ToString("N0", inv) aUEC. It is worked out again every time, so a reward filled in later counts for the past.
   @if (Model.WithoutReward > 0) { <text><b>@Model.WithoutReward completed @(Model.WithoutReward == 1 ? "mission has" : "missions have") no reward in the library
-  yet</b>: @if (User.IsInRole(Roles.Admin)) { <a href="/admin/missions?rewards=todo&amp;mine=1">fill them in</a> } else { <a href="/missions?rewards=todo&amp;mine=1">which ones</a> }.</text> }</p>
+  yet</b>: @if (User.IsInRole(Roles.Admin)) { <a href="/missions?rewards=todo&amp;mine=1">fill them in</a> } else { <a href="/missions?rewards=todo&amp;mine=1">which ones</a> }.</text> }</p>
 
 <h2>Games</h2>
 @if (Model.Games.Count == 0)
