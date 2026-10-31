@@ -58,7 +58,7 @@ public class GauntletPageTests
         Assert.DoesNotContain("<h2>Lifetime</h2>", stats);
         Assert.DoesNotContain("Earnings ranking", stats);
         var history = await player.GetStringAsync("/gauntlet/history");
-        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#cf4a5a\">", history);   // the tabs: a row under the bar in the tool's colour (30 Oct 2026; red since 31 Oct)
+        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#e0734a\">", history);   // the tabs: a row under the bar in the tool's colour (30 Oct 2026; orange since 31 Oct)
         Assert.Contains("<a href=\"/gauntlet/history\" class=\"on\">History</a>", history);
         Assert.DoesNotContain("<h1>", history);
         Assert.Contains("<h2>Earlier grind sessions</h2>", history);   // his run of 30 Sep was a grind session by itself

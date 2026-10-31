@@ -28,7 +28,7 @@ public static class SiteTools
 
     public static readonly SiteTool Gauntlet = new("gauntlet", "Gauntlet Tracker",
         "Tracks Combat Gauntlet runs from the game log: earnings, grind sessions, times by scenario with a top 10, what each scenario pays per hour, and a leaderboard of everybody. Nothing to press: run the tracker and play.", "/gauntlet", false,
-        "#cf4a5a", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 1v5M12 18v5M1 12h5M18 12h5\"/></svg>");
+        "#e0734a", "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 1v5M12 18v5M1 12h5M18 12h5\"/></svg>");
 
     public static readonly SiteTool Party = new("party", "Party",
         "Who is playing now and with whom (the game's own party), the ship each one flies, when everybody else was last seen, and a page per player.", "/party", false,

@@ -4,7 +4,7 @@ namespace SCTools.Tests.ServerPages;
 
 /// <summary>
 /// Every tool's tables in its colour (Frank, 31 Oct 2026): a page sets the colour of its tables' heads and its buttons (--header) from the part of the site it
-/// is in; the Companion is yellow, the Gauntlet Tracker red, Session History teal and the Mission Library grey; and a # column is as narrow as the Hauling
+/// is in; the Companion is yellow, the Gauntlet Tracker orange, Session History teal and the Mission Library grey; and a # column is as narrow as the Hauling
 /// Planner's on every tool.
 /// </summary>
 public class ToolColoursTests
@@ -14,8 +14,8 @@ public class ToolColoursTests
     [Fact]
     public async Task Every_page_has_its_tools_colour_for_its_tables()
     {
-        Assert.Equal(("#d9a441", "#cf4a5a", "#3fb8a4", "#8b949e"), (SiteTools.Companion.Color, SiteTools.Gauntlet.Color, SiteTools.Session.Color, SiteTools.Missions.Color));
-        Assert.NotEqual(TopBar.AdminColor, SiteTools.Gauntlet.Color);   // a red of its own, not the admin's
+        Assert.Equal(("#d9a441", "#e0734a", "#3fb8a4", "#8b949e"), (SiteTools.Companion.Color, SiteTools.Gauntlet.Color, SiteTools.Session.Color, SiteTools.Missions.Color));
+        Assert.NotEqual(TopBar.AdminColor, SiteTools.Gauntlet.Color);   // not the admin's red (Frank: the admin pages are red)
 
         using var f = new ServerFactory();
         var admin = await f.Admin();
