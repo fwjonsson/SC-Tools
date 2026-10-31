@@ -43,7 +43,7 @@ else if (Model.Tab == "session")
 {
   @* the map with you and your party, as the Companion's and its size (Frank, 31 Oct 2026): the systems as the engine's buttons in its corner, the players
      beside it (map.js), and beside them the Game Session with the Grind Session under it (Frank, 31 Oct 2026: under the map side by side before). Both
-     tables are always there, nought while nothing is counted *@
+     tables are always there, nought while nothing is counted, their label columns as wide as each other (site.css .gauntletsessions) *@
   var none = new SCTools.Gauntlet.GauntletSessionStats(DateTime.MinValue, DateTime.MinValue, new SCTools.Gauntlet.GauntletTotals(0, 0, 0, 0, 0));
   <div class="maptool gauntletmap">
     <div class="mapbox">
@@ -56,16 +56,9 @@ else if (Model.Tab == "session")
     <div class="mapside objectives gauntletsessions">
       <h2>Game Session</h2>
       @await Html.PartialAsync("_Totals", Model.Game ?? none, new ViewDataDictionary(ViewData) { ["Start"] = Model.Game == null || Model.GameFrom == null ? null : new GauntletStartRow("game", Model.GameFrom.Value, Model.Game.Start, Model.IsAdmin) })
-      @* what a grind session is: under its own table, as wide as it (Frank, 31 Oct 2026) *@
+      @* what a grind session is: under its own table, as wide as it (Frank, 31 Oct 2026). No line between the title and the table (Frank, 31 Oct 2026:
+         "Running since" or "No grind session now." was there): the Start time row says when the one going on began *@
       <h2>Grind Session</h2>
-      @if (Model.Grind != null)
-      {
-        <p class="hint">Running since @When(Model.Grind.Stats.Start).</p>
-      }
-      else
-      {
-        <p class="hint">No grind session now.</p>
-      }
       @await Html.PartialAsync("_Totals", Model.Grind?.Stats ?? none, new ViewDataDictionary(ViewData) { ["Start"] = Model.Grind == null || Model.GrindFrom == null ? null : new GauntletStartRow("grind", Model.GrindFrom.Value, Model.Grind.Stats.Start, Model.IsAdmin) })
       <p class="hint below">A grind session starts by itself when @whose accept@(Model.InParty ? "s" : "") a scenario and goes on while @whose play@(Model.InParty ? "s" : "") them. After an hour
         without accepting, completing or abandoning one (also when the game crashed or the tracker was off), it ends 5 minutes after the last one. The earlier
@@ -82,8 +75,9 @@ else if (Model.Tab == "session")
 }
 else if (Model.Tab == "stats")
 {
-  @* Frank, 30 Oct 2026: the earnings (Lifetime until then) top left, the top 10 top right, the earnings per scenario (Earnings ranking until then) under
-     them and the times by scenario last; the first two were on History *@
+  @* Frank, 30 Oct 2026: the earnings (Lifetime until then) top left, the top 10 top right; the first two were on History. Frank, 31 Oct 2026: the
+     Earnings/Scenario (Earnings per scenario until then, the Earnings ranking before) and the Scenario Times (Times by scenario) under the Earnings, as
+     wide as it, so the Top 10 Fastest has the right half to itself, its table level with the Earnings' *@
   var top = Model.Scenarios.First(s => s.Scenario == Model.Selected).Top;
   <div class="pair">
   <div>
@@ -97,11 +91,59 @@ else if (Model.Tab == "stats")
       <tr><th>Cancelled (not counted)</th><td class="right">@Model.Lifetime.Cancelled</td></tr>
     </tbody>
   </table>
+
+  <h2>Earnings/Scenario</h2>
+  <p class="hint">Every scenario with a timed run, ranked by total aUEC per hour at its average time (aUEC plus MG scrip at @Money(Model.ScripValue) aUEC each).
+    Scrip/h is the MG scrip alone.</p>
+  @if (Model.Ranking.Count == 0)
+  {
+    <p class="muted">Nothing to rank yet: no timed runs.</p>
+  }
+  else
+  {
+    <table class="wide">
+      <thead><tr><th class="n">#</th><th>Scenario</th><th>Average</th><th>Scrip/h</th><th>Total aUEC/h (average)</th><th>Total aUEC/h (at fastest)</th><th>Lifetime earned</th></tr></thead>
+      <tbody>
+      @for (var i = 0; i < Model.Ranking.Count; i++)
+      {
+        var s = Model.Ranking[i];
+        <tr>
+          <td class="n">@(i + 1)</td>
+          <td>#@s.Scenario</td>
+          <td class="right">@Dur(s.Average)</td>
+          <td class="right">@((s.ScripPerHourAtAverage ?? 0).ToString("N1", inv))</td>
+          <td class="right">@Money(s.TotalPerHourAtAverage ?? 0)</td>
+          <td class="right">@Money(s.TotalPerHourAtFastest ?? 0)</td>
+          <td class="right">@Money(s.LifetimeTotal)</td>
+        </tr>
+      }
+      </tbody>
+    </table>
+  }
+
+  <h2>Scenario Times</h2>
+  <p class="hint">From accepting to completing. A run over 15 minutes (60 for scenario 8) is not timed; its reward still counts.</p>
+  <table class="wide">
+    <thead><tr><th>Scenario</th><th>Completed</th><th>Cancelled</th><th>Average</th><th>Fastest</th><th>Slowest</th></tr></thead>
+    <tbody>
+    @foreach (var s in Model.Scenarios)
+    {
+      <tr>
+        <td>#@s.Scenario</td>
+        <td class="right">@s.Completed</td>
+        <td class="right">@s.Cancelled</td>
+        <td class="right">@Dur(s.Average)</td>
+        <td class="right">@Dur(s.Fastest)</td>
+        <td class="right">@Dur(s.Slowest)</td>
+      </tr>
+    }
+    </tbody>
+  </table>
   </div>
   <div>
   @* the scenario to pick right of the title (Frank, 30 Oct 2026); data-autosave: picking one shows it (autosave.js), the page comes back here *@
   <div class="titled">
-  <h2 id="top10">Top 10 fastest</h2>
+  <h2 id="top10">Top 10 Fastest</h2>
   <form method="get" action="/gauntlet/stats#top10" class="line" data-autosave>
     <label for="scenario">Scenario</label>
     <select id="scenario" name="scenario">
@@ -131,59 +173,12 @@ else if (Model.Tab == "stats")
   }
   </div>
   </div>
-
-  <h2>Earnings per scenario</h2>
-  <p class="hint">Every scenario with a timed run, ranked by total aUEC per hour at its average time (aUEC plus MG scrip at @Money(Model.ScripValue) aUEC each).
-    Scrip/h is the MG scrip alone.</p>
-  @if (Model.Ranking.Count == 0)
-  {
-    <p class="muted">Nothing to rank yet: no timed runs.</p>
-  }
-  else
-  {
-    <table class="wide">
-      <thead><tr><th class="n">#</th><th>Scenario</th><th>Average</th><th>Scrip/h</th><th>Total aUEC/h (average)</th><th>Total aUEC/h (at fastest)</th><th>Lifetime earned</th></tr></thead>
-      <tbody>
-      @for (var i = 0; i < Model.Ranking.Count; i++)
-      {
-        var s = Model.Ranking[i];
-        <tr>
-          <td class="n">@(i + 1)</td>
-          <td>#@s.Scenario</td>
-          <td class="right">@Dur(s.Average)</td>
-          <td class="right">@((s.ScripPerHourAtAverage ?? 0).ToString("N1", inv))</td>
-          <td class="right">@Money(s.TotalPerHourAtAverage ?? 0)</td>
-          <td class="right">@Money(s.TotalPerHourAtFastest ?? 0)</td>
-          <td class="right">@Money(s.LifetimeTotal)</td>
-        </tr>
-      }
-      </tbody>
-    </table>
-  }
-
-  <h2>Times by scenario</h2>
-  <p class="hint">From accepting to completing. A run over 15 minutes (60 for scenario 8) is not timed; its reward still counts.</p>
-  <table class="wide">
-    <thead><tr><th>Scenario</th><th>Completed</th><th>Cancelled</th><th>Average</th><th>Fastest</th><th>Slowest</th></tr></thead>
-    <tbody>
-    @foreach (var s in Model.Scenarios)
-    {
-      <tr>
-        <td>#@s.Scenario</td>
-        <td class="right">@s.Completed</td>
-        <td class="right">@s.Cancelled</td>
-        <td class="right">@Dur(s.Average)</td>
-        <td class="right">@Dur(s.Fastest)</td>
-        <td class="right">@Dur(s.Slowest)</td>
-      </tr>
-    }
-    </tbody>
-  </table>
 }
 else if (Model.Tab == "history")
 {
-  @* the earlier grind sessions (on the Session tab until 30 Oct 2026, Frank); the lifetime totals and the ranking went to Stats that day *@
-  <h2>Earlier grind sessions</h2>
+  @* the grind sessions that ended (on the Session tab until 30 Oct 2026, Frank); the lifetime totals and the ranking went to Stats that day. "Saved
+     Sessions" with a # column as the other tools' tables (Frank, 31 Oct 2026; "Earlier grind sessions" before), the newest first *@
+  <h2>Saved Sessions</h2>
   @if (Model.PastGrinds.Count == 0)
   {
     <p class="muted">None yet: a grind session is here once it has ended.</p>
@@ -191,11 +186,13 @@ else if (Model.Tab == "history")
   else
   {
     <table class="wide">
-      <thead><tr><th>Started</th><th>Length</th><th>Runs</th><th>aUEC/h</th><th>Scrip/h</th><th>Total aUEC/h</th><th>Total earned</th></tr></thead>
+      <thead><tr><th class="n">#</th><th>Started</th><th>Length</th><th>Runs</th><th>aUEC/h</th><th>Scrip/h</th><th>Total aUEC/h</th><th>Total earned</th></tr></thead>
       <tbody>
-      @foreach (var g in Model.PastGrinds)
+      @for (var i = 0; i < Model.PastGrinds.Count; i++)
       {
+        var g = Model.PastGrinds[i];
         <tr>
+          <td class="n">@(i + 1)</td>
           <td>@When(g.Stats.Start)</td>
           <td class="right">@Hours(g.Stats.Hours)</td>
           <td class="right">@g.Stats.Totals.Completed</td>

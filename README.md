@@ -517,10 +517,11 @@ admin (done), then going live.
   every run in the database. **Session**, **Stats** and **History** are the viewer's in-game party's (everybody in it now, from the logs, `PartyService`;
   alone or not playing: his own runs; Frank, 29 Oct 2026): the game session from the first of the party's games, one grind session for the party
   (`GauntletService.GrindSessions` of several players; the game session and the grind session side by side on Session, together as wide as the wide
-  tables, Frank, 30 Oct 2026), and on **Stats** the **Earnings** (the lifetime totals; top left), the top 10 fastest of a scenario, which says whose
-  run it is (top right), the **Earnings per scenario** (total aUEC per hour at the average time, the MG scrip per hour alone, at the fastest time,
-  lifetime earned; "Earnings ranking" on History until 30 Oct 2026) and the times by scenario. **History** has the earlier grind sessions (on Session
-  until then). A
+  tables, Frank, 30 Oct 2026), and on **Stats** the **Earnings** (the lifetime totals) in the left half with the **Earnings/Scenario** (total aUEC per
+  hour at the average time, the MG scrip per hour alone, at the fastest time, lifetime earned; "Earnings ranking" on History until 30 Oct 2026,
+  "Earnings per scenario" until 31 Oct 2026) and the **Scenario Times** under it, and the **Top 10 Fastest** of a scenario, which says whose run it is,
+  alone in the right half (Frank, 31 Oct 2026). **History** has the **Saved Sessions**, the grind sessions that ended, numbered (on Session until 30
+  Oct 2026; "Earlier grind sessions" until 31 Oct 2026). A
   mission shared in the party is in every member's log, and each member's run earned him his part of it (the contracts tracker, Frank 30 Oct 2026: the
   aUEC split evenly among who completed it, the MG scrip only to the one who accepted it first; before, it counted in full for each), on every tab and
   on the leaderboard, so a party's or one player's combined accounts' earnings count it once. It is timed from each member's own accept (the one who

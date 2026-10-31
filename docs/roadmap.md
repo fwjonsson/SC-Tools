@@ -69,7 +69,10 @@ All the tools track at the same time, all the time. The tracking runs on the ser
    the viewer's in-game party's runs together (alone: his own); the Earnings ranking tab is **History**, with the lifetime totals moved there from
    Session and a Scrip/h column in the ranking. Since 30 Oct 2026 (Frank): Stats has the Earnings (the lifetime totals) and the Top 10 side by side,
    the Earnings per scenario (the ranking) and the times under them; History has the earlier grind sessions; Session has the game session and the
-   grind session side by side; the Leaderboard is titled "All-time leaderboard"; every wide table takes the whole band.
+   grind session side by side; the Leaderboard is titled "All-time leaderboard"; every wide table takes the whole band. Since 31 Oct 2026 (Frank): the
+   Earnings/Scenario and the Scenario Times sit under the Earnings, as wide as it, and the Top 10 Fastest has the right half to itself, level with the
+   Earnings; History's table is "Saved Sessions" with a # column; the Game Session's and the Grind Session's row titles are as wide as each other, with
+   no status line under the Grind Session's title.
 5. **Party tool** (`/party`, PR #241): who is playing in which in-game party with the ship each one flies, everybody else with when they were last
    seen, and a page per player. `PartyService` keeps the site's players in one place for every tool, and asks the party tracker (14) about the
    parties. Since 29 Oct not a card on the landing page: a
