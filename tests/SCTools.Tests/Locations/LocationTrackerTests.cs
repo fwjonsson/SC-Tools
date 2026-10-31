@@ -77,66 +77,66 @@ public class LocationTrackerTests
         Assert.False(Where(null).ByPlanner);   // not in the planner's party
     }
 
-    // the game's numbers of the area lines (zzoega's log of 30 Oct 2026): a pad at Ruin, Ruin's own area, Pyro's open space; a pad at Levski, Nyx's open space
-    const long RuinPad = 2026442305, RuinArea = 685899972, PyroSpace = 3184339241, LevskiPad = 3723364946, NyxSpace = 2627827560, GaslightArea = 1719129565;
+    // the game's numbers of the area lines (zzoega's log of 30 Oct 2026): Ruin's hangars, Ruin's own area, Pyro's open space; Levski's hangars, Nyx's open space
+    const long RuinHangar = 2026442305, RuinArea = 685899972, PyroSpace = 3184339241, LevskiHangar = 3723364946, NyxSpace = 2627827560, GaslightArea = 1719129565;
 
     [Fact]
-    public void Off_the_pad_into_the_stations_area_is_taking_off_and_the_jump_starts_when_he_leaves_that_area()
+    public void Out_of_the_hangar_into_the_stations_area_is_taking_off_and_the_jump_starts_when_he_leaves_that_area()
     {
-        // on the pad at Ruin he picks Gaslight: landed, leaving for Gaslight
+        // in a hangar at Ruin he picks Gaslight: landed, leaving for Gaslight
         var qt = new List<QtEvent> { new() { Time = T.AddMinutes(1), Kind = QtKind.Selected, Destination = Gaslight, From = "Ruin Station" } };
-        var areas = new List<AreaChange> { new(T, 0, RuinPad, RuinArea, RuinPad) };
+        var areas = new List<AreaChange> { new(T, 0, RuinHangar, RuinArea, RuinHangar) };
         var drive = QuantumDrives.All[0];
         PlayerNow Now(DateTime t) => LocationTracker.Now(LocationTracker.Follow(qt, Atlas.Default, null, null, null, areas), drive, t);
         var now = Now(T.AddMinutes(1.5));
-        Assert.Equal((PlayerState.At, "pyro/ruin-station", PadState.Landed, "Gaslight"), (now.State, now.At?.Key, now.Pad, now.Leaving));
+        Assert.Equal((PlayerState.At, "pyro/ruin-station", HangarState.Landed, "Gaslight"), (now.State, now.At?.Key, now.Hangar, now.Leaving));
 
-        // off the pad into Ruin's own area: taking off, the jump has not started (he flies about the station for a minute and a half)
-        areas.Add(new AreaChange(T.AddMinutes(2), RuinPad, 0, RuinPad, RuinArea));
+        // out of the hangar into Ruin's own area: taking off, the jump has not started (he flies about the station for a minute and a half)
+        areas.Add(new AreaChange(T.AddMinutes(2), RuinHangar, 0, RuinHangar, RuinArea));
         now = Now(T.AddMinutes(3));
-        Assert.Equal((PlayerState.At, PadState.TakingOff, "Gaslight"), (now.State, now.Pad, now.Leaving));
+        Assert.Equal((PlayerState.At, HangarState.TakingOff, "Gaslight"), (now.State, now.Hangar, now.Leaving));
 
-        // out of Ruin's area into space: the jump starts then (before: at the pad, a minute and a half too early)
-        areas.Add(new AreaChange(T.AddMinutes(3.5), RuinPad, 0, RuinArea, PyroSpace));
+        // out of Ruin's area into space: the jump starts then (before: out of the hangar, a minute and a half too early)
+        areas.Add(new AreaChange(T.AddMinutes(3.5), RuinHangar, 0, RuinArea, PyroSpace));
         now = Now(T.AddMinutes(4));
         Assert.Equal((PlayerState.Jump, T.AddMinutes(3.5)), (now.State, now.Start));
 
-        // into Gaslight's area well into the jump, then onto a pad: there, landed
-        areas.Add(new AreaChange(T.AddMinutes(3.5).AddSeconds(now.Seconds * 0.9), RuinPad, 0, PyroSpace, GaslightArea));
+        // into Gaslight's area well into the jump, then into its hangar: there, landed
+        areas.Add(new AreaChange(T.AddMinutes(3.5).AddSeconds(now.Seconds * 0.9), RuinHangar, 0, PyroSpace, GaslightArea));
         var there = Now(T.AddMinutes(20));
-        Assert.Equal((PlayerState.At, "pyro/gaslight", (PadState?)null), (there.State, there.At?.Key, there.Pad));
+        Assert.Equal((PlayerState.At, "pyro/gaslight", (HangarState?)null), (there.State, there.At?.Key, there.Hangar));
         qt.Add(new QtEvent { Time = T.AddMinutes(3.5).AddSeconds(now.Seconds * 0.95), Kind = QtKind.Arrived });
-        areas.Add(new AreaChange(T.AddMinutes(3.5).AddSeconds(now.Seconds), RuinPad, 1183702464, GaslightArea, 1183702464));
+        areas.Add(new AreaChange(T.AddMinutes(3.5).AddSeconds(now.Seconds), RuinHangar, 1183702464, GaslightArea, 1183702464));
         now = Now(T.AddMinutes(20));
-        Assert.Equal((PlayerState.At, "pyro/gaslight", (PadState?)PadState.Landed), (now.State, now.At?.Key, now.Pad));
+        Assert.Equal((PlayerState.At, "pyro/gaslight", (HangarState?)HangarState.Landed), (now.State, now.At?.Key, now.Hangar));
     }
 
     [Fact]
-    public void Where_the_pad_lets_out_straight_into_space_off_the_pad_is_leaving()
+    public void Where_the_hangar_lets_out_straight_into_space_out_of_the_hangar_is_leaving()
     {
-        // at Levski the pad lets out into open space: one line, and the jump starts with it
+        // at Levski the hangars let out into open space: one line, and the jump starts with it
         var qt = new List<QtEvent> { new() { Time = T, Kind = QtKind.Selected, Destination = "rs_ext_nyx-pyro_jp1", From = "Levski" } };
-        var areas = new List<AreaChange> { new(T.AddMinutes(-5), 0, LevskiPad, NyxSpace, LevskiPad), new(T.AddSeconds(40), LevskiPad, 0, LevskiPad, NyxSpace) };
+        var areas = new List<AreaChange> { new(T.AddMinutes(-5), 0, LevskiHangar, NyxSpace, LevskiHangar), new(T.AddSeconds(40), LevskiHangar, 0, LevskiHangar, NyxSpace) };
         var w = LocationTracker.Follow(qt, Atlas.Default, null, null, null, areas);
-        Assert.Equal(("nyx/levski", "nyx/pyro-gateway", (PadState?)null), (w.From?.Key, w.To?.Key, w.Pad));
+        Assert.Equal(("nyx/levski", "nyx/pyro-gateway", (HangarState?)null), (w.From?.Key, w.To?.Key, w.Hangar));
         var now = LocationTracker.Now(w, QuantumDrives.All[0], T.AddMinutes(1));
         Assert.Equal((PlayerState.Jump, T.AddSeconds(40)), (now.State, now.Start));
     }
 
     [Fact]
-    public void A_station_area_is_one_a_pad_lets_out_into_and_he_leaves_again_soon()
+    public void A_station_area_is_one_a_hangar_lets_out_into_and_he_leaves_again_soon()
     {
         Assert.Contains(RuinArea, StationAreas.Known);
         Assert.DoesNotContain(PyroSpace, StationAreas.Known);
         Assert.DoesNotContain(NyxSpace, StationAreas.Known);
         // a station the seed does not know: three take-offs into its area, each out of it within half a minute
-        const long pad = 11, area = 22, space = 33;
+        const long hangar = 11, area = 22, space = 33;
         var log = new HaulingLog();
         for (var i = 0; i < 3; i++)
         {
             var t = T.AddHours(i);
-            log.Areas.Add(new AreaChange(t, pad, 0, pad, area));
-            log.Areas.Add(new AreaChange(t.AddSeconds(12), pad, 0, area, space));
+            log.Areas.Add(new AreaChange(t, hangar, 0, hangar, area));
+            log.Areas.Add(new AreaChange(t.AddSeconds(12), hangar, 0, area, space));
         }
         Assert.Contains(area, StationAreas.Learn(new[] { log }));
         Assert.DoesNotContain(space, StationAreas.Learn(new[] { log }));
@@ -154,13 +154,13 @@ public class LocationTrackerTests
         var picked = new QtEvent { Time = T, Kind = QtKind.Selected, Destination = Gaslight };
         var seconds = drive.Seconds(StarMap.JumpGm(ruin, gaslight));
 
-        // picked on the pad and not off it yet: still at Ruin, leaving for Gaslight
-        var onPad = new PlayerLocation("pyro", ruin, T.AddMinutes(-5), picked, ruin, gaslight, Moves: new List<AreaChange>(), PickedLanded: true);
-        var now = LocationTracker.Now(onPad, drive, T.AddSeconds(30));
+        // picked in the hangar and not out of it yet: still at Ruin, leaving for Gaslight
+        var inHangar = new PlayerLocation("pyro", ruin, T.AddMinutes(-5), picked, ruin, gaslight, Moves: new List<AreaChange>(), PickedLanded: true);
+        var now = LocationTracker.Now(inHangar, drive, T.AddSeconds(30));
         Assert.Equal((PlayerState.At, "pyro/ruin-station", "Gaslight", (DateTime?)T.AddMinutes(-5)), (now.State, now.At?.Key, now.Leaving, now.Since));
 
         // picked out in space: the jump starts a few seconds later, and the map moves him from then on
-        var inSpace = onPad with { PickedLanded = false };
+        var inSpace = inHangar with { PickedLanded = false };
         now = LocationTracker.Now(inSpace, drive, T.AddSeconds(30));
         Assert.Equal((PlayerState.Jump, T + LocationTracker.JumpDelay, seconds), (now.State, now.Start, now.Seconds));
         Assert.Equal(("pyro/ruin-station", "pyro/gaslight", "Gaslight"), (now.From?.Key, now.To?.Key, now.ToName));

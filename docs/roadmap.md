@@ -238,9 +238,10 @@ All the tools track at the same time, all the time. The tracking runs on the ser
     where every player is, since when, and whether he is on his way; the map, the Route Planner, the Companion, the planner's Current location, My page
     and the Party pages ask it, and the bridge is gone. **Decided:**
     - The same answer as before for every page (recorded first, `LocationPagesAsBeforeTests`), except two changes Frank asked for (31 Oct 2026): a
-      player at a station is **Landed** (on a pad or in a hangar) or **Taking off** (off the pad, still in the station's own area), and a jump starts
-      when he leaves the station's area, not the pad. A station's own area is learned (`StationAreas`: from the three accounts' logs, and the logs on
-      the server); where a pad lets out straight into space (Levski, Orbituary) taking off is leaving. The Nyx update of late 2026 may change the areas
+      player at a station is **Landed** (in the station's hangar) or **Taking off** (out of the hangar, still in the station's own area), and a jump
+      starts when he leaves the station's area, not the hangar. The landing area of the lines is the station's hangar (one number per station, the
+      same in every log; moving the ship inside it writes nothing). A station's own area is learned (`StationAreas`: from the three accounts' logs, and the logs on
+      the server); where the hangars let out straight into space (Levski, Orbituary) taking off is leaving. The Nyx update of late 2026 may change the areas
       (Frank). The planner's own rules
       stay the planner's: a run in progress is planned from its last pickup and waste from Ruin, whatever the tracker says, and a station set by hand
       holds until the logs show him moving. The planner's Active tick decides routes only.

@@ -58,8 +58,8 @@ var SystemMap = (function () {
   // What a player does, in words, for his card or the line under his name. A player in quantum gets his line from the meter every frame instead.
   function describe(pl) {
     const of = pl.mission ? ' (' + pl.mission + ')' : '';   // at or to a mission's objective: which mission
-    // landed on a pad or in a hangar, or taking off (off the pad, still in the station's area)
-    const at = pl.pad === 'landed' ? 'Landed at ' : pl.pad === 'takeoff' ? 'Taking off from ' : 'At ';
+    // landed in the station's hangar, or taking off (out of the hangar, still in the station's area)
+    const at = pl.hangar === 'landed' ? 'Landed at ' : pl.hangar === 'takeoff' ? 'Taking off from ' : 'At ';
     if (pl.state === 'at' || pl.state === 'mission') return at + pl.atName + of + (pl.since ? ' since ' + since(pl.since) : '') + (pl.via ? ' (' + pl.via + ')' : '')
       + (pl.leaving ? ', leaving for ' + pl.leaving : '');   // he picked a jump at the station: it starts when he leaves its area
     if (pl.state === 'heading') return 'In quantum to ' + pl.toName + of + (pl.since ? (of ? ', since ' : ' (since ') + since(pl.since) + (of ? '' : ')') : '');

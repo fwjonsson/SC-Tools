@@ -268,13 +268,15 @@ admin (done), then going live.
   The log says when a player picks a destination ("Projected Start Location is Ruin Station for route to destination rs_ext_pyro5_l2"), when he
   goes from one area into another (`<Update Inventory Location> Player [zzoega] is changing location. Landing [2026442305] -> [0]. Location
   [2026442305] -> [685899972]`: the game's numbers for the landing area and the area around him, `AreaChange`; the trackers send it from the update
-  of 31 Oct 2026) and when he arrives. On a pad or in a hangar he is **Landed** at the place; off the pad and still in the station's own area he is
-  **Taking off** (the card says "Landed at Ruin Station", "Taking off from Ruin Station", with ", leaving for Gaslight" when he picked a destination;
-  `pad` in map.json). A jump picked at a station starts when he leaves the station's area into space, not when he leaves the pad (Frank, 31 Oct
+  of 31 Oct 2026) and when he arrives. In the station's hangar he is **Landed** at the place; out of the hangar and still in the station's own area he
+  is **Taking off** (the card says "Landed at Ruin Station", "Taking off from Ruin Station", with ", leaving for Gaslight" when he picked a destination;
+  `hangar` in map.json). A jump picked at a station starts when he leaves the station's area into space, not when he leaves the hangar (Frank, 31 Oct
   2026: "no one really flies out from a station's area without quantum jumping"; in the three accounts' logs a player sometimes flew about inside the
-  station's area for minutes after taking off). Which area is a station's own is not in the numbers: `StationAreas` knows the ones of the three
-  accounts' logs (the numbers are the same for every account) and learns more from the logs on the server (a pad lets out into it, and he leaves it
-  again within half a minute, three times or more and in at least three of ten take-offs); where the pad lets out straight into open space (Levski,
+  station's area for minutes after taking off). The landing area of the lines is the station's hangar: one number per station for all its hangars,
+  the same in every player's log (Ruin's 2026442305, Levski's 3723364946), and moving the ship about inside the hangar writes nothing (Frank's
+  hangar landings of 30 Oct 2026: leaving it is leaving the instanced hangar for the station). Which area is a station's own is not in the numbers: `StationAreas` knows the ones of the three
+  accounts' logs (the numbers are the same for every account) and learns more from the logs on the server (a hangar lets out into it, and he leaves it
+  again within half a minute, three times or more and in at least three of ten take-offs); where the hangars let out straight into open space (Levski,
   Orbituary, the Pyro Gateway, Everus Harbor) taking off is leaving. Replayed on 4,549 jumps: 2,553 start later than before (10 seconds is the median),
   1,838 the same. The next area, well into the jump, is where he
   jumped to: he is there, a few seconds before the arrival line (`LocationTracker.JumpTimes`). Measured on zzoega's logs: from leaving to coming in, a

@@ -1,17 +1,18 @@
 namespace SCTools.Locations;
 
 /// <summary>
-/// Which of the game's areas (the numbers of the area lines, AreaChange) are a station's own area: the space around a station where its pads let out, which a
-/// player leaves a few seconds later into open space. At most stations taking off is two lines: off the pad into the station's area, then out of it into
-/// space; only the second is leaving (Frank, 31 Oct 2026: "no one really flies out from a station's area without quantum jumping"). At some places (Levski,
-/// Orbituary, the Pyro Gateway, Everus Harbor) the pad lets out straight into open space: that one line is leaving. The numbers name nothing, so they are
-/// learned: an area a pad lets out into and that the player leaves again within half a minute, in at least three of every ten take-offs, is a station's
+/// Which of the game's areas (the numbers of the area lines, AreaChange) are a station's own area: the space around a station its hangars let out into,
+/// which a player leaves a few seconds later into open space. The landing area of the lines is the station's hangar (one number per station for all its
+/// hangars, the same in every player's log; Frank, 31 Oct 2026: leaving it is leaving the instanced hangar for the station). At most stations taking
+/// off is two lines: out of the hangar into the station's area, then out of it into space; only the second is leaving (Frank, 31 Oct 2026: "no one really flies out from a station's area without quantum jumping"). At some places (Levski,
+/// Orbituary, the Pyro Gateway, Everus Harbor) the hangar lets out straight into open space: that one line is leaving. The numbers name nothing, so they
+/// are learned: an area a hangar lets out into and that the player leaves again within half a minute, in at least three of every ten take-offs, is a station's
 /// own area. Learned from the three accounts' logs of 4 Aug to 31 Oct 2026 (the numbers are the same in every account's log) and from the logs on the
 /// server. The big Nyx update of late 2026 may change the areas (Frank).
 /// </summary>
 public static class StationAreas
 {
-    /// <summary>A player who leaves the area a pad let him out into this soon after it was in a station's area.</summary>
+    /// <summary>A player who leaves the area a hangar let him out into this soon after it was in a station's area.</summary>
     public static readonly TimeSpan Leaving = TimeSpan.FromSeconds(30);
 
     /// <summary>The station areas of the three accounts' logs (4 Aug to 31 Oct 2026): the area, and in how many of the take-offs into it he left it soon.</summary>
@@ -46,10 +47,10 @@ public static class StationAreas
         3092374405,   // CRU-L4 (RR_CRU_L4), 3 of 4
     };
 
-    /// <summary>Is this area line taking off: off the pad (the area he leaves is the pad he was on)?</summary>
-    public static bool OffPad(AreaChange a) => !a.Landed && a.From == a.LandingFrom;
+    /// <summary>Is this area line taking off: out of the hangar (the area he leaves is the hangar he was landed in)?</summary>
+    public static bool OutOfHangar(AreaChange a) => !a.Landed && a.From == a.LandingFrom;
 
-    /// <summary>The station areas: the known ones, and the ones these logs show by the same rule (an area a pad lets out into, left again soon).</summary>
+    /// <summary>The station areas: the known ones, and the ones these logs show by the same rule (an area a hangar lets out into, left again soon).</summary>
     public static HashSet<long> Learn(IEnumerable<HaulingLog> logs)
     {
         var areas = new HashSet<long>(Known);
@@ -60,7 +61,7 @@ public static class StationAreas
             var lines = log.Areas.OrderBy(a => a.Time).ToList();
             for (var i = 0; i < lines.Count; i++)
             {
-                if (!OffPad(lines[i])) continue;
+                if (!OutOfHangar(lines[i])) continue;
                 var into = lines[i].To;
                 all[into] = all.GetValueOrDefault(into) + 1;
                 if (i + 1 < lines.Count && lines[i + 1] is { Landed: false } next && next.From == into && next.Time - lines[i].Time <= Leaving)
