@@ -277,7 +277,8 @@ admin (done), then going live.
   Left clicks on the map measure a trip, stop by stop: every click adds a stop (a click near a dot snaps to it), every leg is the straight line between
   its stops in Gm and a quantum jump of its own, speeding up and slowing down each time, timed with the viewer's own drive (`mine` in the feeds: his
   fleet's active ship and the drive he flies, also while he is not playing; a visitor gets the distances alone). One leg says its distance and time between
-  the stops; more legs say each one's at its middle, number the stops, and put the trip's total (jumps, Gm, time) at the last stop. A right click clears the
+  the stops; more legs say each one's at its middle, number the stops, and put the trip's total at the last stop (Gm and time: the numbers on the
+  stops say how many jumps, so the total does not; Frank, 31 Oct 2026). A right click clears the
   trip (the browser's own menu stays away on the map). The stops live in his browser alone and go nowhere (#408; Frank, 31 Oct 2026). Where somebody died in the last quarter of an hour a skull sits with his
   name in gray, fading as the minutes pass (`deaths` in map.json: the location tracker's answer for that moment, from his jumps, inventories and areas up
   to it, `LocationTracker.DeathAge`; a player sees his party's alone, like the players; #410).

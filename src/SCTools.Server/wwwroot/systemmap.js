@@ -402,7 +402,8 @@ var SystemMap = (function () {
         const names = marks.map(function (m) { return m.name || 'here'; });
         lines.push(marks.length <= 4 ? names.join(' → ') : names[0] + ' → … → ' + names[names.length - 1] + ' (' + marks.length + ' stops)');
       }
-      lines.push((legs > 1 ? legs + ' jumps, ' : '') + gmText(totalGm) + (own && totalGm > 0 ? ' · ' + clock(totalS) + (own.ship ? ' in the ' + own.ship : '') : ''));
+      // its distance and time, no count of the jumps: the stops are numbered, and both numbers side by side were clutter (Frank, 31 Oct 2026)
+      lines.push(gmText(totalGm) + (own && totalGm > 0 ? ' · ' + clock(totalS) + (own.ship ? ' in the ' + own.ship : '') : ''));
       let x, base_y, anchor;
       if (legs === 1) { x = (marks[0].x + last.x) / 2; base_y = (marks[0].y + last.y) / 2 - 10; anchor = anchorAt(x); }
       else if (last.x > W - 150) { x = last.x - 12; base_y = last.y - 8; anchor = 'end'; }
