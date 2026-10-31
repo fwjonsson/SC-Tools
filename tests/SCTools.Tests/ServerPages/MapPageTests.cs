@@ -178,6 +178,13 @@ public class MapPageTests
         var systems = map.GetProperty("systems").EnumerateArray().ToList();
         Assert.Equal(new[] { "pyro", "stanton", "nyx" }, systems.Select(s => s.GetProperty("id").GetString()));
         Assert.Contains(systems[1].GetProperty("places").EnumerateArray(), p => p.GetProperty("key").GetString() == "stanton/lorville" && p.GetProperty("kind").GetString() == "city");
+        // turned as the game's starmap shows each one: Pyro a quarter turn clockwise, Stanton and Nyx not (Frank, 31 Oct 2026), and the engine draws by it
+        Assert.Equal(new[] { -90, 0, 0 }, systems.Select(s => s.GetProperty("turn").GetInt32()));
+        var engine = await f.Browser().GetStringAsync("/systemmap.js");
+        Assert.Contains("const turn = (sys.turn || 0) * Math.PI / 180, cos = Math.cos(turn), sin = Math.sin(turn);", engine);
+        Assert.Contains("const flat = function (x, y) { return [x * cos - y * sin, -(x * sin + y * cos)]; };", engine);
+        Assert.Contains("const at = function (x, y) { const f = flat(x, y); return [W / 2 + (f[0] - mx) * sc, W / 2 + (f[1] - my) * sc]; };", engine);
+        Assert.DoesNotContain("grow(p.y, p.x)", engine);   // no longer every system with its Y across and its X down
 
         var player = await f.Player(f.AddKey("bileh123"));
         Assert.StartsWith("/login/denied", (await player.GetAsync("/admin/map")).Headers.Location!.PathOf());

@@ -27,6 +27,61 @@ public class StarMapTests
         Assert.Equal(PyroDistances.Between(PyroDistances.Ruin, "69936"), StarMap.JumpGm(StarMap.Find("pyro/ruin-station")!, StarMap.Find("pyro/gaslight")!), 6);
     }
 
+    // Where a place is from its star on the map, as systemmap.js draws it: to the right and up, the system turned by its Turn.
+    static (double Right, double Up) Seen(string key)
+    {
+        var p = StarMap.Find(key)!;
+        var t = StarMap.Systems.Single(s => s.Id == p.System).Turn * Math.PI / 180;
+        return (p.X * Math.Cos(t) - p.Y * Math.Sin(t), p.X * Math.Sin(t) + p.Y * Math.Cos(t));
+    }
+
+    static void UpRight(string key) { var (r, u) = Seen(key); Assert.True(r > 0 && u > 0, key + " is up and right"); }
+    static void UpLeft(string key) { var (r, u) = Seen(key); Assert.True(r < 0 && u > 0, key + " is up and left"); }
+    static void DownRight(string key) { var (r, u) = Seen(key); Assert.True(r > 0 && u < 0, key + " is down and right"); }
+    static void DownLeft(string key) { var (r, u) = Seen(key); Assert.True(r < 0 && u < 0, key + " is down and left"); }
+
+    [Fact]
+    public void Every_system_is_turned_as_the_games_starmap_shows_it()
+    {
+        // Frank's screenshots of the game's starmap, with its X and Y axes as faint lines (31 Oct 2026): the site drew Stanton and Nyx a quarter turn off,
+        // with their Y to the right and X down as Pyro is shown; the positions are in one frame for the three, the game turns Pyro's
+        Assert.Equal(new[] { -90, 0, 0 }, StarMap.Systems.Select(s => s.Turn));
+        // Stanton: Hurston right of the star on the axis, microTech up and right, ArcCorp down and right, Crusader left, the gateways around
+        var (right, up) = Seen("stanton/hurston");
+        Assert.True(right > 0);
+        Assert.InRange(up, -0.01, 0.01);
+        UpRight("stanton/microtech");
+        DownRight("stanton/arccorp");
+        DownLeft("stanton/crusader");
+        Assert.True(Seen("stanton/crusader").Right < -5 * Math.Abs(Seen("stanton/crusader").Up), "Crusader is nearly on the axis, left");
+        UpLeft("stanton/nyx-gateway");
+        DownRight("stanton/pyro-gateway");
+        Assert.True(Seen("stanton/pyro-gateway").Up < -5 * Seen("stanton/pyro-gateway").Right, "the Pyro Gateway is below the star");
+        DownRight("stanton/terra-gateway");
+        Assert.True(Seen("stanton/terra-gateway").Right > 5 * -Seen("stanton/terra-gateway").Up, "Terra Gateway is right of the star");
+        // Nyx: the Pyro Gateway and Nyx II above the star, Levski, Nyx III and the Stanton Gateway down and left, Nyx I down and right, the stations around
+        UpLeft("nyx/pyro-gateway");
+        UpLeft("nyx/nyx-ii");
+        DownLeft("nyx/levski");
+        DownLeft("nyx/nyx-iii");
+        DownLeft("nyx/stanton-gateway");
+        DownRight("nyx/nyx-i");
+        UpRight("nyx/transit-point-glaciem-charlie");
+        DownRight("nyx/transit-point-glaciem-bravo");
+        UpLeft("nyx/transit-point-glaciem-alpha");
+        UpRight("nyx/peoples-service-station-lambda");
+        DownRight("nyx/qv-breaker-station-brk-425");
+        UpLeft("nyx/qv-breaker-station-brk-320");
+        // Pyro, as the site drew it before (and the game shows it): Terminus up and left, the Stanton Gateway up and right, the Nyx Gateway down and left,
+        // Pyro V below the star, Monox down and right, Bloom left
+        UpLeft("pyro/terminus");
+        UpRight("pyro/stanton-gateway");
+        DownLeft("pyro/nyx-gateway");
+        Assert.True(Seen("pyro/pyro-v").Up < -5 * Math.Abs(Seen("pyro/pyro-v").Right), "Pyro V is below the star");
+        DownRight("pyro/monox");
+        UpLeft("pyro/bloom");
+    }
+
     [Fact]
     public void The_label_of_every_place_of_the_game_data_is_its_full_name()
     {

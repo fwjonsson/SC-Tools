@@ -270,7 +270,9 @@ admin (done), then going live.
   address opens that one; no texts under it and no team status line), with everybody playing where the location tracker has him (below) and the objectives of
   the missions going on (`map.json`, every 3 seconds, with who the viewer is: `me`, as the Companion's feed has it, null for a visitor; for the map tools that are his, such as measuring a distance with his own ship, #408). The places are `StarMap` (Core): the stars, planets, moons, cities, gateways and stations of
   the three systems with their positions from the Star Citizen Wiki API (`/api/locations/positions`, downloaded with ScApiTool on 20 Oct 2026;
-  Pyro's are the same as `PyroDistances`'), drawn with the system's Y to the right and its X down, like the Trip Planner's Pyro. A moon, city or
+  Pyro's are the same as `PyroDistances`'), each system turned as the game's starmap shows it (`StarSystem.Turn`, `turn` in the feeds): Stanton and
+  Nyx with their X to the right and Y up, Pyro a quarter turn clockwise, its Y to the right and its X down, though its positions are in the same frame
+  (Frank's screenshots of the starmap, 31 Oct 2026; before, all three were drawn as Pyro, so Stanton and Nyx were a quarter turn off). A moon, city or
   station within 10 pixels of its planet is drawn at the planet (its tooltip lists them; the planet's label names the cities and stations at it).
   With the mouse over a station (or a planet with stations at it) a card says what it has, as the game's starmap does: its services (Refinery, Cargo deck,
   Trade terminal, Shops, Clinic, Food, Refuel, Repair, Habitation, Loading dock, Docking port, Freight elevator, Armistice zone) and its shops by name, from

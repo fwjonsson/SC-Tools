@@ -50,7 +50,7 @@ public sealed class Atlas
     public IEnumerable<Place> Of(string system) => Places.Where(p => p.System == system);
 
     /// <summary>
-    /// A system as the map engine of the pages (systemmap.js) draws it: its id and name, and its places with their key, name, short name (the label), kind,
+    /// A system as the map engine of the pages (systemmap.js) draws it: its id and name, how the game's starmap turns it (StarSystem.Turn), and its places with their key, name, short name (the label), kind,
     /// parent and position (Gm). The Map tool's map.json has the three systems this way, the Hauling Planner's data.json has Pyro for its Trip Planner.
     /// The hidden spots whose keys are in spots come too, marked hidden (a player is there or flies there: the engine needs where it is, and draws nothing
     /// for it), so the data stays small and the map does not change when nobody is at one.
@@ -59,6 +59,7 @@ public sealed class Atlas
     {
         id = s.Id,
         name = s.Name,
+        turn = s.Turn,
         places = Of(s.Id).Concat(Spots.Where(p => p.System == s.Id && spots != null && spots.Contains(p.Key)))
             .Select(p => new { key = p.Key, name = p.Name, @short = p.Short, kind = p.Kind.ToString().ToLowerInvariant(), parent = p.Parent, x = p.X, y = p.Y, hidden = p.Hidden })
             .ToList(),
