@@ -55,7 +55,7 @@ else if (Model.Tab == "session")
     </div>
     <div class="mapside objectives gauntletsessions">
       <h2>Game Session</h2>
-      @await Html.PartialAsync("_Totals", Model.Game ?? none)
+      @await Html.PartialAsync("_Totals", Model.Game ?? none, new ViewDataDictionary(ViewData) { ["Start"] = Model.Game == null || Model.GameFrom == null ? null : new GauntletStartRow("game", Model.GameFrom.Value, Model.Game.Start, Model.IsAdmin) })
       @* what a grind session is: under its own table, as wide as it (Frank, 31 Oct 2026) *@
       <h2>Grind Session</h2>
       @if (Model.Grind != null)
@@ -66,7 +66,7 @@ else if (Model.Tab == "session")
       {
         <p class="hint">No grind session now.</p>
       }
-      @await Html.PartialAsync("_Totals", Model.Grind?.Stats ?? none)
+      @await Html.PartialAsync("_Totals", Model.Grind?.Stats ?? none, new ViewDataDictionary(ViewData) { ["Start"] = Model.Grind == null || Model.GrindFrom == null ? null : new GauntletStartRow("grind", Model.GrindFrom.Value, Model.Grind.Stats.Start, Model.IsAdmin) })
       <p class="hint below">A grind session starts by itself when @whose accept@(Model.InParty ? "s" : "") a scenario and goes on while @whose play@(Model.InParty ? "s" : "") them. After an hour
         without accepting, completing or abandoning one (also when the game crashed or the tracker was off), it ends 5 minutes after the last one. The earlier
         ones are on History.</p>

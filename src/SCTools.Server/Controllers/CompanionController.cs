@@ -1,4 +1,5 @@
 using SCTools.Server.Accounts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace SCTools.Server.Controllers;
@@ -15,11 +16,13 @@ public sealed class CompanionController : Controller
 {
     readonly CompanionService _companion;
     readonly ToolAccess _tools;
+    readonly SessionStarts _starts;
 
-    public CompanionController(CompanionService companion, ToolAccess tools)
+    public CompanionController(CompanionService companion, ToolAccess tools, SessionStarts starts)
     {
         _companion = companion;
         _tools = tools;
+        _starts = starts;
     }
 
     IActionResult Hidden() => User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
@@ -53,6 +56,19 @@ public sealed class CompanionController : Controller
         Response.Headers.CacheControl = "no-store";
         // the admin's own view (View as: Admin) has everybody on the map, the rest is his own (Frank, 30 Oct 2026)
         return Json(_companion.Map(Me, Editor, DateTime.UtcNow, Audience.Of(HttpContext).Everything));
+    }
+
+    /// <summary>
+    /// The admin's Start time of a player's game session (his Start time row on the Session tab; Frank, 31 Oct 2026): player, the session the logs start at
+    /// from, the time typed (19:30, in the browser's time zone, tz: its offset; empty: the logs' start). Sent in the background, JSON back.
+    /// </summary>
+    [HttpPost("start")]
+    [Authorize(Roles = Roles.Admin)]
+    [ValidateAntiForgeryToken]
+    public IActionResult Start(string player, DateTime from, string? startTime, int tz)
+    {
+        var said = _starts.Set(SessionStarts.Companion, player ?? "", from.ToUniversalTime(), startTime, tz, DateTime.UtcNow);
+        return Json(new { ok = !said.StartsWith("Type", StringComparison.Ordinal) && !said.StartsWith("That is", StringComparison.Ordinal), said });
     }
 
     /// <summary>The game session and the contracts ended in it, polled with its ETag (the same data again is a 304, PageController.Matches).</summary>

@@ -130,6 +130,9 @@ function layout() { alignColumns(); fitHeaders(); }
 window.addEventListener('resize', layout);
 
 function summary(el, items) {
+  // the admin is typing the start time: drawn when he leaves the field, so what he types is not lost
+  const a = document.activeElement;
+  if (a && el.contains(a) && a.tagName === 'INPUT') { a.addEventListener('blur', function () { summary(el, items); }, { once: true }); return; }
   el.textContent = '';
   const t = document.createElement('table'); t.className = 'kv';
   const tb = t.createTBody();
@@ -138,8 +141,29 @@ function summary(el, items) {
     tr.insertCell().textContent = it.k;
     const td = tr.insertCell(); td.textContent = it.v; td.style.textAlign = 'right';
     if (it.live) addTicker(td, it.since);
+    if (it.k === 'Start Time' && ADMIN && last.startTimeSet) startField(td, it.v, last.startTimeSet);
   });
   el.appendChild(t);
+}
+
+// The admin's Start Time of the session (Frank, 31 Oct 2026: his Session page went): 19:30, or empty for the logs' start; sent as soon as it changes.
+function startField(td, value, url) {
+  td.textContent = '';
+  const input = document.createElement('input');
+  input.className = 'time startin'; input.value = value; input.placeholder = '19:30'; input.setAttribute('aria-label', 'Start time');
+  input.title = 'When the session started (19:30): the session time runs from it. Empty: from the logs.';
+  input.addEventListener('change', function () {
+    const token = document.querySelector('input[name="__RequestVerificationToken"]');
+    const body = new FormData();
+    body.append('startTime', input.value.trim());
+    if (token) body.append('__RequestVerificationToken', token.value);
+    input.className = 'time startin saving';
+    fetch(url, { method: 'POST', body: body, headers: { 'X-Autosave': '1' }, credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (d) { input.className = 'time startin ' + (d.ok ? 'saved' : 'unsaved'); input.title = d.said || ''; if (d.ok) refresh(); })
+      .catch(function () { input.className = 'time startin unsaved'; input.title = 'Not saved: the site could not be reached. Try again.'; });
+  });
+  td.appendChild(input);
 }
 
 function section(parent, tag, title, g) {

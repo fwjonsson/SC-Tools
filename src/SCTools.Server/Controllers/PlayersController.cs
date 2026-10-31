@@ -95,6 +95,10 @@ public sealed partial class PlayersController : AdminControllerBase
     [HttpGet("")]
     public async Task<IActionResult> Index() => View(await Page());
 
+    /// <summary>Admin in the top bar: his first tab (the Session page that was here went on 31 Oct 2026; its start time is a row of every tool's session).</summary>
+    [HttpGet("/admin")]
+    public IActionResult Home() => LocalRedirect(Back);
+
     [HttpPost("")]
     public async Task<IActionResult> Make([Bind(Prefix = "New")] NewKeyForm form)
     {

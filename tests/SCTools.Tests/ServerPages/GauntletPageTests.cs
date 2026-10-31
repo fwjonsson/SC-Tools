@@ -104,6 +104,15 @@ public class GauntletPageTests
         var zzoega = await f.Player(f.AddKey("zzoega"));
         Assert.Contains("Running since", await zzoega.GetStringAsync("/gauntlet"));
         Assert.Contains("Earlier grind sessions", await zzoega.GetStringAsync("/gauntlet/history"));   // on History since 30 Oct 2026
+
+        // the admin's Start time row (Frank, 31 Oct 2026): in UTC, as the page's times; the grind session counts from it
+        Assert.DoesNotContain("action=\"/gauntlet/start\"", await zzoega.GetStringAsync("/gauntlet"));   // not a player's
+        await ServerFactory.Send(admin, "/", "/admin/pov", ("name", "zzoega"), ("back", "/gauntlet"));
+        Assert.Contains("action=\"/gauntlet/start\"", await admin.GetStringAsync("/gauntlet"));
+        var later = sessions[0].Start.AddMinutes(1);
+        later = later.AddTicks(-(later.Ticks % TimeSpan.TicksPerMinute));
+        await ServerFactory.Send(admin, "/gauntlet", "/gauntlet/start", ("kind", "grind"), ("from", sessions[0].Start.ToString("O")), ("startTime", later.ToString("HH:mm")));
+        Assert.Contains("Running since " + later.ToString("d MMM HH:mm", System.Globalization.CultureInfo.InvariantCulture) + " UTC", WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet")));
     }
 
     [Fact]

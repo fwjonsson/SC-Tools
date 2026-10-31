@@ -448,16 +448,15 @@ admin (done), then going live.
   end of the tabs' row (the session's name was there until 31 Oct 2026: the Session tab says it), and the Session tab has no line saying whose session any more, 30 Oct 2026), the Σ line of its Current Route table is like the Queued routes' total, and the Time of a run on the way counts up under
   the map too. The clocks count up from when they started (`runsLive`, `since` in the data: UTC) by the browser's clock, like the Session
   tool's clock: the text in the data was made when the data was made, which can be a while before the page fetched it, so counting on from it made
-  the clocks lag and jump (Frank, 30 Oct 2026). On the Session tab the admin picks the Lost Cargo of a run in the Cargo runs table (`/hauling/runs/lost`, sent in the background, the
-  same edit as his Session page's). The **Stops** board (`WebSnapshot.Stops`) reads the from-Ruin drop-offs the same way as the pickups (Frank, 29 Oct
+  the clocks lag and jump (Frank, 30 Oct 2026). On the Session tab the admin picks the Lost Cargo of a run in the Cargo runs table (`/hauling/runs/lost`, sent in the background; his
+  Session page, where it was too, went on 31 Oct 2026). The **Stops** board (`WebSnapshot.Stops`) reads the from-Ruin drop-offs the same way as the pickups (Frank, 29 Oct
   2026): a pickup location is a row with its batches, its cargo, its value and Ruin as the **Drop-off Location** (the station, for the stops of a contract
   to another station: a row of their own, stage 1a, 30 Oct 2026), and every station that drop-offs go
   to is a row of its own with Ruin as the pickup, how many drop-offs, the cargo with its SCU in containers, their value and the station as the drop-off
   (in gold); the most valuable row on top. The SCU and the boxes are two columns, **SCU** and **Boxes**, on the Stops, Finished stops and Current Route
   tables (Frank, 29 Oct 2026), and the Queued routes have an SCU column beside Batches (everything the trip carries). On the Current Route the drop-off
   of a planned trip has its SCU and boxes on the line of the stop it goes to, and the hauler of that trip (or the admin) types the SCU there
-  (`/hauling/trips/scu`, sent in the background): it is kept for that drop-off only (`AppData.TypedScu`, the same as the admin's SCU of the drop-offs on
-  his Session page), not in the Mission Library, the plan is worked out again with it, and the game's own number wins once it writes it. The planner
+  (`/hauling/trips/scu`, sent in the background): it is kept for that drop-off only (`AppData.TypedScu`; the admin's Session page, where he typed them too, went on 31 Oct 2026), not in the Mission Library, the plan is worked out again with it, and the game's own number wins once it writes it. The planner
   leaves a station with a single batch out of the trip he is flying when it can (`RoutePlanner.LoneBatchSeconds`; Frank, 30 Oct 2026: the biggest stops
   first, a lone batch later, when new missions may have filled the station up). The Party button's panel in the top bar shows every member's
   ship and drive ("TS-2 S3 +20 %"); the Hauling Planner's page has no Party table of its own since 29 Oct 2026 (Frank).
@@ -490,11 +489,15 @@ admin (done), then going live.
   1600 px or less before; 340 at 1200, the whole width at 900; `.maptool`'s `--mapw` and `.planleft`), the outermost places 16 px from the map's edge (46 before, `ROOM` in `systemmap.js`), with the Players and the next column's title level with the map's top. A page with a wide table (the
   Mission Library, the Session tool's games, the Gauntlet Tracker) takes the whole band too since 30 Oct 2026 (Frank; 1,400 px before), and the Mission
   Library numbers its rows in a # column on the left, on through its pages. The pages of the site end with a footer: the tracker's download, how to set it up, and the
-  disclaimer. The admin's pages have a second row under it with his pages (Session, Players, Scrip, Map, Tools, Account), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
+  disclaimer. The admin's pages have a second row under it with his pages (Players, Scrip, Map, Tools, Account; Admin in the top bar opens Players), tinted in Admin's red with a red line on top, so it is plain that it belongs to Admin.
 - **The admin's pages** change the data with the core's logic (`Editing/Edits.cs`, each change saved and worked out again at once):
-  **Session** (`/admin`: the session, which starts and stops by itself (below), the start time, the names and notes of the
-  stops, **Register lost cargo** (the runs, with what was lost on each), the SCU of from-Ruin drop-offs the game did not tell; the rewards are the
-  Mission Library's and not on this page since 29 Oct 2026), **Players** (`/admin/players`, in place of the Party and Tracker keys pages since 31 Oct 2026: every
+  the **Session** page (`/admin`) went on 31 Oct 2026 (Frank): the sessions start and stop by themselves (below), the lost cargo of a run is picked in
+  the Hauling Planner's Cargo runs table, the SCU of a drop-off the game did not tell is typed on its Current Route, and the **start time** is a row of
+  every tool's session for the admin: the Hauling Planner's Start Time in its Session table (`/hauling/session/start`, `Edits.SetStartTime`), the
+  Companion's Start time on its Session tab (`/companion/start`, in the browser's time zone) and the Gauntlet Tracker's on its Game Session and Grind
+  Session tables (`/gauntlet/start`, in UTC as the page's times). The Companion's and the Gauntlet's sessions are worked out from the logs, so the
+  admin's start is kept by the start the logs give the session (`SessionStarts`, in `SiteValues`); the games, missions and runs count from it, and empty
+  gives the logs' start back. **Players** (`/admin/players`, in place of the Party and Tracker keys pages since 31 Oct 2026: every
   registered player and every member of the Hauling Planner's party, with when he registered, when he last played, his tracker, Active (Auto, In or
   Out, sent as soon as it is changed), his keys with Take back, Make a key, and Into and Out of the party; his name opens his **My page** as he sees it
   (`/me?player=`), where the admin sets his location, colour and fleet for him; the party follows the game's parties, see below). The admin's Debts page went on 31 Oct 2026: he changes

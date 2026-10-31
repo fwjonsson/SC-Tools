@@ -5,6 +5,24 @@
 }
 <table class="wide">
   <tbody>
+    @* the start (UTC, as the page's times): the admin types over it (Frank, 31 Oct 2026: as the Hauling Planner's Start Time), sent as soon as it changes *@
+    @if (ViewData["Start"] is GauntletStartRow start)
+    {
+      <tr><th>Start time (UTC)</th><td class="right">
+        @if (start.Editable)
+        {
+          <form method="post" action="/gauntlet/start" asp-antiforgery="true" data-autosave class="inline">
+            <input type="hidden" name="kind" value="@start.Kind"><input type="hidden" name="from" value="@start.From.ToString("O", inv)">
+            <input name="startTime" value="@start.Shown.ToString("HH:mm", inv)" placeholder="19:30" class="startin@(start.Set ? " typed" : "")" aria-label="Start time"
+                   title="@(start.Set ? "Set by you. Empty: the start the logs give again." : "When the logs start it. Type when the session really started (19:30, UTC).")" autocomplete="off">
+          </form>
+        }
+        else
+        {
+          @start.Shown.ToString("HH:mm", inv)
+        }
+      </td></tr>
+    }
     <tr><th>Completed</th><td class="right">@Model.Totals.Completed</td></tr>
     <tr><th>Cancelled (not counted)</th><td class="right">@Model.Totals.Cancelled</td></tr>
     <tr><th>aUEC earned</th><td class="right">@Math.Round((double)Model.Totals.Auec).ToString("N0", inv)</td></tr>

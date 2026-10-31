@@ -31,11 +31,14 @@ public sealed class CompanionService
     readonly ScripValues _scrip;
     readonly LogUploads _uploads;
     readonly LiveTracker _live;
+    readonly SessionStarts _starts;
     readonly object _lock = new();
     readonly Dictionary<string, (byte[] Bytes, string ETag)> _made = new();
 
-    public CompanionService(MapService map, Audience audience, Playtime playtime, MissionLibrary library, ContractTracker contracts, ScripValues scrip, LiveTracker live)
+    public CompanionService(MapService map, Audience audience, Playtime playtime, MissionLibrary library, ContractTracker contracts, ScripValues scrip, LiveTracker live,
+        SessionStarts starts)
     {
+        _starts = starts;
         _map = map;
         _audience = audience;
         _playtime = playtime;
@@ -103,7 +106,7 @@ public sealed class CompanionService
         var party = PartyOf(me, nowUtc);
         var accounts = me == null ? new List<string>() : AccountsOf(me);
         var key = string.Join("|", me?.ToLowerInvariant() ?? "", editor, string.Join(",", party.Select(n => n.ToLowerInvariant()).Order(StringComparer.Ordinal)),
-            string.Join(",", accounts).ToLowerInvariant(), _uploads.Pieces, _library.Version, _scrip.Mg, _scrip.Council, nowUtc.Ticks / TimeSpan.TicksPerMinute);
+            string.Join(",", accounts).ToLowerInvariant(), _uploads.Pieces, _library.Version, _scrip.Mg, _scrip.Council, _starts.Version, nowUtc.Ticks / TimeSpan.TicksPerMinute);
         lock (_lock)
             if (_made.TryGetValue(key, out var made)) return made;
         var bytes = JsonSerializer.SerializeToUtf8Bytes(SessionOf(me, party, accounts, editor, nowUtc), JsonSerializerOptions.Web);
@@ -121,23 +124,29 @@ public sealed class CompanionService
         _library.Collect();
         var session = GameSession.Latest(_playtime.Games(me, nowUtc), nowUtc);
         if (session == null) return new { me, session = (object?)null, completed = Array.Empty<object>() };
+        // its start: the admin's (SessionStarts, his Start time row; Frank, 31 Oct 2026), else the logs'. The games and the missions count from it
+        var from = session.StartUtc;
+        var start = _starts.Of(SessionStarts.Companion, me, from) ?? from;
+        var playedBefore = session.Games.Where(g => !g.Running).Aggregate(TimeSpan.Zero, (t, g) => t + Since(g, start));
         // the missions of the session: from its start to now, or to its end when it is over
         var to = session.Over ? session.EndUtc!.Value : nowUtc;
         long mg = _scrip.Mg, council = _scrip.Council;
-        var own = PlayStats.For(session.StartUtc, to, Array.Empty<PlayedGame>(), _contracts.Earned(me), mg, council);
+        var own = PlayStats.For(start, to, Array.Empty<PlayedGame>(), _contracts.Earned(me), mg, council);
         // the money: his part, or with combined accounts what all of them earned in his session together (the missions completed stay his own)
-        var totals = accounts.Count > 1 ? PlayStats.For(session.StartUtc, to, Array.Empty<PlayedGame>(), _contracts.Earned(accounts), mg, council) : own;
+        var totals = accounts.Count > 1 ? PlayStats.For(start, to, Array.Empty<PlayedGame>(), _contracts.Earned(accounts), mg, council) : own;
         var running = session.Running;
         return new
         {
             me,
             session = new
             {
-                start = session.StartUtc,
-                running = running?.StartUtc,   // the game going on: the browser counts its time on from here
+                start,
+                from,   // the logs' start: the admin's Start time row says which session it is
+                startSet = start != from,
+                running = running == null ? (DateTime?)null : running.StartUtc > start ? running.StartUtc : start,   // the game going on: the browser counts its time on from here
                 lastEnd = running == null ? session.LastEndUtc : (DateTime?)null,
                 over = session.Over,
-                playedBefore = Math.Round(session.PlayedBefore.TotalSeconds),
+                playedBefore = Math.Round(playedBefore.TotalSeconds),
                 crashes = session.Crashes,
                 completed = own.Completed,
                 withoutReward = totals.WithoutReward,
@@ -149,8 +158,15 @@ public sealed class CompanionService
                 mgValue = mg,
                 councilValue = council,
             },
-            completed = Ended(party, session.StartUtc, to, editor),
+            completed = Ended(party, start, to, editor),
         };
+    }
+
+    /// <summary>The part of a game after the session's start (all of it when the session starts before it).</summary>
+    static TimeSpan Since(PlayedGame g, DateTime start)
+    {
+        var from = g.StartUtc > start ? g.StartUtc : start;
+        return g.EndUtc > from ? g.EndUtc - from : TimeSpan.Zero;
     }
 
     /// <summary>The contracts the party ended in the session, the newest first: a shared one once, with everybody who had it, and the library's columns.</summary>
