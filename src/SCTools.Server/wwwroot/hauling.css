@@ -79,7 +79,7 @@
 @media (max-width:900px) {
   .hauling .planleft { flex:1 1 100%; }
 }
-.hauling .mapbox { background:var(--cell); }   /* no border (Frank, 31 Oct 2026) */
+/* the map's box has no background and no border, like the other maps' (Frank, 31 Oct 2026) */
 /* the map of the Trip Planner: the legend (who flies which route) above the Map tool's Pyro, and under every worker's name the map's line for him with his speed meter */
 .hauling .maplegend { display:flex; flex-wrap:wrap; gap:2px 14px; padding:6px 8px 4px; font-size:11px; }
 .hauling .maplegend span { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }

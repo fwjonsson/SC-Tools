@@ -200,9 +200,11 @@ public class GauntletPageTests
     {
         using var f = new ServerFactory();
         var admin = await f.Admin();
-        // the map over the game session (Frank, 31 Oct 2026): the systems as buttons over it, the players beside it, its own feed
+        // the map over the game session (Frank, 31 Oct 2026): the systems as the engine's buttons in its corner, the players beside it, its own feed, the
+        // Companion's size (gauntletmap)
         var page = (await admin.GetStringAsync("/gauntlet/session")).Replace("\r\n", "\n");
-        Assert.Contains("<div class=\"tabs mapsys\" id=\"systems\" role=\"tablist\" aria-label=\"Star system\"></div>\n      <div id=\"map\" data-src=\"/gauntlet/map.json\"></div>", page);
+        Assert.Contains("<div class=\"maptool maponly gauntletmap\">\n    <div class=\"mapbox\">\n      <div id=\"map\" data-src=\"/gauntlet/map.json\"></div>", page);
+        Assert.DoesNotContain("id=\"systems\"", page);
         Assert.Contains("map.js", page);
         Assert.True(page.IndexOf("id=\"map\"", StringComparison.Ordinal) < page.IndexOf("Grind session", StringComparison.Ordinal));   // over the sessions
         Assert.DoesNotContain("id=\"map\"", await admin.GetStringAsync("/gauntlet/stats"));   // the Session tab's alone

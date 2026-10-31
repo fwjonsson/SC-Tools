@@ -91,6 +91,9 @@ All the tools track at the same time, all the time. The tracking runs on the ser
      own ship, and a right click clears it (Frank, 31 Oct 2026, after trying the two-click version: "as long as you left click it keeps adding stops"; his
      alone, nothing leaves the browser); a skull with the name in gray where somebody died, for a quarter of an hour. All three in the map engine and the
      feed, so the Map tool, the Companion and the Hauling Planner's map have them; a player sees his party's skulls alone, like the players.
+   - **One look for every map** (Frank, 31 Oct 2026): the star systems are the engine's buttons in the map's top left corner on every map (`systems()`;
+     a row of tabs under the bar, then a row over the map, before), the Gauntlet Tracker's map is the Companion's size (820 px, not the admin's Map's
+     1060), and the Route Planner's map box lost its background.
 7. **Map places** (`/admin/places`, PR #244, Frank 28 Oct): the admin says what a quantum destination or start name the map does not know is (a
    place, or not a place to show; `Text*` for every one that starts so), renames places, and adds places the game data does not have (at a place, or
    X/Y in Gm). Saved in the database and used by the map at once. The maps label every place with its full name since 30 Oct 2026 (Frank: "Dudley &

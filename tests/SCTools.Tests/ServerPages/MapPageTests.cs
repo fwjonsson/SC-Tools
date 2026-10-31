@@ -245,8 +245,10 @@ public class MapPageTests
         var admin = await f.Admin();
         // the Map tool: the map and the players (the objectives list and the Active Contracts went to the Companion, #380; the map got the room)
         var page = await admin.GetStringAsync("/admin/map");
-        // the systems: buttons over the map (31 Oct 2026; the tool's row of tabs before), the map's feed named on it, no team status line, no texts under it
-        Assert.Contains("<div class=\"tabs mapsys\" id=\"systems\" role=\"tablist\" aria-label=\"Star system\"></div>\n    <div id=\"map\" data-src=\"/admin/map/map.json\"></div>", page.Replace("\r\n", "\n"));
+        // the systems: the map engine's buttons in the map's corner (31 Oct 2026; a row over the map, and the tool's row of tabs, before), the map's feed named
+        // on it, no team status line, no texts under it
+        Assert.Contains("<div class=\"mapbox\">\n    <div id=\"map\" data-src=\"/admin/map/map.json\"></div>", page.Replace("\r\n", "\n"));
+        Assert.DoesNotContain("id=\"systems\"", page);
         Assert.DoesNotContain("data-ticker", page);
         Assert.DoesNotContain("id=\"mapState\"", page);
         Assert.DoesNotContain("Positions: the", page);
@@ -257,6 +259,12 @@ public class MapPageTests
         Assert.DoesNotContain("<div class=\"mapmissions\">", page);
         var css = await f.Browser().GetStringAsync("/site.css");
         Assert.Contains(".maptool.maponly { grid-template-columns:minmax(0, 1060px) minmax(260px, 340px); }", css);   // a little bigger than the 820 px it had
+        Assert.Contains(".maptool.gauntletmap { grid-template-columns:minmax(0, 820px) minmax(260px, 340px);", css);   // the Gauntlet Tracker's: the Companion's size (Frank, 31 Oct 2026)
+        Assert.Contains(".mapsys { position:absolute; left:10px; top:10px;", css);   // the systems in the map's corner, on every map
+        Assert.DoesNotContain(".hauling .mapbox { background", await f.Browser().GetStringAsync("/hauling.css"));   // the planner's map box looks like the others' (Frank, 31 Oct 2026)
+        var engine = await f.Browser().GetStringAsync("/systemmap.js");
+        Assert.Contains("function systems(items, on, pick)", engine);
+        Assert.Contains("sysRow.className = 'mapsys';", engine);
 
         // the Companion: the four cells of the Map tool's grid as it was
         page = await admin.GetStringAsync("/companion");
@@ -292,7 +300,9 @@ public class MapPageTests
         Assert.Contains("base.svg.appendChild(base.labels);", script);   // the names of the places above the routes (30 Oct 2026)
         Assert.Contains("[['#', ''], ['Mission', '']", await f.Browser().GetStringAsync("/companion.js"));   // the Active Contracts table numbered like the others
         var mapJs = await f.Browser().GetStringAsync("/map.js");
-        Assert.Contains("b.href = '#' + s.id;", mapJs);   // the systems are links like the other tools' tabs, so the row has the same height (30 Oct 2026)
+        Assert.Contains("map.systems(d.systems.map(function (s) {", mapJs);   // the systems are the engine's buttons in the map's corner (31 Oct 2026; links in a row before)
+        Assert.Contains("map.systems(d.systems.map(function (s) {", await f.Browser().GetStringAsync("/companion.js"));   // the Companion's too
+        Assert.DoesNotContain("getElementById('systems')", mapJs);
         Assert.Contains(".mapmissions table.missions th:first-child, .mapmissions table.missions td:first-child { width:36px;", await f.Browser().GetStringAsync("/site.css"));
         // the speed meter stays at 0 Mm/s when a player is not in quantum, so his card keeps its size (Frank, 29 Oct 2026)
         Assert.DoesNotContain("m.speed.style.display", script);

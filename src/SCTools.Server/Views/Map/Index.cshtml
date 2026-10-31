@@ -2,11 +2,10 @@
     ViewData["Title"] = "Map";
 }
 @* The admin's Map (Frank, 31 Oct 2026: a tab of his pages, out of the top bar and the landing page; the players have the Companion and the Route Planner,
-   which read the same location tracker). No text over or under the map; how the map places everybody is in the README. The systems are buttons over
-   the map (map.js fills them), not a second row of tabs under the admin's, and no team status line on an admin page. *@
+   which read the same location tracker). No text over or under the map; how the map places everybody is in the README. The systems are the map engine's
+   buttons in the map's top left corner (map.js says which), not a second row of tabs under the admin's, and no team status line on an admin page. *@
 <div class="maptool maponly">
   <div class="mapbox">
-    <div class="tabs mapsys" id="systems" role="tablist" aria-label="Star system"></div>
     <div id="map" data-src="/admin/map/map.json"></div>
   </div>
   @* beside the map the players; the objectives list and the Active Contracts are the Companion's (#380), and the map got the room *@

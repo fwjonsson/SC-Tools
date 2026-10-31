@@ -1,5 +1,5 @@
 // A map with the players beside it: the admin's Map (/admin/map, everybody) and the Gauntlet Tracker's (the viewer and his party, as the Companion's map;
-// Frank, 31 Oct 2026). A star system from above (Pyro, Stanton or Nyx, by the buttons over the map), everybody the feed has where his quantum jumps put
+// Frank, 31 Oct 2026). A star system from above (Pyro, Stanton or Nyx, by the engine's buttons in the map's top left corner), everybody the feed has where his quantum jumps put
 // him, and the objectives of the missions going on (as marks on the map). The map itself is SystemMap (systemmap.js, the one map engine of the site, shared
 // with the Hauling Planner's Route Planner and the Companion): this script fetches the feed the map element names (data-src) every few seconds, picks the
 // system to show, and fills the players beside the map with their speed meters.
@@ -27,27 +27,11 @@
     map.show(systemOf(id) || data.systems[0]);
     render();
   }
-  function tabs(d) {
-    const n = counts(d), box = document.getElementById('systems');
-    if (box.children.length !== d.systems.length) {   // made once, so a tab keeps the focus
-      box.textContent = '';
-      d.systems.forEach(function (s) {
-        // a link (#stanton in the address opens that system too), a button over the map (the row of tabs under the bar until 31 Oct 2026)
-        const b = document.createElement('a');
-        b.href = '#' + s.id;
-        b.setAttribute('role', 'tab');
-        b.dataset.sys = s.id;
-        b.addEventListener('click', function (e) { e.preventDefault(); show(s.id, true); });
-        box.appendChild(b);
-      });
-    }
-    d.systems.forEach(function (s, i) {
-      const b = box.children[i];
-      b.setAttribute('aria-selected', s.id === shown ? 'true' : 'false');
-      b.className = s.id === shown ? 'on' : '';
-      b.textContent = s.name + (n[s.id] ? ' · ' + n[s.id] : '');
-      b.title = n[s.id] ? n[s.id] + (n[s.id] === 1 ? ' player' : ' players') + ' in ' + s.name : 'Nobody in ' + s.name;
-    });
+  function tabs(d) {   // the engine's buttons in the map's corner (31 Oct 2026; a row over the map, and the tool's row of tabs under the bar, before); #stanton in the address opens that system too
+    const n = counts(d);
+    map.systems(d.systems.map(function (s) {
+      return { id: s.id, text: s.name + (n[s.id] ? ' · ' + n[s.id] : ''), title: n[s.id] ? n[s.id] + (n[s.id] === 1 ? ' player' : ' players') + ' in ' + s.name : 'Nobody in ' + s.name };
+    }), shown, function (id) { show(id, true); });
   }
   // The system to show: the one picked; else where the most players are (and again when everybody left the one on the map for another).
   function choose(d) {

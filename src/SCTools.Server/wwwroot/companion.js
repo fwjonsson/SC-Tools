@@ -33,26 +33,11 @@
     map.show(systemOf(id) || data.systems[0]);
     render();
   }
-  function tabs(d) {
-    const n = counts(d), box = document.getElementById('systems');
-    if (box.children.length !== d.systems.length) {   // made once, so a tab keeps the focus
-      box.textContent = '';
-      d.systems.forEach(function (s) {
-        const b = document.createElement('a');
-        b.href = '#' + s.id;
-        b.setAttribute('role', 'tab');
-        b.dataset.sys = s.id;
-        b.addEventListener('click', function (e) { e.preventDefault(); show(s.id, true); });
-        box.appendChild(b);
-      });
-    }
-    d.systems.forEach(function (s, i) {
-      const b = box.children[i];
-      b.setAttribute('aria-selected', s.id === shown ? 'true' : 'false');
-      b.className = s.id === shown ? 'on' : '';
-      b.textContent = s.name + (n[s.id] ? ' · ' + n[s.id] : '');
-      b.title = n[s.id] ? n[s.id] + (n[s.id] === 1 ? ' player' : ' players') + ' in ' + s.name : 'Nobody in ' + s.name;
-    });
+  function tabs(d) {   // the engine's buttons in the map's corner (31 Oct 2026; the row under the bar, beside the status line, before); #stanton in the address opens that system too
+    const n = counts(d);
+    map.systems(d.systems.map(function (s) {
+      return { id: s.id, text: s.name + (n[s.id] ? ' · ' + n[s.id] : ''), title: n[s.id] ? n[s.id] + (n[s.id] === 1 ? ' player' : ' players') + ' in ' + s.name : 'Nobody in ' + s.name };
+    }), shown, function (id) { show(id, true); });
   }
   // The system you are in (null: you are not playing, or the map does not know).
   function mySystem(d) {
