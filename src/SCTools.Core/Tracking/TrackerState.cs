@@ -41,6 +41,12 @@ public sealed class TrackerState
     /// </summary>
     public LocationBook? Locations { get; set; }
 
+    /// <summary>
+    /// On the server: what the ship tracker said last (who is in whose ship, who flies it; see ShipTracker). A rider is crew of the pilot's ship in the
+    /// planner (Crew.FlyingCapacityOf). Null where there is none (the program, the tests of the planner alone).
+    /// </summary>
+    public ShipBook? Ships { get; set; }
+
     /// <summary>While the session is worked out for one party only (Tracker.Focus): the missions that are theirs. Null: everybody's.</summary>
     public Func<Mission, bool>? Focus { get; set; }
 

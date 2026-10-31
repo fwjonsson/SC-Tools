@@ -102,7 +102,19 @@ public sealed class HaulingLog
         "Mission",                                                      // the missions: markers, objectives, notifications, members
         QuitLine,                                                       // the game was quit (a log without it ended in a crash)
         SCTools.Missions.MissionReader.EarnedLine,                      // what a completed mission paid him ("You've Earned: 14 Rewards")
+        JoinedChannelLine, LeftChannelLine,                             // he boarded a ship, or got out of it (whose ship it is: ShipChannel)
     };
+
+    /// <summary>
+    /// What the game writes when the player of the log boards a ship (ShipChannel): the notification's text is on this first line alone, the line after it
+    /// (with the queue and "MissionId") does not name the ship.
+    /// </summary>
+    public const string JoinedChannelLine = "Added notification \"You have joined channel '";
+
+    /// <summary>What the game writes, now and then, when he is out of a ship's channel again (ShipChannel).</summary>
+    public const string LeftChannelLine = "Added notification \"You have left the channel '";
+
+    static readonly Regex ChannelNote = new(@"Added notification ""You have (?<k>joined|left the) channel '(?<s>.+?) : (?<o>[A-Za-z0-9_.-]+)'\.", RegexOptions.Compiled);
 
     /// <summary>What the game writes when the player opens the inventory of the place he is at (LocationSeen).</summary>
     public const string InventoryLine = "<RequestLocationInventory>";
@@ -216,6 +228,9 @@ public sealed class HaulingLog
 
     /// <summary>When the player of this log died (the first line of the burst of item recovery lines).</summary>
     public List<DateTime> Deaths { get; } = new();
+
+    /// <summary>The ships' voice channels the player of this log came into and out of (he boarded a ship, whose it is), in the order of the log.</summary>
+    public List<ShipChannel> Channels { get; } = new();
 
     /// <summary>The same two lists for every account, set on a merged log (a player without a log is not in them).</summary>
     public Dictionary<string, List<QtEvent>> QtByPlayer { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -576,6 +591,21 @@ public sealed class HaulingLog
                 Areas.Add(new AreaChange(ParseTime(at.Groups[1].Value), long.Parse(am.Groups["la"].Value), long.Parse(am.Groups["lb"].Value),
                     long.Parse(am.Groups["a"].Value), long.Parse(am.Groups["b"].Value)));
                 Version++;
+            }
+            return;
+        }
+        if (line.Contains(JoinedChannelLine, StringComparison.Ordinal) || line.Contains(LeftChannelLine, StringComparison.Ordinal))
+        {
+            var cn = ChannelNote.Match(line);
+            var ct = Ts.Match(line);
+            if (cn.Success && ct.Success)
+            {
+                var c = new ShipChannel(ParseTime(ct.Groups[1].Value), cn.Groups["k"].Value == "joined", cn.Groups["s"].Value, cn.Groups["o"].Value);
+                // the game often writes the same notification twice in the same moment
+                if (Channels.Count == 0 || Channels[^1] is not { } last || last.Joined != c.Joined || last.Ship != c.Ship || last.Owner != c.Owner
+                    || (c.Time - last.Time).Duration() > TimeSpan.FromSeconds(2))
+                    Channels.Add(c);
+                // not a mission line, and nothing the sessions read: the ship and location trackers look at every new piece of log anyway
             }
             return;
         }

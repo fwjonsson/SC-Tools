@@ -234,7 +234,7 @@ public sealed class MapService
     object Player(string name, PlayerLocation where, DateTime nowUtc)
     {
         var (color, drive, driveText) = _live.Read(t => (ViewPalette.Hex(Edits.ColorOf(t, name)), t.Crew.QtOf(name), t.Crew.DriveTextOf(name)));
-        var ship = _fleet.Active(name).Text;
+        var ship = _fleet.Active(name, nowUtc).Text;
         var shown = driveText.Length > 0 ? driveText : drive.Label + " (assumed)";
         var motion = Motion(drive);
         var w = LocationTracker.Now(where, drive, nowUtc);

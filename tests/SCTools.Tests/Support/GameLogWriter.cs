@@ -170,6 +170,15 @@ sealed class GameLogWriter
     public GameLogWriter Disconnected(string name) => Note("Party", name + " disconnected.");  // a member's game went out (Frank's logs, 17 Sep 2026)
     public GameLogWriter ChannelJoined(string name) => Note("New Member Joined", name + " has joined the channel 'RSI Perseus : zzoega'.");   // a ship's channel, not the party
 
+    /// <summary>
+    /// He boarded a ship: the game puts him in its voice channel, named by the ship and its owner. The notification's text is on its first line alone (the
+    /// line with the queue starts with ": "), as in zzoega's log of 31 Oct 2026.
+    /// </summary>
+    public GameLogWriter Boarded(string ship, string owner) => Note("You have joined channel '" + ship + " : " + owner + "'.", "");
+
+    /// <summary>He is out of a ship's voice channel again (the game says so only now and then).</summary>
+    public GameLogWriter LeftShip(string ship, string owner) => Note("You have left the channel '" + ship + " : " + owner + "'.", "");
+
     /// <summary>He opens the inventory of the place he is at (its id: "Nyx_Levski").</summary>
     public GameLogWriter Inventory(string player, string location) =>
         Add($"{Ts} [Notice] <RequestLocationInventory> Player[{player}] requested inventory for Location[{location}] [Team_CoreGameplayFeatures][Inventory]");

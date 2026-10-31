@@ -40,6 +40,8 @@ or open `SCTools.slnx` in Visual Studio. The exes come from the Build workflow, 
                                its answer PartyBook with the history of every party, PartyRecord), for every tool
         Locations/             the location tracker: where every player is, since when, and whether he is on his way somewhere, from every
                                clue of the logs and the Hauling Planner (LocationTracker, its answer LocationBook), for every tool
+        Boarding/              the ship tracker: who is in whose ship and who flies it, from the ships' voice channels and the quantum
+                               jump lines of everybody's log (ShipTracker, its answer ShipBook), for every tool
         ContractTracking/      a contract as the contracts tracker knows it (TrackedContract: who had it, how it ended, what it pays)
                                and how its money is split (ContractSplit), for every tool
         Persistence/           the saved data (AppData and the classes in it) and where it is saved (Storage)
@@ -666,6 +668,19 @@ admin (done), then going live.
   `PlannerPlace`). The plan is made anew only when what the planner takes from it changes (`LocationBook.PlannerKey`), and nothing in it moves with
   the clock (the clock rule). Before it (until 31 Oct 2026) the map and the planner each worked it out and the server copied between them every six
   seconds (`PlannerPositions`); `LocationPagesAsBeforeTests` recorded what every page showed then, and the tracker shows the same.
+  A rider whose own log has no arrival line for a jump (the game leaves it out about one jump in four) still goes along: he rode the pilot's jump when
+  the ship's voice channel he is in is the ship's (the ship tracker, below), or he came into the area the pilot jumped to with him, and his own area
+  lines did not go elsewhere (`Rides`; `AboardJump` does the same for the jump going on). A jump burns its ship's owner's fuel (his fleet's drive).
+- **The ship tracker** (`Boarding/ShipTracker.cs` in the core): the one place that knows who is in whose ship and who flies it. When a player boards a
+  ship the game puts him in its voice channel and writes "You have joined channel 'RSI Perseus : zzoega'." in his log (the ship's name and its owner;
+  the owner's log does not say who boarded, so a rider needs his own tracker); it says "You have left the channel" only now and then, so a channel
+  stays his until he boards another ship, a new game starts, or a jump of his own is in another ship. A quantum jump line of a ship whose class fits
+  the channel's name tells whose ship that id is; the pilot is who picked its latest jump since he boarded, else the owner. It works it out once per
+  refresh (`LiveTracker.Ships`, its answer `ShipBook`). Everybody asks it: the location tracker (riders, the owner's fuel), the fleets
+  (`FleetService.Active`: the ship he is in comes from its owner's fleet, so zzatvo flying or riding in zzoega's Perseus has zzoega's crafted drive, and
+  the pages say "zzoega's RSI Perseus"), and the Hauling Planner (`Crew.FlyingCapacityOf`: a rider is crew of the pilot's ship and gets no trips of his
+  own; the plan is made anew when the riders change). Ships carry ships: getting out of a docked Pisces leaves him in the Carrack's channel, which is
+  where he is.
 - **Who is active comes from the logs** on the server (the party tracker, and `Tracking/AutoParty.cs` writes it into the Active ticks), not from a tick
   set by hand. The game writes the in-game party in its notifications
   ("zzatvo has joined the party.", "Bileh123 has left the party." also when he quits or crashes, "zzoega is now party leader.", "The party has been

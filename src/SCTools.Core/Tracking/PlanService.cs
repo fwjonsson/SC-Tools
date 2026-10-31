@@ -709,7 +709,7 @@ public sealed class PlanService
     /// <summary>The plan for the open batches of the selected session, with the runs so far. The trips are only worked out again when the batches or the crew change.</summary>
     public PlanView GetPlan()
     {
-        var crew = _crew.ActiveCrew().Select(n => (Name: n, Capacity: _crew.ShipCapacityOf(n), Drive: _crew.QtOf(n))).ToList();
+        var crew = _crew.ActiveCrew().Select(n => (Name: n, Capacity: _crew.FlyingCapacityOf(n), Drive: _crew.QtOf(n))).ToList();   // a rider flies no trips of his own
         var remaining = new Dictionary<string, int>();
         var unknown = new List<string>();
         var worth = new Dictionary<string, (decimal Value, int Batches)>();   // station -> what its batches are worth together (the value of a stop is reward / stops of its mission)
