@@ -435,6 +435,14 @@ function buildPlanner(tab) {
     w.routes.forEach(function (r, i) { routes.push({ label: i === 0 ? w.name : '', color: w.color, stops: r.stops, places: r.places, from: r.from, passed: r.passed || 0, bold: !!r.solid, dashed: !r.solid }); });
   });
   mapSvg(mapBox, p, routes, workers.map(function (w) { return w.name || ''; }), tab);
+  // the route cards under a Players heading, as the Companion lists the players beside its map; with no card the heading stays with a line under it, so
+  // the room beside the map says so instead of being empty (Frank, 31 Oct 2026)
+  const players = document.createElement('h2'); players.className = 'planplayers'; players.textContent = 'Players'; tables.appendChild(players);
+  if (workers.length === 0) {
+    const none = document.createElement('p'); none.className = 'muted';
+    none.textContent = ME ? 'Nobody of your party is playing now.' : 'Log in to see yourself and your party here.';
+    tables.appendChild(none);
+  }
   workers.forEach(function (w) {
     const frame = document.createElement('div'); frame.className = 'planworker'; tables.appendChild(frame);   // every worker in his own frame
     const h = document.createElement('h2'); frame.appendChild(h);
