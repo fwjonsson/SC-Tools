@@ -71,6 +71,14 @@ public sealed class MissionKindRow
 
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// The category (Bounty Hunter, Mercenary...), the reputation it gives (XP) and whether it is legal, typed in by the admin (Frank, 31 Oct 2026); null: the
+    /// Star Citizen Wiki's is shown. One typed in wins over the Wiki's.
+    /// </summary>
+    public string? Category { get; set; }
+    public long? Xp { get; set; }
+    public string? Legality { get; set; }
+
     /// <summary>Who changed it last, and when (null: nobody yet).</summary>
     public string? EditedBy { get; set; }
     public DateTime? EditedUtc { get; set; }

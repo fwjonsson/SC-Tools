@@ -35,10 +35,10 @@ public sealed record LibraryEntry(MissionKindRow Row, int Taken, int Completed, 
     /// <summary>The faction the page shows: the one typed in (the Giver field, as it was called), else the Star Citizen Wiki's.</summary>
     public string? FactionShown => Row.Giver?.Trim() is { Length: > 0 } g ? g : Wiki?.Faction;
 
-    /// <summary>The Star Citizen Wiki's category of the mission (Hauling, Bounty Hunter, Security...), the reputation it gives and Legal or Illegal; null: not known.</summary>
-    public string? Category => Wiki?.Category;
-    public long? Xp => Wiki?.Xp;
-    public string? Legality => Wiki?.Legality;
+    /// <summary>The category of the mission (Hauling, Bounty Hunter, Security...), the reputation it gives (XP) and Legal or Illegal: the admin's, else the Star Citizen Wiki's; null: not known.</summary>
+    public string? Category => Row.Category?.Trim() is { Length: > 0 } c ? c : Wiki?.Category;
+    public long? Xp => Row.Xp ?? Wiki?.Xp;
+    public string? Legality => Row.Legality?.Trim() is { Length: > 0 } l ? l : Wiki?.Legality;
 
     /// <summary>Nothing typed in about its rewards yet.</summary>
     public bool NeedsInfo => Row.Auec == null && Row.MgScrip == null && Row.CouncilScrip == null;
@@ -249,6 +249,9 @@ public sealed class MissionLibrary
                 to.Scu ??= was.Scu;
                 if (to.ScuSuggested == null) (to.ScuSuggested, to.ScuSuggestedBy, to.ScuSuggestedUtc) = (was.ScuSuggested, was.ScuSuggestedBy, was.ScuSuggestedUtc);
                 to.Notes ??= was.Notes;
+                to.Category ??= was.Category;
+                to.Xp ??= was.Xp;
+                to.Legality ??= was.Legality;
                 if (was.EditedUtc != null && (to.EditedUtc == null || was.EditedUtc > to.EditedUtc)) (to.EditedBy, to.EditedUtc) = (was.EditedBy, was.EditedUtc);
             }
             left.Add(m.Kind!);
@@ -546,7 +549,7 @@ public sealed class MissionLibrary
     }
 
     /// <summary>The fields a player can type in.</summary>
-    public static readonly string[] Fields = { "name", "giver", "scu", "auec", "mg", "council", "notes" };
+    public static readonly string[] Fields = { "name", "giver", "scu", "auec", "mg", "council", "notes", "category", "xp", "legality" };
 
     /// <summary>
     /// Changes one field of a kind of mission (empty: not known). The aUEC of a kind the Hauling Planner reads is what the planner pays for every such
@@ -556,7 +559,7 @@ public sealed class MissionLibrary
     {
         value = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         long? number = null;
-        if (field is "auec" or "mg" or "council" or "scu" && value != null)
+        if (field is "auec" or "mg" or "council" or "scu" or "xp" && value != null)
         {
             if (!long.TryParse(value.Replace(" ", "").Replace(",", "").Replace(".", ""), out var n) || n < 0) return null;
             number = n;
@@ -576,6 +579,9 @@ public sealed class MissionLibrary
                 case "mg": row.MgScrip = number; break;
                 case "council": row.CouncilScrip = number; break;
                 case "scu": row.Scu = number; break;
+                case "category": row.Category = value; break;
+                case "xp": row.Xp = number; break;
+                case "legality": row.Legality = value; break;
                 default: return null;
             }
             row.EditedBy = who;
