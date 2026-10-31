@@ -246,14 +246,13 @@
       hour.classList.add('perhour');
       box.appendChild(t);
       tick();
-      const hint = el('p', 'hint');
-      hint.textContent = 'Your own play since the game started (a game started again within an hour of the last one is the same session). Earned is your part of ' +
+      // what the numbers are: the table's tooltip, not a text under it (Frank, 31 Oct 2026)
+      t.title = 'Your own play since the game started (a game started again within an hour of the last one is the same session). Earned is your part of ' +
         'what the Mission Library says your completed missions pay (the aUEC split among everybody who completed the same mission, the contracts of the Hauling Planner ' +
         'as its payouts; the scrip only for the one who took the contract), with MG scrip at ' + money(s.mgValue) + ' aUEC and Council scrip at ' +
         money(s.councilValue) + ' aUEC.' +
         (s.accounts ? ' The aUEC, scrip, Earned and Per hour are your accounts together (' + s.accounts.join(', ') + ') in this session, per hour of your own time played.' : '') +
         (s.withoutReward > 0 ? ' ' + s.withoutReward + (s.withoutReward === 1 ? ' completed mission has' : ' completed missions have') + ' no reward in the library yet.' : '');
-      box.appendChild(hint);
     }
     contracts('completed', sess.completed || [], true, 'No contracts ended this session.');
   }
@@ -270,17 +269,14 @@
   // ------------------------------------------------------------------ the polls
   async function refresh() {
     if (document.hidden) return;   // nobody is looking: the page polls again when the tab is shown
-    const state = document.getElementById('mapState');
     try {
       const res = await fetch('/companion/map.json', { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       data = await res.json();
       data.clockOffset = Date.parse(data.updated) - Date.now();   // the server's clock against this browser's, when the data came (not when it is drawn)
       show(choose(data), false);
-      state.textContent = 'Updated ' + new Date().toLocaleTimeString();
-      if (window.siteLive) siteLive(true);   // the top bar's live dot (live.js)
+      if (window.siteLive) siteLive(true);   // the top bar's live text (live.js) says how it went; no "Updated" line of its own (31 Oct 2026)
     } catch (e) {
-      state.textContent = 'The map could not be updated: trying again.';
       if (window.siteLive) siteLive(false);
     }
   }

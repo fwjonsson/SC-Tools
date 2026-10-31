@@ -32,7 +32,7 @@ public class MapPlacesPageTests
         Assert.Contains(Asteroid, page);
         Assert.Contains(Encounter, page);
         Assert.Contains("Spot Seven", page);
-        async Task<JsonElement> Map() => JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement;
+        async Task<JsonElement> Map() => JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement;
         Assert.Equal("unknown", Player(await Map(), "zzoega").GetProperty("state").GetString());
 
         // every asteroid cluster of Pyro is Bloom (for this test); the encounters are not places

@@ -119,7 +119,7 @@ public class BeaconRangingTests
             .At(start).RouteStart("Levski", Hideaki).RouteFuel(Hideaki, 738770.25, Perseus, "910650678563")
             .QuantumSelected(Hideaki, Perseus, "910650678563").RouteStart("Levski", Hideaki).RouteFuel(Hideaki, 738770.25, Perseus, "910650678563").Lines.ToList());
         var admin = await f.Admin();
-        var map = JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement;
+        var map = JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement;
         var nyx = map.GetProperty("systems").EnumerateArray().Single(s => s.GetProperty("id").GetString() == "nyx");
         var hidden = nyx.GetProperty("places").EnumerateArray().Where(p => p.GetProperty("hidden").GetBoolean()).ToList();
         Assert.Equal(Glaciem.Key, Assert.Single(hidden).GetProperty("key").GetString());   // only the spot he flies to
@@ -150,7 +150,7 @@ public class BeaconRangingTests
             .Minutes(10).MissionMarker(m, GameLogWriter.BountyContract, "obj-2", "22227", "906735902202").ObjectivePopup(m, "obj-2", "Return to Glaciem Ring Cluster");
         f.Upload("zzoega", w.Lines.ToList());
         var admin = await f.Admin();
-        var map = JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement;
+        var map = JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement;
         var objectives = map.GetProperty("objectives").EnumerateArray().ToDictionary(o => o.GetProperty("where").GetString()!);
         Assert.Equal(Glaciem.Key, objectives["Return to Glaciem Ring Cluster"].GetProperty("place").GetString());   // the same cluster: at the spot
         Assert.False(objectives["Go to QV Breaker Station"].TryGetProperty("place", out _));   // nobody set a route to it: in the list only

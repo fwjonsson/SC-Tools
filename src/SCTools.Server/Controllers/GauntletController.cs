@@ -27,10 +27,13 @@ public sealed class GauntletController : Controller
     readonly PartyService _party;
 
     readonly LiveTracker _live;
+    readonly CompanionService _companion;
 
-    public GauntletController(GauntletService gauntlet, ToolAccess tools, LogUploads uploads, ScripValues scrip, PartyService party, LiveTracker live)
+    public GauntletController(GauntletService gauntlet, ToolAccess tools, LogUploads uploads, ScripValues scrip, PartyService party, LiveTracker live,
+        CompanionService companion)
     {
         _live = live;
+        _companion = companion;
         _gauntlet = gauntlet;
         _uploads = uploads;
         _tools = tools;
@@ -42,6 +45,19 @@ public sealed class GauntletController : Controller
     string Me => PointOfView.Name(HttpContext) ?? "";   // the admin looks as a player through the top bar's pick (30 Oct 2026)
 
     IActionResult Hidden() => User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
+
+    /// <summary>
+    /// The map of the Session tab (Frank, 31 Oct 2026: "in the same style as the Companion and the Hauling Planner", showing the same as the Companion's): the
+    /// viewer and his party where the location tracker has them, their jumps and their missions' objectives (CompanionService.Map; the admin's own view has
+    /// everybody, a visitor the places alone). The page asks for it every few seconds (map.js).
+    /// </summary>
+    [HttpGet("map.json")]
+    public IActionResult Map()
+    {
+        if (!_tools.Sees(User, SiteTools.Gauntlet)) return Hidden();
+        Response.Headers.CacheControl = "no-store";
+        return Json(_companion.Map(PointOfView.Name(HttpContext), false, DateTime.UtcNow, Audience.Of(HttpContext).Everything));
+    }
 
     [HttpGet("{tab?}")]
     public IActionResult Index(string? tab, int scenario = 1)

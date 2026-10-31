@@ -8,30 +8,27 @@ using Microsoft.AspNetCore.Mvc;
 namespace SCTools.Server.Controllers;
 
 /// <summary>
-/// The Map tool: the Pyro system with everybody playing where his quantum jumps put him (moving along his route while he is in quantum, with his speed) and
-/// the objectives of the missions going on (MapService). The page asks for map.json every few seconds and moves the players in between. For everybody
-/// once it is shown (the Tools page; only the admin before): a visitor sees the places, a player the players of his party, the admin everybody (Audience).
+/// The admin's Map (a tab of his pages since 31 Oct 2026, Frank: out of the top bar and the landing page, where it was the Map tool; the players have the
+/// Companion and the Route Planner, which read the same location tracker): every system with everybody playing where his quantum jumps put him (moving
+/// along his route while he is in quantum, with his speed) and the objectives of the missions going on (MapService). The page asks for map.json every few
+/// seconds and moves the players in between. The admin's own view has everybody; View as shows what that player's party would see (Audience).
 /// </summary>
-[Route("/map")]
+[Authorize(Roles = Roles.Admin)]
+[Route("/admin/map")]
 public sealed class MapController : Controller
 {
     readonly MapService _map;
-    readonly ToolAccess _tools;
     readonly Audience _audience;
 
-    public MapController(MapService map, ToolAccess tools, Audience audience)
+    public MapController(MapService map, Audience audience)
     {
         _map = map;
-        _tools = tools;
         _audience = audience;
     }
-
-    IActionResult Hidden() => User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
 
     [HttpGet("")]
     public IActionResult Index()
     {
-        if (!_tools.Sees(User, SiteTools.Map)) return Hidden();
         ViewData["Title"] = "Map";
         return View();
     }
@@ -44,7 +41,6 @@ public sealed class MapController : Controller
     [HttpGet("map.json")]
     public IActionResult Data()
     {
-        if (!_tools.Sees(User, SiteTools.Map)) return Hidden();
         Response.Headers.CacheControl = "no-store";
         var viewer = Audience.Of(HttpContext);
         var now = DateTime.UtcNow;
@@ -62,9 +58,10 @@ public sealed class MapController : Controller
     /// <summary>
     /// What every station of the map has, by the place's key: its services and its shops as UEX lists them (StationServices), for the card the map shows when
     /// the mouse is over a station (#409; Frank, 31 Oct 2026). Game data, the same for everybody and every page with a map, so no login is needed and a
-    /// browser may keep it for an hour.
+    /// browser may keep it for an hour (its address stayed where it was when the Map was a tool).
     /// </summary>
-    [HttpGet("services.json")]
+    [AllowAnonymous]
+    [HttpGet("/map/services.json")]
     public IActionResult Services()
     {
         Response.Headers.CacheControl = "public, max-age=3600";

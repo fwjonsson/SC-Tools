@@ -41,6 +41,19 @@
 }
 else if (Model.Tab == "session")
 {
+  @* the map with you and your party, as the Companion's (Frank, 31 Oct 2026): the systems as buttons over it, the players beside it (map.js) *@
+  <div class="maptool maponly gauntletmap">
+    <div class="mapbox">
+      <div class="tabs mapsys" id="systems" role="tablist" aria-label="Star system"></div>
+      <div id="map" data-src="/gauntlet/map.json"></div>
+    </div>
+    <div class="mapside players">
+      <h2>Players</h2>
+      <div id="players"><p class="muted">Loading…</p></div>
+    </div>
+  </div>
+  <script src="~/systemmap.js" asp-append-version="true" defer></script>
+  <script src="~/map.js" asp-append-version="true" defer></script>
   @* the game session and the grind session side by side, together as wide as the wide tables (Frank, 30 Oct 2026) *@
   <div class="pair">
   @if (Model.Game != null)

@@ -1,12 +1,15 @@
-// The Map tool: a star system from above (Pyro, Stanton or Nyx, by the tabs over the map), everybody playing where his quantum jumps put him, and the
-// objectives of the missions going on (as marks on the map). The map itself is SystemMap (systemmap.js, the one map engine of the site, shared with the
-// Hauling Planner's Trip Planner and the Companion): this script fetches map.json every few seconds, picks the system to show, and fills the players beside
-// the map with their speed meters. The objectives list and the Active Contracts went to the Companion (#380), where they are a player's own.
+// A map with the players beside it: the admin's Map (/admin/map, everybody) and the Gauntlet Tracker's (the viewer and his party, as the Companion's map;
+// Frank, 31 Oct 2026). A star system from above (Pyro, Stanton or Nyx, by the buttons over the map), everybody the feed has where his quantum jumps put
+// him, and the objectives of the missions going on (as marks on the map). The map itself is SystemMap (systemmap.js, the one map engine of the site, shared
+// with the Hauling Planner's Route Planner and the Companion): this script fetches the feed the map element names (data-src) every few seconds, picks the
+// system to show, and fills the players beside the map with their speed meters.
 (function () {
   'use strict';
   let data = null;
   let shown = null, chosen = false;   // the system on the map; chosen: picked by a tab (or the address), not by where the players are
-  const map = SystemMap.create(document.getElementById('map'));
+  const box = document.getElementById('map');
+  const src = box.dataset.src;   // the page's feed: /admin/map/map.json, /gauntlet/map.json
+  const map = SystemMap.create(box);
 
   function systemOf(id) { return data.systems.find(function (s) { return s.id === id; }); }
   function nameOfSystem(id) { const s = systemOf(id); return s ? s.name : id; }
@@ -29,7 +32,7 @@
     if (box.children.length !== d.systems.length) {   // made once, so a tab keeps the focus
       box.textContent = '';
       d.systems.forEach(function (s) {
-        // a link like the tabs of the other tools (the same row; Frank, 30 Oct 2026): #stanton in the address opens that system too
+        // a link (#stanton in the address opens that system too), a button over the map (the row of tabs under the bar until 31 Oct 2026)
         const b = document.createElement('a');
         b.href = '#' + s.id;
         b.setAttribute('role', 'tab');
@@ -94,17 +97,14 @@
 
   async function refresh() {
     if (document.hidden) return;   // nobody is looking: the map polls again when the tab is shown
-    const state = document.getElementById('mapState');
     try {
-      const res = await fetch('/map/map.json', { cache: 'no-store' });
+      const res = await fetch(src, { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       data = await res.json();
       data.clockOffset = Date.parse(data.updated) - Date.now();   // the server's clock against this browser's, when the data came (not when it is drawn)
       show(choose(data), false);
-      state.textContent = 'Updated ' + new Date().toLocaleTimeString();
-      if (window.siteLive) siteLive(true);   // the top bar's live dot (live.js)
+      if (window.siteLive) siteLive(true);   // the top bar's live text (live.js) says how it went; no "Updated" line of its own (31 Oct 2026)
     } catch (e) {
-      state.textContent = 'The map could not be updated: trying again.';
       if (window.siteLive) siteLive(false);
     }
   }

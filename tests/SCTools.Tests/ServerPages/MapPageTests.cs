@@ -24,7 +24,7 @@ public class MapPageTests
         // from Aberdeen (a moon of Hurston) to HUR-L2, half a minute ago
         var his = new GameLogWriter().At(now.AddMinutes(-2)).Login("zzoega").Minutes(1).QuantumSelected("LOC_RR_S1_L2").RouteStart("Aberdeen", "LOC_RR_S1_L2");
         Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-2)), 0, 1000, his.Lines.ToList(), now).Ok);
-        var map = JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/map/map.json")).RootElement;
+        var map = JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/admin/map/map.json")).RootElement;
         var z = Player(map, "zzoega");
         Assert.True(z.GetProperty("top").GetDouble() > 0);   // his drive's top speed: the meter shows it while he stands still too (30 Oct 2026)
         Assert.Equal(("stanton", "jump", "stanton/aberdeen", "stanton/hur-l2-faithful-dream-station"),
@@ -41,7 +41,7 @@ public class MapPageTests
         Assert.True(log.Lines.Where(l => l.Contains(HaulingLog.InventoryLine)).All(l => new LineFilter().Keep(l)));   // the trackers send these lines
         Assert.True(f.Live.Uploads.Add("zzoii", Id(now.AddMinutes(-3)), 0, 1000, log.Lines.Take(log.Lines.Count - 1).ToList(), now).Ok);
         var admin = await f.Admin();
-        var z = Player(JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement, "zzoii");
+        var z = Player(JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement, "zzoii");
         Assert.Equal(("nyx", "at", "nyx/levski"), (z.GetProperty("system").GetString(), z.GetProperty("state").GetString(), z.GetProperty("at").GetString()));
 
         // a location the map does not know: on the admin's Map places, and he is still where the map had him (not "no signal yet")
@@ -49,7 +49,7 @@ public class MapPageTests
         var page = System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/admin/places"));
         Assert.Contains("Stanton9_Nowhere", page);
         Assert.Contains("Area", page);
-        z = Player(JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement, "zzoii");
+        z = Player(JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement, "zzoii");
         Assert.Equal(("nyx", "at", "nyx/levski"), (z.GetProperty("system").GetString(), z.GetProperty("state").GetString(), z.GetProperty("at").GetString()));
     }
 
@@ -65,7 +65,7 @@ public class MapPageTests
             .MissionMarker(m, GameLogWriter.BountyContract, "obj-1", "21517").ObjectivePopup(m, "obj-1", "Go to Asteroid Cluster").BeaconPaired("21517", beacon)
             .Minutes(4).QuantumArrived("RSI_Perseus", "898683539008");
         Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-6)), 0, 1000, his.Lines.ToList(), now).Ok);
-        var map = JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/map/map.json")).RootElement;
+        var map = JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/admin/map/map.json")).RootElement;
 
         var z = Player(map, "zzoega");
         Assert.Equal(("nyx", "mission", "the mission: Go to Asteroid Cluster"),
@@ -78,7 +78,7 @@ public class MapPageTests
         // zzatvo jumped from Levski at something with no mission going on: off the grid, last seen at Levski
         var lost = new GameLogWriter().At(now.AddMinutes(-6)).Login("zzatvo").Inventory("zzatvo", "Nyx_Levski").Minutes(4).QuantumArrived("ANVL_Arrow", "777777777777");
         Assert.True(f.Live.Uploads.Add("zzatvo", Id(now.AddMinutes(-6)), 0, 1000, lost.Lines.ToList(), now).Ok);
-        var a = Player(JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/map/map.json")).RootElement, "zzatvo");
+        var a = Player(JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/admin/map/map.json")).RootElement, "zzatvo");
         Assert.Equal(("nyx", "unknown", true, "Levski"),
             (a.GetProperty("system").GetString(), a.GetProperty("state").GetString(), a.GetProperty("off").GetBoolean(), a.GetProperty("lastPing").GetString()));
         Assert.Equal("nyx/levski", a.GetProperty("lastPingAt").GetString());   // the page keeps his marker there, faded
@@ -92,7 +92,7 @@ public class MapPageTests
         // Pilot_A hauled: his last pickup was at Gaslight (the planner knows), and his log has no quantum travel at all (the map does not)
         Assert.True(f.Live.Uploads.Add(PlayedSession.Player, Id(GameLogWriter.Start), 0, 10000, PlayedSession.Writer().Lines.ToList(), now).Ok);
         f.Live.Refresh(now);
-        var map = JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/map/map.json")).RootElement;
+        var map = JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/admin/map/map.json")).RootElement;
         var a = Player(map, PlayedSession.Player);
         Assert.Equal(("pyro", "at", "pyro/gaslight", "the Hauling Planner"),
             (a.GetProperty("system").GetString(), a.GetProperty("state").GetString(), a.GetProperty("at").GetString(), a.GetProperty("via").GetString()));
@@ -110,7 +110,7 @@ public class MapPageTests
             // the tracker sends what is new in his log (by where it is in the file: here the line's number)
             Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-10)), sent, w.Lines.Count, w.Lines.Skip(sent).ToList(), now).Ok);
             sent = w.Lines.Count;
-            return Player(JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/map/map.json")).RootElement, "zzoega");
+            return Player(JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/admin/map/map.json")).RootElement, "zzoega");
         }
 
         // on the pad at Ruin, he picks Gaslight: still at Ruin, leaving for Gaslight (no spooling yet)
@@ -152,9 +152,9 @@ public class MapPageTests
         var his = new GameLogWriter().At(now.AddMinutes(-9)).Login("bileh123").QuantumSelected(Gaslight).RouteStart("Ruin Station", Gaslight).Minutes(4).QuantumArrived();
         Assert.True(f.Live.Uploads.Add("bileh123", Id(now.AddMinutes(-9)), 0, 1000, his.Lines.ToList(), now).Ok);
         var admin = await f.Admin();
-        Assert.Contains("map.js", await admin.GetStringAsync("/map"));   // only the admin until it is shown
+        Assert.Contains("map.js", await admin.GetStringAsync("/admin/map"));   // only the admin until it is shown
 
-        var map = JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement;
+        var map = JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement;
         var z = Player(map, "zzoega");
         Assert.Equal("jump", z.GetProperty("state").GetString());
         Assert.Equal(("pyro", "pyro/ruin-station", "pyro/gaslight"), (z.GetProperty("system").GetString(), z.GetProperty("from").GetString(), z.GetProperty("to").GetString()));
@@ -180,8 +180,8 @@ public class MapPageTests
         Assert.Contains(systems[1].GetProperty("places").EnumerateArray(), p => p.GetProperty("key").GetString() == "stanton/lorville" && p.GetProperty("kind").GetString() == "city");
 
         var player = await f.Player(f.AddKey("bileh123"));
-        Assert.StartsWith("/login/denied", (await player.GetAsync("/map")).Headers.Location!.PathOf());
-        Assert.StartsWith("/login", (await f.Browser().GetAsync("/map/map.json")).Headers.Location!.PathOf());
+        Assert.StartsWith("/login/denied", (await player.GetAsync("/admin/map")).Headers.Location!.PathOf());
+        Assert.StartsWith("/login", (await f.Browser().GetAsync("/admin/map/map.json")).Headers.Location!.PathOf());
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public class MapPageTests
 
         // a player sees the planner's map (the Map tool itself is only the admin's until it is shown): Pyro alone, with the players and the objectives
         var player = await f.Player(f.AddKey("zzoega"));
-        Assert.StartsWith("/login/denied", (await player.GetAsync("/map/map.json")).Headers.Location!.PathOf());
+        Assert.StartsWith("/login/denied", (await player.GetAsync("/admin/map/map.json")).Headers.Location!.PathOf());
         var res = await player.GetAsync("/hauling/map.json");
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Contains("no-store", res.Headers.CacheControl?.ToString());
@@ -244,8 +244,12 @@ public class MapPageTests
         using var f = new ServerFactory();
         var admin = await f.Admin();
         // the Map tool: the map and the players (the objectives list and the Active Contracts went to the Companion, #380; the map got the room)
-        var page = await admin.GetStringAsync("/map");
-        Assert.Contains("<nav class=\"subnav area\" style=\"--tool:#e0734a\"><div class=\"tabs\" id=\"systems\" role=\"tablist\" aria-label=\"Star system\"></div>", page);   // the systems: the tool's row of tabs (30 Oct 2026), the status line beside them (31 Oct)
+        var page = await admin.GetStringAsync("/admin/map");
+        // the systems: buttons over the map (31 Oct 2026; the tool's row of tabs before), the map's feed named on it, no team status line, no texts under it
+        Assert.Contains("<div class=\"tabs mapsys\" id=\"systems\" role=\"tablist\" aria-label=\"Star system\"></div>\n    <div id=\"map\" data-src=\"/admin/map/map.json\"></div>", page.Replace("\r\n", "\n"));
+        Assert.DoesNotContain("data-ticker", page);
+        Assert.DoesNotContain("id=\"mapState\"", page);
+        Assert.DoesNotContain("Positions: the", page);
         Assert.DoesNotContain("<h1>", page);
         Assert.Contains("<div class=\"maptool maponly\">", page);
         Assert.True(page.IndexOf("<div class=\"mapbox\">", StringComparison.Ordinal) < page.IndexOf("<div class=\"mapside players\">", StringComparison.Ordinal));
@@ -274,7 +278,7 @@ public class MapPageTests
         using var f = new ServerFactory();
         var admin = await f.Admin();
         // both pages load the engine (a file of the site, with its version in the address) before their own script
-        foreach (var address in new[] { "/map", "/hauling", "/companion" })
+        foreach (var address in new[] { "/admin/map", "/hauling", "/companion" })
         {
             var page = await admin.GetStringAsync(address);
             var engine = page.IndexOf("src=\"/systemmap.js?v=", StringComparison.Ordinal);
@@ -307,20 +311,15 @@ public class MapPageTests
         // the admin: everybody on the map, and he is himself; looking as zzoega he is zzoega (so the map's own tools, such as measuring a distance with
         // his ship, work for the player he looks as; #408, Frank 31 Oct 2026)
         var admin = await f.Admin();
-        var map = JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement;
+        var map = JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement;
         Assert.Equal(ServerFactory.AdminName, map.GetProperty("me").GetString());
         Assert.Equal(new[] { "zzoega" }, map.GetProperty("players").EnumerateArray().Select(p => p.GetProperty("name").GetString()));
-        await ServerFactory.Send(admin, "/", "/admin/pov", ("name", "zzoega"), ("back", "/map"));
-        Assert.Equal("zzoega", JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement.GetProperty("me").GetString());
-        // once the tool is shown: a player is himself, a visitor nobody, and both get the places
-        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "map"), ("value", "true"));
+        await ServerFactory.Send(admin, "/", "/admin/pov", ("name", "zzoega"), ("back", "/admin/map"));
+        Assert.Equal("zzoega", JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement.GetProperty("me").GetString());
+        // the Map is the admin's alone since 31 Oct 2026: a player may not open it, nor its feed
         var player = await f.Player(f.AddKey("bileh123"));
-        map = JsonDocument.Parse(await player.GetStringAsync("/map/map.json")).RootElement;
-        Assert.Equal("bileh123", map.GetProperty("me").GetString());
-        Assert.Empty(map.GetProperty("players").EnumerateArray());   // zzoega is in no party with him
-        map = JsonDocument.Parse(await f.Browser().GetStringAsync("/map/map.json")).RootElement;
-        Assert.Equal(JsonValueKind.Null, map.GetProperty("me").ValueKind);
-        Assert.NotEmpty(map.GetProperty("systems").EnumerateArray());
+        foreach (var address in new[] { "/admin/map", "/admin/map/map.json" })
+            Assert.StartsWith("/login/denied", (await player.GetAsync(address)).Headers.Location!.PathOf());   // as every admin page
     }
 
     [Fact]
@@ -351,7 +350,7 @@ public class MapPageTests
         var log = new GameLogWriter().At(now.AddMinutes(-3)).Login("zzoega").Minutes(1).Inventory("zzoega", "Nyx_Levski");
         Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-3)), 0, 1000, log.Lines.ToList(), now).Ok);
         var admin = await f.Admin();
-        var map = JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement;
+        var map = JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement;
         var mine = map.GetProperty("mine");   // the admin's own ship and drive, though he is not playing
         Assert.True(mine.TryGetProperty("ship", out _));
         Assert.True(mine.GetProperty("motion").GetProperty("v").GetDouble() > 0);
@@ -373,7 +372,7 @@ public class MapPageTests
         Assert.True(log.Lines.Where(l => l.Contains(HaulingLog.CorpseLine)).All(l => new LineFilter().Keep(l)));   // the trackers send these lines
         Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-30)), 0, 1000, log.Lines.ToList(), now).Ok);
         var admin = await f.Admin();
-        var map = JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement;
+        var map = JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement;
         var death = Assert.Single(map.GetProperty("deaths").EnumerateArray());
         Assert.Equal(("zzoega", "nyx", "nyx/levski", "Levski"),
             (death.GetProperty("player").GetString(), death.GetProperty("system").GetString(), death.GetProperty("at").GetString(), death.GetProperty("atName").GetString()));

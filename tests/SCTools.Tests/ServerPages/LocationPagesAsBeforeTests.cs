@@ -144,7 +144,7 @@ public class LocationPagesAsBeforeTests
         var now = DateTime.UtcNow;
         using var f = Played(now);
         var admin = await f.Admin();
-        var map = Written(await Get(admin, "/map/map.json"), now);
+        var map = Written(await Get(admin, "/admin/map/map.json"), now);
         Same(AdminMap, map);
         Assert.Equal(map, Written(await Get(admin, "/hauling/map.json"), now));   // the Hauling Planner's Route Planner draws the same
         Same(AdminCompanion, Written(await Get(admin, "/companion/map.json"), now));   // the admin's own Companion: everybody
