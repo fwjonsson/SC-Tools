@@ -160,7 +160,7 @@ public sealed class PageController : Controller
     }
 
     /// <summary>
-    /// The map of the Trip Planner tab: the Map tool's data for Pyro alone (MapService.Snapshot: everybody playing where his jumps put him, the objectives
+    /// The map of the Trip Planner tab: the Map tool's data for Pyro alone (MapService.Snapshot: everybody playing where the location tracker has him, the objectives
     /// going on), polled every few seconds while the tab is shown, by whoever sees the Hauling Planner; the page draws the planner's routes on it.
     /// </summary>
     [HttpGet("/hauling/map.json")]

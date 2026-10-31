@@ -63,8 +63,8 @@ public class MapPlacesPageTests
         var places = (MapPlaces)f.Services.GetService(typeof(MapPlaces))!;
         List<QtEvent> qt;
         lock (f.Live.Uploads.Sync) qt = f.Live.Uploads.Logs.Single().Qt.ToList();
-        Assert.Equal("pyro/bloom", MapService.Follow(qt.Take(2).ToList(), places.Atlas).At?.Key);
-        Assert.Equal("pyro/spot-seven-outpost", MapService.Follow(qt.Take(3).ToList(), places.Atlas).From?.Key);
+        Assert.Equal("pyro/bloom", LocationTracker.Follow(qt.Take(2).ToList(), places.Atlas).At?.Key);
+        Assert.Equal("pyro/spot-seven-outpost", LocationTracker.Follow(qt.Take(3).ToList(), places.Atlas).From?.Key);
 
         // taking the added place off: Spot Seven is not known again; the game's name back for Bloom
         await ServerFactory.Send(admin, "/admin/places", "/admin/places/remove", ("key", "pyro/spot-seven-outpost"));

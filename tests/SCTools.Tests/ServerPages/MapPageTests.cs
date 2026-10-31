@@ -116,10 +116,16 @@ public class MapPageTests
         var w = new GameLogWriter().At(now.AddMinutes(-10)).Login("zzoega").AreaChange("zzoega", 0, pad, ruinArea, pad)
             .Minutes(5).QuantumSelected(Gaslight).RouteStart("Ruin Station", Gaslight);
         var z = await Zzoega(w);
-        Assert.Equal(("at", "pyro/ruin-station", "Gaslight"), (z.GetProperty("state").GetString(), z.GetProperty("at").GetString(), z.GetProperty("leaving").GetString()));
+        Assert.Equal(("at", "pyro/ruin-station", "Gaslight", "landed"),
+            (z.GetProperty("state").GetString(), z.GetProperty("at").GetString(), z.GetProperty("leaving").GetString(), z.GetProperty("hangar").GetString()));
 
-        // off the pad, then out of Ruin's area into space three seconds later: the jump starts then
-        w.Seconds(30).AreaChange("zzoega", pad, 0, pad, ruinArea).Seconds(3).AreaChange("zzoega", pad, 0, ruinArea, space);
+        // out of the hangar into Ruin's own area: taking off, not gone yet (Frank, 31 Oct 2026: only leaving the station's area starts the jump)
+        w.Seconds(30).AreaChange("zzoega", pad, 0, pad, ruinArea);
+        z = await Zzoega(w);
+        Assert.Equal(("at", "takeoff", "Gaslight"), (z.GetProperty("state").GetString(), z.GetProperty("hangar").GetString(), z.GetProperty("leaving").GetString()));
+
+        // out of Ruin's area into space three seconds later: the jump starts then
+        w.Seconds(3).AreaChange("zzoega", pad, 0, ruinArea, space);
         z = await Zzoega(w);
         Assert.Equal(("jump", "pyro/ruin-station", "pyro/gaslight"), (z.GetProperty("state").GetString(), z.GetProperty("from").GetString(), z.GetProperty("to").GetString()));
         var start = new DateTimeOffset(now.AddMinutes(-5).AddSeconds(33)).ToUnixTimeMilliseconds();
@@ -152,7 +158,7 @@ public class MapPageTests
         Assert.Equal("jump", z.GetProperty("state").GetString());
         Assert.Equal(("pyro", "pyro/ruin-station", "pyro/gaslight"), (z.GetProperty("system").GetString(), z.GetProperty("from").GetString(), z.GetProperty("to").GetString()));
         Assert.Equal(105.09e9, z.GetProperty("dist").GetDouble(), 0);
-        var start = new DateTimeOffset(now.AddMinutes(-1) + SCTools.Server.MapService.JumpDelay).ToUnixTimeMilliseconds();
+        var start = new DateTimeOffset(now.AddMinutes(-1) + LocationTracker.JumpDelay).ToUnixTimeMilliseconds();
         Assert.InRange(z.GetProperty("start").GetInt64(), start - 5, start + 5);   // a few seconds after he picked the destination
         Assert.True(z.GetProperty("motion").GetProperty("v").GetDouble() > 1e8);   // a drive (an assumed one: he set none)
 
@@ -286,5 +292,7 @@ public class MapPageTests
         // the speed meter stays at 0 Mm/s when a player is not in quantum, so his card keeps its size (Frank, 29 Oct 2026)
         Assert.DoesNotContain("m.speed.style.display", script);
         Assert.Contains("m.unit.textContent = 'Mm/s · 0.00 c'", script);
+        // landed in the station's hangar, or taking off in the station's area (Frank, 31 Oct 2026)
+        Assert.Contains("pl.hangar === 'landed' ? 'Landed at ' : pl.hangar === 'takeoff' ? 'Taking off from ' : 'At '", script);
     }
 }

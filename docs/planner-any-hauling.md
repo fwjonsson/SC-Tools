@@ -82,7 +82,7 @@ several pickups and several drop-offs.
 | `Tracking/DropOffs.cs`, `Whereabouts.cs`, `Places.cs` | The loads start at Ruin; a worker is at Ruin unless the logs say otherwise; headings and stations are Pyro ids. |
 | `Tracking/Earnings.cs` | The reward fallback by `Multi` (to Ruin) and `OutDrops` (from Ruin); a stop is worth reward over `Multi`. |
 | `View/WebSnapshot*.cs`, `wwwroot/hauling.js` | The Stops board's drop-off is Ruin for every pickup; `planner.stations` are the Pyro ids with their place keys; the map is Pyro alone; the routes are drawn as `['Ruin', ...stops, 'Ruin']`. |
-| `Server/MapService.cs` (`PlannerPositions`), `WorkerPosition` | The map hands the planner where everybody is as Pyro station ids (null anywhere else). |
+| `Core/Locations/LocationTracker.cs` (`LocationBook`, `PlannerPlace`) | The location tracker hands the planner where everybody is as planner ids (until #388: `PlannerPositions`, `WorkerPosition`). |
 | `Persistence/AppData.cs`, `SessionInputs.cs` | `StartPoints` and `LockedTrips` hold Pyro station ids. |
 
 ## The design
