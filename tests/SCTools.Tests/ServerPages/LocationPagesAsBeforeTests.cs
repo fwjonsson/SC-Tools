@@ -214,6 +214,7 @@ public class LocationPagesAsBeforeTests
         missions: [
         {title="A mission" who=["trila",] open=1 faction="" category="" scu="" reward="" mg="" council="" xp="" legality="" key=null },
         {title="A mission" who=["hunter",] open=1 faction="" category="" scu="" reward="" mg="" council="" xp="" legality="" key=null },]
+        me: "admin"
 
         """;
     const string AdminCompanion = """
@@ -254,6 +255,7 @@ public class LocationPagesAsBeforeTests
         objectives: []
         unplaced: 2
         missions: []
+        me: "zzoega"
 
         """;
     const string PlayerCompanion = """
@@ -273,6 +275,7 @@ public class LocationPagesAsBeforeTests
         objectives: []
         unplaced: 0
         missions: []
+        me: null
 
         """;
     const string PlannerCurrent = """

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using SCTools.Server.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -150,7 +152,9 @@ public sealed class PageController : Controller
         var viewer = Audience.Of(HttpContext);
         var now = DateTime.UtcNow;
         var map = _map.Snapshot(now);
-        return viewer.Everything ? Json(map) : Json(DataViews.MapFor(map, _audience.Allowed(viewer, now)));
+        var node = viewer.Everything ? JsonSerializer.SerializeToNode(map, JsonSerializerOptions.Web) : DataViews.MapFor(map, _audience.Allowed(viewer, now));
+        if (node is JsonObject d) d["me"] = PointOfView.Name(HttpContext);   // who the viewer is, as the Map tool's feed says it: the two stay one answer
+        return Json(node);
     }
 
 }
