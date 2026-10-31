@@ -298,11 +298,20 @@ admin (done), then going live.
   hangar landings of 30 Oct 2026: leaving it is leaving the instanced hangar for the station). Which area is a station's own is not in the numbers: `StationAreas` knows the ones of the three
   accounts' logs (the numbers are the same for every account) and learns more from the logs on the server (a hangar lets out into it, and he leaves it
   again within half a minute, three times or more and in at least three of ten take-offs); where the hangars let out straight into open space (Levski,
-  Orbituary, the Pyro Gateway, Everus Harbor) taking off is leaving. Replayed on 4,549 jumps: 2,553 start later than before (10 seconds is the median),
-  1,838 the same. The next area, well into the jump, is where he
-  jumped to: he is there, a few seconds before the arrival line (`LocationTracker.JumpTimes`). Measured on zzoega's logs: from leaving to coming in, a
-  route takes the same time to about 2 seconds (Ruin to Rod's Fuel 281 to 287 s, seven times), from the pick it varied by a minute. Picked out in
-  space there is no area to leave: it is taken to start 10 seconds after the pick (`LocationTracker.JumpDelay`). The page
+  Orbituary, the Pyro Gateway, Everus Harbor) taking off is leaving. **When a jump starts and ends** goes by each system's **open space**
+  (`OpenSpace`: the area ships fly their quantum jumps in, Pyro's 3184339241, Stanton's 1902223495, Nyx's 2627827560; a quantum arrival follows a line
+  out of them within a minute 25-46% of the time, out of any other area 18% at most; learned from the logs on the server too, at least 22% of at least
+  a hundred lines and never a station's own area, for a new system or the Nyx update). A jump picked inside an area (a station's hangar or area, a
+  mission's encounter site, the area around a planet) starts when he leaves into open space, however long after the pick (Frank, 31 Oct 2026: the map
+  started his jump from an asteroid base ten seconds after the pick, before he had left it; in the three accounts' logs the line into open space came a
+  median 47 seconds after the pick, more than a minute in 2,511 of 6,658 jumps). With no line into open space before the arrival (a hop between the
+  orbital markers of a planet or to its moon, 710 of 7,368) no jump is drawn: the arrival puts him there, the map is too small for it to matter
+  (Frank). A line soon after the start moves it on (a station beside a planet: into open space, and seconds later into the planet's area). The line out
+  of open space into an area, well into the jump (three quarters of his drive's time; earlier it is an encounter site or a planet he passes), is where
+  he jumped to: he is there, a few seconds before the arrival line (`LocationTracker.JumpTimes`; a median 6.5 seconds). Measured on zzoega's logs: from
+  leaving to coming in, a route takes the same time to about 2 seconds (Ruin to Rod's Fuel 281 to 287 s, seven times), from the pick it varied by a
+  minute. Picked out in open space there is no area to leave: it is taken to start 47 seconds after the pick (`LocationTracker.JumpDelay`, the median
+  above; 10 seconds until 31 Oct 2026, Frank: rather late than early, a late jump looks like latency). The page
   moves him along his route by his drive (`Crew.QtOf`: his fleet's active ship, crafted as it is; the same motion as `QtDrive.Seconds`), with a
   speed meter (Mm/s, in c, against his drive's top speed; it stays at 0 Mm/s with his drive's top speed while he is not in quantum, so his card keeps its size,
   on the Trip Planner too; `top` in map.json; Frank, 29 and 30 Oct 2026). `LocationTracker.Follow` walks his jumps: the start name sets his system and place

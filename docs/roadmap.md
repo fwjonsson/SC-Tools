@@ -277,6 +277,11 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       moons by their letter, an outpost or a mine on the planet or moon its code names, a few one-offs. Not placed, for want of a position: the Castra and
       Magnus gateways, Pyro's encounter sites, asteroid clusters. Working an encounter's place out from the routes' fuel estimates works (precise to a
       fraction of a percent) once it was picked from three known places; in Aug-Oct 2026 none of Pyro's encounters had been.
+    - **Open space** (Frank, 31 Oct 2026): a jump picked inside any area (a station, a mission's encounter site, near a planet) starts when he leaves into
+      the system's open space (`OpenSpace`, learned like the station areas), and one picked out in open space 47 seconds after the pick (was 10: rather
+      late than early). A hop that never goes into open space (between a planet's orbital markers, to its moon) is not drawn: the arrival puts him there.
+      A quantum drop-out mid-route is not in the pilot's log at all, and a resume only now and then in a passenger's (a drive-state error naming the
+      pilot); "Quantum Travel Calibration Started By" is only in the logs of party members in other ships: not used.
     - Not yet, ideas for #388: new line kinds (a tracker update, the players told first): the jurisdiction, armistice and monitored-space
       notifications, the ATC contact, the elevators and shuttles, "X has started to QT to your current location", the party markers streamed in.
 
