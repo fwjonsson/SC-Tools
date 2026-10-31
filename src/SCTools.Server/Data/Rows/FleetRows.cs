@@ -1,6 +1,9 @@
 namespace SCTools.Server.Data;
 
-/// <summary>A ship a player owns (his fleet, on My page): its name, the quantum drive in it, and the quality of that drive when it is crafted.</summary>
+/// <summary>
+/// A ship a player owns (his fleet, on My page): its name, the quantum drive in it, and the qualities of that drive when it is crafted: the drive speed's and
+/// the fuel efficiency's (the game's crafting takes a material for each).
+/// </summary>
 public sealed class FleetShipRow
 {
     public int Id { get; set; }
@@ -14,6 +17,12 @@ public sealed class FleetShipRow
 
     /// <summary>The quality of the drive when it is crafted (0 to 1000: 1000 is +20 % drive speed, 0 is -20 %), or null when it is not.</summary>
     public int? Quality { get; set; }
+
+    /// <summary>
+    /// The fuel efficiency quality of the drive when it is crafted (0 to 1000: 1000 burns 20 % less fuel per distance, 0 burns 20 % more), or null for as
+    /// bought (the same as 500).
+    /// </summary>
+    public int? FuelQuality { get; set; }
 
     public DateTime AddedUtc { get; set; }
 }

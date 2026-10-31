@@ -6,9 +6,10 @@ namespace SCTools.Server;
 
 /// <summary>
 /// A ship of a fleet as the pages show it: the row, its drive (the one he picked, else the ship's stock drive), how much faster the drive is when crafted
-/// (percent), the hauler it is (or null), and the ship of the game data it is (or null).
+/// (percent), the hauler it is (or null), the ship of the game data it is (or null), and how much more fuel per distance the drive burns when crafted
+/// (percent; less is better).
 /// </summary>
-public sealed record FleetShip(FleetShipRow Row, QtDrive? Drive, double Bonus, Ship? Hauler, ShipModel? Model)
+public sealed record FleetShip(FleetShipRow Row, QtDrive? Drive, double Bonus, Ship? Hauler, ShipModel? Model, double FuelPercent = 0)
 {
     /// <summary>The ship's stock drive (the game data's), or null.</summary>
     public QtDrive? StockDrive => QuantumDrives.Find(Model?.Drive);
@@ -24,6 +25,20 @@ public sealed record FleetShip(FleetShipRow Row, QtDrive? Drive, double Bonus, S
 
     /// <summary>Its drive speed, crafted as it is (m/s), or null without a drive.</summary>
     public double? Speed => Drive?.Crafted(Bonus).Speed;
+
+    /// <summary>
+    /// "611,661,360 m/s (+20 %)": its drive speed and how much faster crafting made it, or "" without a drive. The page's script writes the same while the
+    /// quality is changed (Views/Me/Index.cshtml), so the two must agree.
+    /// </summary>
+    public string SpeedText => Speed is not { } mps ? "" : mps.ToString("N0", CultureInfo.InvariantCulture) + " m/s" + Change(Bonus);
+
+    /// <summary>Its drive's fuel per distance as the game shows it, crafted as it is.</summary>
+    public double? FuelPerM => Drive is { FuelRate: > 0 } d ? d.FuelPerM * (1 + FuelPercent / 100) : null;
+
+    /// <summary>"0.1133 /m (-20 %)": its drive's fuel per distance, as the game's crafting shows it, and how much crafting changed it; "" when not known.</summary>
+    public string FuelText => FuelPerM is not { } f ? "" : f.ToString("0.0000", CultureInfo.InvariantCulture) + " /m" + Change(FuelPercent);
+
+    static string Change(double percent) => QuantumDrives.PercentText(percent) is { Length: > 0 } t ? " (" + t + ")" : "";
 }
 
 /// <summary>
@@ -79,9 +94,10 @@ public sealed class FleetService
         var model = ShipModels.Find(r.Ship);
         var drive = QuantumDrives.Find(r.Drive) ?? QuantumDrives.Find(model?.Drive);   // none picked: the stock drive
         var bonus = drive != null && r.Quality is int q ? QuantumDrives.CraftedSpeedPercent(q) : 0;
+        var fuel = drive != null && r.FuelQuality is int fq ? QuantumDrives.CraftedFuelPercent(fq) : 0;
         // a hauler by its name, or by the name in it ("Crusader C2 Hercules Starlifter" is the C2 Hercules Starlifter)
         var hauler = Ships.Find(r.Ship) ?? Ships.All.Where(s => r.Ship.Contains(s.Name, StringComparison.OrdinalIgnoreCase)).OrderByDescending(s => s.Name.Length).FirstOrDefault();
-        return new FleetShip(r, drive, bonus, hauler, model);
+        return new FleetShip(r, drive, bonus, hauler, model, fuel);
     }
 
     /// <summary>A player's ships, in the order he added them.</summary>
@@ -121,7 +137,10 @@ public sealed class FleetService
     static (bool Ok, string? Key) DriveKey(string? typed) =>
         string.IsNullOrWhiteSpace(typed) ? (true, null) : QuantumDrives.Find(typed.Trim()) is { } d ? (true, d.Key) : (false, null);
 
-    /// <summary>A quality as typed: (true, it) from 0 to 1000, (true, null) when empty, (false, _) otherwise.</summary>
+    /// <summary>What the page says when a quality typed is not one.</summary>
+    public const string BadQuality = "The quality of a crafted drive is a whole number from 0 to 1000 (500: as bought).";
+
+    /// <summary>A quality as typed: (true, it) from 0 to 1000, (true, null) when empty (as bought), (false, _) otherwise.</summary>
     static (bool Ok, int? Quality) QualityOf(string? typed)
     {
         if (string.IsNullOrWhiteSpace(typed)) return (true, null);
@@ -129,20 +148,21 @@ public sealed class FleetService
     }
 
     /// <summary>Adds a ship to a player's fleet. The sentence for the page when something is wrong, else null.</summary>
-    public string? Add(string player, string? ship, string? drive, string? quality, DateTime nowUtc)
+    public string? Add(string player, string? ship, string? drive, string? quality, DateTime nowUtc, string? fuelQuality = null)
     {
         if (ShipName(ship) is not { } name) return "Type the ship's name (at most " + MaxName + " letters).";
         var (driveOk, driveKey) = DriveKey(drive);
         if (!driveOk) return "That is not one of the quantum drives.";
         var (qualityOk, q) = QualityOf(quality);
-        if (!qualityOk) return "The quality of a crafted drive is a whole number from 0 to 1000 (empty: not crafted).";
+        var (fuelOk, fq) = QualityOf(fuelQuality);
+        if (!qualityOk || !fuelOk) return BadQuality;
         if (Misfit(name, driveKey) is { } misfit) return misfit;
         lock (_lock)
         {
             Load();
             if (_ships!.Count(s => Same(s.Player, player)) >= MaxShips) return "That is a big fleet: at most " + MaxShips + " ships.";
             using var db = _store.Open();
-            var row = new FleetShipRow { Player = player, Ship = name, Drive = driveKey, Quality = q, AddedUtc = nowUtc };
+            var row = new FleetShipRow { Player = player, Ship = name, Drive = driveKey, Quality = q, FuelQuality = fq, AddedUtc = nowUtc };
             db.FleetShips.Add(row);
             db.SaveChanges();
             _ships.Add(row);
@@ -150,7 +170,7 @@ public sealed class FleetService
         return null;
     }
 
-    /// <summary>Changes one field of one of his ships (ship, drive, quality). The sentence for the page when it is not saved, else null.</summary>
+    /// <summary>Changes one field of one of his ships (ship, drive, quality, fuel: the fuel efficiency quality). The sentence for the page when it is not saved, else null.</summary>
     public string? Set(string player, int id, string field, string? value)
     {
         lock (_lock)
@@ -173,8 +193,13 @@ public sealed class FleetService
                     break;
                 case "quality":
                     var (qualityOk, q) = QualityOf(value);
-                    if (!qualityOk) return "The quality of a crafted drive is a whole number from 0 to 1000 (empty: not crafted).";
+                    if (!qualityOk) return BadQuality;
                     row.Quality = q;
+                    break;
+                case "fuel":
+                    var (fuelOk, fq) = QualityOf(value);
+                    if (!fuelOk) return BadQuality;
+                    row.FuelQuality = fq;
                     break;
                 default:
                     return "That cannot be changed.";

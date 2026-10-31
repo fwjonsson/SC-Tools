@@ -20,6 +20,20 @@ public class CraftedDriveTests
     }
 
     [Fact]
+    public void Fuel_quality_1000_burns_20_percent_less_500_as_bought_and_0_20_percent_more()
+    {
+        Assert.Equal(-20, QuantumDrives.CraftedFuelPercent(1000), 6);
+        Assert.Equal(0, QuantumDrives.CraftedFuelPercent(500), 6);
+        Assert.Equal(20, QuantumDrives.CraftedFuelPercent(0), 6);
+        var ts2 = QuantumDrives.Find("TS-2 S3")!;
+        Assert.Equal(0.1417, ts2.FuelPerM, 4);                         // the game's crafting: "Fuel per distance 0.1417 /m"
+        Assert.Equal(0.11, ts2.FuelPerM * (1 - 20 / 100.0), 2);        // quality 1000: 0.11 /m
+        Assert.Equal(0.17, ts2.FuelPerM * (1 + 20 / 100.0), 2);        // quality 0: 0.17 /m
+        Assert.Equal(0, QuantumDrives.Find("Mauler S4")!.FuelRate);    // not in the game data: no fuel per distance shown
+        Assert.All(QuantumDrives.All.Where(d => d.Name != "Mauler"), d => Assert.True(d.FuelRate > 0, d.Key));
+    }
+
+    [Fact]
     public void The_ship_of_a_quantum_jump_is_found_in_a_fleet_by_its_name()
     {
         var line = "<2026-10-24T21:28:22.922Z> [Notice] <Quantum Drive Arrived - Arrived at Final Destination> [ItemNavigation][CL][28348] | NOT AUTH | ARGO_MOLE_865686068094[865686068094]|CSCItemNavigation::OnQuantumDriveArrived|Quantum Drive has arrived at final destination [Team_CGP4][QuantumTravel]";

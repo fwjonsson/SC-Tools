@@ -195,6 +195,7 @@ tr.on td:first-child { box-shadow:inset 3px 0 0 var(--good); }
 /* My fleet: the ship he flies stands out */
 table.fleet input.name { width:260px; }
 table.fleet input.num { width:110px; text-align:right; }
+input.num.quality { width:6.5em; }   /* four figures and the arrows */
 table.fleet tr.on td:first-child { box-shadow:inset 3px 0 0 var(--good); }
 /* a tracker's version: the newest, or not (Keys page, Tracker page) */
 .good { color:var(--good); }

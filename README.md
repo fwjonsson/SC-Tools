@@ -371,8 +371,15 @@ admin (done), then going live.
   the place). **Add a place**: its system, name, short name, what it is, and where: at a place of that system (in its orbit when it is a
   planet or a moon) or X and Y in Gm; optionally for a text of the log, which is then that place (the *add it* link of a Not known row fills
   it in).
-- **The fleet.** On My page a player keeps every ship he owns, the quantum drive in each, and the quality of a crafted drive (0 to 1000: 1000 makes the
-  drive speed 20 % higher, 500 is as bought, 0 is 20 % lower, in a straight line; only the drive speed changes). The ships to pick from are every
+- **The fleet.** On My page a player keeps every ship he owns, the quantum drive in each, and the two qualities of a crafted drive, 0 to 1000 and 500
+  as bought, in a straight line between: the speed quality (1000 makes the drive speed 20 % higher, 0 20 % lower) and the fuel quality (1000 burns 20 %
+  less fuel per distance, 0 20 % more; the game's Crafting Lab, a TS-2 at 0.1417 /m, 0.11 at 1000 and 0.17 at 0; Frank, 31 Oct 2026). The game shows a
+  crafted drive's stats, not its qualities, so each quality is a number field with arrows that starts at 500, and the table shows the drive speed and
+  the **fuel per distance** (the game data's `fuel_rate` times a million: 0.1417 /m for a TS-2, as the Crafting Lab writes it; `QtDrive.FuelPerM`)
+  changing at every click (the page's script works them out as `FleetShip.SpeedText` and `FuelText` do): he clicks until they are the game's. The
+  qualities are saved in the background once the clicks stop (autosave.js `data-settle`, the JSON back has the new stats), the rest of a ship's fields
+  load the page again. The fuel quality is not used yet: it is for placing a mission's quantum beacon by the fuel estimate of the route line (see
+  `docs/map-sightings.md`). The ships to pick from are every
   spaceship of the game data (`ShipModels`: 231, from the Star Citizen Wiki's vehicles in the ScApiTool download of 20 Oct 2026, with their classes,
   cargo grid and stock quantum drive; ground vehicles, display and concept models left out); a ship without a drive picked flies its stock drive
   ("Beacon S1 (stock)"); a ship takes the drives of its stock drive's size, so only those are listed and another size is refused (Frank, 29 Oct 2026;
