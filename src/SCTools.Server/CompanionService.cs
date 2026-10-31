@@ -68,10 +68,12 @@ public sealed class CompanionService
         if (node is JsonObject d)
         {
             d["me"] = me;
+            if (me != null) d["mine"] = JsonSerializer.SerializeToNode(_map.Mine(me), JsonSerializerOptions.Web);   // his ship and drive, for measuring a distance (#408)
             if (everybody && JsonSerializer.SerializeToNode(snapshot, JsonSerializerOptions.Web) is JsonObject all)
             {
                 d["players"] = all["players"]?.DeepClone();
                 d["objectives"] = all["objectives"]?.DeepClone();
+                d["deaths"] = all["deaths"]?.DeepClone();
                 d["unplaced"] = all["unplaced"]?.DeepClone();
                 d["party"] = new JsonArray(party.Order(StringComparer.OrdinalIgnoreCase).Select(n => (JsonNode)n).ToArray());
             }

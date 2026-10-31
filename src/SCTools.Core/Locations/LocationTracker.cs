@@ -38,6 +38,9 @@ public static class LocationTracker
     /// <summary>An objective is done when he arrives at it, or a moment before: a jump that arrives this long after it is still to it.</summary>
     public static readonly TimeSpan DoneGrace = TimeSpan.FromMinutes(1);
 
+    /// <summary>How long a death stays on the map as a skull where it happened (Frank, 31 Oct 2026: a quarter of an hour; #410).</summary>
+    public static readonly TimeSpan DeathAge = TimeSpan.FromMinutes(15);
+
     /// <summary>
     /// Works out where everybody playing is (a game running: a log that grew in the last fifteen minutes and was not quit, PartyTracker.Quiet), from the logs
     /// (one per tracker): his jumps (a crew member's through the pilot's log, the members of his party asked first), the inventories he opened, the areas he
@@ -78,6 +81,15 @@ public static class LocationTracker
                 && atlas.OfPyroStation(clue.Station) is { } there && !Equals(there, where.At))
                 where = new PlayerLocation(there.System, there, clue.At, null, null, null, ByPlanner: true, Ranged: where.Ranged);
             book.Players.Add(new LocatedPlayer(name, log, where));
+            // where he was when he died, for the deaths of the last while (the map's skulls, #410): the same walk, with his jumps, inventories and areas up to
+            // that moment alone, so a respawn later does not move the skull
+            foreach (var died in log.Deaths)
+            {
+                if (died < nowUtc - DeathAge || died > nowUtc) continue;
+                var then = Follow(qt.Where(e => e.Time <= died).ToList(), atlas, null, log.Locations.Where(l => l.Time <= died).ToList(), points,
+                    log.Areas.Where(a => a.Time <= died).ToList(), stations, fuel == null ? null : e => fuel(name, e));
+                book.Deaths.Add(new PlayerDeath(name, died, then));
+            }
         }
         return book;
     }

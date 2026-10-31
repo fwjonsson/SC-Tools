@@ -83,9 +83,12 @@ public sealed class MapService
                     if (byBeacon.TryGetValue(b.NavPoint, out var spot) && p.Missions.TryGetValue(b.MissionId, out var bm) && bm.ObjZone.TryGetValue(b.Objective, out var z))
                         byZone.TryAdd(z, spot);
         }
-        // the hidden spots somebody is at or flies to (a mission's beacon placed by its fuel estimate): the map needs where they are, nothing more
+        // the hidden spots somebody is at or flies to (a mission's beacon placed by its fuel estimate), or died at: the map needs where they are, nothing more
         var spots = playing.SelectMany(p => new[] { p.Where.At, p.Where.From, p.Where.To, p.Where.LastPing })
+            .Concat(book.Deaths.SelectMany(d => new[] { d.Where.At, d.Where.From, d.Where.To, d.Where.LastPing }))
             .Where(x => x is { Hidden: true }).Select(x => x!.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // the deaths of the last while, each where it happened: a skull on the map (#410; Frank, 31 Oct 2026)
+        var deaths = book.Deaths.Select(Death).Where(d => d != null).ToList();
 
         // an objective one holder's log says is done is done for everybody with the mission (a shared contract's pickup is credited once; the Hauling Planner
         // reads the logs merged the same way), whichever log the map happens to place it from
@@ -159,6 +162,43 @@ public sealed class MapService
             objectives,
             unplaced,
             missions = Missions(going),
+            deaths,
+        };
+    }
+
+    /// <summary>
+    /// The viewer's own ship and drive, for the map's own tools (measuring a distance and its flight time with his ship, #408): his fleet's active ship and the
+    /// drive he flies (Crew.QtOf, crafted as it is), also while he is not playing, so the Map tool's feed can say so in mine.
+    /// </summary>
+    public object Mine(string name)
+    {
+        var (drive, driveText) = _live.Read(t => (t.Crew.QtOf(name), t.Crew.DriveTextOf(name)));
+        return new { ship = _fleet.Active(name).Text, drive = driveText.Length > 0 ? driveText : drive.Label + " (assumed)", motion = Motion(drive) };
+    }
+
+    /// <summary>A drive's motion for the page (the same curve as QtDrive.Seconds): its top speed, its two accelerations and the speed it switches between them.</summary>
+    static object Motion(QtDrive drive) => new { v = drive.Speed, a1 = drive.Accel1, a2 = drive.Accel2, sw = drive.SwitchSpeed };
+
+    /// <summary>
+    /// A death for the page: who, when (time, Unix milliseconds) and where he was then (LocationTracker.Now for that moment): at a place (at), on a jump (from
+    /// and to with when it started, how far and his drive's motion: the page puts the skull where he was on the route), or at his last ping; null when the map
+    /// cannot place it.
+    /// </summary>
+    object? Death(PlayerDeath d)
+    {
+        var drive = _live.Read(t => t.Crew.QtOf(d.Name));
+        var w = LocationTracker.Now(d.Where, drive, d.Time);
+        var time = new DateTimeOffset(DateTime.SpecifyKind(d.Time, DateTimeKind.Utc)).ToUnixTimeMilliseconds();
+        return w.State switch
+        {
+            PlayerState.At or PlayerState.Mission when w.At != null => new { player = d.Name, time, system = w.System, at = w.At.Key, atName = w.AtName },
+            PlayerState.Jump when w.From != null && w.To != null => new
+            {
+                player = d.Name, time, system = w.System, from = w.From.Key, to = w.To.Key, atName = "on the way to " + w.ToName,
+                start = new DateTimeOffset(DateTime.SpecifyKind(w.Start, DateTimeKind.Utc)).ToUnixTimeMilliseconds(), dist = w.Gm * 1e9, motion = Motion(drive),
+            },
+            _ when w.LastPingAt != null => (object)new { player = d.Name, time, system = w.System, at = w.LastPingAt.Key, atName = w.LastPingAt.Name },
+            _ => null,
         };
     }
 
@@ -188,17 +228,19 @@ public sealed class MapService
     /// <summary>
     /// A player for the page: where he is or where he flies (LocationTracker.Now: at a place; on his way, with where from, where to, when the jump started, how
     /// far, and his drive's motion, so the page moves him; heading somewhere the jump cannot be drawn to; at a mission's objective the map cannot place; or not
-    /// known), his colour, ship and drive, and the drive's top speed (top, m/s: the meter shows it while he stands still too, Frank 30 Oct 2026).
+    /// known), his colour, ship and drive, the drive's top speed (top, m/s: the meter shows it while he stands still too, Frank 30 Oct 2026) and its motion
+    /// (in every state since 31 Oct 2026: the map measures a distance's flight time with the viewer's own drive, #408).
     /// </summary>
     object Player(string name, PlayerLocation where, DateTime nowUtc)
     {
         var (color, drive, driveText) = _live.Read(t => (ViewPalette.Hex(Edits.ColorOf(t, name)), t.Crew.QtOf(name), t.Crew.DriveTextOf(name)));
         var ship = _fleet.Active(name).Text;
         var shown = driveText.Length > 0 ? driveText : drive.Label + " (assumed)";
+        var motion = Motion(drive);
         var w = LocationTracker.Now(where, drive, nowUtc);
         return w.State switch
         {
-            PlayerState.At => new { name, color, ship, drive = shown, top = drive.Speed, system = w.System, state = "at", at = w.At!.Key, atName = w.AtName,
+            PlayerState.At => new { name, color, ship, drive = shown, top = drive.Speed, motion, system = w.System, state = "at", at = w.At!.Key, atName = w.AtName,
                 mission = w.Mission, since = w.Since, via = w.ByPlanner ? "the Hauling Planner" : null, leaving = w.Leaving,
                 hangar = w.Hangar switch { HangarState.Landed => "landed", HangarState.TakingOff => "takeoff", _ => null } },   // in the station's hangar, or out of it in the station's area
             PlayerState.Jump => new
@@ -213,14 +255,14 @@ public sealed class MapService
                 start = new DateTimeOffset(DateTime.SpecifyKind(w.Start, DateTimeKind.Utc)).ToUnixTimeMilliseconds(),   // the moving marker counts from it
                 dist = w.Gm * 1e9,
                 seconds = w.Seconds,
-                motion = new { v = drive.Speed, a1 = drive.Accel1, a2 = drive.Accel2, sw = drive.SwitchSpeed },
+                motion,
             },
-            PlayerState.Heading => new { name, color, ship, drive = shown, top = drive.Speed, system = w.System, state = "heading", to = w.To?.Key, toName = w.ToName,
+            PlayerState.Heading => new { name, color, ship, drive = shown, top = drive.Speed, motion, system = w.System, state = "heading", to = w.To?.Key, toName = w.ToName,
                 mission = w.Mission, since = w.Since },
-            PlayerState.Mission => new { name, color, ship, drive = shown, top = drive.Speed, system = w.System, state = "mission", atName = w.AtName, mission = w.Mission, since = w.Since },
+            PlayerState.Mission => new { name, color, ship, drive = shown, top = drive.Speed, motion, system = w.System, state = "mission", atName = w.AtName, mission = w.Mission, since = w.Since },
             // not known: off the grid after a jump the map cannot follow (with the last place it had him at, where the page keeps his marker, faded: Frank,
             // 31 Oct 2026, "I don't like that the marker fully disappears"), or no signal yet
-            _ => (object)new { name, color, ship, drive = shown, top = drive.Speed, system = w.System, state = "unknown", off = w.Off, since = w.Since, lastPing = w.LastPing,
+            _ => (object)new { name, color, ship, drive = shown, top = drive.Speed, motion, system = w.System, state = "unknown", off = w.Off, since = w.Since, lastPing = w.LastPing,
                 lastPingAt = w.LastPingAt?.Key },
         };
     }

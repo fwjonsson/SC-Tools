@@ -6,6 +6,9 @@
 // are the system's own (Gm, the star at 0, 0); the map has the system's Y to the right and its X down. The data is the Map tool's map.json (the server's
 // MapService.Snapshot: systems with their places, players, objectives); the planner gets the Pyro slice of it (/hauling/map.json). A plain script, no
 // modules: WebAssets inlines it into the live page before app.js, and the server sends it to the Map tool as /systemmap.js.
+// Since 31 Oct 2026 (Frank): over a station the mouse gets a card with what it has (UEX's services and shops, /map/services.json; #409), two clicks measure
+// a distance and its flight time with the viewer's own drive (his alone: nothing leaves the browser; #408), and where somebody died in the last quarter of
+// an hour a skull sits with his name in gray (the feed's deaths; #410). All in the engine, so every map of the site has them.
 var SystemMap = (function () {
   'use strict';
   const NS = 'http://www.w3.org/2000/svg';
@@ -55,6 +58,15 @@ var SystemMap = (function () {
   function since(iso) { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
   function same(a, b) { return String(a || '').toLowerCase() === String(b || '').toLowerCase(); }
 
+  // ------------------------------------------------------------------ what a station has: UEX's services and shops, by the place's key (/map/services.json, #409)
+  // Game data, the same for every map of the site: fetched once per page, by the first map made; a card reads it when the mouse is over a station.
+  let services = null, servicesAsked = false;
+  function loadServices() {
+    if (servicesAsked) return;
+    servicesAsked = true;
+    fetch('/map/services.json').then(function (r) { return r.ok ? r.json() : {}; }).then(function (j) { services = j || {}; }).catch(function () { services = {}; });
+  }
+
   // What a player does, in words, for his card or the line under his name. A player in quantum gets his line from the meter every frame instead.
   function describe(pl) {
     const of = pl.mission ? ' (' + pl.mission + ')' : '';   // at or to a mission's objective: which mission
@@ -78,6 +90,9 @@ var SystemMap = (function () {
     const opts = options || {};
     let base = null, data = null, offset = 0, movers = [];
     const meters = {};   // a player's name (lower case) -> his line and speed meter
+    let card = null;     // the card over a station (what it has), one per map
+    let marks = [];      // the two points of the viewer's measurement (his alone: they never leave the browser)
+    loadServices();
 
     function el(tag, attrs, parent, text) {
       const e = document.createElementNS(NS, tag);
@@ -140,7 +155,10 @@ var SystemMap = (function () {
       svg.setAttribute('role', 'img');
       svg.setAttribute('aria-label', 'Map of ' + sys.name);
       box.appendChild(svg);
-      base = { svg: svg, sys: sys.id, sig: sig, at: at, anchor: {}, names: {} };
+      base = { svg: svg, sys: sys.id, sig: sig, at: at, anchor: {}, names: {}, scale: sc, spots: [] };   // scale: map units per Gm; spots: the dots a measurement snaps to
+      marks = [];   // another system: the measurement goes
+      svg.style.cursor = 'crosshair';
+      svg.addEventListener('click', function (ev) { if (marks.length >= 2) marks = []; marks.push(pointOf(ev)); drawMeasure(); });
       el('rect', { x: 0, y: 0, width: W, height: W, fill: INK, rx: 6 });
 
       // the planets around the star; a moon, a city, a station at one of them (or this close on the map) is drawn as the planet
@@ -174,6 +192,7 @@ var SystemMap = (function () {
       const glow = STAR[sys.id] || '#ffd27a';
       el('circle', { cx: cx, cy: cy, r: 17, fill: glow, 'fill-opacity': 0.22 });
       el('circle', { cx: cx, cy: cy, r: 9, fill: glow });
+      base.spots.push({ p: [cx, cy], name: star.name });
       const boxes = [{ x: cx - 17, y: cy - 17, w: 34, h: 34 }];
       const dots = el('g', {});
       base.labels = el('g', {});
@@ -182,6 +201,8 @@ var SystemMap = (function () {
         el('circle', { cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: 6, fill: '#8c5514' }, g);
         const here = (folded[q.key] || []).map(function (f) { return f.name; });
         el('title', {}, g, q.name + (here.length ? '\nAlso here: ' + here.join(', ') : ''));
+        hover(g, folded[q.key] || []);   // the card: what the stations and cities drawn as it have
+        base.spots.push({ p: p, name: q.name });
         boxes.push({ x: p[0] - 7, y: p[1] - 7, w: 14, h: 14 });
       });
       own.forEach(function (s) {
@@ -189,6 +210,8 @@ var SystemMap = (function () {
         if (s.kind === 'gateway') el('circle', { cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: 5, fill: INK, stroke: '#7fd3ff', 'stroke-width': 2 }, g);
         else el('circle', { cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: s.kind === 'moon' ? 3 : 3.5, fill: s.kind === 'moon' ? '#a98a63' : PAPER, 'fill-opacity': 0.85 }, g);
         el('title', {}, g, s.name);
+        hover(g, [s]);
+        base.spots.push({ p: p, name: s.name });
         boxes.push({ x: p[0] - 5, y: p[1] - 5, w: 10, h: 10 });
       });
       // the names: the planets (with the cities and stations at them), the gateways, the stations, as long as there is room
@@ -206,8 +229,10 @@ var SystemMap = (function () {
       base.layer = el('g', { 'class': 'layer' });   // the caller's: the planner's routes
       base.svg.appendChild(base.labels);   // the names of the places above the routes (Frank, 30 Oct 2026), under the players and the objectives
       base.objs = el('g', {});
+      base.dead = el('g', {});   // the skulls (#410), under the routes and the players
       base.routes = el('g', {});
       base.people = el('g', {});
+      base.measure = el('g', { 'class': 'measure' });   // the viewer's measurement (#408), on top of everything
     }
 
     function diamond(parent, x, y, size, title) {
@@ -240,6 +265,91 @@ var SystemMap = (function () {
       };
     }
 
+    // ------------------------------------------------------------------ the card over a station: what it has (#409; Frank, 31 Oct 2026)
+    // An HTML box in the map's box beside the dot, for the station the mouse is over (a planet: the stations and cities drawn as it), with UEX's services
+    // and shops (services, by the place's key). The browser's own tooltip goes once the card says it all.
+    function hover(g, places) {
+      g.addEventListener('mouseenter', function () {
+        const rows = places.map(function (p) { return services && services[p.key]; }).filter(function (i) { return i; });
+        if (!rows.length) return;
+        const t = g.querySelector('title'); if (t) t.remove();
+        if (!card) { card = document.createElement('div'); card.className = 'mapcard'; }
+        card.textContent = '';
+        rows.forEach(function (i) {
+          const b = document.createElement('b'); b.textContent = i.name; card.appendChild(b);
+          if (i.services.length) { const s = document.createElement('div'); s.className = 'svc'; s.textContent = i.services.join(' · '); card.appendChild(s); }
+          if (i.shops.length) { const s = document.createElement('div'); s.className = 'shops'; s.textContent = i.shops.join(', '); card.appendChild(s); }
+        });
+        if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
+        box.appendChild(card);
+        const bb = box.getBoundingClientRect(), gb = g.getBoundingClientRect();
+        let x = gb.right - bb.left + 8, y = gb.top - bb.top - 6;
+        if (x + card.offsetWidth > bb.width - 4) x = Math.max(4, gb.left - bb.left - card.offsetWidth - 8);   // no room on the right: on the left
+        if (y + card.offsetHeight > bb.height - 4) y = Math.max(4, bb.height - 4 - card.offsetHeight);
+        card.style.left = x.toFixed(0) + 'px'; card.style.top = y.toFixed(0) + 'px';
+      });
+      g.addEventListener('mouseleave', function () { if (card) card.remove(); });
+    }
+
+    // ------------------------------------------------------------------ a skull where somebody died (#410; Frank, 31 Oct 2026)
+    // Gray, with his name in gray on its left, for a quarter of an hour (the server sends the deaths of that long), fading as the minutes pass.
+    const GRAY = '#9aa0a6', DEATH_MINUTES = 15;
+    function skull(x, y, name, title, age) {
+      const g = el('g', { transform: 'translate(' + x.toFixed(1) + ',' + y.toFixed(1) + ')', opacity: (1 - 0.6 * Math.min(1, Math.max(0, age) / DEATH_MINUTES)).toFixed(2) }, base.dead);
+      el('circle', { cy: -2.5, r: 6, fill: GRAY, stroke: INK, 'stroke-width': 1 }, g);                              // the head
+      el('rect', { x: -3.5, y: 1.5, width: 7, height: 5, rx: 1, fill: GRAY, stroke: INK, 'stroke-width': 1 }, g);   // the jaw
+      el('circle', { cx: -2.3, cy: -3, r: 1.6, fill: INK }, g);
+      el('circle', { cx: 2.3, cy: -3, r: 1.6, fill: INK }, g);
+      el('line', { x1: -1.2, y1: 2, x2: -1.2, y2: 6, stroke: INK, 'stroke-width': 0.8 }, g);                        // the teeth
+      el('line', { x1: 1.2, y1: 2, x2: 1.2, y2: 6, stroke: INK, 'stroke-width': 0.8 }, g);
+      el('text', { x: -10, y: 4, 'text-anchor': 'end', fill: GRAY, 'font-size': 11, 'font-weight': 700, stroke: INK, 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, g, name);
+      el('title', {}, g, title);
+    }
+
+    // ------------------------------------------------------------------ measuring: two clicks, the distance and the flight time (#408; Frank, 31 Oct 2026)
+    // The points are the viewer's alone: they live in his browser and go nowhere. A click near a dot snaps to it (two stations: their distance, the straight
+    // line of the map). The time is with his own drive (data.mine: his fleet's active ship, else his own marker's), else the distance alone (a visitor). A
+    // third click starts over; the system drawn anew clears them.
+    function pointOf(ev) {
+      const r = base.svg.getBoundingClientRect();
+      const x = (ev.clientX - r.left) / r.width * W, y = (ev.clientY - r.top) / r.height * W;
+      let best = null, d0 = 10;
+      base.spots.forEach(function (s) { const d = Math.hypot(s.p[0] - x, s.p[1] - y); if (d < d0) { d0 = d; best = s; } });
+      return best ? { x: best.p[0], y: best.p[1], name: best.name } : { x: x, y: y };
+    }
+    function driveOf() {   // the viewer's drive and ship for the time: his own (mine), else his marker's; null when the data has neither
+      if (!data) return null;
+      if (data.mine && data.mine.motion) return { d: data.mine.motion, ship: data.mine.ship };
+      const me = (data.players || []).find(function (p) { return same(p.name, data.me); });
+      return me && me.motion ? { d: me.motion, ship: me.ship } : null;
+    }
+    function drawMeasure() {
+      if (!base) return;
+      base.measure.textContent = '';
+      marks.forEach(function (m) {
+        const g = el('g', { transform: 'translate(' + m.x.toFixed(1) + ',' + m.y.toFixed(1) + ')' }, base.measure);
+        el('circle', { r: 4.5, fill: 'none', stroke: PAPER, 'stroke-width': 1.5 }, g);
+        el('line', { x1: -8, y1: 0, x2: 8, y2: 0, stroke: PAPER, 'stroke-width': 1 }, g);
+        el('line', { x1: 0, y1: -8, x2: 0, y2: 8, stroke: PAPER, 'stroke-width': 1 }, g);
+      });
+      if (marks.length < 2) return;
+      const a = marks[0], b = marks[1];
+      el('line', { x1: a.x.toFixed(1), y1: a.y.toFixed(1), x2: b.x.toFixed(1), y2: b.y.toFixed(1), stroke: PAPER, 'stroke-width': 1.5, 'stroke-dasharray': '6 4' }, base.measure);
+      const gm = Math.hypot(b.x - a.x, b.y - a.y) / base.scale;
+      let text = gm.toLocaleString(undefined, { maximumFractionDigits: gm < 10 ? 2 : 1 }) + ' Gm';
+      const own = driveOf();
+      if (own && gm > 0) text += ' · ' + clock(profile(own.d, gm * 1e9).total) + (own.ship ? ' in the ' + own.ship : '');
+      const lines = [text];
+      if (a.name || b.name) lines.unshift((a.name || 'here') + ' → ' + (b.name || 'here'));
+      const mx = (a.x + b.x) / 2, top = (a.y + b.y) / 2 - 10 - (lines.length - 1) * 14;
+      const anchor = mx > W - 150 ? 'end' : mx < 150 ? 'start' : 'middle';   // the text stays on the map near the edges
+      lines.forEach(function (l, i) {
+        const last = i === lines.length - 1;
+        el('text', { x: mx.toFixed(1), y: (top + i * 14).toFixed(1), 'text-anchor': anchor, fill: PAPER, 'font-size': last ? 12 : 11, 'font-weight': last ? 700 : 400,
+          stroke: INK, 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, base.measure, l);
+      });
+    }
+
     // The system on the map: drawn anew when it is another one (or its places changed); true when it was.
     function show(sys) {
       const sig = sys.id + '|' + JSON.stringify(sys.places);
@@ -258,7 +368,7 @@ var SystemMap = (function () {
       offset = d.clockOffset !== undefined ? d.clockOffset : d.updated ? new Date(d.updated).getTime() - Date.now() : 0;
       movers = [];
       if (base) {
-        base.objs.textContent = ''; base.routes.textContent = ''; base.people.textContent = '';
+        base.objs.textContent = ''; base.dead.textContent = ''; base.routes.textContent = ''; base.people.textContent = '';
         const ok = function (name) { return !keep || keep(name); };
         const here = function (sys) { return sys === base.sys; };
 
@@ -313,6 +423,25 @@ var SystemMap = (function () {
             marker(pl, off ? pl.name + ': off the grid, last ping at ' + pl.lastPing : pl.name + ' at ' + pl.atName, off).place(p[0], p[1] + 18 + i * 22, 0);
           });
         });
+
+        // the deaths of the last quarter of an hour: a skull where each happened (at a place: on its left, several one above the other; on a jump: where he
+        // was on the route at that moment), his party's alone like the players (the server cuts them)
+        const now = Date.now() + offset, perSpot = {};
+        (d.deaths || []).forEach(function (x) {
+          if (!ok(x.player) || !here(x.system)) return;
+          const age = (now - x.time) / 60000;
+          if (age > DEATH_MINUTES) return;
+          let p = null;
+          if (x.at && base.anchor[x.at]) {
+            const a = base.anchor[x.at], k = a.join(','), n = perSpot[k] = (perSpot[k] || 0) + 1;
+            p = [a[0] - 16, a[1] - (n - 1) * 15];
+          } else if (x.from && x.to && x.motion && base.anchor[x.from] && base.anchor[x.to]) {
+            const a = base.anchor[x.from], b = base.anchor[x.to], f = x.dist > 0 ? motionAt(x.motion, x.dist, (x.time - x.start) / 1000).x / x.dist : 0;
+            p = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+          }
+          if (p) skull(p[0], p[1], x.player, x.player + ' died ' + (x.atName ? (x.from ? x.atName : 'at ' + x.atName) : 'here') + ', ' + since(x.time), age);
+        });
+        if (marks.length === 2) drawMeasure();   // the viewer's drive may have come with the data
       }
       Object.keys(meters).forEach(function (key) { if (meters[key].what.isConnected) bind(meters[key]); else delete meters[key]; });
       move();
