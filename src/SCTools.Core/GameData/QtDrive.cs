@@ -4,10 +4,17 @@ namespace SCTools.GameData;
 
 /// <summary>
 /// A quantum drive, from the Star Citizen Wiki API (items, type QuantumDrive, "standard jump"). All speeds are in metres per second and
-/// the accelerations in metres per second squared. Size 1 to 4, grade A to D.
+/// the accelerations in metres per second squared. Size 1 to 4, grade A to D. FuelRate: the game data's fuel_rate (0 when the data has none).
 /// </summary>
-public sealed record QtDrive(string Name, string Maker, int Size, string Grade, double Speed, double Accel1, double Accel2, double Engage)
+public sealed record QtDrive(string Name, string Maker, int Size, string Grade, double Speed, double Accel1, double Accel2, double Engage, double FuelRate = 0)
 {
+    /// <summary>
+    /// The fuel burn as the game shows it in the Vehicle Loadout Manager ("Quantum Fuel Burn: 141.68 per Km" for a TS-2): the game data's fuel_rate times a
+    /// billion, or 0 when the data has none. The quantum route line's fuel estimate is this times the distance, times one factor for every ship (Frank's C2
+    /// and Perseus, 31 Oct 2026).
+    /// </summary>
+    public double FuelPerKm => FuelRate * 1e9;
+
     public string Key => Name + " S" + Size;
     public string Label => Key;   // the name only (the speed in Mm/s used to be shown after it)
 

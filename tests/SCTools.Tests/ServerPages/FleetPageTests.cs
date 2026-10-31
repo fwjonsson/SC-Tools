@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SCTools.Server;
 using SCTools.Tests.Support;
@@ -23,8 +24,8 @@ public class FleetPageTests
         var bad = await ServerFactory.Send(me, "/me", "/me/fleet/add", ("ship", "Carrack"), ("drive", "TS-2 S3"), ("quality", "1200"));
         Assert.Equal("/me#fleet", bad.Headers.Location?.OriginalString);
         var page = WebUtility.HtmlDecode(await me.GetStringAsync("/me"));
-        Assert.Contains("The quality of a crafted drive is a whole number from 0 to 1000", page);
-        Assert.Contains("611,661,360 m/s (+20 %)", page);   // the TS-2 at quality 1000: 509,717,800 m/s and 20 % more
+        Assert.Contains(FleetService.BadQuality, page);
+        Assert.Contains("611.66 Mm/s (+20 %)", page);   // the TS-2 at quality 1000: 509,717,800 m/s and 20 % more
         Assert.DoesNotContain("not a hauler the planner knows", page);   // the Gladius is a ship of the game, not a hauler
         Assert.Contains("Stock: Beacon S1", page);                        // no drive picked for it: its stock drive
         Assert.Contains("Aegis Gladius", page);
@@ -72,9 +73,75 @@ public class FleetPageTests
         Assert.False(fleet.Active("zzoega").Picked);
         Assert.Equal((int?)ships[0].Row.Id, fleet.Active("zzoega").Ship?.Row.Id);
 
+        // the fuel efficiency quality: set like the speed's, and both shown as the game shows the drive's stats
+        Assert.Equal("458.75 Mm/s (-10 %)", fleet.Fleet("zzoega")[0].SpeedText);
+        Assert.Equal("141.68 per km", fleet.Fleet("zzoega")[0].FuelText);   // no fuel quality typed: as bought
+        await ServerFactory.Send(me, "/me", "/me/fleet/set", ("id", ships[0].Row.Id.ToString()), ("field", "fuel"), ("value", "1000"));
+        Assert.Equal("113.34 per km (-20 %)", fleet.Fleet("zzoega")[0].FuelText);
+
         // somebody else's ship cannot be changed
         var other = await f.Player(f.AddKey("bileh123"));
         await ServerFactory.Send(other, "/me", "/me/fleet/remove", ("id", ships[0].Row.Id.ToString()));
         Assert.Single(fleet.Fleet("zzoega"));
+    }
+
+    [Fact]
+    public async Task The_qualities_start_at_500_have_arrows_and_are_saved_in_the_background_with_the_new_stats()
+    {
+        using var f = new ServerFactory();
+        var me = await f.Player(f.AddKey("zzoega"));
+        var page = WebUtility.HtmlDecode(await me.GetStringAsync("/me"));
+        // the Add form: both qualities typed or clicked with arrows, 0 to 1000, 500 (as bought) to start with
+        Assert.Contains("type=\"number\" name=\"quality\" value=\"500\" min=\"0\" max=\"1000\" step=\"0.1\"", page);
+        Assert.Contains("type=\"number\" name=\"fuel\" value=\"500\" min=\"0\" max=\"1000\" step=\"0.1\"", page);
+        await ServerFactory.Send(me, "/me", "/me/fleet/add", ("ship", "Crusader C2 Hercules Starlifter"), ("drive", "TS-2 S3"), ("quality", "500"), ("fuel", "250"));
+        var bad = WebUtility.HtmlDecode(await (await ServerFactory.Send(me, "/me", "/me/fleet/add", ("ship", "RSI Perseus"), ("drive", ""), ("quality", "500"), ("fuel", "1001"))).Content.ReadAsStringAsync());
+        var fleet = f.Services.GetRequiredService<FleetService>();
+        var ship = Assert.Single(fleet.Fleet("zzoega"));   // the Perseus with a fuel quality of 1001 was refused
+        Assert.Equal(((double?)500, (double?)250), (ship.Row.Quality, ship.Row.FuelQuality));
+        Assert.Equal("155.85 per km (+10 %)", ship.FuelText);
+
+        page = WebUtility.HtmlDecode(await me.GetStringAsync("/me"));
+        Assert.Contains(FleetService.BadQuality, page);
+        // the row has what the page's script needs to show the stats at every click: the drive's speed and fuel per distance as bought
+        Assert.Contains("data-id=\"" + ship.Row.Id + "\" data-speed=\"509717800\" data-fuel=\"141.68", page);
+        Assert.Contains("id=\"speed-" + ship.Row.Id + "\">509.72 Mm/s</td>", page);
+        Assert.Contains("id=\"fuel-" + ship.Row.Id + "\">155.85 per km (+10 %)</td>", page);
+        Assert.Contains("data-autosave=\"quiet\" data-settle", page);
+        Assert.Contains("name=\"field\" value=\"fuel\"", page);
+
+        // sent in the background: JSON back with the new stats for their cells, and the planner flies the new speed at once
+        async Task<JsonElement> Set(string field, string value)
+        {
+            var html = await me.GetStringAsync("/me");
+            using var req = new HttpRequestMessage(HttpMethod.Post, "/me/fleet/set")
+            {
+                Content = new FormUrlEncodedContent(new[] { KeyValuePair.Create("id", ship.Row.Id.ToString()), KeyValuePair.Create("field", field), KeyValuePair.Create("value", value), KeyValuePair.Create("__RequestVerificationToken", ServerFactory.Token(html)) }),
+            };
+            req.Headers.Add("X-Autosave", "1");
+            var res = await me.SendAsync(req);
+            Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+            return JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement.Clone();
+        }
+        var speed = await Set("quality", "1000");
+        Assert.True(speed.GetProperty("ok").GetBoolean());
+        Assert.Equal("611.66 Mm/s (+20 %)", speed.GetProperty("show").GetProperty("speed-" + ship.Row.Id).GetString());
+        var fuel = await Set("fuel", "1000");
+        Assert.Equal("113.34 per km (-20 %)", fuel.GetProperty("show").GetProperty("fuel-" + ship.Row.Id).GetString());
+        var wrong = await Set("fuel", "1200");
+        Assert.False(wrong.GetProperty("ok").GetBoolean());
+        Assert.Equal(FleetService.BadQuality, wrong.GetProperty("said").GetString());
+        Assert.Equal(1000, fleet.Fleet("zzoega")[0].Row.FuelQuality);   // the wrong value is not saved
+
+        // Frank's C2 (31 Oct 2026): the game shows "Quantum Speed: 509.72 Mm/s -> 568.15 Mm/s" and "Quantum Fuel Burn: 141.68 per Km -> 130.61 per Km",
+        // which are qualities 786.6 and 695.3 (a whole number lands 0.1 off); a decimal comma is taken too, and more decimals are rounded to one
+        Assert.Equal("568.15 Mm/s (+11.5 %)", (await Set("quality", "786.6")).GetProperty("show").GetProperty("speed-" + ship.Row.Id).GetString());
+        Assert.Equal("130.61 per km (-7.8 %)", (await Set("fuel", "695,3")).GetProperty("show").GetProperty("fuel-" + ship.Row.Id).GetString());
+        Assert.Equal(((double?)786.6, (double?)695.3), (fleet.Fleet("zzoega")[0].Row.Quality, fleet.Fleet("zzoega")[0].Row.FuelQuality));
+        await Set("fuel", "695.34");
+        Assert.Equal(695.3, fleet.Fleet("zzoega")[0].Row.FuelQuality);
+        Assert.Contains("name=\"value\" value=\"786.6\"", WebUtility.HtmlDecode(await me.GetStringAsync("/me")));
+        var empty = await Set("fuel", "");                               // emptied: as bought
+        Assert.Equal("141.68 per km", empty.GetProperty("show").GetProperty("fuel-" + ship.Row.Id).GetString());
     }
 }

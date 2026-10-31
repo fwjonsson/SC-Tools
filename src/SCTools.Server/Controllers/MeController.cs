@@ -47,10 +47,22 @@ public sealed class MeController : Controller
     }
 
     [HttpPost("fleet/add")]
-    public IActionResult AddShip(string? ship, string? drive, string? quality) => Fleet(_fleet.Add(Player, ship, drive, quality, DateTime.UtcNow));
+    public IActionResult AddShip(string? ship, string? drive, string? quality, string? fuel) => Fleet(_fleet.Add(Player, ship, drive, quality, DateTime.UtcNow, fuel));
 
+    /// <summary>
+    /// One field of one of his ships. The qualities are sent in the background (autosave.js, X-Autosave): JSON back with what to say and the new drive speed
+    /// and fuel use for their cells (show), so the arrows of a quality field do not load the page again at every click; the rest goes back to the page.
+    /// </summary>
     [HttpPost("fleet/set")]
-    public IActionResult SetShip(int id, string? field, string? value) => Fleet(_fleet.Set(Player, id, field ?? "", value));
+    public IActionResult SetShip(int id, string? field, string? value)
+    {
+        var said = _fleet.Set(Player, id, field ?? "", value);
+        if (!Request.Headers.ContainsKey(EditMissionsController.AutosaveHeader)) return Fleet(said);
+        if (said == null) _fleet.SyncPlanner(DateTime.UtcNow);
+        var ship = _fleet.Fleet(Player).FirstOrDefault(s => s.Row.Id == id);
+        var show = ship == null ? new Dictionary<string, string>() : new Dictionary<string, string> { ["speed-" + id] = ship.SpeedText, ["fuel-" + id] = ship.FuelText };
+        return Json(new { ok = said == null, said = said ?? "Saved.", show });
+    }
 
     [HttpPost("fleet/remove")]
     public IActionResult RemoveShip(int id) => Fleet(_fleet.Remove(Player, id) ? null : "That ship is not in your fleet.");
