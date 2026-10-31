@@ -193,6 +193,9 @@ public static class LocationTracker
                 // the inventory line of the place he arrived at can come a moment before the arrival line (zzatvo's log, 31 Oct 2026: 47 ms before, at
                 // the Nyx Gateway): that is this arrival, he is there; not a jump of his own to somewhere the map does not know ("off the grid")
                 if (picked == null && at != null && !jumped && since is { } placed && e.Time >= placed && e.Time - placed <= SameJump) continue;
+                // nobody jumps from a hangar: an arrival with no destination picked while the area lines have him landed is the jump that brought him
+                // there, written late (zzoega's log, 31 Oct 2026: landed at Levski at 10:25:25, the arrival line at 10:26:46 took him "off the grid")
+                if (picked == null && hangar == HangarState.Landed) continue;
                 if (picked == null)
                 {
                     // no destination picked: he jumped at a marker he looked at (a mission's objective going on, the latest), or somewhere the map does not know
@@ -357,7 +360,10 @@ public static class LocationTracker
         if (w.AtMission is { } am)
             return new PlayerNow(PlayerState.Mission, am.System ?? w.System) { AtName = AtMission(am), Mission = am.Title, Since = w.Since };
         // not known: off the grid after a jump the map cannot follow (with the last place it had him at), or no signal yet
-        return new PlayerNow(PlayerState.Unknown, w.System) { Off = w.Jumped, Since = w.Jumped ? w.Since : null, LastPing = w.Jumped ? w.LastPing?.Name : null };
+        return new PlayerNow(PlayerState.Unknown, w.System)
+        {
+            Off = w.Jumped, Since = w.Jumped ? w.Since : null, LastPing = w.Jumped ? w.LastPing?.Name : null, LastPingAt = w.Jumped ? w.LastPing : null,
+        };
     }
 
     /// <summary>The objectives of the missions he can jump to: the ones the game gave a beacon (MissionBeacon), with their mission, text, system and place.</summary>

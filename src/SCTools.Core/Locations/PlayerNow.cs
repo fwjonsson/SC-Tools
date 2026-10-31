@@ -5,7 +5,7 @@ namespace SCTools.Locations;
 /// objective says), the mission, since when, landed or taking off (Hangar), the destination he picked while still at the station (Leaving), and whether the
 /// Hauling Planner put him there. Jump: from where to where, when it started (the map's moving marker counts from it), how far (Gm) and how long his drive takes (seconds).
 /// Heading: where to (a place, or a mission's objective) and since when he picked it. Mission: what the objective says, the mission, since when. Unknown:
-/// off the grid (Off) since when, with the last place known (LastPing).
+/// off the grid (Off) since when, with the last place known (LastPing, and the place itself: LastPingAt, where the map keeps his marker, faded).
 /// </summary>
 public sealed record PlayerNow(PlayerState State, string? System)
 {
@@ -24,4 +24,5 @@ public sealed record PlayerNow(PlayerState State, string? System)
     public double Seconds { get; init; }
     public bool Off { get; init; }
     public string? LastPing { get; init; }
+    public Place? LastPingAt { get; init; }
 }
