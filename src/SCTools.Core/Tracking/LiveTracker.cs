@@ -21,6 +21,9 @@ public sealed class LiveTracker
     string _locationsKey = "";
     Atlas? _locationsAtlas;
     PartyBook? _locationsParties;
+    ShipBook? _locationsShips;
+    ShipBook? _ships;   // what the ship tracker said last, for the pieces of log it was worked out with
+    long _shipsPieces = -1;
     string _plannerKey = "";   // what the plan was made with of the location tracker's answer (LocationBook.PlannerKey)
 
     /// <summary>The party and the sessions are worked out from the logs again at least this often when nothing came in (else at every piece that does).</summary>
@@ -89,17 +92,40 @@ public sealed class LiveTracker
     {
         var atlas = AtlasSource?.Invoke() ?? Atlas.Default;
         var parties = Book(nowUtc, false);
+        var ships = Boarded(nowUtc);
         var key = string.Join("|", Uploads.Pieces, _version, _saves, string.Join(",", Tracker.State.Data.Party));
         if (_locations == null || key != _locationsKey || !ReferenceEquals(atlas, _locationsAtlas) || !ReferenceEquals(parties, _locationsParties)
-            || nowUtc - _locations.Now >= AutoEvery || nowUtc < _locations.Now)
+            || !ReferenceEquals(ships, _locationsShips) || nowUtc - _locations.Now >= AutoEvery || nowUtc < _locations.Now)
         {
+            // a jump burns the fuel of its ship's drive: the owner's, when he flies or rides in somebody else's ship
             _locations = LocationTracker.Work(Uploads.Logs, Uploads.Games(), Uploads.MissionsSeen(), atlas, nowUtc, parties, Clue,
-                (name, e) => FuelSource?.Invoke(name, e.Ship) is > 0 and var burn ? burn * BeaconRanging.EstimatePerKmGm : null);
+                (name, e) => FuelSource?.Invoke(ships.OwnerOf(e.ShipId) ?? name, e.Ship) is > 0 and var burn ? burn * BeaconRanging.EstimatePerKmGm : null, ships);
             _locationsKey = key;
             _locationsAtlas = atlas;
             _locationsParties = parties;
+            _locationsShips = ships;
         }
         return _locations;
+    }
+
+    /// <summary>
+    /// What the ship tracker says now (see ShipTracker): who is in whose ship and who flies it. Worked out again when a piece of log came in, or half a minute
+    /// after the last time (a game that stopped writing its log ends after a while); else the same answer, so every page and the refresh read one result.
+    /// </summary>
+    public ShipBook Ships(DateTime nowUtc)
+    {
+        lock (Uploads.Sync) return Boarded(nowUtc);
+    }
+
+    ShipBook Boarded(DateTime nowUtc)
+    {
+        var pieces = Uploads.Pieces;
+        if (_ships == null || pieces != _shipsPieces || nowUtc - _ships.Now >= AutoEvery || nowUtc < _ships.Now)
+        {
+            _ships = ShipTracker.Work(Uploads.Logs, Uploads.Games(), nowUtc);
+            _shipsPieces = pieces;
+        }
+        return _ships;
     }
 
     /// <summary>The Hauling Planner's own reading of where a member of its party is (Whereabouts.OwnLocationOf, LastMoveOf); null for anybody else.</summary>
@@ -189,9 +215,11 @@ public sealed class LiveTracker
             // where everybody is (after the logs are worked out: the planner's pickups and deliveries are clues); the plan starts where it has him
             var locations = Where(nowUtc);
             Tracker.State.Locations = locations;
-            if (locations.PlannerKey != _plannerKey)
+            var ships = Boarded(nowUtc);   // who rides in a ship somebody else flies: crew of that ship, no trips of his own
+            Tracker.State.Ships = ships;
+            if (locations.PlannerKey + "|" + ships.RidersKey != _plannerKey)
             {
-                _plannerKey = locations.PlannerKey;
+                _plannerKey = locations.PlannerKey + "|" + ships.RidersKey;
                 Tracker.Plan.Invalidate();
                 changed = true;
             }

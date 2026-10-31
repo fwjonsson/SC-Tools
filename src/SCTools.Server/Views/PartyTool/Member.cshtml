@@ -13,7 +13,8 @@
     <tr><th>Now</th><td>@(m.Playing ? "Playing" : m.LastSeenUtc is { } t ? "Last seen " + TrackerVersions.Ago(t, Model.NowUtc) : "Not in the logs the server has")</td></tr>
     <tr><th>Party</th><td>@(m.Party == null ? "" : m.Party.Names.Count > 1 ? m.Party.Title + ": " + string.Join(", ", m.Party.Names) : "Alone")</td></tr>
     <tr><th>Ship</th><td>@(m.Ship.Text.Length == 0 ? "Not known" : m.Ship.Text)@(m.Ship.Ship?.DriveText is { Length: > 0 } d ? " · " + d : "")
-      <span class="muted small">@(m.Ship.Picked ? "(picked on his page)" : m.Ship.Vehicle != null ? "(his last quantum jump" + (m.Ship.SeenUtc is { } at ? ", " + TrackerVersions.Ago(at, Model.NowUtc) : "") + ")" : "")</span></td></tr>
+      <span class="muted small">@(m.Ship.Riding ? "(riding: " + m.Ship.On!.Pilot + " flies it; boarded " + TrackerVersions.Ago(m.Ship.On.Since, Model.NowUtc) + ")"
+        : m.Ship.Picked ? "(picked on his page)" : m.Ship.On is { } on ? "(boarded " + TrackerVersions.Ago(on.Since, Model.NowUtc) + ")" : m.Ship.Vehicle != null ? "(his last quantum jump" + (m.Ship.SeenUtc is { } at ? ", " + TrackerVersions.Ago(at, Model.NowUtc) : "") + ")" : "")</span></td></tr>
     @if (m.Location != null)
     {
       <tr><th>Location</th><td>@m.Location <span class="muted small">(the Hauling Planner)</span></td></tr>

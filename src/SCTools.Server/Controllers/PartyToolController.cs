@@ -72,7 +72,7 @@ public sealed class PartyToolController : Controller
     /// </summary>
     PartyMemberLine Line(string name, DateTime now, PartyBook book)
     {
-        var active = _fleet.Active(name);
+        var active = _fleet.Active(name, now);
         var (color, inPlanner) = _live.Read(t => (Edits.ColorOf(t, name),
             t.State.Data.Party.Any(n => PlayerNames.SameName(n, name)) ? t.Crew.IsActiveAt(name, now) : (bool?)null));
         return new PartyMemberLine(active.Text, active.Ship?.DriveText ?? "", ViewPalette.Hex(color), ViewPalette.Hex(ViewPalette.TextOn(color)), inPlanner,

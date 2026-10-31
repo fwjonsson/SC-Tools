@@ -183,6 +183,12 @@ public sealed class Crew
     public int ShipCapacityOf(string name) =>
         Data.ShipCapacity.TryGetValue(name, out var c) ? Math.Clamp(c, 0, MaxShipCapacity) : DefaultShipCapacity;
 
+    /// <summary>
+    /// The batches he flies in the Hauling Planner: what his ship holds (ShipCapacityOf), none while he rides in a ship somebody else flies (the ship
+    /// tracker; Frank, 31 Oct 2026: a rider is crew of the pilot's ship, one ship and one set of trips).
+    /// </summary>
+    public int FlyingCapacityOf(string name) => _s.Ships?.Of(name) is { Riding: true } ? 0 : ShipCapacityOf(name);
+
     /// <summary>Sets the batches his ship holds from what was typed (a number from 1 to the most; anything else = the default).</summary>
     public void SetShipCapacity(string name, string typed) =>
         Data.ShipCapacity[name] = int.TryParse(typed.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)

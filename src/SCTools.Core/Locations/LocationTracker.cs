@@ -50,9 +50,10 @@ public static class LocationTracker
     /// <param name="games">every game in each player's logs (LogUploads.Games), by uploader</param>
     /// <param name="seen">every mission in each player's logs with its title (LogUploads.MissionsSeen), by uploader</param>
     /// <param name="fuel">a player's route fuel estimate per Gm in the ship of a jump, by his fleet (null: not known), for placing a mission's beacon (BeaconRanging)</param>
+    /// <param name="ships">the ship tracker's answer: the ship channel a rider is in tells whose jumps he rides (Rides, AboardJump)</param>
     public static LocationBook Work(IEnumerable<HaulingLog> logs, IReadOnlyDictionary<string, List<(string File, GameRun Run, bool Quit)>> games,
         IReadOnlyDictionary<string, IReadOnlyList<MissionSeen>> seen, Atlas atlas, DateTime nowUtc, PartyBook? parties = null,
-        Func<string, PlannerClue?>? planner = null, Func<string, QtEvent, double?>? fuel = null)
+        Func<string, PlannerClue?>? planner = null, Func<string, QtEvent, double?>? fuel = null, ShipBook? ships = null)
     {
         var book = new LocationBook { Now = nowUtc };
         var all = logs.ToList();
@@ -74,7 +75,9 @@ public static class LocationTracker
             var others = otherLogs.Select(o => (IReadOnlyList<QtEvent>)o.Qt).ToList();
             var points = Points(log.Beacons.Where(b => b.Time >= nowUtc - MissionAge), log.Missions, m => TitleOf(m, titles), atlas);
             var qt = WithPilots(log.Qt, others);
-            if (AboardJump(log, otherLogs) is { } aboard) qt.Add(aboard);   // riding in a pilot's ship that is on its way: on the pilot's jump
+            var rides = Rides(log, otherLogs, ships, nowUtc);   // the jumps he rode that his own log has no arrival of
+            if (rides.Count > 0) qt = qt.Concat(rides).OrderBy(e => e.Time).ToList();
+            if (AboardJump(log, otherLogs, ships) is { } aboard) qt.Add(aboard);   // riding in a pilot's ship that is on its way: on the pilot's jump
             var where = Follow(qt, atlas, null, log.Locations, points, log.Areas, stations, fuel == null ? null : e => fuel(name, e));
             // the Hauling Planner saw him pick up, deliver or hand in later than the jumps say anything: he is at that station
             if (planner?.Invoke(name) is { } clue && clue.At > (where.Since ?? DateTime.MinValue) && clue.At > (where.Picked?.Time ?? DateTime.MinValue)
@@ -282,10 +285,12 @@ public static class LocationTracker
     /// the map kept him where he boarded (Frank, 31 Oct 2026: zzatvo rode in zzoega's ship, the map had him at Ruin). The ship's area lines are in
     /// everybody's log aboard, into the same area within a second or two (not always from the same one: zzoega's log went out of Ruin's hangar into Ruin's
     /// area and then into space, zzatvo's out of the hangar straight into space, half a second apart): a player with no jump of his own who went into an
-    /// area since his last arrival that a pilot went into since his, while that pilot is on a jump he picked, rides with him. His jump
+    /// area since his last arrival that a pilot went into since his, while that pilot is on a jump he picked, rides with him. So does a player whose ship
+    /// channel is the pilot's ship (ShipBook.IsShip) with no quantum line of his own since the pick, unless his area lines since went elsewhere than the
+    /// pilot's: a jump picked out in space has no area line to go by until it arrives (zzatvo in zzoega's Perseus as gunner, Frank 31 Oct 2026). His jump
     /// is the pilot's, picked when the pilot first picked it; his own area lines say when it starts and ends (JumpTimes). Null: not aboard a ship on its way.
     /// </summary>
-    public static QtEvent? AboardJump(HaulingLog crew, IEnumerable<HaulingLog> pilots)
+    public static QtEvent? AboardJump(HaulingLog crew, IEnumerable<HaulingLog> pilots, ShipBook? ships = null)
     {
         var own = crew.Qt.Count > 0 ? crew.Qt[^1] : null;
         if (own?.Kind == QtKind.Selected) return null;   // he picked a jump himself
@@ -302,10 +307,84 @@ public static class LocationTracker
             var pilotSince = qt.Take(first).LastOrDefault(e => e.Kind == QtKind.Arrived)?.Time ?? DateTime.MinValue;
             var aboard = crew.Areas.Any(c => c.Time > since && !c.Landed
                 && pilot.Areas.Any(p => p.Time > pilotSince && !p.Landed && p.To == c.To && (p.Time - c.Time).Duration() <= SameJump));
+            if (!aboard && ships != null && since < pick.Time && ShipTracker.HeldAt(crew, DateTime.MaxValue) is { } held && ships.IsShip(pick.ShipId, pick.Ship, held))
+                aboard = !Apart(crew.Areas.Where(c => c.Time >= pick.Time - SameJump && !c.Landed).ToList(), pilot.Areas.Where(p => p.Time >= pick.Time && !p.Landed).ToList());
             if (aboard) return new QtEvent { Time = pick.Time, Kind = QtKind.Selected, Destination = pick.Destination, From = from, Ship = pick.Ship, ShipId = pick.ShipId };
         }
         return null;
     }
+
+    /// <summary>
+    /// The jumps he rode in somebody else's ship that his own log has no arrival of. The game leaves a rider's arrival line out about one jump in four (zzatvo
+    /// in zzoega's Perseus, Aug-Oct 2026: 67 of 328; zzoii 25 of 105) and WithPilots needs it, so the map kept him where he boarded. On the 123 jumps of
+    /// zzoega's right after one zzatvo rode where zzatvo's log had no arrival, his area lines moved with zzoega's on 94, went elsewhere on one, and the ship's
+    /// channel was his on all but four. He rode a pilot's jump (a pick and the arrival of the same ship after it, in the pilot's log) when his own log has no
+    /// quantum line from the pick to the arrival, and he came into the area the pilot jumped to with him (the pilot's last area line of the jump), or his
+    /// ship channel at the arrival was the ship's (ShipBook.IsShip) and his area lines did not go elsewhere. Each comes as the pilot's pick and arrival. Only the jumps of the game he plays now: where he
+    /// is now is all they are for.
+    /// </summary>
+    public static List<QtEvent> Rides(HaulingLog crew, IEnumerable<HaulingLog> pilots, ShipBook? ships, DateTime nowUtc)
+    {
+        var rides = new List<QtEvent>();
+        var start = ShipTracker.GameStart(crew, nowUtc);
+        var own = crew.Qt.Where(e => e.Time >= start).ToList();
+        var crewAreas = crew.Areas.Where(a => a.Time >= start && !a.Landed).ToList();
+        foreach (var pilot in pilots)
+        {
+            var qt = pilot.Qt;
+            var pilotAreas = pilot.Areas.Where(a => a.Time >= start && !a.Landed).ToList();
+            for (var i = 0; i < qt.Count; i++)
+            {
+                var arrival = qt[i];
+                if (arrival.Kind != QtKind.Arrived || arrival.ShipId.Length == 0 || arrival.Time < start || arrival.Time > nowUtc) continue;
+                if (PickOf(qt, i) is not int first) continue;
+                var pick = qt[first];
+                if (own.Any(e => e.Time >= pick.Time - SameJump && e.Time <= arrival.Time + SameJump)) continue;   // he flew himself, or WithPilots has it
+                if (rides.Any(r => r.ShipId == arrival.ShipId && (r.Time - arrival.Time).Duration() <= SameJump)) continue;
+                var mine = crewAreas.Where(c => c.Time >= pick.Time - SameJump && c.Time <= arrival.Time + SameJump).ToList();
+                var theirs = pilotAreas.Where(p => p.Time >= pick.Time && p.Time <= arrival.Time + SameJump).ToList();
+                // he came into the area the pilot jumped to with him (leaving a station together is not enough: two ships leave it at once now and then)
+                var cameIn = theirs.Count > 0 && Together(mine, new[] { theirs[^1] });
+                var aboard = cameIn
+                    || ships != null && ShipTracker.HeldAt(crew, arrival.Time) is { } held && ships.IsShip(arrival.ShipId, arrival.Ship, held) && !Apart(mine, theirs);
+                if (!aboard) continue;
+                var from = pick.From.Length > 0 ? pick.From : qt.Skip(first).Take(i - first).Select(e => e.From).FirstOrDefault(f => f.Length > 0) ?? "";
+                rides.Add(new QtEvent { Time = pick.Time, Kind = QtKind.Selected, Destination = pick.Destination, From = from, Ship = pick.Ship, ShipId = pick.ShipId,
+                    FuelEstimate = pick.FuelEstimate });
+                rides.Add(new QtEvent { Time = arrival.Time, Kind = QtKind.Arrived, Ship = arrival.Ship, ShipId = arrival.ShipId });
+            }
+        }
+        return rides.OrderBy(e => e.Time).ToList();
+    }
+
+    /// <summary>
+    /// The pick this arrival (at index i of a pilot's jumps) came from: the latest pick of the same ship before it, back to where the run of picks of that
+    /// destination began (the game writes the pick again and again while he aims), as its index; null when the ship's arrival before it comes first (a jump
+    /// with no destination picked).
+    /// </summary>
+    static int? PickOf(IReadOnlyList<QtEvent> qt, int i)
+    {
+        var j = i - 1;
+        while (j >= 0 && !(qt[j].ShipId == qt[i].ShipId && qt[j].Kind == QtKind.Selected))
+        {
+            if (qt[j].ShipId == qt[i].ShipId && qt[j].Kind == QtKind.Arrived) return null;
+            j--;
+        }
+        if (j < 0) return null;
+        while (j > 0 && qt[j - 1].Kind == QtKind.Selected && qt[j - 1].ShipId == qt[i].ShipId
+            && qt[j - 1].Destination.Equals(qt[j].Destination, StringComparison.OrdinalIgnoreCase)) j--;
+        return j;
+    }
+
+    /// <summary>Area lines of his went into an area the pilot's went into, within SameJump: they moved together.</summary>
+    static bool Together(IReadOnlyList<AreaChange> mine, IReadOnlyList<AreaChange> theirs) =>
+        mine.Any(c => theirs.Any(p => p.To == c.To && (p.Time - c.Time).Duration() <= SameJump));
+
+    /// <summary>
+    /// Both logs have area lines, and none of his goes where the pilot's go: he went elsewhere (got off and walked into the station, and the game did not
+    /// say he left the ship's channel).
+    /// </summary>
+    static bool Apart(IReadOnlyList<AreaChange> mine, IReadOnlyList<AreaChange> theirs) => mine.Count > 0 && theirs.Count > 0 && !Together(mine, theirs);
 
     /// <summary>The destination picked in this log for the arrival of the same ship as this arrival, at the same moment (or null).</summary>
     static QtEvent? PilotPick(IReadOnlyList<QtEvent> qt, QtEvent arrival)

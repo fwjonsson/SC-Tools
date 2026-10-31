@@ -42,13 +42,22 @@ public sealed record FleetShip(FleetShipRow Row, QtDrive? Drive, double Bonus, S
 }
 
 /// <summary>
-/// The ship a player flies now: the one he picked, or Automatic (the ship of his latest quantum jump, as the logs name it, matched to his fleet: Ship is null
-/// when it is not in it). Vehicle and SeenUtc: what the logs say, when they say something.
+/// The ship a player flies now: the one he picked, or Automatic (the ship the ship tracker has him in, else the ship of his latest quantum jump, as the logs
+/// name it, matched to his fleet: Ship is null when it is not in it). Vehicle and SeenUtc: what the logs say, when they say something. On: the ship tracker's
+/// answer, when it has him in a ship; Ship is then of its owner's fleet (its drive is the owner's), also when that is somebody else.
 /// </summary>
-public sealed record ActiveShip(FleetShip? Ship, bool Picked, string? Vehicle, DateTime? SeenUtc)
+public sealed record ActiveShip(FleetShip? Ship, bool Picked, string? Vehicle, DateTime? SeenUtc, Aboard? On = null)
 {
-    /// <summary>The ship's name, or what the logs call it when it is not in the fleet (the game data's name for its class), or "".</summary>
-    public string Text => Ship?.Row.Ship ?? (Vehicle == null ? "" : ShipModels.OfClass(Vehicle)?.Name ?? VehicleLines.Pretty(Vehicle));
+    /// <summary>
+    /// The ship's name, or what the logs call it when it is not in the fleet (the voice channel's name, or the game data's name for its class), or ""; with
+    /// its owner in front when it is somebody else's ship: "zzoega's RSI Perseus".
+    /// </summary>
+    public string Text => On is { Borrowed: true } on ? on.Owner + "'s " + Name : Name;
+
+    string Name => Ship?.Row.Ship ?? On?.Ship ?? (Vehicle == null ? "" : ShipModels.OfClass(Vehicle)?.Name ?? VehicleLines.Pretty(Vehicle));
+
+    /// <summary>He rides in it: somebody else flies it (the Hauling Planner plans no trips for him; he is crew of the pilot's ship).</summary>
+    public bool Riding => On is { Riding: true };
 }
 
 /// <summary>
@@ -276,20 +285,38 @@ public sealed class FleetService
         return Fleet(player).FirstOrDefault(f => f.Model == model)?.FuelPerKm;
     }
 
-    /// <summary>The ship he flies now: the one he picked, else the one of his latest quantum jump (matched to his fleet by its name).</summary>
-    public ActiveShip Active(string player)
+    /// <summary>
+    /// The ship he flies now: while he rides in a ship somebody else flies, that ship (the ship tracker: he is crew of it); else the one he picked; else the
+    /// ship the ship tracker has him in, of its owner's fleet (zzatvo flying zzoega's Perseus flies it with zzoega's drive); else the one of his latest quantum
+    /// jump (matched to his fleet by its name).
+    /// </summary>
+    public ActiveShip Active(string player, DateTime? nowUtc = null)
     {
         var fleet = Fleet(player);
         int? picked;
         lock (_lock) picked = _picked!.TryGetValue(player, out var p) ? p : null;
         (string Vehicle, DateTime At)? seen = _uploads.Ships().TryGetValue(player, out var s) ? s : null;
+        var on = _live.Ships(nowUtc ?? DateTime.UtcNow).Of(player);
+        if (on is { Riding: true }) return InShip(on, fleet);
         if (picked is int id && fleet.FirstOrDefault(f => f.Row.Id == id) is { } chosen) return new ActiveShip(chosen, true, seen?.Vehicle, seen?.At);
+        if (on != null) return InShip(on, fleet);
         if (seen == null) return new ActiveShip(null, false, null, null);
-        // the ship of his fleet that is the class's ship of the game data, else the one whose name fits the class best
-        var model = ShipModels.OfClass(seen.Value.Vehicle);
-        var best = model == null ? -1 : fleet.FindIndex(f => f.Model == model);
-        if (best < 0) best = VehicleLines.Best(seen.Value.Vehicle, fleet.Select(f => f.Row.Ship).ToList());
-        return new ActiveShip(best >= 0 ? fleet[best] : null, false, seen.Value.Vehicle, seen.Value.At);
+        return new ActiveShip(Match(fleet, seen.Value.Vehicle, null), false, seen.Value.Vehicle, seen.Value.At);
+    }
+
+    /// <summary>The ship the ship tracker has him in, of its owner's fleet (his own, or somebody else's).</summary>
+    ActiveShip InShip(Aboard on, List<FleetShip> own) => new(Match(on.Borrowed ? Fleet(on.Owner) : own, on.Vehicle, on.Ship), false, on.Vehicle, on.Since, on);
+
+    /// <summary>
+    /// The ship of a fleet that is this class's ship of the game data (or, without a class, the ship of this name's), else the one whose name fits the class
+    /// best; null when none.
+    /// </summary>
+    static FleetShip? Match(List<FleetShip> fleet, string? vehicle, string? name)
+    {
+        var model = vehicle != null ? ShipModels.OfClass(vehicle) : ShipModels.Find(name);
+        if (model != null && fleet.FirstOrDefault(f => f.Model == model) is { } same) return same;
+        var best = vehicle != null ? VehicleLines.Best(vehicle, fleet.Select(f => f.Row.Ship).ToList()) : -1;
+        return best >= 0 ? fleet[best] : null;
     }
 
     /// <summary>
@@ -299,9 +326,16 @@ public sealed class FleetService
     public bool SyncPlanner(DateTime nowUtc)
     {
         var wanted = new List<(string Player, string? Ship, string? Drive, double Bonus)>();
-        foreach (var player in Players())
+        var aboard = _live.Ships(nowUtc).Players.Keys;
+        foreach (var player in Players().Union(aboard, StringComparer.OrdinalIgnoreCase))
         {
-            var active = Active(player);
+            var active = Active(player, nowUtc);
+            if (active.Riding)
+            {
+                // crew of the pilot's ship: no hauler of his own (the planner plans him no trips), the ship's drive (the map moves him at its speed)
+                wanted.Add((player, null, active.Ship?.Drive?.Key, active.Ship?.Bonus ?? 0));
+                continue;
+            }
             if (active.Ship is not { } ship) continue;
             wanted.Add((player, ship.Hauler?.Name, ship.Drive?.Key, ship.Bonus));
         }

@@ -274,7 +274,21 @@ All the tools track at the same time, all the time. The tracking runs on the ser
     - Not yet, ideas for #388: new line kinds (a tracker update, the players told first): the jurisdiction, armistice and monitored-space
       notifications, the ATC contact, the elevators and shuttles, "X has started to QT to your current location", the party markers streamed in.
 
-Later, maybe: a party/crew board (who is on which shard, in which jurisdiction, in whose ship) and crash/server statistics.
+16. **Ship tracker** (Frank 31 Oct 2026): the location tracker lost riders (zzatvo and zzoii ride in zzoega's Perseus as gunners nearly every time):
+    their logs have the ship's arrival line only three jumps in four, and a jump picked out in space has no area line until it arrives. The logs of
+    Aug-Oct 2026 (the three accounts, ~700 files) showed the ships' voice channels name who boards whose ship ("You have joined channel 'RSI Perseus :
+    zzoega'.", 1,567 times). One place in the core (`SCTools.Boarding`: `ShipTracker`, its answer `ShipBook`) says who is in whose ship and who flies it,
+    once per refresh. **Decided:**
+    - A rider goes with the ship (its id) and whoever flies it, not with its owner: zzoega leaves the Perseus to steal a Freelancer and zzatvo flies it on.
+    - The ship's drive is its owner's (his fleet, his crafted speed and fuel): the map's timing and a beacon's fuel ranging use it for the pilot and the
+      riders alike, because that is the ship's.
+    - The pages say whose ship it is ("zzoega's RSI Perseus") on the map's cards, the Party panel and a player's page (riding: who flies it).
+    - In the Hauling Planner a rider is crew of the pilot's ship: one ship, one set of trips, no trips of his own (the payouts are the party's as before).
+    - A full ships tracker (every ship's state, hangars, insurance) is not worth it: the logs say little about ships beyond the jumps and the channels.
+    - The trackers send the channel lines from their next update (a new line kind; the text is on the notification's first line, which they did not
+      send before).
+
+Later, maybe: a party/crew board (who is on which shard, in which jurisdiction) and crash/server statistics.
 
 Not wanted:
 - A blueprint tracker. Frank's string mod already shows blueprints in the game.
@@ -295,6 +309,10 @@ Not wanted:
   [a] -> [b]. Location [c] -> [d]`, numbers, not names): off the pad and out of the station's area is the start, the next area the end; the same
   route takes the same time to about 2 seconds that way (sent and read since 31 Oct 2026, the Map tool). There is no line for the spool itself: the
   "Quantum Travel Calibration Started By X" notification is only for somebody else in the party. No "Exited … Jurisdiction" either, only "Entered".
+- **Who boards whose ship** (checked 31 Oct 2026, Aug-Oct logs): "You have joined channel 'RSI Perseus : zzoega'." in the log of the one who boards
+  (the ship's name and owner), "You have left the channel '…'" about half the time; the owner's log names nobody who boarded, only "Member Left …
+  zzatvo has left the channel '…'". No seat lines (gunner or passenger); the pilot leaving his seat writes "releasing control token for
+  'RSI_Perseus_<id>'", sitting down writes nothing. Used by the ship tracker (16).
 - **Deaths and ships lost**: "[ActorState] Dead … ejected from zone RSI_Perseus … destroyed vehicle"; "Local Emergency Services Are En Route" when downed.
 - **Clean exit or crash**: a clean exit writes SystemQuit; a log that just stops is a crash. Disconnects show as "Hub disconnected".
 - **Shard**: "Join PU … shard[pub_euw1b_12881860_110]".

@@ -100,6 +100,6 @@ public sealed class PartyService
             var id = t.Whereabouts.LocationOf(known).Id;
             return PyroDistances.Points.Where(p => p.Id == id).Select(p => p.Name).FirstOrDefault();
         });
-        return new PartyMember(known, playing, last, party, _fleet.Active(known), _fleet.Fleet(known), location, _versions.Of(known), WithoutTracker(known, book));
+        return new PartyMember(known, playing, last, party, _fleet.Active(known, nowUtc), _fleet.Fleet(known), location, _versions.Of(known), WithoutTracker(known, book));
     }
 }
