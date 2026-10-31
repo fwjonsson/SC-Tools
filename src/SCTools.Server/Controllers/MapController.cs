@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using SCTools.GameData;
 using SCTools.Server.Accounts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -49,7 +50,24 @@ public sealed class MapController : Controller
         var now = DateTime.UtcNow;
         var map = _map.Snapshot(now);
         var node = viewer.Everything ? JsonSerializer.SerializeToNode(map, JsonSerializerOptions.Web) : DataViews.MapFor(map, _audience.Allowed(viewer, now));
-        if (node is JsonObject d) d["me"] = PointOfView.Name(HttpContext);
+        if (node is JsonObject d)
+        {
+            var me = PointOfView.Name(HttpContext);
+            d["me"] = me;
+            if (me != null) d["mine"] = JsonSerializer.SerializeToNode(_map.Mine(me), JsonSerializerOptions.Web);   // his ship and drive, for measuring a distance (#408)
+        }
         return Json(node);
+    }
+
+    /// <summary>
+    /// What every station of the map has, by the place's key: its services and its shops as UEX lists them (StationServices), for the card the map shows when
+    /// the mouse is over a station (#409; Frank, 31 Oct 2026). Game data, the same for everybody and every page with a map, so no login is needed and a
+    /// browser may keep it for an hour.
+    /// </summary>
+    [HttpGet("services.json")]
+    public IActionResult Services()
+    {
+        Response.Headers.CacheControl = "public, max-age=3600";
+        return Json(StationServices.ByKey.ToDictionary(kv => kv.Key, kv => new { name = kv.Value.Name, services = kv.Value.Services, shops = kv.Value.Shops }));
     }
 }

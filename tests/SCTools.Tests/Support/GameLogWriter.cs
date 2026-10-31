@@ -173,6 +173,17 @@ sealed class GameLogWriter
     public GameLogWriter Inventory(string player, string location) =>
         Add($"{Ts} [Notice] <RequestLocationInventory> Player[{player}] requested inventory for Location[{location}] [Team_CoreGameplayFeatures][Inventory]");
 
+    /// <summary>
+    /// He dies: the game writes no kill line any more, but one line for every item of his body for the item recovery (HaulingLog.CorpseLine); three of them
+    /// within five seconds are a death, at the first line's time. The format is a real line of zzoega's log of 4 Aug 2026.
+    /// </summary>
+    public GameLogWriter Died()
+    {
+        foreach (var item in new[] { "body_01_noMagicPocket_718229772894", "undersuit_01_718229772895", "helmet_01_718229772896" })
+            Add($"{Ts} [Notice] <Adding non kept item [CSCActorCorpseUtils::PopulateItemPortForItemRecoveryEntitlement]> Item '{item} - Class({item[..item.LastIndexOf('_')]}) - Context(Streamable Runtime-spawned) - Socpak()', Recorded data is: Port Name 'Body_ItemPort', Class GUID: 'dbaa8a7d-755f-4104-8b24-7b58fd1e76f6', KeptId: '{item[(item.LastIndexOf('_') + 1)..]}' [Team_CoreGameplayFeatures][Unknown]");
+        return this;
+    }
+
     /// <summary>He goes from one area into another: the game's numbers for the landing area he is at (0: none, he flew off) and for the area around him.</summary>
     public GameLogWriter AreaChange(string player, long landingFrom, long landingTo, long from, long to) =>
         Add($"{Ts} [Notice] <Update Inventory Location> Player [{player}] is changing location. Landing [{landingFrom}] -> [{landingTo}]. Location [{from}] -> [{to}]. Pending [0] [Team_CoreGameplayFeatures][Inventory]");

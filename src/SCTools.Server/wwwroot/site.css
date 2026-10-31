@@ -162,6 +162,13 @@ main:has(.maptool) { max-width:1900px; }
 .mapmissions { grid-column:1 / span 3; grid-row:2; min-width:0; }
 /* the Map tool alone has the map and the players since the Companion took the objectives and the contracts (#380): the map gets a little bigger */
 .maptool.maponly { grid-template-columns:minmax(0, 1060px) minmax(260px, 340px); }
+/* the card the map engine shows over a station: what it has (its services in gold, its shops in gray; systemmap.js, #409) */
+.mapcard { position:absolute; z-index:3; pointer-events:none; max-width:280px; padding:6px 9px; border:1px solid #3a4250; border-radius:6px;
+  background:#10151c; color:#ecece8; font-size:12px; line-height:1.35; box-shadow:0 2px 10px rgba(0,0,0,.55); }
+.mapcard b { display:block; font-size:13px; }
+.mapcard b + b, .mapcard .shops + b { margin-top:6px; }
+.mapcard .svc { color:#f2c14e; }
+.mapcard .shops { color:#a7adb8; }
 @media (max-width:1200px) {
   .maptool, .maptool.maponly { grid-template-columns:minmax(0, 1fr); }
   .mapbox, .mapside.players, .mapside.objectives, .mapmissions { grid-column:1; grid-row:auto; }

@@ -322,4 +322,67 @@ public class MapPageTests
         Assert.Equal(JsonValueKind.Null, map.GetProperty("me").ValueKind);
         Assert.NotEmpty(map.GetProperty("systems").EnumerateArray());
     }
+
+    [Fact]
+    public async Task Services_json_says_what_every_station_has_and_the_map_shows_it_over_the_station()
+    {
+        using var f = new ServerFactory();
+        var res = await f.Browser().GetAsync("/map/services.json");   // game data: no login needed, and the browser may keep it
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains("max-age=3600", res.Headers.CacheControl?.ToString());
+        var all = JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement;
+        var ruin = all.GetProperty("pyro/ruin-station");
+        Assert.Equal("Ruin Station", ruin.GetProperty("name").GetString());
+        Assert.Contains("Refinery", ruin.GetProperty("services").EnumerateArray().Select(s => s.GetString()));
+        Assert.Contains("Cargo deck", ruin.GetProperty("services").EnumerateArray().Select(s => s.GetString()));
+        Assert.Contains("Guns", ruin.GetProperty("shops").EnumerateArray().Select(s => s.GetString()));
+        var script = await f.Browser().GetStringAsync("/systemmap.js");
+        Assert.Contains("fetch('/map/services.json')", script);
+        Assert.Contains("card.className = 'mapcard'", script);
+        Assert.Contains(".mapcard {", await f.Browser().GetStringAsync("/site.css"));
+        Assert.Contains("UEX (uexcorp.space)", await f.Browser().GetStringAsync("/"));   // credited in the footer
+    }
+
+    [Fact]
+    public async Task The_feed_has_the_viewers_ship_and_drive_and_every_players_motion_for_measuring_a_distance()
+    {
+        using var f = new ServerFactory();
+        var now = DateTime.UtcNow;
+        var log = new GameLogWriter().At(now.AddMinutes(-3)).Login("zzoega").Minutes(1).Inventory("zzoega", "Nyx_Levski");
+        Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-3)), 0, 1000, log.Lines.ToList(), now).Ok);
+        var admin = await f.Admin();
+        var map = JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement;
+        var mine = map.GetProperty("mine");   // the admin's own ship and drive, though he is not playing
+        Assert.True(mine.TryGetProperty("ship", out _));
+        Assert.True(mine.GetProperty("motion").GetProperty("v").GetDouble() > 0);
+        Assert.True(Player(map, "zzoega").GetProperty("motion").GetProperty("a1").GetDouble() > 0);   // standing at Levski: his drive's motion all the same
+        Assert.True(JsonDocument.Parse(await admin.GetStringAsync("/hauling/map.json")).RootElement.TryGetProperty("mine", out _));   // the planner's map too
+        Assert.False(JsonDocument.Parse(await f.Browser().GetStringAsync("/hauling/map.json")).RootElement.TryGetProperty("mine", out _));   // a visitor has no ship
+        var script = await f.Browser().GetStringAsync("/systemmap.js");
+        Assert.Contains("function drawMeasure()", script);
+        Assert.Contains("svg.style.cursor = 'crosshair'", script);
+    }
+
+    [Fact]
+    public async Task A_death_is_a_skull_where_he_was_for_a_quarter_of_an_hour_for_his_party()
+    {
+        using var f = new ServerFactory();
+        var now = DateTime.UtcNow;
+        // zzoega at Levski (his inventory there) died 20 minutes ago (too old for the map) and 8 minutes ago
+        var log = new GameLogWriter().At(now.AddMinutes(-30)).Login("zzoega").Minutes(1).Inventory("zzoega", "Nyx_Levski").Minutes(9).Died().Minutes(12).Died();
+        Assert.True(log.Lines.Where(l => l.Contains(HaulingLog.CorpseLine)).All(l => new LineFilter().Keep(l)));   // the trackers send these lines
+        Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-30)), 0, 1000, log.Lines.ToList(), now).Ok);
+        var admin = await f.Admin();
+        var map = JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement;
+        var death = Assert.Single(map.GetProperty("deaths").EnumerateArray());
+        Assert.Equal(("zzoega", "nyx", "nyx/levski", "Levski"),
+            (death.GetProperty("player").GetString(), death.GetProperty("system").GetString(), death.GetProperty("at").GetString(), death.GetProperty("atName").GetString()));
+        Assert.InRange(DateTimeOffset.FromUnixTimeMilliseconds(death.GetProperty("time").GetInt64()).UtcDateTime, now.AddMinutes(-8.1), now.AddMinutes(-7.9));
+        // a player in no party with him does not see it, on the planner's map either (the party cut)
+        var player = await f.Player(f.AddKey("bileh123"));
+        Assert.Empty(JsonDocument.Parse(await player.GetStringAsync("/hauling/map.json")).RootElement.GetProperty("deaths").EnumerateArray());
+        var script = await f.Browser().GetStringAsync("/systemmap.js");
+        Assert.Contains("function skull(", script);
+        Assert.Contains("DEATH_MINUTES = 15", script);
+    }
 }

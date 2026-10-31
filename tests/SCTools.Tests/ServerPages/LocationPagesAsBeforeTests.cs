@@ -187,25 +187,26 @@ public class LocationPagesAsBeforeTests
     /// <summary>The same as recorded (the recordings are written with the file's line ends, which git may change).</summary>
     static void Same(string recorded, string actual) => Assert.Equal(recorded.ReplaceLineEndings("\n"), actual);
 
+    // every player carries his drive's motion in every state since 31 Oct 2026 (the map measures a distance with the viewer's drive, #408)
     const string AdminMap = """
         players: [
-        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" hangar="landed" }
+        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" hangar="landed" }
         ,
-        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null hangar=null }
+        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null hangar=null }
         ,
-        {name="zzoii" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="at" at="nyx/levski" atName="Levski" mission=null since=now-540s via=null leaving=null hangar=null }
+        {name="zzoii" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="nyx" state="at" at="nyx/levski" atName="Levski" mission=null since=now-540s via=null leaving=null hangar=null }
         ,
         {name="bileh123" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="jump" from="pyro/ruin-station" fromName="Ruin Station" to="pyro/gaslight" toName="Gaslight" start=now-50s dist=105090000000 seconds=476.80504749488534 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
         ,
         {name="stantonian" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="stanton" state="jump" from="stanton/aberdeen" fromName="Aberdeen" to="stanton/hur-l2-faithful-dream-station" toName="HUR-L2 Faithful Dream Station" start=now-50s dist=1234549083.6738737 seconds=29.419823426399002 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
         ,
-        {name="trila" color="#4682ff" ship="RSI Perseus" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="mission" atName="the mission: Go to Asteroid Cluster" mission="A mission" since=now-240s }
+        {name="trila" color="#4682ff" ship="RSI Perseus" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="nyx" state="mission" atName="the mission: Go to Asteroid Cluster" mission="A mission" since=now-240s }
         ,
-        {name="hunter" color="#4682ff" ship="RSI Perseus" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="heading" to=null toName="the mission: Go to Asteroid Cluster" mission="A mission" since=now-120s }
+        {name="hunter" color="#4682ff" ship="RSI Perseus" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="nyx" state="heading" to=null toName="the mission: Go to Asteroid Cluster" mission="A mission" since=now-120s }
         ,
-        {name="lost" color="#4682ff" ship="Anvil Arrow" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="unknown" off=true since=now-120s lastPing="Levski" lastPingAt="nyx/levski" }
+        {name="lost" color="#4682ff" ship="Anvil Arrow" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="nyx" state="unknown" off=true since=now-120s lastPing="Levski" lastPingAt="nyx/levski" }
         ,
-        {name="Pilot_A" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=2026-10-21T09:10:21.000 via="the Hauling Planner" leaving=null hangar=null }
+        {name="Pilot_A" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=2026-10-21T09:10:21.000 via="the Hauling Planner" leaving=null hangar=null }
         ,]
         objectives: [
         {player="trila" title="A mission" system="nyx" where="Go to Asteroid Cluster" who=["trila",] },
@@ -219,23 +220,23 @@ public class LocationPagesAsBeforeTests
         """;
     const string AdminCompanion = """
         players: [
-        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" hangar="landed" }
+        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" hangar="landed" }
         ,
-        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null hangar=null }
+        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null hangar=null }
         ,
-        {name="zzoii" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="at" at="nyx/levski" atName="Levski" mission=null since=now-540s via=null leaving=null hangar=null }
+        {name="zzoii" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="nyx" state="at" at="nyx/levski" atName="Levski" mission=null since=now-540s via=null leaving=null hangar=null }
         ,
         {name="bileh123" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="jump" from="pyro/ruin-station" fromName="Ruin Station" to="pyro/gaslight" toName="Gaslight" start=now-50s dist=105090000000 seconds=476.80504749488534 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
         ,
         {name="stantonian" color="#4682ff" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="stanton" state="jump" from="stanton/aberdeen" fromName="Aberdeen" to="stanton/hur-l2-faithful-dream-station" toName="HUR-L2 Faithful Dream Station" start=now-50s dist=1234549083.6738737 seconds=29.419823426399002 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } }
         ,
-        {name="trila" color="#4682ff" ship="RSI Perseus" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="mission" atName="the mission: Go to Asteroid Cluster" mission="A mission" since=now-240s }
+        {name="trila" color="#4682ff" ship="RSI Perseus" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="nyx" state="mission" atName="the mission: Go to Asteroid Cluster" mission="A mission" since=now-240s }
         ,
-        {name="hunter" color="#4682ff" ship="RSI Perseus" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="heading" to=null toName="the mission: Go to Asteroid Cluster" mission="A mission" since=now-120s }
+        {name="hunter" color="#4682ff" ship="RSI Perseus" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="nyx" state="heading" to=null toName="the mission: Go to Asteroid Cluster" mission="A mission" since=now-120s }
         ,
-        {name="lost" color="#4682ff" ship="Anvil Arrow" drive="Odyssey S2 (assumed)" top=238314300 system="nyx" state="unknown" off=true since=now-120s lastPing="Levski" lastPingAt="nyx/levski" }
+        {name="lost" color="#4682ff" ship="Anvil Arrow" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="nyx" state="unknown" off=true since=now-120s lastPing="Levski" lastPingAt="nyx/levski" }
         ,
-        {name="Pilot_A" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=2026-10-21T09:10:21.000 via="the Hauling Planner" leaving=null hangar=null }
+        {name="Pilot_A" color="#4682ff" ship="" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=2026-10-21T09:10:21.000 via="the Hauling Planner" leaving=null hangar=null }
         ,]
         objectives: [
         {player="trila" title="A mission" system="nyx" where="Go to Asteroid Cluster" who=["trila",] },
@@ -248,9 +249,9 @@ public class LocationPagesAsBeforeTests
         """;
     const string PlayerMap = """
         players: [
-        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" hangar="landed" }
+        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" hangar="landed" }
         ,
-        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null hangar=null }
+        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null hangar=null }
         ,]
         objectives: []
         unplaced: 2
@@ -260,9 +261,9 @@ public class LocationPagesAsBeforeTests
         """;
     const string PlayerCompanion = """
         players: [
-        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" hangar="landed" }
+        {name="zzoega" color="#ff9628" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving="Patch City" hangar="landed" }
         ,
-        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null hangar=null }
+        {name="zzatvo" color="#3ccd5f" ship="Crusader C2 Hercules Starlifter" drive="Odyssey S2 (assumed)" top=238314300 motion={v=238314300 a1=5705428 a2=8631428 sw=84000000 } system="pyro" state="at" at="pyro/gaslight" atName="Gaslight" mission=null since=now-1200s via=null leaving=null hangar=null }
         ,]
         objectives: []
         unplaced: 2

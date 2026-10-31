@@ -153,7 +153,12 @@ public sealed class PageController : Controller
         var now = DateTime.UtcNow;
         var map = _map.Snapshot(now);
         var node = viewer.Everything ? JsonSerializer.SerializeToNode(map, JsonSerializerOptions.Web) : DataViews.MapFor(map, _audience.Allowed(viewer, now));
-        if (node is JsonObject d) d["me"] = PointOfView.Name(HttpContext);   // who the viewer is, as the Map tool's feed says it: the two stay one answer
+        if (node is JsonObject d)   // who the viewer is, and his ship and drive, as the Map tool's feed has them: the map measures a distance with them (#408)
+        {
+            var me = PointOfView.Name(HttpContext);
+            d["me"] = me;
+            if (me != null) d["mine"] = JsonSerializer.SerializeToNode(_map.Mine(me), JsonSerializerOptions.Web);
+        }
         return Json(node);
     }
 

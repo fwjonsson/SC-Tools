@@ -13,6 +13,9 @@ public sealed class LocationBook
     /// <summary>Everybody playing (a game running, by the trackers' logs), in the order of the logs.</summary>
     public List<LocatedPlayer> Players { get; } = new();
 
+    /// <summary>The deaths of the last while (LocationTracker.DeathAge) of everybody playing, with where each happened: the map's skulls (#410).</summary>
+    public List<PlayerDeath> Deaths { get; } = new();
+
     /// <summary>This player, when he is playing; else null.</summary>
     public LocatedPlayer? Of(string name) => Players.FirstOrDefault(p => SameName(p.Name, name));
 

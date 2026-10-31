@@ -184,6 +184,8 @@ public sealed class DataViews
             }
             d["missions"] = kept;
         }
+        if (d["deaths"] is JsonArray deaths)   // the skulls: his party's alone, like the players (#410)
+            d["deaths"] = new JsonArray(deaths.Where(x => Mine(x?["player"])).Select(x => x!.DeepClone()).ToArray());
         if (allowed.Count == 0) d["unplaced"] = 0;
         return d;
     }
