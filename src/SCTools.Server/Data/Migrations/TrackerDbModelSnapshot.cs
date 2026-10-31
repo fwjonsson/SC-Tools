@@ -249,15 +249,15 @@ namespace SCTools.Server.Data.Migrations
                     b.Property<string>("Drive")
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("FuelQuality")
-                        .HasColumnType("INTEGER");
+                    b.Property<double?>("FuelQuality")
+                        .HasColumnType("REAL");
 
                     b.Property<string>("Player")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("Quality")
-                        .HasColumnType("INTEGER");
+                    b.Property<double?>("Quality")
+                        .HasColumnType("REAL");
 
                     b.Property<string>("Ship")
                         .IsRequired()
