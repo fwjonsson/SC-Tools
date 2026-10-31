@@ -14,6 +14,9 @@ public sealed class LiveTracker
     int _version = -1;
     long _autoPieces = -1;
     DateTime _autoAt = DateTime.MinValue;
+    PartyBook? _book;   // what the party tracker said last, for the pieces of log and the members it was worked out with
+    long _bookPieces = -1;
+    string _bookMembers = "";
 
     /// <summary>The party and the sessions are worked out from the logs again at least this often when nothing came in (else at every piece that does).</summary>
     public static readonly TimeSpan AutoEvery = TimeSpan.FromSeconds(30);
@@ -53,6 +56,47 @@ public sealed class LiveTracker
     /// <summary>The logs start and stop the sessions (see AutoSessions): one session for the party, the hauling of everybody in it.</summary>
     public bool FollowSessions { get; }
 
+    /// <summary>
+    /// Everybody the site knows (the server's PartyService.Players: the Hauling Planner's party, the tracker keys, the fleets, the logs), whose activity the
+    /// party tracker works out and whose names it writes as they are written there; without it, the Hauling Planner's party and the players of the logs.
+    /// </summary>
+    public Func<IReadOnlyCollection<string>>? Players { get; set; }
+
+    /// <summary>
+    /// What the party tracker says now (see PartyTracker): worked out again when a piece of log came in, when the members changed, or half a minute after the
+    /// last time (a game that stopped writing its log ends after a while); else the same answer, so every page and the refresh read one result.
+    /// </summary>
+    public PartyBook Parties(DateTime nowUtc)
+    {
+        lock (Uploads.Sync) return Book(nowUtc, false);
+    }
+
+    PartyBook Book(DateTime nowUtc, bool fresh)
+    {
+        var members = Members();
+        var key = string.Join("|", members);
+        var pieces = Uploads.Pieces;
+        if (fresh || _book == null || pieces != _bookPieces || key != _bookMembers || nowUtc - _book.Now >= AutoEvery || nowUtc < _book.Now)
+        {
+            _book = PartyTracker.Work(Uploads.Logs, members, nowUtc);
+            _bookPieces = pieces;
+            _bookMembers = key;
+        }
+        return _book;
+    }
+
+    IReadOnlyCollection<string> Members()
+    {
+        if (Players != null) return Players();
+        var names = new List<string>(Tracker.State.Data.Party);
+        foreach (var log in Uploads.Logs)
+        {
+            var who = log.Player ?? log.Uploader;
+            if (!string.IsNullOrWhiteSpace(who) && !names.Any(n => PlayerNames.SameName(n, who))) names.Add(who);
+        }
+        return names;
+    }
+
     /// <summary>data.json as it was made last (see Refresh).</summary>
     public string Json => _snapshot.Json;
 
@@ -76,6 +120,7 @@ public sealed class LiveTracker
             if (version != _version)
             {
                 _version = version;
+                if (FollowParty) Tracker.State.Parties = Book(nowUtc, false);   // the payouts of the session shown ask it who was in the party
                 Show();
                 changed = true;
             }
@@ -150,7 +195,7 @@ public sealed class LiveTracker
     bool Party(DateTime nowUtc)
     {
         var data = Tracker.State.Data;
-        var parties = AutoParty.Work(Uploads.Logs, data.Party, nowUtc);
+        var parties = Book(nowUtc, false);
         // the party follows the game's parties (Frank, 29 Oct 2026): whoever the logs show in an in-game party with a member is a member too, with the
         // settings every member has, so nobody is added by hand (a player alone, or in a party of strangers, is not: he does not haul with the party)
         var joined = false;
@@ -163,7 +208,7 @@ public sealed class LiveTracker
                 joined = true;
             }
         }
-        if (joined) parties = AutoParty.Work(Uploads.Logs, data.Party, nowUtc);   // with the newcomers as members: when they were active
+        if (joined) parties = Book(nowUtc, true);   // with the newcomers as members: when they were active
         Tracker.State.Parties = parties;
         if (!AutoParty.Apply(data, parties, nowUtc) && !joined) return false;
         Tracker.State.Save();

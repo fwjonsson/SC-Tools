@@ -146,9 +146,10 @@ public sealed record PartyToolPage(IReadOnlyList<PartyGroup> Parties, IReadOnlyL
 /// <summary>
 /// A member of a party now: the ship he flies, its drive ("TS-2 S3 +20 %"), his row's colours (#rrggbb: his colour, and black or white on it), and whether
 /// the Hauling Planner has him active (null: he is not in the planner's party at all). The admin, or the leader of his party, ticks Active off in the panel
-/// when he stopped playing and the logs still count him (Frank, 29 Oct 2026: the planner kept planning trips for a member who had gone).
+/// when he stopped playing and the logs still count him (Frank, 29 Oct 2026: the planner kept planning trips for a member who had gone). NoTracker: he runs
+/// no SC Tools Tracker, so only the others' logs show him (marked "no tracker", Frank 31 Oct 2026).
 /// </summary>
-public sealed record PartyMemberLine(string Ship, string Drive, string Color, string Text, bool? Active);
+public sealed record PartyMemberLine(string Ship, string Drive, string Color, string Text, bool? Active, bool NoTracker = false);
 
 /// <summary>A player's page in the Party tool.</summary>
 public sealed record PartyMemberPage(PartyMember Member, DateTime NowUtc);

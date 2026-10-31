@@ -88,7 +88,11 @@ public sealed class Contracts
         return unnamed.Count == 1 && withoutLog.Count == 1 && SameName(withoutLog[0], member) ? unnamed[0] : null;
     }
 
-    /// <summary>What the logs say: does this party member have the mission? A member with a log has it when his log has it (not ended it); one without a log (nobody can read his game) unless the others were told that he left it.</summary>
+    /// <summary>
+    /// What the logs say: does this party member have the mission? A member with a log has it when his log has it (not ended it); one without a log (nobody
+    /// can read his game) while he is in the in-game party, unless the others were told that he left it. In the party is the party tracker's word, not the
+    /// Active tick (a member unticked because he does not haul still has the contracts shared with him).
+    /// </summary>
     public bool LogSaysHas(Mission m, string member, DateTime? at = null)
     {
         var log = _s.Log;
@@ -96,7 +100,7 @@ public sealed class Contracts
         if (log.Players.Any(p => SameName(p, member))) return m.Holders.Any(h => SameName(h, member));
         var id = PlayerIdOf(member);
         // nothing tells when it was shared with him: he is assumed to have it while he is in the party (click his box when he does not), and not when he is not
-        var inParty = at.HasValue ? _crew.IsActiveAt(member, at.Value) : !Data.InactiveParty.Any(x => SameName(x, member));
+        var inParty = _crew.InGamePartyAt(member, at) ?? (at.HasValue ? _crew.IsActiveAt(member, at.Value) : !Data.InactiveParty.Any(x => SameName(x, member)));
         if (id == null) return inParty;
         var last = log.MemberEvents.Where(e => e.Mission == m.Id && e.Player == id).OrderBy(e => e.Time).LastOrDefault();
         return last == null ? inParty : !last.Left;

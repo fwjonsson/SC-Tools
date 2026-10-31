@@ -112,7 +112,8 @@ if (!string.IsNullOrEmpty(settings.Culture))
 }
 
 // the database is read (or made, and the data file imported) now, so a problem stops the server at once; then the roles and the admin
-app.Services.GetRequiredService<LiveTracker>();
+var live = app.Services.GetRequiredService<LiveTracker>();
+live.Players = app.Services.GetRequiredService<PartyService>().Players;   // the party tracker knows everybody the site knows
 var mapPlaces = app.Services.GetRequiredService<MapPlaces>();
 SCTools.GameData.StarRoutes.AtlasSource = () => mapPlaces.Atlas;   // the planner's routes know the places the admin added or renamed
 app.Services.GetRequiredService<TrackerKeys>();

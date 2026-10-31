@@ -26,8 +26,11 @@ public sealed class TrackerState
     /// <summary>The logs of all players merged into one (a mission shared in the party is in it once). Null while no log is read.</summary>
     public HaulingLog? Log { get; set; }
 
-    /// <summary>On the server: who is playing and with whom, as the logs said last (see AutoParty). Null where the logs do not decide (the program).</summary>
-    public AutoParty.Result? Parties { get; set; }
+    /// <summary>
+    /// On the server, when the logs decide the party: what the party tracker said last (who plays with whom, now and before; see PartyTracker). Null where
+    /// the logs do not decide (the Active ticks set by hand, as in the program).
+    /// </summary>
+    public PartyBook? Parties { get; set; }
 
     /// <summary>What the site knows about the hauling jobs besides the logs (a hauler's SCU, the Mission Library, the map's places); the program has none.</summary>
     public JobBook Jobs { get; set; } = JobBook.Empty;

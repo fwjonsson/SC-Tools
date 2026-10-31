@@ -64,6 +64,32 @@ public class PlannerSplitTests
     }
 
     [Fact]
+    public void The_active_tick_never_decides_money_a_member_unticked_still_gets_his_share_and_owes_the_haulers()
+    {
+        // Frank's rule of 30 Oct 2026: Pilot_B (no tracker) is in Pilot_A's in-game party and has the contracts shared with him, but does not haul, so the
+        // admin unticked him (Out): the planner gives him no routes, he still gets his share of M1, and having carried nothing he owes it to the hauler
+        var data = Party(PlayedSession.Player, "Pilot_B");
+        data.AutoPartySince = GameLogWriter.Start;
+        data.PartyChanges.Add(new PartyChange { Name = "Pilot_B", TimeUtc = GameLogWriter.Start.AddMinutes(1), Active = false, Source = PartyChange.ByAdmin });
+        data.InactiveParty.Add("Pilot_B");
+        var t = Load(data, cHasIt: false);
+        var u = new LogUploads();
+        var party = new GameLogWriter().Login(PlayedSession.Player).Seconds(20).PartyCreated().MemberJoined("Pilot_B");
+        Assert.True(u.Add(PlayedSession.Player, party.Lines[0][1..24] + "Z", 0, 1000, party.Lines.ToList(), GameLogWriter.Start.AddHours(3)).Ok);
+        t.State.Parties = PartyTracker.Work(u.Logs, new[] { PlayedSession.Player, "Pilot_B" }, GameLogWriter.Start.AddHours(3));
+
+        Assert.DoesNotContain("Pilot_B", t.Crew.ActiveCrew());   // no routes
+        var (carried, received) = t.Payouts.ComputePayouts(t.State.Current!, t.State.Inputs!);
+        Assert.Equal(Earnings.DefaultReward2 / 2, received[PlayedSession.Player]);
+        Assert.Equal(Earnings.DefaultReward2 / 2, received["Pilot_B"]);   // before the party tracker the tick decided: Pilot_A got all of it
+        Assert.Equal(0m, carried.GetValueOrDefault("Pilot_B"));            // what he received and did not carry, he owes the one who carried it
+        Assert.True(carried[PlayedSession.Player] > received[PlayedSession.Player]);
+
+        t.State.Parties = null;   // where the logs do not decide (the program), the tick is all there is: as before
+        Assert.False(t.Payouts.ComputePayouts(t.State.Current!, t.State.Inputs!).Received.ContainsKey("Pilot_B"));
+    }
+
+    [Fact]
     public void A_payout_already_kept_with_a_session_keeps_its_members()
     {
         // the same evening, saved before the contracts tracker: Pilot_A alone was paid M1, and that stays (debts between friends do not change afterwards)

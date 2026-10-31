@@ -49,7 +49,7 @@ public class AutoPartyTests
             .Minutes(50).MemberLeft("Bileh123"), last: At(120));
         Upload(u, "zzatvo", new GameLogWriter().At(At(4)).Login("zzatvo").Minutes(1).PartyJoined(), last: At(120));
 
-        var r = AutoParty.Work(u.Logs, Members, At(125));
+        var r = PartyTracker.Work(u.Logs, Members, At(125));
         Assert.Equal(Changes((0, true)), r.Changes["zzoega"]);
         Assert.Equal(Changes((4, true)), r.Changes["zzatvo"]);
         Assert.Equal(Changes((10, true), (60, false)), r.Changes["bileh123"]);   // seen through zzoega's log
@@ -65,7 +65,7 @@ public class AutoPartyTests
     {
         var u = new LogUploads();
         Upload(u, "zzatvo", new GameLogWriter().Login("zzatvo").Minutes(1).PartyJoined().NewLeader("Bileh123").MemberJoined("zzoega"), last: At(30));
-        var party = Assert.Single(AutoParty.Work(u.Logs, Members, At(31)).Groups);
+        var party = Assert.Single(PartyTracker.Work(u.Logs, Members, At(31)).Groups);
         Assert.Equal("bileh123", party.Leader);   // written as in the party table
         Assert.Equal("bileh123's party", party.Title);
         Assert.Equal(new[] { "bileh123", "zzatvo", "zzoega" }, party.Names);
@@ -78,13 +78,13 @@ public class AutoPartyTests
         Upload(u, "zzoega", new GameLogWriter().Login("zzoega").Minutes(1).PartyCreated().Minutes(4).MemberJoined("zzatvo")
             .Minutes(25).MemberLeft("zzatvo").Minutes(2).MemberJoined("zzatvo")      // zzatvo crashed and came back
             .Minutes(20).MemberLeft("Bileh123"), last: At(60));                      // not in the party
-        var r = AutoParty.Work(u.Logs, Members, At(61));
+        var r = PartyTracker.Work(u.Logs, Members, At(61));
         Assert.Equal(Changes((5, true)), r.Changes["zzatvo"]);
 
         Upload(u, "zzoega", new GameLogWriter().At(At(58)).MemberLeft("zzatvo"), last: At(61));
-        Assert.Equal(Changes((5, true)), AutoParty.Work(u.Logs, Members, At(62)).Changes["zzatvo"]);   // gone for 4 minutes so far: maybe he comes back
-        Assert.Equal(Changes((5, true)), AutoParty.Work(u.Logs, Members, At(70)).Changes["zzatvo"]);   // 12 minutes: the game still keeps a crashed player
-        Assert.Equal(Changes((5, true), (58, false)), AutoParty.Work(u.Logs, Members, At(75)).Changes["zzatvo"]);   // 17 minutes: gone since he left
+        Assert.Equal(Changes((5, true)), PartyTracker.Work(u.Logs, Members, At(62)).Changes["zzatvo"]);   // gone for 4 minutes so far: maybe he comes back
+        Assert.Equal(Changes((5, true)), PartyTracker.Work(u.Logs, Members, At(70)).Changes["zzatvo"]);   // 12 minutes: the game still keeps a crashed player
+        Assert.Equal(Changes((5, true), (58, false)), PartyTracker.Work(u.Logs, Members, At(75)).Changes["zzatvo"]);   // 17 minutes: gone since he left
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class AutoPartyTests
             last: At(7));                                                                              // crashed at 7
         Upload(u, "zzatvo", new GameLogWriter().At(At(8.5)).Login("zzatvo").Minutes(20).Noise(), last: At(40));   // back at 8.5
 
-        var r = AutoParty.Work(u.Logs, Members, At(40));
+        var r = PartyTracker.Work(u.Logs, Members, At(40));
         var party = Assert.Single(r.Groups);
         Assert.Equal("zzoega", party.Leader);
         Assert.Equal(new[] { "zzatvo", "zzoega" }, party.Names);
@@ -107,7 +107,7 @@ public class AutoPartyTests
         // the next day (more than an hour later) a game starts alone, until the game says he is in a party
         Upload(u, "zzatvo", new GameLogWriter().At(At(200)).Login("zzatvo").Minutes(5).Noise(), last: At(210));
         Upload(u, "zzoega", new GameLogWriter().At(At(200)).Login("zzoega").Minutes(5).Noise(), last: At(210));
-        Assert.Equal(2, AutoParty.Work(u.Logs, Members, At(210)).Groups.Count);
+        Assert.Equal(2, PartyTracker.Work(u.Logs, Members, At(210)).Groups.Count);
     }
 
     [Fact]
@@ -117,12 +117,12 @@ public class AutoPartyTests
         var u = new LogUploads();
         Upload(u, "zzoii", new GameLogWriter().Login("zzoii").Minutes(29).Quit(), last: At(29));
         Upload(u, "zzoega", new GameLogWriter().Login("zzoega").Minutes(30).Noise(), last: At(31));
-        var r = AutoParty.Work(u.Logs, new[] { "zzoega", "zzoii" }, At(31));   // two minutes after he quit
+        var r = PartyTracker.Work(u.Logs, new[] { "zzoega", "zzoii" }, At(31));   // two minutes after he quit
         Assert.Equal(new[] { "zzoega" }, r.Groups.Select(g => g.Title));   // not playing any more
         Assert.True(Assert.Single(u.Games()["zzoii"]).Run.Quit);
         Assert.Equal(Changes((0, true)), r.Changes["zzoii"]);   // for the payouts gone for less than fifteen minutes is not gone (he may relog)
         Upload(u, "zzoega", new GameLogWriter().At(At(31)).Minutes(14).Noise(), last: At(45));
-        Assert.Equal(Changes((0, true), (29, false)), AutoParty.Work(u.Logs, new[] { "zzoega", "zzoii" }, At(45)).Changes["zzoii"]);
+        Assert.Equal(Changes((0, true), (29, false)), PartyTracker.Work(u.Logs, new[] { "zzoega", "zzoii" }, At(45)).Changes["zzoii"]);
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public class AutoPartyTests
         var u = new LogUploads();
         Upload(u, "zzoega", new GameLogWriter().Login("zzoega").Minutes(4).PartyJoined().NewLeader("zzoega").Minutes(16).MemberLeft("zzatvo"), last: At(40));
         Upload(u, "zzatvo", new GameLogWriter().Login("zzatvo").Minutes(4).PartyCreated().NewLeader("zzoega").Minutes(30).Noise(), last: At(40));   // his game says nothing
-        var groups = AutoParty.Work(u.Logs, Members, At(40)).Groups;
+        var groups = PartyTracker.Work(u.Logs, Members, At(40)).Groups;
         Assert.Equal(new[] { "zzatvo", "zzoega" }, groups.Select(g => g.Title));   // each alone
     }
 
@@ -143,12 +143,12 @@ public class AutoPartyTests
         Upload(u, "zzatvo", new GameLogWriter().Login("zzatvo").Minutes(1).PartyJoined(), last: At(30));    // his tracker off at 30, still in the party
         Upload(u, "zzoega", new GameLogWriter().Login("zzoega").Minutes(1).PartyCreated().MemberJoined("zzatvo"), last: At(90));
 
-        var r = AutoParty.Work(u.Logs, Members, At(90));
+        var r = PartyTracker.Work(u.Logs, Members, At(90));
         Assert.Equal(Changes((0, true), (30, false)), r.Changes["bileh123"]);   // ended with the last time his tracker saw
         Assert.Equal(Changes((0, true)), r.Changes["zzatvo"]);                  // zzoega's game still has him in the party: the logs win
         Assert.Equal(new[] { "zzatvo", "zzoega" }, Assert.Single(r.Groups).Names);
 
-        Assert.Equal(Changes((0, true)), AutoParty.Work(u.Logs, Members, At(38)).Changes["bileh123"]);   // quiet for eight minutes: still playing
+        Assert.Equal(Changes((0, true)), PartyTracker.Work(u.Logs, Members, At(38)).Changes["bileh123"]);   // quiet for eight minutes: still playing
     }
 
     [Fact]
@@ -157,7 +157,7 @@ public class AutoPartyTests
         var u = new LogUploads();
         Upload(u, "zzoega", new GameLogWriter().Login("zzoega").Minutes(1).PartyCreated().MemberJoined("Bileh123").Minutes(30).MemberLeft("Bileh123").Disbanded(),
             last: At(60));
-        var r = AutoParty.Work(u.Logs, Members, At(60));
+        var r = PartyTracker.Work(u.Logs, Members, At(60));
         Assert.Equal(Changes((1, true), (31, false)), r.Changes["bileh123"]);
         var alone = Assert.Single(r.Groups);
         Assert.Equal(new[] { "zzoega" }, alone.Names);
@@ -170,7 +170,7 @@ public class AutoPartyTests
         var data = new AppData { Party = Members.ToList() };
         var crew = new Crew(new TrackerState(data, _ => { }));
         crew.SetMemberActive("bileh123", true, At(-60));   // ticked in the program before
-        var r = new AutoParty.Result();
+        var r = new PartyBook();
         r.Changes["zzoega"] = Changes((0, true));
         r.Changes["zzatvo"] = Changes();
         r.Changes["bileh123"] = Changes();
@@ -216,7 +216,7 @@ public class AutoPartyTests
     {
         var data = new AppData { Party = Members.ToList() };
         var crew = new Crew(new TrackerState(data, _ => { }));
-        var r = new AutoParty.Result();
+        var r = new PartyBook();
         r.Changes["zzoega"] = Changes((0, true));
         r.Changes["zzatvo"] = Changes((0, true), (40, false));
         r.Changes["bileh123"] = Changes((20, true));

@@ -79,7 +79,7 @@ public sealed class Playtime
         return rows.Select(r =>
             {
                 var end = r.EndUtc ?? r.StartUtc;
-                var running = r.Version == 0 && r.Quit != true && nowUtc - end < AutoParty.Quiet;
+                var running = r.Version == 0 && r.Quit != true && nowUtc - end < PartyTracker.Quiet;
                 return new PlayedGame(r.File, r.StartUtc, running ? nowUtc : end, r.Quit, running);
             })
             .OrderByDescending(g => g.StartUtc).ToList();

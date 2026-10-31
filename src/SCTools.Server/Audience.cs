@@ -23,13 +23,8 @@ public sealed record Viewer(string? Name, bool Everything)
 public sealed class Audience
 {
     readonly LiveTracker _live;
-    readonly PartyService _party;
 
-    public Audience(LiveTracker live, PartyService party)
-    {
-        _live = live;
-        _party = party;
-    }
+    public Audience(LiveTracker live) => _live = live;
 
     /// <summary>The viewer of this request: the admin's own view sees everything; the admin looking as a player (the top bar's View) is that player.</summary>
     public static Viewer Of(HttpContext context)
@@ -44,14 +39,10 @@ public sealed class Audience
     /// </summary>
     public HashSet<string> PartyOf(string name, DateTime nowUtc)
     {
-        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { name };
-        foreach (var g in _party.Parties(nowUtc))
-            if (g.Names.Any(n => PlayerNames.SameName(n, name))) set.UnionWith(g.Names);
+        var book = _live.Parties(nowUtc);
         var hauled = _live.Read(t => t.State.Current != null && t.State.Data.Sessions.TryGetValue(t.State.Current.Key, out var s)
             ? s.Groups.Select(g => g.ToList()).ToList() : new List<List<string>>());
-        foreach (var g in hauled)
-            if (g.Any(n => PlayerNames.SameName(n, name))) set.UnionWith(g);
-        return set;
+        return book.Together(name, hauled);   // the party tracker's party now, and the groups of the session
     }
 
     /// <summary>The players this viewer may see (null: everybody; empty: nobody, a visitor).</summary>

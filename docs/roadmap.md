@@ -64,7 +64,8 @@ All the tools track at the same time, all the time. The tracking runs on the ser
    the Earnings per scenario (the ranking) and the times under them; History has the earlier grind sessions; Session has the game session and the
    grind session side by side; the Leaderboard is titled "All-time leaderboard"; every wide table takes the whole band.
 5. **Party tool** (`/party`, PR #241): who is playing in which in-game party with the ship each one flies, everybody else with when they were last
-   seen, and a page per player. `PartyService` keeps the site's party in one place for every tool. Since 29 Oct not a card on the landing page: a
+   seen, and a page per player. `PartyService` keeps the site's players in one place for every tool, and asks the party tracker (14) about the
+   parties. Since 29 Oct not a card on the landing page: a
    **Party** button beside the name in the top bar, with a panel (fetched when it opens) of the parties as tables like the Hauling Planner's old
    Party table (member, ship, drive, the rows in the members' colours; Frank, 29 Oct), which the Hauling Planner's page lost that day, with an
    Active tick for the admin and the party's leader (29 Oct, after the planner kept planning trips for a member who had stopped playing while the
@@ -202,6 +203,34 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       leaves (read once more); the reward lines come with every old log, which every tracker sends once more (Frank: "so the statistics is correct").
     - Still to look at: the Gauntlet Tracker times a shared run for everybody who accepted it (the one who got the share has an accept line too), so
       the timings and the Top 10 count a shared run once per member; and which member a party's Top 10 names for it is not sure to be the taker.
+14. **Party tracker** (#389, Frank 30-31 Oct 2026): "the party" was worked out in four places (the in-game party by AutoParty, in LiveTracker and
+    again on every page; the Hauling Planner's party and its Active ticks; who hauled together per session; who a player may see). Now one place in
+    the core (`SCTools.Parties`: `PartyTracker`, its answer `PartyBook`) reads the party lines of everybody's log once per refresh
+    (`LiveTracker.Parties`), and every tool asks it: the Party tool and its panel, the Gauntlet Tracker, the Companion, who may see whom (`Audience`,
+    which adds the session's hauling groups), the planner's Active ticks (`AutoParty.Apply`), the payouts and the contracts. **Decided:**
+    - It keeps a full history (`PartyRecord`): who joined and left, when, who led and when that changed, disbanded or not. A gap of less than fifteen
+      minutes (a relog, a new log file) does not end a party or make a member leave. **No page for it** (Frank, 31 Oct 2026: "this tracker should be
+      working in the background serving information to the other tools").
+    - **The Active tick stays and means one thing: the planner gives this member routes.** It never decides money (Frank, 30 Oct 2026): the payouts
+      and the contracts ask the party tracker who was in the in-game party, so a member unticked because he does not haul still gets his share of a
+      contract he had, and the debts (what each carried minus what each received) make him owe the haulers. Before the logs took over
+      (`AutoPartySince`), the tick is what there is, as before.
+    - **What the logs say about the party** (the three accounts' logs of 4 Aug to 30 Oct 2026, 700 log files): "X has joined / left the party.", "X is
+      now party leader.", "Initiated by party leader X." (a launch), "The party has been disbanded.", "X connected." / "X disconnected." (a party
+      member's game came in or went out; a disconnect is followed by "has left" about six minutes later unless he comes back), and "You have created
+      / joined party". The last one names nobody: a party made from an invite is only seen as one player creating and one joining within seconds
+      (343 of 384 such pairs under ten seconds apart; the PCs' clocks differ), so two of those within fifteen seconds are one party now (before:
+      two players alone). "You have left the party." and "You have been kicked from the party." have their words on a line the trackers do not send
+      (a kick in these logs is always the game moving a player to the party whose invite he accepted, and the others' logs say he left), and
+      "Join Match ... party[id]" (the game's own id of the party) is rare (five times in zzatvo's 250 games): not used.
+    - **Players without the SC Tools Tracker** (Bileh123): the others' logs say he is in the party, when he joined, left and leads, when his game went
+      out and came back, the missions shared with him (by his player id), and the money sent to him. Not known: his ship, where he is, his quantum
+      jumps, his own missions, his deaths and his money. Their logs also have "Player Bileh123[783855402306] entered instance" (his name with his player
+      id) and "Quantum Travel Calibration Started By Bileh123" (he flies the ship they sit in), on lines the trackers do not send: they could name his
+      shared missions surely, if Frank wants a new line kind. Shown (Frank, 31 Oct 2026): a "no tracker" tag after his name on the Party panel and
+      pages, and his last seen from the others' logs.
+    - Checked by replaying the three accounts' logs through the old and the new code at 1,488 moments: the same active times for every player with a
+      tracker; the differences are parties the new code joins (invites) and tracker-less members a "connected" line shows in the party.
 
 Later, maybe: a party/crew board (who is on which shard, in which jurisdiction, in whose ship) and crash/server statistics.
 
@@ -216,7 +245,7 @@ Not wanted:
   Wiki API's `debug_name` and `uuid`.
 - **No contract rewards and no wallet balance.** A few "Awarded 500 aUEC" notifications have no mission attached; what pays them is not known yet.
   Rewards come from the Mission Library (typed in, else the Wiki API's), with the wallet at the start and end of a session as an optional check.
-- **The in-game party**: joins, leaves, the leader, disbanded (used by AutoParty).
+- **The in-game party**: joins, leaves, the leader, disbanded, a member's game going out and coming in (used by the party tracker, 14).
 - **Quantum travel**: the destination picked (an id: `pyro3`, `LOC_RR_S1_L2`, `rs_ext_nyx-pyro_jp1`, `levski_all-001`, `PartyMemberMarker_…`,
   `AsteroidCluster_Pyro_…`), the start in plain words ("Projected Start Location is Aberdeen", "… is Pyro System") and the arrival. An arrival with
   no destination picked: a jump at a marker looked at, or as crew (the same ship id in the pilot's log). A mission objective's quantum beacon:

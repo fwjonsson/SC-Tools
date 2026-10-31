@@ -50,7 +50,10 @@ public class PartyToolTests
         Assert.Contains("<table class=\"members\">", panel);
         Assert.Contains("<tr><th>Member</th><th>Ship</th><th>QT Drive</th>", panel);
         Assert.Contains("<tr style=\"background:#ff9628;color:#000000\"><td><a href=\"/party/zzoega\">ZZOEGA</a></td><td>", panel);
-        Assert.Contains("href=\"/party/zzatvo\">ZZATVO</a></td><td>", panel);
+        // zzatvo runs no tracker (only zzoega's log shows him): marked so (Frank, 31 Oct 2026); zzoega has one
+        Assert.Contains("href=\"/party/zzatvo\">ZZATVO</a> <span class=\"notracker\"", panel);
+        Assert.DoesNotContain("ZZOEGA</a> <span class=\"notracker\"", panel);
+        Assert.Contains("None: only the others' logs show him", WebUtility.HtmlDecode(await admin.GetStringAsync("/party/zzatvo")));   // his own page says it
         // the admin's Active tick (the Hauling Planner's party: zzoega and zzatvo are in it, bileh123 is not): off when somebody stopped playing and the
         // logs still count him, so the planner plans no trips for him; it holds until the logs change their mind (Frank, 29 Oct 2026)
         Assert.Contains("<th>Active</th>", panel);
