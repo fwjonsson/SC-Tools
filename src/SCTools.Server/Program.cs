@@ -116,6 +116,7 @@ live.Players = app.Services.GetRequiredService<PartyService>().Players;   // the
 var mapPlaces = app.Services.GetRequiredService<MapPlaces>();
 SCTools.GameData.StarRoutes.AtlasSource = () => mapPlaces.Atlas;   // the planner's routes know the places the admin added or renamed
 live.AtlasSource = () => mapPlaces.Atlas;   // and so does the location tracker
+live.FuelSource = app.Services.GetRequiredService<FleetService>().FuelPerKmOf;   // a mission's beacon is placed by the fleet's fuel burn
 app.Services.GetRequiredService<TrackerKeys>();
 using (var scope = app.Services.CreateScope())
 {

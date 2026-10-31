@@ -324,7 +324,19 @@ admin (done), then going live.
   text from its popup, "New Objective: Go to Asteroid Cluster", and the contract's system from its name, `…_DrawOutBoss_Nyx_Super`): a destination
   that is a beacon, or an arrival with no destination while one is going on (the latest; until a minute after it was done), puts him "at the
   mission: Go to Asteroid Cluster" (at the place its text names, when it names one). A mission's beacon or marker is never a place to list on Map
-  places. A jump whose start is not known shows as a ring at the destination with his name and an arrow. A player is an arrow in his colour (pointing along his
+  places. **A beacon is placed by its route's fuel estimate** (#403, `BeaconRanging`; Frank, 31 Oct 2026): every route the game works out writes
+  "Successfully calculated route to … fuel estimate 738770.25" (`QtEvent.FuelEstimate`, a `[QuantumTravel]` line the trackers already sent), and the
+  estimate is the drive's fuel burn per km (as the game shows it in Vehicles) times the distance in Gm times 268.2 (his C2 and Perseus agree to 0.03 %).
+  So the estimate over the ship's estimate per Gm is how far the beacon is from where he starts; the ship's estimate per Gm is learnt from his own
+  jumps between two known places in that ship (the latest), else it is his fleet's fuel burn for that ship (My page, `FleetService.FuelPerKmOf`) times
+  268.2. The beacon is the hidden spot of the game data at that distance, within 0.3 % (`HiddenSpots`: the 310 places the game hides in its starmap
+  but a jump can go to, from the ScApiTool download: Nyx's 31 Glaciem ring and 30 Keeger belt mission spots, the hidden Breaker stations BRK-235,
+  267, 304, 521, 608, the Moraine Bases, the QV Logistics Stations, Pyro's Derelict Outposts and Contested Zones, Stanton's hidden places; not
+  found by a name or a destination of the log). That night's two bounties came out at BRK-304 and at a Glaciem ring spot, 1.2 and 0.4 Mm off, the
+  next spot over 370 Mm away. The map knows the spots but draws none of them: map.json's systems carry a spot only while a player is at it or flies
+  to it (`hidden`; the engine places him there and draws nothing for it), so he flies there and stands there "at the mission". At such a spot the
+  game names only the system as the start of his next route ("Projected Start Location is Nyx"): he is still there. A beacon with no spot at that
+  distance, or a ship whose fuel is not known, stays "at the mission" with no point, as before. A jump whose start is not known shows as a ring at the destination with his name and an arrow. A player is an arrow in his colour (pointing along his
   route in quantum, up when he is at a place) with a ring pulsing out from it and his name beside it in his colour; players at the same place
   are one under the other. Objectives: at a station when their zone is one of the Pyro stations
   (`StationIds`), where they are when the marker is in the system's own frame (in the system the player is in), at the place their text names

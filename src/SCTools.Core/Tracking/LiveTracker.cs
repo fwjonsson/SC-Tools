@@ -70,6 +70,12 @@ public sealed class LiveTracker
     public Func<Atlas>? AtlasSource { get; set; }
 
     /// <summary>
+    /// A player's quantum fuel burn per km in a ship (the game's class of it, "RSI_Perseus"), from his fleet on My page (the server's FleetService), or
+    /// null: the location tracker places a mission's beacon by it when his own jumps have not told it yet (BeaconRanging).
+    /// </summary>
+    public Func<string, string, double?>? FuelSource { get; set; }
+
+    /// <summary>
     /// What the location tracker says now (see LocationTracker): worked out again when a piece of log came in, the logs were worked out anew, the data was
     /// saved (the planner's pickups and deliveries are clues), the party tracker or the places changed, or half a minute after the last time (a game that
     /// stopped writing its log ends after a while; a mission's beacon gets old); else the same answer, so every page and the refresh read one result.
@@ -87,7 +93,8 @@ public sealed class LiveTracker
         if (_locations == null || key != _locationsKey || !ReferenceEquals(atlas, _locationsAtlas) || !ReferenceEquals(parties, _locationsParties)
             || nowUtc - _locations.Now >= AutoEvery || nowUtc < _locations.Now)
         {
-            _locations = LocationTracker.Work(Uploads.Logs, Uploads.Games(), Uploads.MissionsSeen(), atlas, nowUtc, parties, Clue);
+            _locations = LocationTracker.Work(Uploads.Logs, Uploads.Games(), Uploads.MissionsSeen(), atlas, nowUtc, parties, Clue,
+                (name, e) => FuelSource?.Invoke(name, e.Ship) is > 0 and var burn ? burn * BeaconRanging.EstimatePerKmGm : null);
             _locationsKey = key;
             _locationsAtlas = atlas;
             _locationsParties = parties;
