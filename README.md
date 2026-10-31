@@ -565,6 +565,17 @@ admin (done), then going live.
   run's part, `GauntletRun.Paid`) and the Hauling Planner's payouts (`Payouts.ComputePayouts` picks who is paid with `ContractSplit.PlannerPayees`).
   Worked out again on every question, so a reward typed in later counts for the past. The tests `tests/SCTools.Tests/ContractTracking` show what every
   tool shows for one evening of three players.
+- **A contract screenshot read into the Mission Library** (#437, Frank 31 Oct 2026; the admin's only): at the top of `/missions` the admin pastes a
+  screenshot of a contract's card in the mobiGlas (Ctrl+V in the paste box, or drops the file). Tesseract, a free text reader, reads it in his browser
+  (`wwwroot/screenshot.js`, tesseract.js 5.1.1 from the jsDelivr CDN, about 10 MB the first time; no AI, nothing to pay): the name, the Reward,
+  Contracted By and the description, each from its own box (in pixels of a 3840x1600 screenshot; another size is scaled by its height around its
+  middle, as the mobiGlas is). The reward is read in two passes: freely, where the currency sign before it is a word of its own, then only the number
+  with digits only (read with digits only, the sign was a 1: 35,000 became 135,000). The server (`EditMissionsController`, `ContractCardReader` in the
+  core) makes values of it: the reward only when its commas are every three digits and it is at least 1,000, the MG or Council scrip of "a bonus of 18
+  MG Scrip" in the description, the mission of the library with the same name without the string mod's marks (a bounty by its kind), the nearest
+  known faction; a reward outside the Star Citizen Wiki's range gets a note. The admin sees what was read beside what the library has, changes what he
+  wants and saves (a mission nobody played yet, from a screenshot of an offer, is added). Tried on seven of Frank's screenshots: every reward of the
+  six clear ones exact (35,000 to 1,370,500), both scrip found; the one with a lamp on the reward was not read, and says so.
 - **The Mission Library** (`/missions`, `Missions/MissionReader` and `Missions/MissionKinds` in the core, `MissionLibrary`) has every kind of mission
   the players took, by itself: the missions of the live logs and of the old logs are kept for good (`Missions`), grouped by their name as the game shows
   it (`MissionKinds`; the game's ContractId is one per offer, so the same mission at another place has another one). The contracts the Hauling Planner

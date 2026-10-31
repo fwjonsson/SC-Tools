@@ -1,3 +1,4 @@
+using SCTools.Missions;
 using SCTools.Server.Accounts;
 using SCTools.Server.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -36,5 +37,70 @@ public sealed class EditMissionsController : Controller
         if (said == null) TempData["Message"] = NotSaved;
         var anchor = "#" + MissionLibrary.Anchor(id ?? "");
         return LocalRedirect(back is { Length: > 0 } && back.StartsWith(MissionsController.Path, StringComparison.Ordinal) ? back + anchor : MissionsController.Path + anchor);
+    }
+
+    // ------------------------------------------------------------------ a contract screenshot (#437, Frank 31 Oct 2026)
+
+    /// <summary>
+    /// What the paste box read from a contract screenshot (screenshot.js: Tesseract in the admin's browser, the text of each field) made into values
+    /// (ContractCardReader), with the missions of the library it is most like (the first is the one it is; each with what the library has now) and the known
+    /// faction it is. A reward outside the Star Citizen Wiki's range for the mission gets a note, so a misread number is looked at before it is saved.
+    /// </summary>
+    [HttpPost("screenshot")]
+    public IActionResult Screenshot(string? title, string? reward, string? contractor, string? details)
+    {
+        var card = ContractCardReader.Read(title, reward, contractor, details);
+        var entries = _library.Entries();
+        var byKey = entries.ToDictionary(e => e.Row.Key, StringComparer.OrdinalIgnoreCase);
+        var choices = ContractCardReader.Matches(card.Title, entries.Where(e => !MissionKinds.IsPlaceholder(e.Row.Title)).Select(e => (e.Row.Key, e.Row.Title)));
+        var factions = entries.Select(e => e.FactionShown).Where(g => !string.IsNullOrEmpty(g)).Select(g => g!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var faction = ContractCardReader.Faction(card.Contractor, factions);
+        var notes = card.Notes.ToList();
+        if (choices.Count > 0 && byKey[choices[0].Key].Wiki is { } w && card.Reward is { } r
+            && ((w.RewardMin is > 0 && r < w.RewardMin) || (w.RewardMax is > 0 && r > w.RewardMax)))
+            notes.Add("The reward is outside the Star Citizen Wiki's " + w.RewardText + " for this mission: check it.");
+        if (card.Contractor != null && faction == null) notes.Add("\"" + card.Contractor + "\" is a faction the library does not know yet: check its spelling.");
+        return Json(new
+        {
+            title = card.Title,
+            reward = card.Reward,
+            mg = card.Mg,
+            council = card.Council,
+            faction = faction ?? card.Contractor,
+            notes,
+            choices = choices.Select(c => byKey[c.Key]).Select(e => new
+            {
+                key = e.Row.Key,
+                name = e.Shown,
+                auec = e.Row.Auec,
+                mg = e.Row.MgScrip,
+                council = e.Row.CouncilScrip,
+                faction = e.FactionShown,
+                wiki = e.Wiki?.RewardText,
+            }),
+        });
+    }
+
+    /// <summary>
+    /// Saves what the admin checked of a screenshot: the reward, the scrip and the faction of this mission (key), the ones filled in (an empty one is left as
+    /// it is). Without a key it is a mission nobody played yet (a screenshot of an offer): it is added to the library by its name first.
+    /// </summary>
+    [HttpPost("screenshot/save")]
+    public IActionResult SaveScreenshot(string? key, string? title, string? auec, string? mg, string? council, string? giver)
+    {
+        var now = DateTime.UtcNow;
+        var who = User.Identity?.Name ?? "";
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            key = MissionKinds.TitleKey(title);
+            if (key == null) return Json(new { ok = false, said = "Not saved: give the mission its name." });
+            _library.Kinds(new[] { new Data.MissionKindRow { Key = key, Title = MissionKinds.KindTitle(title)! } });
+        }
+        foreach (var (field, value) in new[] { ("auec", auec), ("mg", mg), ("council", council), ("giver", giver) })
+        {
+            if (string.IsNullOrWhiteSpace(value)) continue;
+            if (_library.Set(key, field, value, who, now) == null) return Json(new { ok = false, said = NotSaved });
+        }
+        return Json(new { ok = true, said = "Saved.", key, anchor = MissionLibrary.Anchor(key), version = _library.Version });
     }
 }
