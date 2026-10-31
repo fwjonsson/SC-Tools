@@ -1,4 +1,5 @@
 @model List<string>
+@inject SCTools.Server.MissionLibrary Library
 @{
     ViewData["Title"] = "Companion";
     var visitor = ViewData["Visitor"] is true;
@@ -18,13 +19,21 @@
 @if (editor)
 {
   @Html.AntiForgeryToken()
-  @* every faction so far, to pick in a Faction field (autosave.js adds a new one as soon as it is saved), as on Edit Mission Info *@
+  @* the admin's lists (the box above the Mission Library) and Legal or Illegal: what the Faction, Category and Legality drop-downs of the contracts offer
+     (companion.js), and the 📷 box's Faction (screenshot.js) *@
   <datalist id="factions">
     @foreach (var g in Model)
     {
       <option value="@g"></option>
     }
   </datalist>
+  <datalist id="categories">
+    @foreach (var c in Library.Choices(SCTools.Server.MissionLibrary.CategoryList))
+    {
+      <option value="@c"></option>
+    }
+  </datalist>
+  <datalist id="legalities"><option value="Legal"></option><option value="Illegal"></option></datalist>
   <p class="hint autosave-state floating" id="autosaveState" aria-live="polite"></p>
 }
 <section class="companiontab companion" data-tab="overview"@(tab == "overview" ? null : Html.Raw(" hidden"))>
@@ -85,3 +94,7 @@
 </section>
 <script src="~/systemmap.js" asp-append-version="true" defer></script>
 <script src="~/companion.js" asp-append-version="true" defer></script>
+@if (editor)
+{
+<script src="~/screenshot.js" asp-append-version="true" defer></script>
+}

@@ -548,6 +548,72 @@ public sealed class MissionLibrary
         }
     }
 
+    // ------------------------------------------------------------------ the admin's lists for the drop-downs (Frank, 31 Oct 2026)
+
+    /// <summary>The admin's lists the Faction and the Category drop-downs pick from.</summary>
+    public const string FactionList = "faction", CategoryList = "category";
+
+    static bool IsList(string kind) => kind is FactionList or CategoryList;
+
+    /// <summary>
+    /// A list of the drop-downs, A to Z. The first time it starts with what the library has then (the factions and categories typed in, and the Star Citizen
+    /// Wiki's); after that it is what the admin added and removed (an empty list stays empty).
+    /// </summary>
+    public List<string> Choices(string kind)
+    {
+        if (!IsList(kind)) return new List<string>();
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            var marker = "ChoicesStarted:" + kind;
+            if (db.SiteValues.Find(marker) == null)
+            {
+                var start = Entries().Select(e => kind == FactionList ? e.FactionShown : e.Category).Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var have = db.LibraryChoices.Where(c => c.Kind == kind).Select(c => c.Value).ToList();
+                foreach (var v in start.Where(v => !have.Contains(v, StringComparer.OrdinalIgnoreCase)))
+                    db.LibraryChoices.Add(new LibraryChoiceRow { Kind = kind, Value = v });
+                db.SiteValues.Add(new SiteValueRow { Key = marker, Value = 1, ChangedUtc = DateTime.UtcNow });
+                db.SaveChanges();
+            }
+            return db.LibraryChoices.AsNoTracking().Where(c => c.Kind == kind).Select(c => c.Value).ToList()
+                .OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+    }
+
+    /// <summary>Adds an entry to a list (not again when it is there in any capitals). False when it is no list or no entry.</summary>
+    public bool AddChoice(string kind, string? value)
+    {
+        value = value?.Trim();
+        if (!IsList(kind) || string.IsNullOrEmpty(value) || value.Length > 80) return false;
+        var have = Choices(kind);
+        if (have.Contains(value, StringComparer.OrdinalIgnoreCase)) return true;
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            db.LibraryChoices.Add(new LibraryChoiceRow { Kind = kind, Value = value });
+            db.SaveChanges();
+            Changed();
+        }
+        return true;
+    }
+
+    /// <summary>Takes an entry out of a list (a mission that has it keeps it: it is only no longer offered).</summary>
+    public void RemoveChoice(string kind, string? value)
+    {
+        if (!IsList(kind) || string.IsNullOrWhiteSpace(value)) return;
+        Choices(kind);   // started first, so it does not come back with the start
+        lock (_lock)
+        {
+            using var db = _store.Open();
+            var rows = db.LibraryChoices.Where(c => c.Kind == kind).ToList().Where(c => string.Equals(c.Value, value.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+            if (rows.Count == 0) return;
+            db.LibraryChoices.RemoveRange(rows);
+            db.SaveChanges();
+            Changed();
+        }
+    }
+
     /// <summary>The fields a player can type in.</summary>
     public static readonly string[] Fields = { "name", "giver", "scu", "auec", "mg", "council", "notes", "category", "xp", "legality" };
 

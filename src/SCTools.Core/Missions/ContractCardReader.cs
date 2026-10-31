@@ -12,6 +12,8 @@ namespace SCTools.Missions;
 public static class ContractCardReader
 {
     static readonly Regex Scrip = new(@"(?<n>\d[\d,.]*)\s+(?<k>MG|Council)\s+Scrip", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    static readonly Regex Reputation = new(@"Reputation\s+Awarded\s*:?\s*(?<n>\d[\d,.]*)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    static readonly Regex RepMark = new(@"\[\s*(?<n>\d[\d,.]*)\s*Rep\s*\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     static readonly Regex Grouped = new(@"^\d{1,3}([,.]\d{3})*$|^\d+$", RegexOptions.Compiled);
     static readonly Regex Marks = new(@"\[[^\]]*\]?|\*", RegexOptions.Compiled);
 
@@ -31,7 +33,10 @@ public static class ContractCardReader
             if (m.Groups["k"].Value.Equals("MG", StringComparison.OrdinalIgnoreCase)) mg ??= n;
             else council ??= n;
         }
-        return new ContractCard(Title(title), auec, mg, council, Contractor(contractor), notes);
+        // the reputation it gives: "Reputation Awarded: 250" of the description, else the "[250 Rep]" of its name
+        var xp = Reputation.Match(OneLine(details) ?? "") is { Success: true } rep ? Reward(rep.Groups["n"].Value, 1)
+            : RepMark.Match(OneLine(title) ?? "") is { Success: true } mark ? Reward(mark.Groups["n"].Value, 1) : null;
+        return new ContractCard(Title(title), auec, mg, council, Contractor(contractor), notes, xp);
     }
 
     /// <summary>A text on one line: its lines and runs of spaces as one space (a title or a description goes over lines on the card).</summary>

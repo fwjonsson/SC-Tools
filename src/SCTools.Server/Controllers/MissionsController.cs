@@ -47,7 +47,8 @@ public sealed class MissionsController : Controller
         var factions = all.Select(e => e.FactionShown).Where(g => !string.IsNullOrEmpty(g)).Select(g => g!).Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(g => g, StringComparer.OrdinalIgnoreCase).ToList();
         return new MissionLibraryPage(found.Skip((page - 1) * PageSize).Take(PageSize).ToList(), filter, all.Count, found.Count, all.Count(e => e.NeedsInfo),
-            all.Count(e => !e.NeedsInfo), viewer == null ? 0 : all.Count(e => e.PlaysOf(viewer) != null), page, pages, library.Version, factions, viewer, path, editable);
+            all.Count(e => !e.NeedsInfo), viewer == null ? 0 : all.Count(e => e.PlaysOf(viewer) != null), page, pages, library.Version, factions, viewer, path, editable,
+            editable ? library.Choices(MissionLibrary.CategoryList) : null, editable ? library.Choices(MissionLibrary.FactionList) : null);   // the admin's lists
     }
 
     /// <param name="q">a part of the name, the faction or the category</param>
@@ -57,19 +58,12 @@ public sealed class MissionsController : Controller
     /// <param name="sort">the column (LibraryFilter.Sorts; name when empty)</param>
     /// <param name="dir">asc or desc (empty: A to Z for a name, the biggest first for a number)</param>
     /// <param name="page">the page</param>
-    /// <param name="shot">the admin's screenshot box for this mission (its key, or its name as a contract table shows it: the 📷 buttons, #437)</param>
     [HttpGet("")]
-    public IActionResult Index(string? q, string? faction, string? giver, string? rewards, string? mine, string? sort, string? dir, string? show, int page = 1,
-        string? shot = null)
+    public IActionResult Index(string? q, string? faction, string? giver, string? rewards, string? mine, string? sort, string? dir, string? show, int page = 1)
     {
         if (!_tools.Sees(User, SiteTools.Missions)) return Hidden();
         ViewData["Title"] = "Mission Library";
         var viewer = ViewerOf(HttpContext);
-        if (shot != null && User.IsInRole(Roles.Admin))
-        {
-            if (_library.EntryOf(shot) is { } target) (ViewData["ShotKey"], ViewData["ShotName"]) = (target.Row.Key, target.Shown);
-            else ViewData["ShotMissing"] = shot;
-        }
         // the admin edits it right here, a field in every cell (Edit Mission Info, a page of its own, went on 31 Oct 2026: Frank)
         return View(PageOf(_library, LibraryFilter.From(q, faction ?? giver, rewards ?? show, mine, sort, dir, viewer != null), page, viewer, Path,
             editable: User.IsInRole(Roles.Admin)));

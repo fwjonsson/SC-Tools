@@ -45,12 +45,13 @@ All the tools track at the same time, all the time. The tracking runs on the ser
    else the Wiki's reward, else the old table by stops: an Experienced contract is not a Senior one). The Session tool, the Gauntlet Tracker (the "Combat Gauntlet - Scenario #n" rows) and the Hauling Planner (the
    aUEC of the Hauling rows, the SCU of the others) all count with it. The old Wiki lookup by ContractId was dropped; since #264 a kind is linked to
    the Wiki API's mission by the log's contract id (see 11).
-   - **A contract screenshot** (#437, Frank 31 Oct 2026, the admin's only): he pastes a screenshot of a contract's card and the page reads the name, the
-     reward, the faction and the MG or Council scrip with a free text reader (Tesseract in his browser; Frank did not want an AI that costs tokens), he
-     checks it and saves. The reward is read with digits only, after the currency sign is cut off, and checked (commas, at least 1,000, the Wiki's range).
-     Only from a mission's 📷 button (the library's rows, the Companion's contract tables, the Hauling Planner's Session tables), for that mission: no
-     paste box of its own, never a mission guessed by its name or added (Frank: a similar name could be another mission, a new one would not be joined to
-     the logs' missions).
+   - **A contract screenshot** (#437, Frank 31 Oct 2026, the admin's only): a mission row's 📷 (the library, the Companion's contract tables, the Hauling
+     Planner's Session tables) opens a little box beside it; he pastes a screenshot of the contract's card and the page reads the reward, the faction,
+     the MG or Council scrip and the XP with a free text reader (Tesseract in his browser; Frank did not want an AI that costs tokens), he checks it and
+     saves. The reward is read with digits only, after the currency sign is cut off, and checked (commas, at least 1,000, the Wiki's range). Only for that
+     mission: never one guessed by its name or added (Frank: a similar name could be another mission, a new one would not be joined to the logs').
+   - **Drop-downs and the admin's lists** (Frank, 31 Oct 2026): Faction and Category are picked from lists he keeps in a box above the library (add,
+     take out), Legality is Legal or Illegal; Category, XP and Legality can be filled in, and win over the Wiki's.
    - **Read-only for everybody, editable for Frank** (Frank, 29 Oct; #267, #268): `/missions` is a library to look things up in (everybody when the
      tool is shown, a visitor too; else only Frank): no fields, a search, one giver, with/without rewards, only the kinds the viewer played, sorted by
      a clicked column (names A to Z, numbers biggest first, the other way on the second click; the choices in the address). Not ordered by last

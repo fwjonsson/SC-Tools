@@ -125,6 +125,9 @@
 
   // ------------------------------------------------------------------ the contract tables
   // A field of the Mission Library, as on Edit Mission Info: a little form of its own that autosave.js sends in the background when it changes.
+  // Faction, Category and Legality are drop-downs of the admin's lists (the page's datalists: the box above the Mission Library, and Legal or Illegal), with
+  // the one it has when it is not in the list any more; empty: the Wiki's, in grey.
+  const LISTS = { giver: 'factions', category: 'categories', legality: 'legalities' };
   function field(edit, name, value, hint, cls) {
     const form = el('form');
     form.method = 'post';
@@ -133,26 +136,35 @@
     [['__RequestVerificationToken', tokenField.value], ['id', edit.key], ['field', name]].forEach(function (h) {
       const i = el('input'); i.type = 'hidden'; i.name = h[0]; i.value = h[1]; form.appendChild(i);
     });
-    const input = el('input', cls);
+    const source = LISTS[name] && document.getElementById(LISTS[name]);
+    let input;
+    if (source) {
+      input = el('select', cls);
+      const empty = el('option', '', hint ? '– ' + hint : '–'); empty.value = ''; input.appendChild(empty);
+      const values = Array.from(source.querySelectorAll('option')).map(function (o) { return o.value; });
+      if (value && values.indexOf(value) < 0) values.unshift(value);
+      values.forEach(function (v) { const o = el('option', '', v); o.value = v; if (v === value) o.selected = true; input.appendChild(o); });
+    } else {
+      input = el('input', cls);
+      input.value = value || '';
+      input.placeholder = hint || '';
+      input.autocomplete = 'off';
+    }
     input.name = 'value';
-    input.value = value || '';
-    input.placeholder = hint || '';
-    input.autocomplete = 'off';
     input.setAttribute('aria-label', name === 'giver' ? 'faction' : name);
-    if (name === 'giver') input.setAttribute('list', 'factions');
     form.appendChild(input);
     form.addEventListener('submit', function (e) { e.preventDefault(); input.blur(); });   // Enter saves it (the change), the page stays
     return form;
   }
 
-  // The admin's 📷 of a contract: the Mission Library's screenshot box for its mission, in a new tab (the map goes on here; #437).
-  function shotLink(key) {
-    const a = el('a', 'shotbtn', '📷');
-    a.href = '/missions?shot=' + encodeURIComponent(key) + '#shot';
-    a.target = '_blank';
-    a.rel = 'noopener';
-    a.title = 'Read a screenshot of this contract into the Mission Library';
-    return a;
+  // The admin's 📷 of a contract: a little box beside it reads a screenshot of the contract into its mission (screenshot.js; #437).
+  function shotLink(key, name) {
+    const b = el('button', 'shotbtn', '📷');
+    b.type = 'button';
+    b.dataset.shotFor = key;
+    b.dataset.shotName = name;
+    b.title = 'Read a screenshot of this contract (Ctrl+V)';
+    return b;
   }
 
   // Active Contracts (ended: false) or Completed Contracts (ended: true): the same columns, but how it ended and when in place of the open objectives.
@@ -182,13 +194,13 @@
         [m.who.join(', ')],
         [ended ? m.outcome + ' ' + hhmm(m.ended) : String(m.open), ended ? 'nowrap' : 'right'],
         [m.faction, '', e && ['giver', e.giver, e.giverHint, 'giver']],
-        [m.category],
+        [m.category, '', e && ['category', e.category, e.categoryHint, 'category']],
         [m.scu, 'right', e && ['scu', e.scu, e.scuHint, 'num scu']],
         [m.reward, 'right', e && ['auec', e.auec, e.auecHint, 'num']],
         [m.mg, 'right', e && ['mg', e.mg, '', 'num scrip']],
         [m.council, 'right', e && ['council', e.council, '', 'num scrip']],
-        [m.xp, 'right'],
-        [m.legality],
+        [m.xp, 'right', e && ['xp', e.xp, e.xpHint, 'num']],
+        [m.legality, '', e && ['legality', e.legality, e.legalityHint, 'legality']],
       ];
       cells.forEach(function (c) {
         const td = tr.insertCell();
@@ -196,7 +208,7 @@
         if (c[2]) td.appendChild(field(e, c[2][0], c[2][1], c[2][2], c[2][3]));
         else td.textContent = c[0];
       });
-      if (edits) { const td = tr.insertCell(); if (e) td.appendChild(shotLink(e.key)); }
+      if (edits) { const td = tr.insertCell(); if (e) td.appendChild(shotLink(e.key, m.title)); }
     });
     const scroll = el('div', 'scroll'); scroll.appendChild(t); box.appendChild(scroll);
   }

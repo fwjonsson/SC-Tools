@@ -180,7 +180,7 @@ public class WikiMissionsTests
         Assert.Contains("<option value=\"Red Wind\">Red Wind</option>", page);   // the Wiki's faction to pick
         Assert.Contains("Stop Rival Attack", System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?faction=Red%20Wind")));
         Assert.Contains("Stop Rival Attack", System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions?q=security")));
-        Assert.Contains("placeholder=\"Red Wind\" class=\"giver\"", await admin.GetStringAsync("/missions"));   // the Wiki's faction until one is typed in
+        Assert.Contains("<option value=\"\">– Red Wind</option>", System.Net.WebUtility.HtmlDecode(await admin.GetStringAsync("/missions")));   // the Wiki's faction until one is picked (a drop-down: 31 Oct 2026)
         Assert.Contains(">Faction", page);
         Assert.Contains(">Reward", page);
         Assert.DoesNotContain(">Giver<", page);

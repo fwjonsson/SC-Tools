@@ -567,18 +567,25 @@ admin (done), then going live.
   tool shows for one evening of three players.
 - **A contract screenshot read into the Mission Library** (#437, Frank 31 Oct 2026; the admin's only): every mission row has a 📷 button for the admin
   (the library's rows, the Companion's Active and Completed Contracts on both its tabs, the Hauling Planner's Session tab: Active Contracts by the
-  mission's key, Completed Contracts by its name). It opens the paste box at the top of `/missions` for that mission (from another tool in a new tab,
-  `/missions?shot=<key or name>`, `MissionLibrary.EntryOf`), where he pastes a screenshot of its contract's card in the mobiGlas (Ctrl+V, or drops the
-  file). There is no box without a mission: never one guessed by its name (a similar name could be another mission) and never one added (a misread
-  name would make a row no log ever joins), Frank 31 Oct 2026; a screenshot whose name does not look like the mission gets a note. Tesseract, a free text reader, reads it in his browser
-  (`wwwroot/screenshot.js`, tesseract.js 5.1.1 from the jsDelivr CDN, about 10 MB the first time; no AI, nothing to pay): the name, the Reward,
-  Contracted By and the description, each from its own box (in pixels of a 3840x1600 screenshot; another size is scaled by its height around its
-  middle, as the mobiGlas is). The reward is read in two passes: freely, where the currency sign before it is a word of its own, then only the number
-  with digits only (read with digits only, the sign was a 1: 35,000 became 135,000). The server (`EditMissionsController`, `ContractCardReader` in the
-  core) makes values of it: the reward only when its commas are every three digits and it is at least 1,000, the MG or Council scrip of "a bonus of 18
-  MG Scrip" in the description, the nearest known faction; a reward outside the Star Citizen Wiki's range gets a note. The admin sees what was read
-  beside what the library has, changes what he wants and saves. Tried on seven of Frank's screenshots: every reward of the
-  six clear ones exact (35,000 to 1,370,500), both scrip found; the one with a lamp on the reward was not read, and says so.
+  mission's key, Completed Contracts by its name, `MissionLibrary.EntryOf`). It opens a little box beside the row, right where he is
+  (`wwwroot/screenshot.js`): he presses Ctrl+V with a screenshot of that contract's card in the mobiGlas (or drops the file), checks what was read beside
+  what the library has, and saves. Only for that mission: never one guessed by its name (a similar name could be another mission) and never one added (a
+  misread name would make a row no log ever joins); a screenshot whose name does not look like the mission gets a note. Tesseract, a free text reader,
+  reads it in his browser (tesseract.js 5.1.1 from the jsDelivr CDN, about 10 MB the first time; no AI, nothing to pay; about 8 seconds): the name, the
+  Reward, Contracted By and the description, each from its own box (in pixels of a 3840x1600 screenshot; another size is scaled by its height around its
+  middle, as the mobiGlas is, and a smaller picture's boxes are enlarged to that size, all but the reward's, whose digits read best as they are). The
+  reward is read in two passes: freely, where the currency sign before it is a word of its own, then only the number with digits only (read with digits
+  only, the sign was a 1: 35,000 became 135,000). The description is read twice, as it is and without the soft light of the hangar behind it (a
+  blurred copy taken away): on a smaller picture a glow swallowed "7 MG Scrip". The server (`EditMissionsController`, `ContractCardReader` in the core)
+  makes values of it: the reward only when its commas are every three digits and it is at least 1,000, the MG or Council scrip of "a bonus of 18 MG
+  Scrip" in the description, the XP of "Reputation Awarded: 250" (else the "[250 Rep]" of the name), the faction of his list nearest to the one read; a
+  reward outside the Star Citizen Wiki's range gets a note. Tried on Frank's screenshots: every reward of the clear ones exact (35,000 to 1,370,500),
+  every scrip found, also on a picture at half the size with a light behind the scrip; the one with a lamp on the reward was not read, and says so.
+- **The admin's lists and drop-downs** (Frank, 31 Oct 2026): Faction and Category are picked from his lists, kept in the box above the Mission Library's
+  table on the right (add one, or × to take one out; `LibraryChoices`, `MissionLibrary.Choices`); they started with what the library had then (typed in,
+  and the Wiki's). A mission that has one taken out keeps it (its drop-down still shows it). Legality is Legal or Illegal. Category, XP and Legality can
+  be filled in like the reward (the kinds' `Category`, `Xp`, `Legality`): one filled in wins over the Wiki's, in grey until then. The same drop-downs are
+  in the Companion's contract tables, and the 📷 box's Faction.
 - **The Mission Library** (`/missions`, `Missions/MissionReader` and `Missions/MissionKinds` in the core, `MissionLibrary`) has every kind of mission
   the players took, by itself: the missions of the live logs and of the old logs are kept for good (`Missions`), grouped by their name as the game shows
   it (`MissionKinds`; the game's ContractId is one per offer, so the same mission at another place has another one). The contracts the Hauling Planner
@@ -588,8 +595,8 @@ admin (done), then going live.
   does not say: the aUEC, MG scrip and Council scrip it pays, its cargo in SCU (it wins over the suggestion in grey: the last SCU a hauler typed in for
   one of these missions on his Current Route, or what the game said for one; the boards use it; else the Star Citizen Wiki's in
   grey), another name, the faction (the Giver field, as it was called until 29 Oct 2026). With it is what the **Star Citizen Wiki** says about the
-  mission, in grey: the **Faction** (the one typed in wins), the **Category** (the Wiki's type: Hauling, Bounty Hunter, Security...), the **Reward**
-  (the aUEC typed in wins; a reward in another currency says which), the **XP** (the reputation it gives) and the **Legality**. The server reads the
+  mission, in grey: the **Faction**, the **Category** (the Wiki's type: Hauling, Bounty Hunter, Security...), the **Reward** (a reward in another
+  currency says which), the **XP** (the reputation it gives) and the **Legality**; one the admin filled in wins over each. The server reads the
   Wiki's list of every mission once a day (`WikiMissions.LearnAll`, 1,800 missions, 200 to a page, `SiteValues` says when), so every kind can show
   them: a kind is the Wiki's mission with its contract id (from the logs' markers), else the one with its name (`MissionLibrary.LinkWiki`; the rep and
   blueprint marks a string mod adds to a name do not count). The page everybody sees is **read-only** (`MissionsController`; for everybody when the tool is shown on the Tools

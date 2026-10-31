@@ -28,7 +28,8 @@ public sealed record ContractInfo(string Title, string Faction, string Category,
 /// in (empty: none), and the grey hints shown in an empty field (the game's name, the Wiki's faction and reward, the suggested or the Wiki's SCU).
 /// </summary>
 public sealed record ContractEdit(string Key, string Name, string Giver, string Scu, string Auec, string Mg, string Council,
-    string NameHint, string GiverHint, string ScuHint, string AuecHint)
+    string NameHint, string GiverHint, string ScuHint, string AuecHint, string Category = "", string Xp = "", string Legality = "", string CategoryHint = "",
+    string XpHint = "", string LegalityHint = "")
 {
     static string N(long? v) => v?.ToString(CultureInfo.InvariantCulture) ?? "";   // in a field: no thousands separators
 
@@ -38,6 +39,7 @@ public sealed record ContractEdit(string Key, string Name, string Giver, string 
         var w = e.Wiki;
         var wikiScu = w != null && w.Orders.Count > 0 ? "~" + N((long)Math.Round(w.Total.Middle)) : "";
         return new ContractEdit(r.Key, r.Name ?? r.Title, r.Giver ?? "", N(r.Scu), N(r.Auec), N(r.MgScrip), N(r.CouncilScrip),
-            r.Title, w?.Faction ?? "Type or pick", r.ScuSuggested != null ? N(r.ScuSuggested) : wikiScu, w?.RewardText ?? "");
+            r.Title, w?.Faction ?? "Type or pick", r.ScuSuggested != null ? N(r.ScuSuggested) : wikiScu, w?.RewardText ?? "",
+            r.Category ?? "", N(r.Xp), r.Legality ?? "", w?.Category ?? "", N(w?.Xp), w?.Legality ?? "");
     }
 }
