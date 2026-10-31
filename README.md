@@ -10,7 +10,7 @@ programs HaulingTracker.exe and HaulingTrackerSender.exe): the old addresses sen
 program on 30 Oct 2026).
 
 This file says how it all works. `docs/roadmap.md` says what is planned, what was decided and why; `docs/partial-submits.md` has the test notes on
-what a hauling contract pays when it is handed in short; `CLAUDE.md` says how we work on it (branches, CI, migrations, what never to commit).
+what a hauling contract pays when it is handed in short; `docs/map-sightings.md` is the list of places seen in the game that the map does not have yet; `CLAUDE.md` says how we work on it (branches, CI, migrations, what never to commit).
 
 ## Build and run
 
