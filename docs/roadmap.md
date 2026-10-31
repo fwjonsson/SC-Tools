@@ -87,9 +87,10 @@ All the tools track at the same time, all the time. The tracking runs on the ser
      The plan is sticky since 30 Oct 2026: the stops of a worker's planned trip stay his until they are picked up, gone or he picks up elsewhere, and
      the Next Stops button of the admin's Session page went (Frank: not used; better logic instead of a button).
    - **Over the map** (Frank, 31 Oct 2026; #408, #409, #410, on top of #411): a card over a station with what it has (UEX's services and shops,
-     `StationServices`, `/map/services.json`); two clicks measure a distance and its flight time with the viewer's own ship (his alone, nothing leaves the
-     browser); a skull with the name in gray where somebody died, for a quarter of an hour. All three in the map engine and the feed, so the Map tool, the
-     Companion and the Hauling Planner's map have them; a player sees his party's skulls alone, like the players.
+     `StationServices`, `/map/services.json`); left clicks measure a trip stop by stop, every leg a jump of its own, with its flight time with the viewer's
+     own ship, and a right click clears it (Frank, 31 Oct 2026, after trying the two-click version: "as long as you left click it keeps adding stops"; his
+     alone, nothing leaves the browser); a skull with the name in gray where somebody died, for a quarter of an hour. All three in the map engine and the
+     feed, so the Map tool, the Companion and the Hauling Planner's map have them; a player sees his party's skulls alone, like the players.
 7. **Map places** (`/admin/places`, PR #244, Frank 28 Oct): the admin says what a quantum destination or start name the map does not know is (a
    place, or not a place to show; `Text*` for every one that starts so), renames places, and adds places the game data does not have (at a place, or
    X/Y in Gm). Saved in the database and used by the map at once. The maps label every place with its full name since 30 Oct 2026 (Frank: "Dudley &

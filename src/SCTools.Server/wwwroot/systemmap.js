@@ -6,9 +6,10 @@
 // are the system's own (Gm, the star at 0, 0); the map has the system's Y to the right and its X down. The data is the Map tool's map.json (the server's
 // MapService.Snapshot: systems with their places, players, objectives); the planner gets the Pyro slice of it (/hauling/map.json). A plain script, no
 // modules: WebAssets inlines it into the live page before app.js, and the server sends it to the Map tool as /systemmap.js.
-// Since 31 Oct 2026 (Frank): over a station the mouse gets a card with what it has (UEX's services and shops, /map/services.json; #409), two clicks measure
-// a distance and its flight time with the viewer's own drive (his alone: nothing leaves the browser; #408), and where somebody died in the last quarter of
-// an hour a skull sits with his name in gray (the feed's deaths; #410). All in the engine, so every map of the site has them.
+// Since 31 Oct 2026 (Frank): over a station the mouse gets a card with what it has (UEX's services and shops, /map/services.json; #409), left clicks
+// measure a trip stop by stop, every leg a jump of its own, with its flight time with the viewer's own drive, and a right click clears it (his alone:
+// nothing leaves the browser; #408), and where somebody died in the last quarter of an hour a skull sits with his name in gray (the feed's deaths; #410).
+// All in the engine, so every map of the site has them.
 var SystemMap = (function () {
   'use strict';
   const NS = 'http://www.w3.org/2000/svg';
@@ -91,7 +92,7 @@ var SystemMap = (function () {
     let base = null, data = null, offset = 0, movers = [];
     const meters = {};   // a player's name (lower case) -> his line and speed meter
     let card = null;     // the card over a station (what it has), one per map
-    let marks = [];      // the two points of the viewer's measurement (his alone: they never leave the browser)
+    let marks = [];      // the stops of the viewer's measured trip (his alone: they never leave the browser)
     loadServices();
 
     function el(tag, attrs, parent, text) {
@@ -156,9 +157,10 @@ var SystemMap = (function () {
       svg.setAttribute('aria-label', 'Map of ' + sys.name);
       box.appendChild(svg);
       base = { svg: svg, sys: sys.id, sig: sig, at: at, anchor: {}, names: {}, scale: sc, spots: [] };   // scale: map units per Gm; spots: the dots a measurement snaps to
-      marks = [];   // another system: the measurement goes
+      marks = [];   // another system: the trip goes
       svg.style.cursor = 'crosshair';
-      svg.addEventListener('click', function (ev) { if (marks.length >= 2) marks = []; marks.push(pointOf(ev)); drawMeasure(); });
+      svg.addEventListener('click', function (ev) { marks.push(pointOf(ev)); drawMeasure(); });   // a left click adds a stop to the trip
+      svg.addEventListener('contextmenu', function (ev) { ev.preventDefault(); if (marks.length) { marks = []; drawMeasure(); } });   // a right click clears it (Frank, 31 Oct 2026)
       el('rect', { x: 0, y: 0, width: W, height: W, fill: INK, rx: 6 });
 
       // the planets around the star; a moon, a city, a station at one of them (or this close on the map) is drawn as the planet
@@ -306,10 +308,11 @@ var SystemMap = (function () {
       el('title', {}, g, title);
     }
 
-    // ------------------------------------------------------------------ measuring: two clicks, the distance and the flight time (#408; Frank, 31 Oct 2026)
-    // The points are the viewer's alone: they live in his browser and go nowhere. A click near a dot snaps to it (two stations: their distance, the straight
-    // line of the map). The time is with his own drive (data.mine: his fleet's active ship, else his own marker's), else the distance alone (a visitor). A
-    // third click starts over; the system drawn anew clears them.
+    // ------------------------------------------------------------------ measuring a trip: left clicks add stops, a right click clears it (#408; Frank, 31 Oct 2026)
+    // The stops are the viewer's alone: they live in his browser and go nowhere. A click near a dot snaps to it (stations: their distance, the straight line
+    // of the map). Every leg is a jump of its own, speeding up and slowing down each time, timed with his own drive (data.mine: his fleet's active ship,
+    // else his own marker's), else the distance alone (a visitor). One leg says its distance and time between the stops; more legs say each one's at its
+    // middle and the trip's total at the last stop. The system drawn anew clears them.
     function pointOf(ev) {
       const r = base.svg.getBoundingClientRect();
       const x = (ev.clientX - r.left) / r.width * W, y = (ev.clientY - r.top) / r.height * W;
@@ -323,31 +326,46 @@ var SystemMap = (function () {
       const me = (data.players || []).find(function (p) { return same(p.name, data.me); });
       return me && me.motion ? { d: me.motion, ship: me.ship } : null;
     }
+    function gmText(gm) { return gm.toLocaleString(undefined, { maximumFractionDigits: gm < 10 ? 2 : 1 }) + ' Gm'; }
+    function anchorAt(x) { return x > W - 150 ? 'end' : x < 150 ? 'start' : 'middle'; }   // the text stays on the map near the edges
+    function caption(x, y, anchor, size, bold, s) {
+      return el('text', { x: x.toFixed(1), y: y.toFixed(1), 'text-anchor': anchor, fill: PAPER, 'font-size': size, 'font-weight': bold ? 700 : 400,
+        stroke: INK, 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, base.measure, s);
+    }
     function drawMeasure() {
       if (!base) return;
       base.measure.textContent = '';
-      marks.forEach(function (m) {
+      const own = driveOf(), legs = marks.length - 1;
+      let totalGm = 0, totalS = 0;
+      for (let i = 1; i <= legs; i++) {   // the legs: a dashed line each, with its distance and time at its middle when the trip has several
+        const a = marks[i - 1], b = marks[i];
+        el('line', { x1: a.x.toFixed(1), y1: a.y.toFixed(1), x2: b.x.toFixed(1), y2: b.y.toFixed(1), stroke: PAPER, 'stroke-width': 1.5, 'stroke-dasharray': '6 4' }, base.measure);
+        const gm = Math.hypot(b.x - a.x, b.y - a.y) / base.scale, s = own && gm > 0 ? profile(own.d, gm * 1e9).total : null;   // a jump of its own
+        totalGm += gm;
+        if (s !== null) totalS += s;
+        if (legs > 1) caption((a.x + b.x) / 2, (a.y + b.y) / 2 - 6, anchorAt((a.x + b.x) / 2), 10, false, gmText(gm) + (s !== null ? ' · ' + clock(s) : ''));
+      }
+      marks.forEach(function (m, i) {   // the stops: a cross in a ring, numbered when there are several legs
         const g = el('g', { transform: 'translate(' + m.x.toFixed(1) + ',' + m.y.toFixed(1) + ')' }, base.measure);
         el('circle', { r: 4.5, fill: 'none', stroke: PAPER, 'stroke-width': 1.5 }, g);
         el('line', { x1: -8, y1: 0, x2: 8, y2: 0, stroke: PAPER, 'stroke-width': 1 }, g);
         el('line', { x1: 0, y1: -8, x2: 0, y2: 8, stroke: PAPER, 'stroke-width': 1 }, g);
+        if (legs > 1) el('text', { x: 7, y: -7, fill: PAPER, 'font-size': 9, stroke: INK, 'stroke-width': 2, 'paint-order': 'stroke' }, g, String(i + 1));
       });
-      if (marks.length < 2) return;
-      const a = marks[0], b = marks[1];
-      el('line', { x1: a.x.toFixed(1), y1: a.y.toFixed(1), x2: b.x.toFixed(1), y2: b.y.toFixed(1), stroke: PAPER, 'stroke-width': 1.5, 'stroke-dasharray': '6 4' }, base.measure);
-      const gm = Math.hypot(b.x - a.x, b.y - a.y) / base.scale;
-      let text = gm.toLocaleString(undefined, { maximumFractionDigits: gm < 10 ? 2 : 1 }) + ' Gm';
-      const own = driveOf();
-      if (own && gm > 0) text += ' · ' + clock(profile(own.d, gm * 1e9).total) + (own.ship ? ' in the ' + own.ship : '');
-      const lines = [text];
-      if (a.name || b.name) lines.unshift((a.name || 'here') + ' → ' + (b.name || 'here'));
-      const mx = (a.x + b.x) / 2, top = (a.y + b.y) / 2 - 10 - (lines.length - 1) * 14;
-      const anchor = mx > W - 150 ? 'end' : mx < 150 ? 'start' : 'middle';   // the text stays on the map near the edges
-      lines.forEach(function (l, i) {
-        const last = i === lines.length - 1;
-        el('text', { x: mx.toFixed(1), y: (top + i * 14).toFixed(1), 'text-anchor': anchor, fill: PAPER, 'font-size': last ? 12 : 11, 'font-weight': last ? 700 : 400,
-          stroke: INK, 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, base.measure, l);
-      });
+      if (legs < 1) return;
+      // the trip: where it goes (when a stop has a name) and what it adds up to; one leg between its two stops, more at the last stop
+      const last = marks[legs], lines = [];
+      if (marks.some(function (m) { return m.name; })) {
+        const names = marks.map(function (m) { return m.name || 'here'; });
+        lines.push(marks.length <= 4 ? names.join(' → ') : names[0] + ' → … → ' + names[names.length - 1] + ' (' + marks.length + ' stops)');
+      }
+      lines.push((legs > 1 ? legs + ' jumps, ' : '') + gmText(totalGm) + (own && totalGm > 0 ? ' · ' + clock(totalS) + (own.ship ? ' in the ' + own.ship : '') : ''));
+      let x, base_y, anchor;
+      if (legs === 1) { x = (marks[0].x + last.x) / 2; base_y = (marks[0].y + last.y) / 2 - 10; anchor = anchorAt(x); }
+      else if (last.x > W - 150) { x = last.x - 12; base_y = last.y - 8; anchor = 'end'; }
+      else { x = last.x + 12; base_y = last.y - 8; anchor = 'start'; }
+      const top = base_y - (lines.length - 1) * 14;
+      lines.forEach(function (l, i) { caption(x, top + i * 14, anchor, i === lines.length - 1 ? 12 : 11, i === lines.length - 1, l); });
     }
 
     // The system on the map: drawn anew when it is another one (or its places changed); true when it was.
@@ -441,7 +459,7 @@ var SystemMap = (function () {
           }
           if (p) skull(p[0], p[1], x.player, x.player + ' died ' + (x.atName ? (x.from ? x.atName : 'at ' + x.atName) : 'here') + ', ' + since(x.time), age);
         });
-        if (marks.length === 2) drawMeasure();   // the viewer's drive may have come with the data
+        if (marks.length >= 2) drawMeasure();   // the viewer's drive may have come with the data
       }
       Object.keys(meters).forEach(function (key) { if (meters[key].what.isConnected) bind(meters[key]); else delete meters[key]; });
       move();
