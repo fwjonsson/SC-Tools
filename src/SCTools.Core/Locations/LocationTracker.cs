@@ -66,10 +66,12 @@ public static class LocationTracker
             var titles = (seen.GetValueOrDefault(log.Uploader ?? name) ?? Array.Empty<MissionSeen>()).ToDictionary(s => s.MissionId, StringComparer.OrdinalIgnoreCase);
             // a crew's jumps go where the pilot picked (another player of the site in the same ship: his party first); a jump to a mission's beacon is to that objective
             var party = parties?.GroupOf(name)?.Names ?? Array.Empty<string>();
-            var others = playing.Where(o => !ReferenceEquals(o.Log, log)).OrderBy(o => party.Any(n => SameName(n, o.Name)) ? 0 : 1)
-                .Select(o => (IReadOnlyList<QtEvent>)o.Log.Qt).ToList();
+            var otherLogs = playing.Where(o => !ReferenceEquals(o.Log, log)).OrderBy(o => party.Any(n => SameName(n, o.Name)) ? 0 : 1).Select(o => o.Log).ToList();
+            var others = otherLogs.Select(o => (IReadOnlyList<QtEvent>)o.Qt).ToList();
             var points = Points(log.Beacons.Where(b => b.Time >= nowUtc - MissionAge), log.Missions, m => TitleOf(m, titles), atlas);
-            var where = Follow(WithPilots(log.Qt, others), atlas, null, log.Locations, points, log.Areas, stations);
+            var qt = WithPilots(log.Qt, others);
+            if (AboardJump(log, otherLogs) is { } aboard) qt.Add(aboard);   // riding in a pilot's ship that is on its way: on the pilot's jump
+            var where = Follow(qt, atlas, null, log.Locations, points, log.Areas, stations);
             // the Hauling Planner saw him pick up, deliver or hand in later than the jumps say anything: he is at that station
             if (planner?.Invoke(name) is { } clue && clue.At > (where.Since ?? DateTime.MinValue) && clue.At > (where.Picked?.Time ?? DateTime.MinValue)
                 && atlas.OfPyroStation(clue.Station) is { } there && !Equals(there, where.At))
@@ -127,6 +129,10 @@ public static class LocationTracker
         {
             if (step.Area is { } area)
             {
+                // the first area line since he picked says whether he was at a station when he picked, when no line before the pick did (a tracker updated
+                // since, or a game that just started): out of a hangar he was landed in (31 Oct 2026: zzoega's tracker updated three minutes before he
+                // picked at Ruin, so the map took him for being out in space and started the jump ten seconds after the pick, not when he left Ruin's area)
+                if (picked != null && pickedLanded == null) pickedLanded = area.LandingFrom != 0;
                 var takingOff = StationAreas.OutOfHangar(area) && stations.Contains(area.To);
                 hangar = area.Landed ? HangarState.Landed : takingOff ? HangarState.TakingOff : null;
                 landed = hangar != null;
@@ -184,6 +190,9 @@ public static class LocationTracker
             }
             else if (e.Kind == QtKind.Arrived)
             {
+                // the inventory line of the place he arrived at can come a moment before the arrival line (zzatvo's log, 31 Oct 2026: 47 ms before, at
+                // the Nyx Gateway): that is this arrival, he is there; not a jump of his own to somewhere the map does not know ("off the grid")
+                if (picked == null && at != null && !jumped && since is { } placed && e.Time >= placed && e.Time - placed <= SameJump) continue;
                 if (picked == null)
                 {
                     // no destination picked: he jumped at a marker he looked at (a mission's objective going on, the latest), or somewhere the map does not know
@@ -232,6 +241,36 @@ public static class LocationTracker
             all.Add(e);
         }
         return all;
+    }
+
+    /// <summary>
+    /// The jump a crew member is on before it arrives: his own log has neither the destination nor, until the end, the arrival (WithPilots needs that), so
+    /// the map kept him where he boarded (Frank, 31 Oct 2026: zzatvo rode in zzoega's ship, the map had him at Ruin). The ship's area lines are in
+    /// everybody's log aboard, into the same area within a second or two (not always from the same one: zzoega's log went out of Ruin's hangar into Ruin's
+    /// area and then into space, zzatvo's out of the hangar straight into space, half a second apart): a player with no jump of his own who went into an
+    /// area since his last arrival that a pilot went into since his, while that pilot is on a jump he picked, rides with him. His jump
+    /// is the pilot's, picked when the pilot first picked it; his own area lines say when it starts and ends (JumpTimes). Null: not aboard a ship on its way.
+    /// </summary>
+    public static QtEvent? AboardJump(HaulingLog crew, IEnumerable<HaulingLog> pilots)
+    {
+        var own = crew.Qt.Count > 0 ? crew.Qt[^1] : null;
+        if (own?.Kind == QtKind.Selected) return null;   // he picked a jump himself
+        var since = own?.Time ?? DateTime.MinValue;
+        foreach (var pilot in pilots)
+        {
+            var qt = pilot.Qt;
+            if (qt.Count == 0 || qt[^1].Kind != QtKind.Selected) continue;   // not on a jump
+            // the game writes the pick again and again while he aims: the jump was picked when the last run of picks of that destination began
+            var first = qt.Count - 1;
+            while (first > 0 && qt[first - 1].Kind == QtKind.Selected && qt[first - 1].Destination.Equals(qt[^1].Destination, StringComparison.OrdinalIgnoreCase)) first--;
+            var pick = qt[first];
+            var from = pick.From.Length > 0 ? pick.From : qt.Skip(first).Select(e => e.From).FirstOrDefault(f => f.Length > 0) ?? "";
+            var pilotSince = qt.Take(first).LastOrDefault(e => e.Kind == QtKind.Arrived)?.Time ?? DateTime.MinValue;
+            var aboard = crew.Areas.Any(c => c.Time > since && !c.Landed
+                && pilot.Areas.Any(p => p.Time > pilotSince && !p.Landed && p.To == c.To && (p.Time - c.Time).Duration() <= SameJump));
+            if (aboard) return new QtEvent { Time = pick.Time, Kind = QtKind.Selected, Destination = pick.Destination, From = from, Ship = pick.Ship, ShipId = pick.ShipId };
+        }
+        return null;
     }
 
     /// <summary>The destination picked in this log for the arrival of the same ship as this arrival, at the same moment (or null).</summary>

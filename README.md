@@ -297,7 +297,12 @@ admin (done), then going live.
   2026; the system by the start of the id, the place by the rest, `Atlas.OfLocation`; the trackers send these lines from their next update), also after
   a jump to somewhere the map does not know; an area the map does not know is on Map places, where Frank says what each one is. A jump with no destination picked (he jumped at a marker he looked at, or
   he is crew) is a jump too, not nothing: a crew's arrival gets the destination the pilot picked (another player of the site with the arrival of the
-  same ship, by its entity id, within 10 seconds, the members of his party asked first: `LocationTracker.WithPilots`); else it is to the objective of a mission going on then (below); else he
+  same ship, by its entity id, within 10 seconds, the members of his party asked first: `LocationTracker.WithPilots`). Before the arrival, a crew member
+  flies with the pilot too: the ship's area lines are in everybody's log aboard, into the same area within a second or two, so a player with no jump of
+  his own who went into an area the pilot went into since he picked his jump is on that jump (`LocationTracker.AboardJump`; Frank, 31 Oct 2026: zzatvo
+  stayed at Ruin on the map while he rode in zzoega's ship). An arrival seconds after the inventory line of a place is that arrival (zzatvo's log had the
+  Nyx Gateway's inventory line 47 ms before his arrival line, and the map took the arrival for a jump of its own, "off the grid"). When no area line came
+  before the pick (a tracker that just updated, a game just started), the first one after it says whether he was in a hangar when he picked; else it is to the objective of a mission going on then (below); else he
   is "Off the grid: out of comm-array range" since then, with the last place the map had him at ("last ping at Levski"). A player the map has not
   placed yet has "No signal yet"; an area the map does not know (a mission's spot) leaves him where it had him (Frank, 29 Oct 2026: zzatvo
   fell to "No signal yet" at Ruin). The Hauling Planner's pickups, deliveries and hand-ins place a member of its party too (`Whereabouts.OwnLocationOf`,
