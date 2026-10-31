@@ -262,7 +262,7 @@ admin (done), then going live.
   2026; `PartyService.WithoutTracker`).
 - **The Map tool** (`/map`, `MapService`, `wwwroot/map.js`): Pyro, Stanton and Nyx from above (a tab per system over the map; it opens on the system
   where most players are, `#stanton` in the address opens that one), with everybody playing where the location tracker has him (below) and the objectives of
-  the missions going on (`map.json`, every 3 seconds). The places are `StarMap` (Core): the stars, planets, moons, cities, gateways and stations of
+  the missions going on (`map.json`, every 3 seconds, with who the viewer is: `me`, as the Companion's feed has it, null for a visitor; for the map tools that are his, such as measuring a distance with his own ship, #408). The places are `StarMap` (Core): the stars, planets, moons, cities, gateways and stations of
   the three systems with their positions from the Star Citizen Wiki API (`/api/locations/positions`, downloaded with ScApiTool on 20 Oct 2026;
   Pyro's are the same as `PyroDistances`'), drawn with the system's Y to the right and its X down, like the Trip Planner's Pyro. A moon, city or
   station within 10 pixels of its planet is drawn at the planet (its tooltip lists them; the planet's label names the cities and stations at it).
