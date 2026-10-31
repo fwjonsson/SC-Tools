@@ -125,7 +125,7 @@ public class CompanionPageTests
         Assert.NotEmpty(own.GetProperty("objectives").EnumerateArray());
         Assert.Empty(own.GetProperty("missions").EnumerateArray());
         Assert.Equal(new[] { "admin" }, own.GetProperty("party").EnumerateArray().Select(n => n.GetString()));
-        Assert.Equal(new[] { "bileh123", "zzatvo", "zzoega" }, Names(Json(await admin.GetStringAsync("/map/map.json")).GetProperty("players")));   // the Map tool: everybody
+        Assert.Equal(new[] { "bileh123", "zzatvo", "zzoega" }, Names(Json(await admin.GetStringAsync("/admin/map/map.json")).GetProperty("players")));   // the Map tool: everybody
 
         // View as zzoega: exactly his Companion, with the library's fields of every contract for the admin
         await ServerFactory.Send(admin, "/", "/admin/pov", ("name", "zzoega"), ("back", "/companion"));
@@ -198,7 +198,7 @@ public class CompanionPageTests
             "the Companion's link comes before the Hauling Planner's");
         Assert.Equal(new[] { SiteTools.Companion, SiteTools.Hauling }, SiteTools.Bar.Take(2));
 
-        var map = await admin.GetStringAsync("/map");
+        var map = await admin.GetStringAsync("/admin/map");
         Assert.Contains("id=\"players\"", map);
         Assert.DoesNotContain("id=\"objectives\"", map);
         Assert.DoesNotContain("Active Contracts", map);
@@ -240,7 +240,7 @@ public class CompanionPageTests
         map = Json(await zzoega.GetStringAsync("/companion/map.json"));
         Assert.Empty(map.GetProperty("missions").EnumerateArray());     // not among his Active Contracts
         Assert.Empty(map.GetProperty("objectives").EnumerateArray());   // not on his map
-        Assert.Empty(JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement.GetProperty("objectives").EnumerateArray());   // nor the Map tool's
+        Assert.Empty(JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement.GetProperty("objectives").EnumerateArray());   // nor the Map tool's
 
         // the contracts tracker: he took it, and it ended for him as an abandon (the game's rule for the scrip) when the game took it from him
         f.Services.GetRequiredService<MissionLibrary>().Collect();

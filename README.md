@@ -260,8 +260,10 @@ admin (done), then going live.
   who runs no SC Tools Tracker (no log of his own and no tracker key: only the others' logs show him) has a small **no tracker** tag after his name
   on the panel and the Party pages (his own page says Tracker: None), and his last seen is the last time the others' logs showed him (Frank, 31 Oct
   2026; `PartyService.WithoutTracker`).
-- **The Map tool** (`/map`, `MapService`, `wwwroot/map.js`): Pyro, Stanton and Nyx from above (a tab per system over the map; it opens on the system
-  where most players are, `#stanton` in the address opens that one), with everybody playing where the location tracker has him (below) and the objectives of
+- **The admin's Map** (`/admin/map`, a tab of his pages beside Map places since 31 Oct 2026, Frank: out of the top bar, the landing page and the Tools
+  page, where it was the Map tool at `/map`, so his bar has the same tools as a player's; `MapController`, `MapService`, `wwwroot/map.js`): Pyro, Stanton and
+  Nyx from above (a button per system over the map, not a row of tabs under the admin's; it opens on the system where most players are, `#stanton` in the
+  address opens that one; no texts under it and no team status line), with everybody playing where the location tracker has him (below) and the objectives of
   the missions going on (`map.json`, every 3 seconds, with who the viewer is: `me`, as the Companion's feed has it, null for a visitor; for the map tools that are his, such as measuring a distance with his own ship, #408). The places are `StarMap` (Core): the stars, planets, moons, cities, gateways and stations of
   the three systems with their positions from the Star Citizen Wiki API (`/api/locations/positions`, downloaded with ScApiTool on 20 Oct 2026;
   Pyro's are the same as `PyroDistances`'), drawn with the system's Y to the right and its X down, like the Trip Planner's Pyro. A moon, city or
@@ -370,7 +372,9 @@ admin (done), then going live.
   engine's meter under every worker's name. The planner's and the map's "done" agree: a pickup the planner credits (a COMPLETED or an INPROGRESS event,
   `SessionBuilder.PickedUp`) is off the map at once, and an objective one holder's log says is done is done for everybody with the mission.
 - **The Companion** (`/companion`, `CompanionService`, `CompanionController`, `wwwroot/companion.js`; #380, Frank 30 Oct 2026): a player's own page to keep
-  open while playing, made as a copy of the Map tool. Personal (`Audience.PartyOf` of the viewer: the player the admin looks as with View as, else who is
+  open while playing, made as a copy of the Map tool (no texts under its map and its contracts since 31 Oct 2026, Frank: what the Game session numbers are
+  is the tooltip of its table). **The Gauntlet Tracker's Session tab** has the same map with the Players beside it, over the sessions (`/gauntlet/map.json`,
+  `CompanionService.Map`; `map.js` with the feed named on the map, `data-src`, as the admin's Map; Frank, 31 Oct 2026). Personal (`Audience.PartyOf` of the viewer: the player the admin looks as with View as, else who is
   logged in; the admin's own view, View as: Admin, has everybody on the map and everything else his own player's, and View as his own player is a
   player's Companion, Frank 30 Oct 2026): the map with him and his party (map.json cut by `DataViews.MapFor`, with `me`),
   the Players list, the objectives beside it, and under the map the party's **Active Contracts** and **Completed Contracts**, both with who in the party

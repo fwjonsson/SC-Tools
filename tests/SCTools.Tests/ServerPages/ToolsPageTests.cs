@@ -27,7 +27,7 @@ public class ToolsPageTests
         Assert.All(SiteTools.Cards, t => Assert.Contains(Card(t.Name), home));
         Assert.DoesNotContain(Card("Party"), home);   // the Party is a button in the top bar, not a card
         Assert.DoesNotContain("href=\"/party\" style=", home);   // and not in the row of tools
-        Assert.Equal(5, home.Split("Only you see this").Length - 1);   // the five hidden links say so (the Companion too, #380)
+        Assert.Equal(4, home.Split("Only you see this").Length - 1);   // the four hidden links say so (the Companion too, #380; the Map is an admin page since 31 Oct 2026)
         var page = await admin.GetStringAsync("/admin/tools");
         Assert.Contains("value=\"gauntlet\"", page);
 
@@ -83,11 +83,13 @@ public class ToolsPageTests
         Assert.Contains("<span class=\"about\" role=\"tooltip\"><b>Hauling Planner</b>Plans the crew", home);   // what the tool does, on hover (30 Oct 2026)
 
         var admin = await f.Admin();
-        // the bar's order (Frank, 30 Oct 2026), seen by the admin who sees every tool: Hauling Planner, Gauntlet Tracker, Map, Session, Mission Library
+        // the bar's order (Frank, 30 Oct 2026), seen by the admin who sees every tool: Hauling Planner, Gauntlet Tracker, Session, Mission Library (the Map is
+        // a tab of his pages since 31 Oct 2026, not in the bar: his bar has the same tools as a player's)
         var adminHome = await admin.GetStringAsync("/");
         var navAt = adminHome.IndexOf("<nav class=\"toolnav\">", StringComparison.Ordinal);
         var bar = adminHome[navAt..adminHome.IndexOf("</nav>", navAt, StringComparison.Ordinal)];
-        var order = new[] { "Hauling Planner", "Gauntlet Tracker", "Map", "Session", "Mission Library" };
+        var order = new[] { "Hauling Planner", "Gauntlet Tracker", "Session", "Mission Library" };
+        Assert.DoesNotContain(">Map</a>", bar);
         var at = order.Select(n => bar.IndexOf(">" + n + "</a>", StringComparison.Ordinal)).ToArray();
         Assert.True(at.All(x => x >= 0) && at.SequenceEqual(at.OrderBy(x => x)), bar);
         // the landing page's links come in the bar's order too (Frank, 30 Oct 2026)
@@ -105,7 +107,9 @@ public class ToolsPageTests
         Assert.Contains("aria-current=\"page\" style=\"--tool:#e5534b\">Admin</a>", await admin.GetStringAsync("/account"));
         Assert.DoesNotContain("<nav class=\"subnav", await admin.GetStringAsync("/"));
         // a tool's page has its tool marked (from its address), the admin's Scrip page does not mark the Gauntlet Tracker
-        Assert.Contains("<a href=\"/map\" class=\"on\" aria-current=\"page\"", await admin.GetStringAsync("/map"));
+        var adminMap = await admin.GetStringAsync("/admin/map");   // the admin's Map: a tab of his pages, marked there (31 Oct 2026)
+        Assert.Contains("<a href=\"/admin/map\" class=\"on\">Map</a>", adminMap);
+        Assert.Contains("aria-current=\"page\" style=\"--tool:#e5534b\">Admin</a>", adminMap);
         Assert.Contains("<a href=\"/gauntlet\" class=\"on\" aria-current=\"page\"", await admin.GetStringAsync("/gauntlet/stats"));
         Assert.DoesNotContain("<a href=\"/gauntlet\" class=\"on\"", await admin.GetStringAsync("/admin/scrip"));
 

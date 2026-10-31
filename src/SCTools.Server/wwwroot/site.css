@@ -162,6 +162,14 @@ main:has(.maptool) { max-width:1900px; }
 .mapmissions { grid-column:1 / span 3; grid-row:2; min-width:0; }
 /* the Map tool alone has the map and the players since the Companion took the objectives and the contracts (#380): the map gets a little bigger */
 .maptool.maponly { grid-template-columns:minmax(0, 1060px) minmax(260px, 340px); }
+/* the systems over the admin's Map and the Gauntlet Tracker's: buttons like the Route Planner's choice under its tabs (Frank, 31 Oct 2026; a row of tabs
+   under the bar before, on the Map tool) */
+.gauntletmap { margin-bottom:18px; }
+.hint.below { margin-top:6px; }   /* a note under its table (the Gauntlet Tracker's grind session) */
+.mapsys { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px; }
+.mapsys a { text-decoration:none; padding:6px 16px; border-radius:4px; background:var(--cell); border:1px solid var(--line); color:var(--fg); font-weight:600; }
+.mapsys a:hover { border-color:var(--muted); }
+.mapsys a.on { background:var(--header); color:#fff; }
 /* the card the map engine shows over a station: what it has (its services in gold, its shops in gray; systemmap.js, #409) */
 .mapcard { position:absolute; z-index:3; pointer-events:none; max-width:280px; padding:6px 9px; border:1px solid #3a4250; border-radius:6px;
   background:#10151c; color:#ecece8; font-size:12px; line-height:1.35; box-shadow:0 2px 10px rgba(0,0,0,.55); }

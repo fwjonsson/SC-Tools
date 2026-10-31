@@ -139,7 +139,7 @@ public class GauntletPageTests
         Assert.DoesNotContain("<td>zzatvo</td>", stats);
         var session = WebUtility.HtmlDecode(await zzoega.GetStringAsync("/gauntlet"));
         Assert.Contains("Running since", session);   // one grind session for the party
-        Assert.Contains("the first of the party's games", session);
+        Assert.Contains("when your party accepts a scenario and goes on while your party plays them", session);   // the note under the grind session says whose
 
         var bileh = await f.Player(f.AddKey("bileh123"));
         var his = WebUtility.HtmlDecode(await bileh.GetStringAsync("/gauntlet/stats"));   // the Earnings are on Stats since 30 Oct 2026
@@ -193,5 +193,34 @@ public class GauntletPageTests
         var r = await player.GetAsync("/gauntlet");
         Assert.Equal(HttpStatusCode.Redirect, r.StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await (await f.Admin()).GetAsync("/gauntlet")).StatusCode);
+    }
+
+    [Fact]
+    public async Task The_session_tab_has_the_companions_map_with_the_viewer_and_his_party()
+    {
+        using var f = new ServerFactory();
+        var admin = await f.Admin();
+        // the map over the game session (Frank, 31 Oct 2026): the systems as buttons over it, the players beside it, its own feed
+        var page = (await admin.GetStringAsync("/gauntlet/session")).Replace("\r\n", "\n");
+        Assert.Contains("<div class=\"tabs mapsys\" id=\"systems\" role=\"tablist\" aria-label=\"Star system\"></div>\n      <div id=\"map\" data-src=\"/gauntlet/map.json\"></div>", page);
+        Assert.Contains("map.js", page);
+        Assert.True(page.IndexOf("id=\"map\"", StringComparison.Ordinal) < page.IndexOf("Grind session", StringComparison.Ordinal));   // over the sessions
+        Assert.DoesNotContain("id=\"map\"", await admin.GetStringAsync("/gauntlet/stats"));   // the Session tab's alone
+        // what a grind session is: in the Grind session's column, under its table (Frank, 31 Oct 2026), and said right; no note under This game session
+        var grind = page.IndexOf("<h2>Grind session</h2>", StringComparison.Ordinal);
+        var note = page.IndexOf("A grind session starts by itself when you accept a scenario and goes on while you play them.", StringComparison.Ordinal);
+        Assert.True(grind > 0 && note > grind && page.IndexOf("</div>", grind, StringComparison.Ordinal) > note);
+        Assert.DoesNotContain("Counted passively", page);
+
+        // its feed is the Companion's map: zzoega, who is playing, is on the admin's, and on his own; a player in no party with him does not see him
+        var now = DateTime.UtcNow;
+        var his = new GameLogWriter().At(now.AddMinutes(-2)).Login("zzoega").Minutes(1).Inventory("zzoega", "Nyx_Levski");
+        Assert.True(f.Live.Uploads.Add("zzoega", now.AddMinutes(-2).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture), 0, 1000, his.Lines.ToList(), now).Ok);
+        static string[] Names(string json) => System.Text.Json.JsonDocument.Parse(json).RootElement.GetProperty("players").EnumerateArray()
+            .Select(p => p.GetProperty("name").GetString()!).ToArray();
+        Assert.Equal(new[] { "zzoega" }, Names(await admin.GetStringAsync("/gauntlet/map.json")));
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "gauntlet"), ("value", "true"));   // the players see the tool
+        Assert.Equal(new[] { "zzoega" }, Names(await (await f.Player(f.AddKey("zzoega"))).GetStringAsync("/gauntlet/map.json")));
+        Assert.Empty(Names(await (await f.Player(f.AddKey("bileh123"))).GetStringAsync("/gauntlet/map.json")));
     }
 }

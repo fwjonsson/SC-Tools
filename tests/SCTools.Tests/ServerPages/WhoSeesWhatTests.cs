@@ -125,7 +125,7 @@ public class WhoSeesWhatTests
             await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", id), ("value", "true"));
         f.Upload(SCTools.Tests.Support.PlayedSession.Player, SCTools.Tests.Support.PlayedSession.Writer().Lines.ToList());
         var visitor = f.Browser();
-        foreach (var page in new[] { "/session", "/party", "/gauntlet", "/gauntlet/stats", "/map", "/hauling" })
+        foreach (var page in new[] { "/session", "/party", "/gauntlet", "/gauntlet/stats", "/hauling" })
         {
             var res = await visitor.GetAsync(page);
             Assert.True(res.StatusCode == HttpStatusCode.OK, page + ": " + res.StatusCode);
@@ -133,7 +133,9 @@ public class WhoSeesWhatTests
         Assert.Contains("Log in", await visitor.GetStringAsync("/session"));
         Assert.Contains("Log in", await visitor.GetStringAsync("/party"));
         Assert.Contains("Log in to see your party", await visitor.GetStringAsync("/"));   // the landing page's line of the Hauling Planner
-        var map = JsonDocument.Parse(await visitor.GetStringAsync("/map/map.json")).RootElement;
+        // the Map is the admin's (31 Oct 2026): a visitor is sent to log in; the Gauntlet Tracker's map gives him the places and nobody on them
+        Assert.StartsWith("/login", (await visitor.GetAsync("/admin/map")).Headers.Location!.PathOf());
+        var map = JsonDocument.Parse(await visitor.GetStringAsync("/gauntlet/map.json")).RootElement;
         Assert.Empty(map.GetProperty("players").EnumerateArray());
         Assert.NotEmpty(map.GetProperty("systems").EnumerateArray());
         var data = JsonDocument.Parse(await visitor.GetStringAsync("/data.json")).RootElement;
