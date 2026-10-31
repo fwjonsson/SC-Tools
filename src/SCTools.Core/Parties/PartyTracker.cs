@@ -37,6 +37,12 @@ public static class PartyTracker
     public static readonly TimeSpan Pairing = TimeSpan.FromSeconds(15);
 
     /// <summary>
+    /// "You have joined party" this soon after an invite was received is accepting it; without one, it was "You have created party": he made the party
+    /// and leads it until the game names another leader (the logs say "is now party leader" only when the leader changes, not when a party is made).
+    /// </summary>
+    public static readonly TimeSpan Accepting = TimeSpan.FromSeconds(60);
+
+    /// <summary>
     /// The history is written when the logs have been quiet this long, so the same change told by every log a few seconds apart (the PCs' clocks differ) is
     /// one change, at the time of the first log that told it.
     /// </summary>
@@ -99,6 +105,11 @@ public static class PartyTracker
                         s.Alone(p.Who);
                         s.PartyOf(p.Who, e.Time);
                         s.Pair(p.Who, e.Time);
+                        // no invite just before: he made it (Frank, 1 Nov 2026: zzatvo made the party and the site said zzoega's party)
+                        if (!(s.Invites.TryGetValue(p.Who, out var invited) && e.Time >= invited && e.Time - invited <= Accepting)) s.Made[p.Who] = e.Time;
+                        break;
+                    case PartyEventKind.Invited:
+                        s.Invites[p.Who] = e.Time;
                         break;
                     case PartyEventKind.Joined:
                         s.PartyOf(p.Who, e.Time).Add(e.Name!);
@@ -178,6 +189,8 @@ public static class PartyTracker
         public Dictionary<string, (string Name, DateTime At)> Leaders { get; } = new(Same);
         public Dictionary<string, DateTime> Joined { get; } = new(Same);                 // when the player of a log came into his party (the first one there made it)
         public Dictionary<string, DateTime> Ended { get; } = new(Same);                  // when the last game of the player of a log ended
+        public Dictionary<string, DateTime> Invites { get; } = new(Same);                // when the player of a log was last invited to a party
+        public Dictionary<string, DateTime> Made { get; } = new(Same);                   // the player of a log made the party he is in, at this time
 
         // which party of his a player of a log is in (a new one every time his game puts him in a party), when it began with "You have created / joined
         // party", and the parties of two players that are one by those lines
@@ -202,6 +215,7 @@ public static class PartyTracker
             Party.Remove(who);
             Leaders.Remove(who);
             Joined.Remove(who);
+            Made.Remove(who);
         }
 
         /// <summary>He made or joined a party now: one with another player's that was made or joined within seconds of it.</summary>
@@ -243,10 +257,12 @@ public static class PartyTracker
             foreach (var g in root.Keys.ToList().GroupBy(Find, Same))
             {
                 var names = g.Select(Written).Distinct(Same).OrderBy(n => n, Same).ToList();
-                // its leader: the one the game named last, else the first who was in it (who made it), else the first by name
+                // its leader: the one the game named last, else the one who made it (his log had no invite before "party"), else the first who was in
+                // it (the PCs' clocks differ by seconds, so of two who came in together this can be the one who joined), else the first by name
                 var named = g.Where(Leaders.ContainsKey).Select(o => Leaders[o]).OrderBy(x => x.At).LastOrDefault().Name;
+                var made = g.Where(Made.ContainsKey).OrderBy(o => Made[o]).FirstOrDefault();
                 var first = g.Where(Joined.ContainsKey).OrderBy(o => Joined[o]).FirstOrDefault();
-                groups.Add(new PartyGroup(Written(named ?? first ?? names[0]), names));
+                groups.Add(new PartyGroup(Written(named ?? made ?? first ?? names[0]), names));
             }
             groups.Sort((a, b) => Same.Compare(a.Leader, b.Leader));
             return groups;

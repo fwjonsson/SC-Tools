@@ -61,9 +61,10 @@ public sealed class HaulingLog
     // The in-game party, from the game's notifications: the line with their text as it goes to the queue (once per notification; it has "MissionId" in it,
     // so the trackers upload it). "zzatvo has joined the party.", "Bileh123 has left the party.", "zzoega is now party leader.", "Initiated by party leader
     // zzoega." (a party launch), "The party has been disbanded.", "party" (the second line of "You have joined party" and "You have created party"), and
-    // "zzatvo connected." / "Bileh123 disconnected." (a member of the party came into the game or went out of it).
+    // "zzatvo connected." / "Bileh123 disconnected." (a member of the party came into the game or went out of it), and "Party Invite Received: Accept
+    // Invitation?" (he was invited: the one who accepts an invite joined the party, the one without one made it).
     static readonly Regex PartyNote = new(
-        @"^<[^>]+> (?:(?<n>[A-Za-z0-9_.-]+) has (?<k>joined|left) the party\.|(?<n>[A-Za-z0-9_.-]+) (?<k>connected|disconnected)\.|(?<n>[A-Za-z0-9_.-]+) is now party (?<k>leader)\.|Initiated by party (?<k>leader) (?<n>[A-Za-z0-9_.-]+)\.|The party has been (?<k>disbanded)\.|(?<k>party)): "" \[\d+\] to queue\.",
+        @"^<[^>]+> (?:(?<n>[A-Za-z0-9_.-]+) has (?<k>joined|left) the party\.|(?<n>[A-Za-z0-9_.-]+) (?<k>connected|disconnected)\.|(?<n>[A-Za-z0-9_.-]+) is now party (?<k>leader)\.|Initiated by party (?<k>leader) (?<n>[A-Za-z0-9_.-]+)\.|The party has been (?<k>disbanded)\.|Party Invite (?<k>Received): Accept Invitation\?|(?<k>party)): "" \[\d+\] to queue\.",
         RegexOptions.Compiled);
 
     // the game names where the player is when he plans a quantum route: "Projected Start Location is Stanton Gateway for route to ..."
@@ -636,12 +637,13 @@ public sealed class HaulingLog
                     "disbanded" => PartyEventKind.Disbanded,
                     "connected" => PartyEventKind.Connected,
                     "disconnected" => PartyEventKind.Disconnected,
+                    "Received" => PartyEventKind.Invited,
                     _ => PartyEventKind.Self,
                 };
                 PartyEvents.Add(new PartyEvent(t, kind, pn.Groups["n"].Success ? pn.Groups["n"].Value : null));
                 // not a mission line: the time of the last mission line stays; the game says "connected" every few minutes while they play, and the party
                 // tracker looks at every new piece of log anyway, so those are no reason to read the session again
-                if (kind is not (PartyEventKind.Connected or PartyEventKind.Disconnected)) Version++;
+                if (kind is not (PartyEventKind.Connected or PartyEventKind.Disconnected or PartyEventKind.Invited)) Version++;
                 return;
             }
         }

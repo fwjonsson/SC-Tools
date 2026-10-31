@@ -228,7 +228,9 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       member's game came in or went out; a disconnect is followed by "has left" about six minutes later unless he comes back), and "You have created
       / joined party". The last one names nobody: a party made from an invite is only seen as one player creating and one joining within seconds
       (343 of 384 such pairs under ten seconds apart; the PCs' clocks differ), so two of those within fifteen seconds are one party now (before:
-      two players alone). "You have left the party." and "You have been kicked from the party." have their words on a line the trackers do not send
+      two players alone). Its leader is the one who made it, told by the invite line ("Party Invite Received: Accept Invitation?") the one who
+      accepts has just before his "party"; the maker has none (175 of 176 makers, 264 of 270 joiners). Frank, 1 Nov 2026, after the site said
+      "zzoega's party" for zzatvo's: of two who come in within seconds, the PCs' clocks can put the joiner first. "You have left the party." and "You have been kicked from the party." have their words on a line the trackers do not send
       (a kick in these logs is always the game moving a player to the party whose invite he accepted, and the others' logs say he left), and
       "Join Match ... party[id]" (the game's own id of the party) is rare (five times in zzatvo's 250 games): not used.
     - **Players without the SC Tools Tracker** (Bileh123): the others' logs say he is in the party, when he joined, left and leads, when his game went

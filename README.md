@@ -618,7 +618,10 @@ admin (done), then going live.
   versions and asks it about parties. It keeps the history of every party (`PartyRecord`: who joined and left and when, who led it and when that
   changed, disbanded or not; a relog or a new log file shorter than fifteen minutes is not a change), served to the tools in the background (no page
   of its own, Frank 31 Oct 2026). A party made from an invite names nobody in either log ("You have created party" in one, "You have joined party"
-  in the other, seconds apart since the PCs' clocks differ), so two of those within fifteen seconds are one party. "X connected." and "X
+  in the other, seconds apart since the PCs' clocks differ), so two of those within fifteen seconds are one party. Its leader is the one who made it:
+  the game names a leader only when it changes, and the one who accepted an invite has "Party Invite Received: Accept Invitation?" in his log just
+  before (the one who made it has none; right for 175 of 176 makers and 264 of 270 joiners in the three accounts' logs; Frank, 1 Nov 2026: the site
+  said "zzoega's party" for a party zzatvo had made, since of two who come in together the PCs' clocks can put the joiner first). "X connected." and "X
   disconnected." (a party member's game came in or went out) are read too: "connected" puts a player without a tracker in the party of the log
   that says it (he may have been there before that player came), and changes nothing for a player with a tracker (his own log says when he plays).
 - **The location tracker** (`Locations/LocationTracker.cs` in the core, #388): the one place that knows where every player is, since when, and whether
