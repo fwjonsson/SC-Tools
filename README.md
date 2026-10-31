@@ -57,7 +57,8 @@ or open `SCTools.slnx` in Visual Studio. The exes come from the Build workflow, 
 
 Every area has its own namespace (`SCTools.Planning`, `SCTools.Tracking`, ...), one class per file.
 GitHub builds the tracker and the API tool for every pull request and every merge to main (Build, Windows), runs the tests and the planner scenarios (Tests, Linux),
-and puts the site on the server after a green Tests run on main (Deploy). A push to a branch in a pull request runs Build and Tests once, as the pull
+and puts the site on the server after a green Tests run on main (Deploy: only of a push to this repository's main, never of a pull request, not even one
+from a fork's own branch called main). A push to a branch in a pull request runs Build and Tests once, as the pull
 request; the NuGet packages are kept between runs.
 
 ## Updates

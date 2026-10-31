@@ -7,6 +7,8 @@ name: Deploy
 # made) and DEPLOY_KNOWN_HOSTS (the server's key, so nobody can pose as it).
 # The Tests run on main for every change to the core, the web view, the server, the tests and the planner scenarios: everything the site is made of, and a
 # little more (a change to the tests alone puts the same site on the server again, which does no harm). A change to this file alone: Run workflow.
+# Only a push to main of this repository deploys: "branches: main" goes by the branch's name alone, and a pull request from somebody's fork of the repo
+# from his own branch called main would match it, so his code would go on the server once its Tests were green (31 Oct 2026).
 on:
   workflow_run:
     workflows:
@@ -23,7 +25,10 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
