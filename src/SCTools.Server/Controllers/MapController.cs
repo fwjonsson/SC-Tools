@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using SCTools.Server.Accounts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -33,6 +35,11 @@ public sealed class MapController : Controller
         return View();
     }
 
+    /// <summary>
+    /// The map's data for this viewer: the places, the players he may see with their objectives (DataViews.MapFor; the admin everybody), and who he is
+    /// (me: the player the admin looks as, else who is logged in, null for a visitor; as the Companion's feed has it), for the parts of the map that are
+    /// his own, such as measuring a distance with his own ship (#408; Frank, 31 Oct 2026).
+    /// </summary>
     [HttpGet("map.json")]
     public IActionResult Data()
     {
@@ -41,6 +48,8 @@ public sealed class MapController : Controller
         var viewer = Audience.Of(HttpContext);
         var now = DateTime.UtcNow;
         var map = _map.Snapshot(now);
-        return viewer.Everything ? Json(map) : Json(DataViews.MapFor(map, _audience.Allowed(viewer, now)));
+        var node = viewer.Everything ? JsonSerializer.SerializeToNode(map, JsonSerializerOptions.Web) : DataViews.MapFor(map, _audience.Allowed(viewer, now));
+        if (node is JsonObject d) d["me"] = PointOfView.Name(HttpContext);
+        return Json(node);
     }
 }

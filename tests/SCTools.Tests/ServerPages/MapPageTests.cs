@@ -296,4 +296,30 @@ public class MapPageTests
         // landed in the station's hangar, or taking off in the station's area (Frank, 31 Oct 2026)
         Assert.Contains("pl.hangar === 'landed' ? 'Landed at ' : pl.hangar === 'takeoff' ? 'Taking off from ' : 'At '", script);
     }
+
+    [Fact]
+    public async Task The_feed_says_who_the_viewer_is()
+    {
+        using var f = new ServerFactory();
+        var now = DateTime.UtcNow;
+        var his = new GameLogWriter().At(now.AddMinutes(-2)).Login("zzoega").Minutes(1).Inventory("zzoega", "Nyx_Levski");
+        Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-2)), 0, 1000, his.Lines.ToList(), now).Ok);
+        // the admin: everybody on the map, and he is himself; looking as zzoega he is zzoega (so the map's own tools, such as measuring a distance with
+        // his ship, work for the player he looks as; #408, Frank 31 Oct 2026)
+        var admin = await f.Admin();
+        var map = JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement;
+        Assert.Equal(ServerFactory.AdminName, map.GetProperty("me").GetString());
+        Assert.Equal(new[] { "zzoega" }, map.GetProperty("players").EnumerateArray().Select(p => p.GetProperty("name").GetString()));
+        await ServerFactory.Send(admin, "/", "/admin/pov", ("name", "zzoega"), ("back", "/map"));
+        Assert.Equal("zzoega", JsonDocument.Parse(await admin.GetStringAsync("/map/map.json")).RootElement.GetProperty("me").GetString());
+        // once the tool is shown: a player is himself, a visitor nobody, and both get the places
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "map"), ("value", "true"));
+        var player = await f.Player(f.AddKey("bileh123"));
+        map = JsonDocument.Parse(await player.GetStringAsync("/map/map.json")).RootElement;
+        Assert.Equal("bileh123", map.GetProperty("me").GetString());
+        Assert.Empty(map.GetProperty("players").EnumerateArray());   // zzoega is in no party with him
+        map = JsonDocument.Parse(await f.Browser().GetStringAsync("/map/map.json")).RootElement;
+        Assert.Equal(JsonValueKind.Null, map.GetProperty("me").ValueKind);
+        Assert.NotEmpty(map.GetProperty("systems").EnumerateArray());
+    }
 }
