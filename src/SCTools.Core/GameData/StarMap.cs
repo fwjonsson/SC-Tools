@@ -154,6 +154,34 @@ public static class StarMap
         ["nyx"] = new[] { "nyx-i", "nyx-ii", "nyx-iii" },
     };
 
+    /// <summary>
+    /// The moons of a planet in the order of the game's letters: "stanton2c", "Stanton2c_DrugLab_Jumptown" is Yela (Jumptown is on Yela), "pyro5a" Ignis. The
+    /// three accounts' logs (Aug-Oct 2026) say so: the start name after arriving at "pyro5a", "pyro5c", "pyro5e" was Ignis, Adir, Fuego, and the
+    /// outposts' and "OOC_Stanton_…" codes name Hickes Research (2a, Cellin), Klescher (1b, Aberdeen), Jumptown (2c, Yela), Kaltag (4a, Calliope),
+    /// Ita (1d), Wala (3b), Clio (4b).
+    /// </summary>
+    internal static readonly Dictionary<string, string[]> MoonOrder = new()
+    {
+        ["stanton/hurston"] = new[] { "arial", "aberdeen", "magda", "ita" },
+        ["stanton/crusader"] = new[] { "cellin", "daymar", "yela" },
+        ["stanton/arccorp"] = new[] { "lyria", "wala" },
+        ["stanton/microtech"] = new[] { "calliope", "clio", "euterpe" },
+        ["pyro/pyro-v"] = new[] { "ignis", "vatra", "adir", "fairo", "fuego", "vuur" },
+    };
+
+    /// <summary>
+    /// Codes of places the game uses that no rule reads, each checked in the three accounts' logs (Aug-Oct 2026): what the game named as the start after
+    /// arriving there, and where the routes' fuel estimates put it. "rs_ext_arc-l001" is ARC-L2 (the start name three times; 17.72 Gm from the Pyro
+    /// Gateway, ARC-L2 is 17.52, ARC-L1 15.64); the Collector's gas station ("ab_collector_gas_Stanton4", and "TheCollectorAsteroid_Stanton4" in the
+    /// inventory lines) is Wikelo Emporium Kinga Station: six routes to it from known stations put it 1 Mm from where the game data has it.
+    /// </summary>
+    internal static readonly Dictionary<string, string> Codes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["rs_ext_arc-l001"] = "stanton/arc-l2-lively-pathway-station",
+        ["ab_collector_gas_Stanton4"] = "stanton/wikelo-emporium-kinga-station",
+        ["TheCollectorAsteroid_Stanton4"] = "stanton/wikelo-emporium-kinga-station",
+    };
+
     /// <summary>Stanton's planets as the names of their Lagrange stations start ("HUR-L1").</summary>
     internal static readonly string[] StantonPrefix = { "HUR", "CRU", "ARC", "MIC" };
 
@@ -190,12 +218,16 @@ public static class StarMap
         return string.Join("-", words);
     }
 
-    internal static readonly Regex Planet = new(@"^(?:rs_ext_)?(?<s>pyro|stanton|nyx)(?<n>\d)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    internal static readonly Regex Planet = new(@"^(?:rs_ext_)?(?<s>pyro|stanton|nyx)(?<n>\d)(?<m>[a-f])?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    // A planet's or a moon's code inside a longer name: "Stanton2c_DrugLab_Jumptown", "Outpost_OLP_Stanton1b_Vivere", "OOC_Stanton_1d_Ita", "Pyro2_Outpost_…"
+    internal static readonly Regex Body = new(@"(?:^|_)(?<s>pyro|stanton|nyx)_?(?<n>\d)(?<m>[a-f])?(?=_|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    // A Stanton planet's station in low orbit as a quantum destination: "rs_ext_cru-leo1" is Seraphim Station (the start name after arriving there, seven times)
+    internal static readonly Regex OrbitLeo = new(@"^(?:LOC_)?rs_ext_(?<p>hur|cru|arc|mic)-leo\d*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     internal static readonly Regex RestStop = new(@"(?:RR_S(?<n>\d)_L(?<l>\d)|stanton(?<n>\d)_l(?<l>\d))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     // The game's own code for a Pyro station (Rest & Relax's "RR", which the game puts on every station and gateway of a system, whoever runs it): planet and
     // Lagrange point or low orbit, "RR_P6_L5" (Megumi Refueling) in the areas of the inventory lines, "PYR3 L3" (Patch City) as a start name; the same
     // as the quantum destination "rs_ext_pyro6_l5" (Frank, 31 Oct 2026).
-    internal static readonly Regex PyroStop = new(@"^(?:LOC_)?(?:RR_P|PYR)(?<n>\d)[_ ]+(?<l>L\d|LEO)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    internal static readonly Regex PyroStop = new(@"^(?:LOC_)?(?:RR_P|PYR|P)(?<n>\d)[_ ]+(?<l>L\d|LEO)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     // The same for a Stanton station, by its planet's three letters: "RR_CRU_L1" (CRU-L1 Ambitious Dream Station) and "RR_HUR_LEO" (Everus Harbor, in low
     // orbit) in the areas, "CRU L1" as a start name (zzoega's logs, 31 Oct 2026).
     internal static readonly Regex StantonStop = new(@"^(?:LOC_)?(?:RR_)?(?<p>HUR|CRU|ARC|MIC)[_ ](?<l>L\d|LEO)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -208,7 +240,8 @@ public static class StarMap
 
     // A gateway in the game's own code: "RR_JP_PyroStanton" is the one in Pyro to Stanton (Stanton Gateway in Pyro).
     internal static readonly Regex RestStopGate = new(@"^(?:LOC_)?RR_JP_(?<a>Pyro|Stanton|Nyx)(?<b>Pyro|Stanton|Nyx|Terra)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    internal static readonly Regex Gate = new(@"(?<a>pyro|stanton|nyx)-(?<b>pyro|stanton|nyx|stan|terra)_jp", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    // A gateway as a quantum destination: "rs_ext_nyx-pyro_jp1", and Stanton's own written short, "LOC_rs_ext_stan-pyro_jp1" (56 picks in the logs)
+    internal static readonly Regex Gate = new(@"(?<a>pyro|stanton|nyx|stan)-(?<b>pyro|stanton|nyx|stan|terra)_jp", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     /// <summary>The place a quantum destination of the log is, in the game data (Atlas.OfQuantumTarget).</summary>
     public static Place? OfQuantumTarget(string target, string? system = null) => Atlas.Default.OfQuantumTarget(target, system);

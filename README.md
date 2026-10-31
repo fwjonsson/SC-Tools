@@ -321,7 +321,19 @@ admin (done), then going live.
   code for a station or a gateway is read in every one of those (`Atlas.OfCode`: "RR_P6_L5" and "PYR6 L5" are Megumi Refueling, planet 6 and
   Lagrange point 5 like "rs_ext_pyro6_l5", "RR_P6_LEO" is Ruin Station in low orbit; in Stanton by the planet's three letters, "RR_CRU_L1" and
   "CRU L1" CRU-L1 Ambitious Dream Station, "RR_HUR_LEO" Everus Harbor; "RR_JP_PyroStanton" the Stanton Gateway in Pyro; RR is Rest & Relax's, which
-  the game puts on every station, Frank 31 Oct 2026). Coming near a
+  the game puts on every station, Frank 31 Oct 2026). Every other code the three accounts' logs show for a real place is read too (Frank, 31 Oct 2026:
+  "teach the map everything you can find"), each checked by what the game named as the start after arriving there and by where the routes' fuel
+  estimates put it: "rs_ext_cru-leo1" is Seraphim Station (a planet's station in low orbit, `StarMap.OrbitLeo`), "LOC_rs_ext_stan-pyro_jp1" Stanton's
+  Pyro Gateway (Stanton written short), a moon by its planet's number and its letter ("pyro5a" Ignis, "stanton2c" Yela, `StarMap.MoonOrder`), also
+  inside a longer name (`StarMap.Body`): an outpost, a mine or a facility the map has no place for is on the planet or moon its code names
+  ("Stanton2c_DrugLab_Jumptown" Yela, "PrisonMine_Stanton1b" Aberdeen, "Pyro2_Outpost_…" Monox, "OOC_Stanton_1d_Ita" Ita), after any place whose
+  name is in it ("Stanton2_Orison" stays Orison). A few one-offs are in a table (`StarMap.Codes`): "rs_ext_arc-l001" is ARC-L2, and the Collector's
+  gas station ("ab_collector_gas_Stanton4", "TheCollectorAsteroid_Stanton4") Wikelo Emporium Kinga Station, which six routes to it put within 1 Mm.
+  In the three accounts' logs that took the picks the map places from 76% to 85% and the inventory lines from 85% to 93%. Still unknown, for want of a
+  position: the Castra and Magnus gateways, Pyro's encounter sites ("RegionB_2base_ab_pyro_final_set_encounter-001"), the asteroid clusters, and
+  "ObjectContainer_RestStop" (the same name for many stations). The fuel estimate is a precise distance (on 342 jumps between stations, the ship's
+  estimate per Gm from its jump before gave the real distance with a median ratio of 1.0000, crafted drives included), but too few encounters were
+  picked from three known places or more to work out where they are. Coming near a
   place puts him there too: the game names the area he is in with his inventory lines (`<RequestLocationInventory> Player[zzoii] requested inventory for
   Location[Nyx_Levski]`, `Location[RR_P6_LEO]` around Ruin Station: the space where a hangar can be called, not where he opened an inventory, Frank 30 Oct
   2026; the system by the start of the id, the place by the rest, `Atlas.OfLocation`; the trackers send these lines from their next update), also after

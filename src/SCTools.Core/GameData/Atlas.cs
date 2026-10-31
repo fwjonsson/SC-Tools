@@ -116,13 +116,7 @@ public sealed class Atlas
         if (OfPyroStation(PyroDistances.IdOfQuantumTarget(target)) is { } station) return station;
         if (OfCode(target) is { } coded) return coded;
         var m = StarMap.Planet.Match(target);
-        if (m.Success)
-        {
-            var s = m.Groups["s"].Value.ToLowerInvariant();
-            var order = StarMap.PlanetOrder[s];
-            var n = m.Groups["n"].Value[0] - '1';
-            return n >= 0 && n < order.Length ? Find(s + "/" + order[n]) : null;
-        }
+        if (m.Success) return OfBody(m);
         m = StarMap.RestStop.Match(target);
         if (m.Success)
         {
@@ -135,17 +129,39 @@ public sealed class Atlas
         m = StarMap.Gate.Match(target);
         if (m.Success)
         {
-            var b = m.Groups["b"].Value.ToLowerInvariant() switch { "stan" => "stanton", var x => x };
-            return Find(m.Groups["a"].Value.ToLowerInvariant() + "/" + b + "-gateway");
+            static string Sys(string s) => s.ToLowerInvariant() switch { "stan" => "stanton", var x => x };
+            return Find(Sys(m.Groups["a"].Value) + "/" + Sys(m.Groups["b"].Value) + "-gateway");
         }
         // a place whose name is in it ("levski_all-001" is Levski), the longest name; in this system first
         var t = StarMap.Letters(target);
-        return Places
+        var named = Places
             .Where(p => p.Kind != PlaceKind.Star)
             .Select(p => (Place: p, Name: Names(p).Where(n => n.Length >= 5 && t.Contains(n, StringComparison.Ordinal)).OrderByDescending(n => n.Length).FirstOrDefault()))
             .Where(x => x.Name != null)
             .OrderByDescending(x => x.Place.System == system).ThenByDescending(x => x.Name!.Length)
             .Select(x => x.Place).FirstOrDefault();
+        if (named != null) return named;
+        // else the planet or the moon its code names ("Stanton2c_DrugLab_Jumptown" is on Yela, "Pyro2_Outpost_…" on Monox): an outpost, a mine, a
+        // facility the map has no place for is on that planet or moon, near enough at the map's scale (Frank, 31 Oct 2026)
+        m = StarMap.Body.Match(target);
+        return m.Success ? OfBody(m) : null;
+    }
+
+    /// <summary>The planet ("stanton2": its number in the system's order) or the moon ("stanton2c": its letter, StarMap.MoonOrder) a code names, or null.</summary>
+    Place? OfBody(System.Text.RegularExpressions.Match m)
+    {
+        var s = m.Groups["s"].Value.ToLowerInvariant();
+        var order = StarMap.PlanetOrder[s];
+        var n = m.Groups["n"].Value[0] - '1';
+        if (n < 0 || n >= order.Length) return null;
+        var planet = s + "/" + order[n];
+        if (m.Groups["m"].Success && m.Groups["m"].Length > 0)
+        {
+            var moons = StarMap.MoonOrder.GetValueOrDefault(planet);
+            var i = char.ToLowerInvariant(m.Groups["m"].Value[0]) - 'a';
+            return moons != null && i < moons.Length ? Find(s + "/" + moons[i]) : null;
+        }
+        return Find(planet);
     }
 
     /// <summary>
@@ -155,7 +171,10 @@ public sealed class Atlas
     Place? OfCode(string text)
     {
         var t = text.Trim();
-        var m = StarMap.PyroStop.Match(t);
+        if (StarMap.Codes.TryGetValue(t, out var key)) return Find(key);
+        var m = StarMap.OrbitLeo.Match(t);
+        if (m.Success) return Find(StarMap.StantonLeo[m.Groups["p"].Value.ToUpperInvariant()]);
+        m = StarMap.PyroStop.Match(t);
         if (m.Success) return OfPyroStation(PyroDistances.IdOfQuantumTarget("rs_ext_pyro" + m.Groups["n"].Value + "_" + m.Groups["l"].Value));
         m = StarMap.StantonStop.Match(t);
         if (m.Success)
