@@ -158,6 +158,10 @@ public sealed class PageController : Controller
             var me = PointOfView.Name(HttpContext);
             d["me"] = me;
             if (me != null) d["mine"] = JsonSerializer.SerializeToNode(_map.Mine(me), JsonSerializerOptions.Web);
+            // the admin edits the Session tab's Active Contracts right in place, as the Mission Library (Frank, 31 Oct 2026): their fields (not when he looks as
+            // a player)
+            if (User.IsInRole(SCTools.Server.Accounts.Roles.Admin) && PointOfView.Of(HttpContext) == null && d["missions"] is JsonArray missions)
+                ContractEdit.AddTo(missions, _missions);
         }
         return Json(node);
     }

@@ -80,19 +80,12 @@ public sealed class CompanionService
                 d["unplaced"] = all["unplaced"]?.DeepClone();
                 d["party"] = new JsonArray(party.Order(StringComparer.OrdinalIgnoreCase).Select(n => (JsonNode)n).ToArray());
             }
-            if (editor && d["missions"] is JsonArray missions)
-            {
-                _library.Collect();   // a contract just taken is in the library (nothing new: nothing done)
-                var entries = ContractInfo.ByKey(_library);
-                foreach (var m in missions.OfType<JsonObject>())
-                    if (m["key"]?.GetValue<string>() is { } key && entries.TryGetValue(key, out var e))
-                        m["edit"] = JsonSerializer.SerializeToNode(ContractEdit.Of(e), JsonSerializerOptions.Web);
-            }
+            if (editor && d["missions"] is JsonArray missions) ContractEdit.AddTo(missions, _library);
         }
         return node;
     }
 
-    /// <summary>The admin's list of factions (MissionLibrary.Choices: kept in the box above the Mission Library), for his Faction drop-downs to pick from.</summary>
+    /// <summary>The admin's list of factions (MissionLibrary.Choices: kept on his Settings page), for his Faction drop-downs to pick from.</summary>
     public List<string> Factions() => _library.Choices(MissionLibrary.FactionList);
 
     /// <summary>

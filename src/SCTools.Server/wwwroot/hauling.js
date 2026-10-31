@@ -389,23 +389,37 @@ function shotLink(keyOrName, name) {
   b.title = 'Read a screenshot of this contract (Ctrl+V)';
   return b;
 }
-// The admin's 📷 column of the Completed Contracts table: one for every kind of contract by its name (not the Total).
-function addShotLinks(box) {
+// The admin's fields of a mission, as in the Mission Library (missionfields.js, the Companion's too; Frank, 31 Oct 2026: "editable anywhere they are
+// visible").
+const F = window.SCToolsMissionFields;
+
+// The admin's Completed Contracts table: the Mission Reward of every kind of contract is a field (saved to the library by its name, as the table has it)
+// and it has a 📷 column (not the Total).
+function editRewards(box) {
   const t = box && box.querySelector('table');
   if (!ADMIN || !t || !t.tHead) return;
   const th = document.createElement('th'); th.textContent = '📷'; t.tHead.rows[0].appendChild(th);
   Array.from(t.tBodies[0] ? t.tBodies[0].rows : []).forEach(function (tr) {
     const td = tr.insertCell();
     const name = tr.cells[1] ? tr.cells[1].textContent : '';
-    if (name && name !== 'Total') td.appendChild(shotLink(name));
+    if (!name || name === 'Total') return;
+    td.appendChild(shotLink(name));
+    const reward = tr.cells[2];
+    if (reward) {
+      const pays = reward.textContent.replace(/[^0-9]/g, '');
+      reward.textContent = '';
+      reward.appendChild(F.field(name, 'auec', pays, 'aUEC', 'num'));
+    }
   });
 }
 
 // The missions going on, as the Map tool lists them under its map: a copy above the contracts of the Session tab (Frank, 30 Oct 2026: Active Contracts).
+// The admin edits them right there, as in the Mission Library (map.json gives him their fields: edit).
 function missionsTable(box, list) {
   box.textContent = '';
   if (!list || list.length === 0) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'No contracts going on.'; box.appendChild(p); return; }
-  const t = document.createElement('table'); t.className = 'missions view';
+  const edits = ADMIN && list.some(function (m) { return m.edit; });
+  const t = document.createElement('table'); t.className = 'missions' + (edits ? '' : ' view');
   const hr = t.createTHead().insertRow();
   [['#', ''], ['Mission', ''], ['Who', ''], ['Open', 'right'], ['Faction', ''], ['Category', ''], ['SCU', 'right'], ['Reward', 'right'], ['MG scrip', 'right'], ['Council scrip', 'right'], ['XP', 'right'], ['Legality', '']]
     .concat(ADMIN ? [['📷', '']] : [])
@@ -413,16 +427,22 @@ function missionsTable(box, list) {
   const tb = t.createTBody();
   list.forEach(function (m, n) {
     const tr = tb.insertRow();
-    [String(n + 1), m.title, m.who.join(', '), String(m.open), m.faction, m.category, m.scu, m.reward, m.mg, m.council, m.xp, m.legality].forEach(function (v, i) {
-      const td = tr.insertCell(); td.textContent = v;
-      if (i === 0) td.className = 'idx'; else if (i === 1) td.className = 'name'; else if (i === 3 || (i >= 6 && i <= 10)) td.className = 'right';
+    const e = ADMIN ? m.edit : null;
+    const fields = F.cells(m, e);
+    [[String(n + 1), 'idx'], fields[0], [m.who.join(', ')], [String(m.open), 'right']].concat(fields.slice(1)).forEach(function (c) {
+      const td = tr.insertCell();
+      if (c[1]) td.className = c[1];
+      if (c[2]) td.appendChild(F.field(e.key, c[2][0], c[2][1], c[2][2], c[2][3]));
+      else td.textContent = c[0];
     });
-    if (ADMIN) { const td = tr.insertCell(); if (m.key) td.appendChild(shotLink(m.key, m.title)); }
+    if (ADMIN) { const td = tr.insertCell(); const key = m.key || (e && e.key); if (key) td.appendChild(shotLink(key, m.title)); }
   });
   const scroll = document.createElement('div'); scroll.className = 'scroll'; scroll.appendChild(t); box.appendChild(scroll);
 }
+// Not drawn again while the admin types or picks in it (what he typed is not lost): the next update draws it.
 function renderActive() {
-  if (mapData && changed('active', mapData.missions || [])) missionsTable(document.getElementById('active'), mapData.missions);
+  const box = document.getElementById('active');
+  if (mapData && !F.busy(box) && changed('active', mapData.missions || [])) missionsTable(box, mapData.missions);
 }
 
 async function refreshMap() {
@@ -874,7 +894,8 @@ function renderTab(k) {
     // is typed on the Current Route, like a load from Ruin)
     if (changed('summary', v.summary || [])) summary(document.getElementById('summary'), v.summary || []);
     // the contracts of the party shown, under the stops where the Session leaderboard was (Frank, 30 Oct 2026; a tab of their own before)
-    if (changed('rewards', v.rewards)) { table(document.getElementById('rewards'), v.rewards); addShotLinks(document.getElementById('rewards')); }
+    const rewards = document.getElementById('rewards');
+    if (!F.busy(rewards) && changed('rewards', v.rewards)) { table(rewards, v.rewards); editRewards(rewards); }
     document.getElementById('rewardsParty').textContent = partyText;
     if (changed('runs', [v.runs, v.runsLive, v.runKeys])) {
       table(document.getElementById('runs'), v.runs);

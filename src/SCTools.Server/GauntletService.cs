@@ -6,7 +6,7 @@ namespace SCTools.Server;
 /// <summary>
 /// The Gauntlet Tracker's data. The gauntlet missions that ended in the uploaded logs (LogUploads.GauntletRuns) are written to the database, so they stay
 /// after the logs are no longer kept; a mission is kept once per player. The grind sessions come from them (they start and stop by themselves). The rewards of the scenarios are in the
-/// Mission Library (the same for everybody, so the leaderboard compares like with like); what a MG scrip is worth is on the admin's Scrip Value page. What each
+/// Mission Library (the same for everybody, so the leaderboard compares like with like); what a MG scrip is worth is on the admin's Settings page. What each
 /// player's run earned him is the contracts tracker's (ContractSplit): a scenario shared in the party pays every member who completed it his share of the
 /// aUEC, and the MG scrip only to the one who accepted it (Frank, 30 Oct 2026).
 /// </summary>

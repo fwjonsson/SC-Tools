@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace SCTools.Server;
 
@@ -32,6 +34,22 @@ public sealed record ContractEdit(string Key, string Name, string Giver, string 
     string XpHint = "", string LegalityHint = "")
 {
     static string N(long? v) => v?.ToString(CultureInfo.InvariantCulture) ?? "";   // in a field: no thousands separators
+
+    /// <summary>
+    /// Gives every mission of a map (map.json's missions: the Map tool's, the Companion's, the Hauling Planner's) its fields for the admin (edit), by its kind
+    /// in the library (key): what his contract tables edit right in place, as the Mission Library does. A map made before the library had a contract just
+    /// taken has no key for it: then its kind by its name (MissionLibrary.EntryOf).
+    /// </summary>
+    public static void AddTo(JsonArray missions, MissionLibrary library)
+    {
+        library.Collect();   // a contract just taken is in the library (nothing new: nothing done)
+        var entries = ContractInfo.ByKey(library);
+        foreach (var m in missions.OfType<JsonObject>())
+        {
+            var e = m["key"]?.GetValue<string>() is { } key && entries.TryGetValue(key, out var byKey) ? byKey : library.EntryOf(m["title"]?.GetValue<string>());
+            if (e != null) m["edit"] = JsonSerializer.SerializeToNode(Of(e), JsonSerializerOptions.Web);
+        }
+    }
 
     public static ContractEdit Of(LibraryEntry e)
     {

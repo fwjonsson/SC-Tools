@@ -142,6 +142,28 @@ public class CompanionPageTests
     }
 
     [Fact]
+    public async Task The_admin_edits_the_hauling_planner_s_active_contracts_in_place()
+    {
+        // the Session tab's Active Contracts: the library's fields of every contract for the admin, as in the Mission Library (Frank, 31 Oct 2026)
+        var (f, _) = Played();
+        using var _f = f;
+        var admin = await f.Admin();
+        var page = await admin.GetStringAsync("/hauling/session");
+        Assert.Contains("id=\"categories\"", page);   // the drop-downs' lists
+        Assert.Contains("id=\"legalities\"", page);
+        Assert.Contains("id=\"autosaveState\"", page);
+        Assert.Contains("/missionfields.js", page);
+        var going = Assert.Single(Json(await admin.GetStringAsync("/hauling/map.json")).GetProperty("missions").EnumerateArray());
+        Assert.Equal("Senior | Stellar Large Haul | to Ruin Station [50/200/250/500/1000/2000/4000 Rep]", going.GetProperty("edit").GetProperty("name").GetString());
+
+        // a player gets no fields
+        await ServerFactory.Send(admin, "/admin/tools", "/admin/tools/set", ("id", "hauling"), ("value", "true"));
+        var zzoega = await f.Player(f.AddKey("zzoega"));
+        Assert.DoesNotContain("id=\"categories\"", await zzoega.GetStringAsync("/hauling/session"));
+        Assert.All(Json(await zzoega.GetStringAsync("/hauling/map.json")).GetProperty("missions").EnumerateArray(), m => Assert.False(m.TryGetProperty("edit", out _)));
+    }
+
+    [Fact]
     public async Task The_admin_sees_his_own_companion_views_a_player_s_and_fills_in_the_library_from_it()
     {
         var (f, _) = Played();

@@ -161,6 +161,7 @@ table.missions th { line-height:1.15; }
 table.missions input.num { width:110px; text-align:right; }
 table.missions input.num.scrip { width:3.6em; }   /* a mission pays scrip in two figures at most */
 table.missions input.num.scu { width:4.6em; }   /* a mission's cargo: four figures at most */
+table.missions select.giver { min-width:170px; } table.missions select.category { min-width:130px; } table.missions select.legality { min-width:90px; }   /* the drop-downs: their names readable in a narrow table too */
 table.missions tr.todo td:first-child { box-shadow:inset 3px 0 0 #c8a400; }   /* no rewards yet */
 td.small { font-size:12px; }
 /* the Session tool */
@@ -308,13 +309,13 @@ table.missions tr.running td { background:color-mix(in srgb, var(--good) 10%, va
 .shot-table input, .shot-table select { width:11em; }
 .shot-notes { margin:4px 0 8px; padding-left:18px; color:#e0b040; }
 
-/* the admin's lists of factions and categories above the Mission Library's table, on the right (Frank, 31 Oct 2026) */
-.choices { float:right; display:flex; gap:16px; max-width:520px; margin:0 0 10px 16px; }
-.choices > div { flex:1; min-width:200px; }
-.choices h2 { margin:0 0 4px; font-size:15px; }
-.choices ul { list-style:none; margin:0 0 6px; padding:0; max-height:170px; overflow:auto; }
+/* the admin's lists of factions and categories on his Settings page (Frank, 31 Oct 2026) */
+.choices { display:flex; flex-wrap:wrap; gap:16px; margin:0 0 10px; }
+.choices > .card { flex:1; min-width:240px; max-width:380px; }
+.choices h3 { margin:0 0 6px; font-size:15px; }
+.choices ul { list-style:none; margin:0 0 8px; padding:0; max-height:320px; overflow:auto; }
 .choices li { display:flex; justify-content:space-between; align-items:center; gap:6px; padding:1px 0; }
 .choices li form { margin:0; }
 .choices .x { background:none; border:0; color:var(--muted); cursor:pointer; padding:0 4px; }
 .choices .x:hover { color:var(--bad); }
-.choices form.line input { width:9em; }
+.choices form.line input { width:12em; }

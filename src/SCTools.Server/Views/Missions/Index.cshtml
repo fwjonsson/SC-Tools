@@ -35,7 +35,7 @@
   As the admin you type in what the log does not say: it is saved as soon as you leave the field. Session History counts what everybody's missions earned
   with these rewards, the Gauntlet Tracker with the ones of the Combat Gauntlet scenarios, and the Hauling Planner pays the aUEC of the Hauling rows and
   plans with the SCU. The Faction, Category, Reward, XP and Legality in grey are the Star Citizen Wiki's (one typed in wins); Faction and Category are
-  picked from your lists (the box on the right), Legality is Legal or Illegal. A row's 📷 reads a screenshot of its contract into it (Ctrl+V). Everybody
+  picked from your lists (Admin › Settings), Legality is Legal or Illegal. A row's 📷 reads a screenshot of its contract into it (Ctrl+V). Everybody
   else sees the same list without the fields.</p>
 }
 else
@@ -75,29 +75,6 @@ else
 </form>
 @if (edit)
 {
-@* the admin's lists the Faction and Category drop-downs pick from (Frank, 31 Oct 2026): add one, or take one out (a mission that has it keeps it) *@
-<aside class="card choices" id="choices">
-  @foreach (var (list, title, values) in new[] { (MissionLibrary.FactionList, "Factions", Model.FactionChoices), (MissionLibrary.CategoryList, "Categories", Model.Categories) })
-  {
-    <div>
-      <h2>@title</h2>
-      <ul>
-        @foreach (var v in values ?? Array.Empty<string>())
-        {
-          <li><span>@v</span>
-            <form method="post" action="@(EditMissionsController.Path + "/choices/remove")" asp-antiforgery="true">
-              <input type="hidden" name="list" value="@list"><input type="hidden" name="value" value="@v">
-              <button type="submit" class="x" title="Take @v out of the list">×</button>
-            </form></li>
-        }
-      </ul>
-      <form method="post" action="@(EditMissionsController.Path + "/choices/add")" asp-antiforgery="true" class="line">
-        <input type="hidden" name="list" value="@list"><input name="value" placeholder="Add one" aria-label="Add to @title" autocomplete="off">
-        <button type="submit">Add</button>
-      </form>
-    </div>
-  }
-</aside>
 <p class="hint autosave-state" id="autosaveState" aria-live="polite"></p>
 }
 

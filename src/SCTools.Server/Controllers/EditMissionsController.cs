@@ -28,10 +28,12 @@ public sealed class EditMissionsController : Controller
 
     const string NotSaved = "Not saved: a reward or SCU is a whole number (no letters).";
 
+    /// <param name="id">the kind's key, or its name as a table shows it (the Hauling Planner's Completed Contracts: MissionLibrary.EntryOf)</param>
     [HttpPost("set")]
     public IActionResult Set(string id, string field, string? value, string? back)
     {
-        var said = _library.Set(id ?? "", field ?? "", value, User.Identity?.Name ?? "", DateTime.UtcNow);
+        id = _library.EntryOf(id)?.Row.Key ?? id ?? "";
+        var said = _library.Set(id, field ?? "", value, User.Identity?.Name ?? "", DateTime.UtcNow);
         if (Request.Headers.ContainsKey(AutosaveHeader))   // saved in the background (autosave.js): what to say, the page stays as it is
             return Json(new { ok = said != null, said = said ?? NotSaved, version = _library.Version });
         if (said == null) TempData["Message"] = NotSaved;
@@ -102,23 +104,5 @@ public sealed class EditMissionsController : Controller
             if (_library.Set(key, field, value, who, now) == null) return Json(new { ok = false, said = NotSaved });
         }
         return Json(new { ok = true, said = "Saved.", key, anchor = MissionLibrary.Anchor(key), version = _library.Version });
-    }
-
-    // ------------------------------------------------------------------ the lists of the drop-downs (Frank, 31 Oct 2026)
-
-    /// <summary>Adds a faction or a category (list) to the admin's lists the drop-downs pick from (the box above the Mission Library's table).</summary>
-    [HttpPost("choices/add")]
-    public IActionResult AddChoice(string? list, string? value)
-    {
-        if (!_library.AddChoice(list ?? "", value)) TempData["Message"] = "Not added: type a name.";
-        return LocalRedirect(MissionsController.Path + "#choices");
-    }
-
-    /// <summary>Takes a faction or a category out of the admin's lists (a mission that has it keeps it).</summary>
-    [HttpPost("choices/remove")]
-    public IActionResult RemoveChoice(string? list, string? value)
-    {
-        _library.RemoveChoice(list ?? "", value);
-        return LocalRedirect(MissionsController.Path + "#choices");
     }
 }
