@@ -434,7 +434,9 @@ admin (done), then going live.
   Hercules Starlifter" is the C2), its drive and how much faster the drive is (`AppData.DriveSpeedBonus`, `Crew.QtOf`) go to the planner every few
   seconds (`FleetService.SyncPlanner`), so the capacities and the flying times follow it. The Trip Planner, called **Route Planner** on the page since 30 Oct 2026, is the first tab (Frank, 29 Oct
   2026: `/hauling` opens it; its choice of Everyone, a party or Only me sits at the right end of the logged in player's own route card, and a card's heading says where he
-  is once, with the map's "since" or his jump after the station, instead of the map's line under the name), and the tabs are a row under the top bar in the tool's colour like the admin's pages (30 Oct 2026; the Gauntlet
+  is once, with the map's "since" or his jump after the station, instead of the map's line under the name; the route cards sit under a **Players**
+  heading beside the map, as on the Companion, and with nobody of the party playing the heading stays with "Nobody of your party is playing now.",
+  31 Oct 2026), and the tabs are a row under the top bar in the tool's colour like the admin's pages (30 Oct 2026; the Gauntlet
   Tracker's tabs and the Map's systems too, through the layout's `subnav` section; the tools' pages have no title of their own, the bar says where you are; the live text sits in the top bar left of Tracker on every page (`live.js`: green "● live" while the site answers; a page that polls its own
   data says how its poll went, any other asks `/live` every 15 seconds; the time the data was made went on 31 Oct 2026), the team status line at the right
   end of the tabs' row (the session's name was there until 31 Oct 2026: the Session tab says it), and the Session tab has no line saying whose session any more, 30 Oct 2026), the Σ line of its Current Route table is like the Queued routes' total, and the Time of a run on the way counts up under

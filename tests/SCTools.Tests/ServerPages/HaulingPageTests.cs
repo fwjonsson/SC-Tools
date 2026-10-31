@@ -81,6 +81,8 @@ public class HaulingPageTests
         Assert.Contains("const HAVE = Object.keys(TABS).filter(function (k) { return !!document.getElementById('tab' + k); });", script);
         Assert.Contains("function lostPicks", script);   // the admin's Lost Cargo pick in the Cargo runs
         Assert.Contains("function renderPlanner(tab) { keepScroll(document.getElementById('planBody' + tab), function () { buildPlanner(tab); }); }", script);   // the page does not jump up when the planner is drawn anew (30 Oct 2026)
+        Assert.Contains("players.className = 'planplayers'; players.textContent = 'Players';", script);   // the route cards under a Players heading (31 Oct 2026)
+        Assert.Contains("none.textContent = ME ? 'Nobody of your party is playing now.' : 'Log in to see yourself and your party here.';", script);   // and with no card, the heading and that line
         Assert.Contains("function sinceText", script);   // the map's line in the route card's heading, not under it (30 Oct 2026)
         Assert.Contains("if (pick && ownCard && (w.name || '').toLowerCase() === ME) h.appendChild(pick);", script);   // the choice in his own route card (30 Oct 2026)
         Assert.Contains("function renderPlanner", script);
