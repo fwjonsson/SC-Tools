@@ -75,6 +75,20 @@ public class PositionFixTests
     }
 
     [Fact]
+    public void A_beacon_is_placed_only_where_the_spots_that_fit_its_distance_are_close_together()
+    {
+        // a distance is a circle around the start: two asteroid bases far apart on it are two answers, and the map does not guess (Frank, 1 Nov 2026)
+        var start = new Place("nyx", "start", "Start", "Start", PlaceKind.Station, null, 0, 0);
+        Place Spot(string id, double x, double y) => new("nyx", id, "Asteroid Mining Base", "Asteroid Mining Base", PlaceKind.Station, null, x, y, Hidden: true);
+        var a = Spot("a", 40, 0);
+        Assert.Equal(a, BeaconRanging.Pick(new Atlas(StarMap.Places, Array.Empty<PlaceAlias>(), new[] { a }), start, 40));
+        var near = Spot("near", 39.99, 1.0);   // 40 Gm from the start too, 1 Gm from a: one answer, the best fit
+        Assert.Equal(a, BeaconRanging.Pick(new Atlas(StarMap.Places, Array.Empty<PlaceAlias>(), new[] { a, near }), start, 40));
+        var far = Spot("far", 0, -40);   // 40 Gm from the start, on the other side: two answers
+        Assert.Null(BeaconRanging.Pick(new Atlas(StarMap.Places, Array.Empty<PlaceAlias>(), new[] { a, far }), start, 40));
+    }
+
+    [Fact]
     public void A_fix_at_a_spot_is_there_and_the_next_beacon_is_measured_from_the_fix()
     {
         // a mission's site saved before (hidden), and a fix 30 km from it: he is there
@@ -86,9 +100,12 @@ public class PositionFixTests
         var w = LocationTracker.Follow(new List<QtEvent>(), atlas, null, seen, null, null, fixes: new[] { fix });
         Assert.Equal(("nyx/asteroid-mining-base", T), (w.At?.Key, w.Since!.Value));
         Assert.Equal(fix, w.Fix);
-        // 60 km off: not the site (the map leaves him where it had him), but still where he is to measure from
+        // 60 km off, out in open space: not the site; he is exactly there (a spot of its own, never saved), and the Hauling Planner does not take it
         var off = new PositionFix(T, -43.4986e9 + 60_000, -18.3973e9, 0);
-        Assert.Equal("nyx/levski", LocationTracker.Follow(new List<QtEvent>(), atlas, null, seen, null, null, fixes: new[] { off }).At?.Key);
+        var open = LocationTracker.Follow(new List<QtEvent>(), atlas, null, seen, null, null, fixes: new[] { off });
+        Assert.True(LocationTracker.IsFix(open.At));
+        Assert.Equal(("nyx", off.Gm.X, off.Gm.Y, true, T), (open.At!.System, open.At.X, open.At.Y, open.At.Hidden, open.Since!.Value));
+        Assert.Equal(new PlannerPlace(null, null, null, null), open.ForPlanner);
 
         // he picks a mission's beacon after the fix: its fuel estimate is the distance from exactly here, and the spot at that distance is where it goes
         var gm = StarMap.Distance(site, other);

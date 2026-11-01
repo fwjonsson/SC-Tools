@@ -201,7 +201,9 @@ public static class LocationTracker
                 // MissionSpots), and in any case where the next jump he picks starts (a beacon's distance from exactly here: BeaconRanging). The coordinates
                 // are in the system's own frame, so his log must say which system
                 fixHere = fix;
-                if (system == null || SpotAt(atlas, system, fix) is not { } spot) continue;
+                if (system == null) continue;
+                // out in open space, near nothing the map knows: there, exactly (a spot of its own, never saved), and the map follows him on from there
+                var spot = SpotAt(atlas, system, fix) ?? FixPlace(system, fix);
                 if (!Equals(spot, at) || jumped)
                 {
                     (at, since) = (spot, fix.Time);
@@ -315,7 +317,7 @@ public static class LocationTracker
         }
         return new PlayerLocation(system, at, since, picked, from, to, atMission, toMission, jumped, lastPing,
             Moves: picked != null ? moves : null, PickedInArea: picked != null ? pickedInArea : null, Hangar: hangar, Ranged: ranged.Count > 0 ? ranged : null,
-            Space: space, Fix: fixHere);
+            Space: space, Fix: fixHere, InArea: inArea);
     }
 
     /// <summary>The place of the map or the hidden spot (Atlas.Spots: the game data's, and the mission sites saved from fixes) within SpotRadius of a fix, the nearest; or null.</summary>
@@ -327,9 +329,18 @@ public static class LocationTracker
             .Where(p => p.D <= SpotRadius).OrderBy(p => p.D).Select(p => p.Place).FirstOrDefault();
     }
 
-    /// <summary>A fix as a place to measure from (not one of the map's: it is never drawn).</summary>
+    /// <summary>
+    /// A fix as a place of its own: where he is to the metre, near nothing the map knows (open space). Hidden (the map draws him there, nothing for the spot),
+    /// never saved, its key his fix's own (IsFix); the Hauling Planner does not take it (PlayerLocation.ForPlanner).
+    /// </summary>
     static Place FixPlace(string system, PositionFix fix) =>
-        new(system, "showlocation", "where /showlocation put him", "/showlocation", PlaceKind.Station, null, fix.Gm.X, fix.Gm.Y, Hidden: true);
+        new(system, FixId + fix.Time.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture), "the /showlocation spot", "/showlocation",
+            PlaceKind.Station, null, fix.Gm.X, fix.Gm.Y, Hidden: true);
+
+    const string FixId = "showlocation-";
+
+    /// <summary>Is this a fix's own place (FixPlace), not one of the map's?</summary>
+    public static bool IsFix(Place? place) => place != null && place.Id.StartsWith(FixId, StringComparison.Ordinal);
 
     /// <summary>
     /// A crew's jumps with the pilot's destinations: everybody aboard a ship has its arrival in his log at the same moment (the same ship id), only the pilot

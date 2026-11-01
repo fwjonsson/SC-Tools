@@ -69,6 +69,34 @@ public class ShowLocationTests
         Assert.DoesNotContain(f.Services.GetRequiredService<MapPlaces>().Atlas.Spots, s => !HiddenSpots.All.Contains(s));
         Assert.Single(f.Live.Uploads.Logs.Single(l => l.Uploader == "zzatvo").Fixes);
         Assert.Equal(HttpStatusCode.Unauthorized, (await f.Tracker("not-a-key").PostAsJsonAsync("/api/position", new { time = now, x = X, y = Y, z = 0.0 })).StatusCode);
+
+        // out in open space the map puts him exactly there, at a spot of its own that only the map's data for him has
+        var map = JsonDocument.Parse(await (await f.Admin()).GetStringAsync("/admin/map/map.json")).RootElement;
+        var a = Player(map, "zzatvo");
+        var key = a.GetProperty("at").GetString()!;
+        Assert.Equal(("at", true), (a.GetProperty("state").GetString(), key.StartsWith("nyx/showlocation-")));
+        var spot = map.GetProperty("systems").EnumerateArray().Single(s => s.GetProperty("id").GetString() == "nyx").GetProperty("places").EnumerateArray()
+            .Single(p => p.GetProperty("key").GetString() == key);
+        Assert.Equal((X / 1e9, true), (spot.GetProperty("x").GetDouble(), spot.GetProperty("hidden").GetBoolean()));
+    }
+
+    [Fact]
+    public async Task A_showlocation_long_after_a_mission_out_in_open_space_saves_nothing()
+    {
+        // he reached the base, then flew out of its area into open space; half an hour later, still with no jump, /showlocation is not at the site
+        using var f = new ServerFactory();
+        var now = DateTime.UtcNow;
+        var m = GameLogWriter.MissionId(12);
+        const long Levski = 3723364946, NyxSpace = 2627827560, BaseArea = 126935608;
+        var w = new GameLogWriter().At(now.AddMinutes(-40)).Login("zzoega").Inventory("zzoega", "Nyx_Levski")
+            .MissionMarker(m, GameLogWriter.BountyContract, "go-to", "1952").ObjectivePopup(m, "go-to", "Go to Asteroid Mining Base").BeaconPaired("1952", Beacon)
+            .Minutes(1).AreaChange("zzoega", Levski, 0, Levski, NyxSpace)
+            .Minutes(3.5).AreaChange("zzoega", Levski, 0, NyxSpace, BaseArea).Seconds(0.6).MarkerRemoved("zzoega", "1952", m, "go-to")
+            .Minutes(5).AreaChange("zzoega", Levski, 0, BaseArea, NyxSpace);
+        Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-40)), 0, 1000, w.Lines.ToList(), now).Ok);
+        var res = await f.Tracker(f.AddKey("zzoega")).PostAsJsonAsync("/api/position", new { time = now, x = X, y = Y, z = 0.0 });
+        Assert.Equal(JsonValueKind.Null, JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement.GetProperty("site").ValueKind);
+        Assert.DoesNotContain(f.Services.GetRequiredService<MapPlaces>().Atlas.Spots, s => !HiddenSpots.All.Contains(s));
     }
 
     [Theory]

@@ -55,12 +55,14 @@ public sealed class Atlas
     /// The hidden spots whose keys are in spots come too, marked hidden (a player is there or flies there: the engine needs where it is, and draws nothing
     /// for it), so the data stays small and the map does not change when nobody is at one.
     /// </summary>
-    public object SystemData(StarSystem s, IReadOnlyCollection<string>? spots = null) => new
+    /// <param name="extra">places that are only where a player is (a /showlocation spot in open space: LocationTracker.IsFix), hidden like the spots</param>
+    public object SystemData(StarSystem s, IReadOnlyCollection<string>? spots = null, IEnumerable<Place>? extra = null) => new
     {
         id = s.Id,
         name = s.Name,
         turn = s.Turn,
         places = Of(s.Id).Concat(Spots.Where(p => p.System == s.Id && spots != null && spots.Contains(p.Key)))
+            .Concat((extra ?? Enumerable.Empty<Place>()).Where(p => p.System == s.Id))
             .Select(p => new { key = p.Key, name = p.Name, @short = p.Short, kind = p.Kind.ToString().ToLowerInvariant(), parent = p.Parent, x = p.X, y = p.Y, hidden = p.Hidden })
             .ToList(),
     };

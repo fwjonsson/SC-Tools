@@ -204,9 +204,13 @@ admin (done), then going live.
   position the moment it is there (`ClipboardWatcher`: Windows' clipboard notice, no polling; `PositionFix.Parse` takes only that exact text, anything
   else is not looked at further, kept or sent; the menu says when the last one went). The server keeps it with his log (`POST /api/position`,
   `LogUploads.AddFix`, `positions.txt` next to his uploads) and the location tracker uses it: within 50 km of a place or a hidden spot
-  (`LocationTracker.SpotRadius`) he is there, and the next jump he picks is measured from exactly there (a mission's beacon placed by its fuel
-  estimate, `BeaconRanging`, also when the game names only the system as the start). Used at a mission's site (the location tracker has him at its
-  objective), it saves the site (`MissionSpots`): a hidden place on Map places (`MapPlaceRow.Hidden`) named after the objective ("Go to Asteroid Mining
+  (`LocationTracker.SpotRadius`) he is there; out in open space, near nothing the map knows, he is exactly there (a spot of its own for the map's
+  data, never saved, which the Hauling Planner does not take), and the map follows him on from there; and the next jump he picks is measured from
+  exactly there (a mission's beacon placed by its fuel estimate, `BeaconRanging`, also when the game names only the system as the start). A beacon is
+  placed only when the spots that fit its distance lie within 5 Gm of each other (`BeaconRanging.SameArea`): many bases are "Asteroid Mining Base",
+  and two far apart on the circle of a distance would be a guess. Used at a mission's site (the location tracker has him at its objective, inside an
+  area that is not open space, or out in open space within 15 minutes of reaching it), it saves the site (`MissionSpots`; nothing is saved from open
+  space otherwise, Frank 1 Nov 2026): a hidden place on Map places (`MapPlaceRow.Hidden`) named after the objective ("Go to Asteroid Mining
   Base": Asteroid Mining Base), which the map knows but draws only where a player is; a later fix within 50 km of it is that site, and a beacon at
   its distance from a known start is placed there. The game writes none of this in its log. It only sends the lines the
   tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money transfers, the freight elevator and the loading platform, and the

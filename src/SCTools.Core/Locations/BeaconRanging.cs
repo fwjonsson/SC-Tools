@@ -19,17 +19,24 @@ public static class BeaconRanging
     /// <summary>How far off a spot can be: 0.3 % of the distance (the ship is somewhere in the station's area, not at its middle), at least 20 Mm.</summary>
     public static double Tolerance(double gm) => Math.Max(0.02, gm * 0.003);
 
-    /// <summary>The hidden spot of the start's system this far (Gm) from the start, the one that fits best; null when none is within the tolerance.</summary>
+    /// <summary>
+    /// Spots that all fit a distance and lie this close together (Gm) are one answer: at the map's scale it makes no difference which one it is (the far side
+    /// of the Keeger Belt, 95.9 Gm from location 27, had four within the tolerance, all within 2 Gm of each other).
+    /// </summary>
+    public const double SameArea = 5;
+
+    /// <summary>
+    /// The hidden spot of the start's system this far (Gm) from the start, the one that fits best; null when none is within the tolerance, or when spots far
+    /// apart fit as well (a distance is a circle around the start: many asteroid bases have the same "Go to Asteroid Mining Base", and the more the players
+    /// save, the more often two lie on it). Then the map does not guess (Frank, 1 Nov 2026): he is on his way to the mission, with no marker.
+    /// </summary>
     public static Place? Pick(Atlas atlas, Place from, double gm)
     {
-        Place? best = null;
-        var off = double.MaxValue;
-        foreach (var s in atlas.Spots)
-        {
-            if (s.System != from.System) continue;
-            var d = Math.Abs(StarMap.Distance(from, s) - gm);
-            if (d < off) (best, off) = (s, d);
-        }
-        return off <= Tolerance(gm) ? best : null;
+        var fits = atlas.Spots.Where(s => s.System == from.System)
+            .Select(s => (Spot: s, Off: Math.Abs(StarMap.Distance(from, s) - gm)))
+            .Where(x => x.Off <= Tolerance(gm)).OrderBy(x => x.Off).ToList();
+        if (fits.Count == 0) return null;
+        var best = fits[0].Spot;
+        return fits.All(x => StarMap.Distance(x.Spot, best) <= SameArea) ? best : null;
     }
 }

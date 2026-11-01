@@ -18,14 +18,20 @@ public sealed class MissionSpots
         _places = places;
     }
 
+    /// <summary>How long after he reached a mission's objective a /showlocation out in open space (a site with no area of its own) is still at the site.</summary>
+    public static readonly TimeSpan AtSite = TimeSpan.FromMinutes(15);
+
     /// <summary>
     /// Takes in a player's fix (after LogUploads.AddFix): when the location tracker has him at a mission's objective there, the site is saved (or the spot
-    /// within 50 km of it is the site). The site's key, or null when he is not at a mission.
+    /// within 50 km of it is the site). At the site is inside an area that is not open space (an asteroid base's), or out in open space within AtSite of
+    /// reaching the objective: a /showlocation long after, out in open space, saves nothing (Frank, 1 Nov 2026: no random places on the server). The
+    /// site's key, or null when he is not at a mission's site.
     /// </summary>
     public string? Learn(string player, PositionFix fix, DateTime nowUtc)
     {
         var where = _live.Locations(nowUtc).Where(player);
         if (where is not { AtMission: { } mission, System: { } system } || where.Fix != fix) return null;
+        if (where.InArea != true && !(mission.Reached is { } reached && fix.Time - reached <= AtSite)) return null;
         var (x, y) = fix.Gm;
         return _places.AddSpot(system, SiteName(mission.Text), x, y, nowUtc).Key;
     }
