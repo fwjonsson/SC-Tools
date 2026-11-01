@@ -3,9 +3,10 @@ namespace SCTools.Locations;
 /// <summary>
 /// An objective of a mission a player can quantum jump to: its beacon (MissionBeacon: the destination's id, and its marker's entity id), the mission's title,
 /// what the objective says, the contract's system (or null), the place its text names (or null), and from when until the objective or the mission was over
-/// (null: going on).
+/// (null: going on). Reached: when the game took its marker away from him, the objective done for him (Mission.Reached; null: not yet).
 /// </summary>
-public sealed record MissionPoint(string NavPoint, string Marker, string Title, string Text, string? System, Place? Place, DateTime From, DateTime? Until)
+public sealed record MissionPoint(string NavPoint, string Marker, string Title, string Text, string? System, Place? Place, DateTime From, DateTime? Until,
+    DateTime? Reached = null)
 {
     /// <summary>Is this destination of the log this objective (its beacon, or its marker)?</summary>
     public bool Is(string destination) =>

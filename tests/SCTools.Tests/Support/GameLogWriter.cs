@@ -76,6 +76,10 @@ sealed class GameLogWriter
         Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"New Objective: {text}: \" [12] to queue. New queue size: 2, MissionId: [{mission}], ObjectiveId: [{objective}] [Team_CoreGameplayFeatures][Missions][Comms]");
 
     /// <summary>The game pairs an objective's marker with its quantum beacon (the destination a player jumps to).</summary>
+    /// <summary>The game takes an objective's marker away from a player: the objective is done for him ("Objective Complete").</summary>
+    public GameLogWriter MarkerRemoved(string player, string marker, string mission, string objective) =>
+        Add($"{Ts} [Notice] <CObjectiveMarkerComponent::RemovePlayer> MissionObjectiveMarker_{marker}[{marker}] - RemovePlayer - {player}[493008374737] added to removed player list (autoAddPlayers=true) - OnDisconnect: 0, missionId[{mission}], objectiveId[{objective}] [Team_MissionFeatures][Missions]");
+
     public GameLogWriter BeaconPaired(string marker, string navPoint) =>
         Add($"{Ts} [Notice] <CObjectiveMarkerComponent::PairWithMissionNavpoint> MissionObjectiveMarker_{marker}[{marker}] - Paired with NavPoint: {navPoint}[865476577647] [Team_MissionFeatures][Missions]");
 

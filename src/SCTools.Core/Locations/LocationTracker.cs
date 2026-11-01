@@ -39,6 +39,15 @@ public static class LocationTracker
     /// <summary>An objective is done when he arrives at it, or a moment before: a jump that arrives this long after it is still to it.</summary>
     public static readonly TimeSpan DoneGrace = TimeSpan.FromMinutes(1);
 
+    /// <summary>
+    /// The game took a mission's marker away from him (Mission.Reached) this close to a line of his into an area: he reached that objective. In the three
+    /// accounts' logs (Aug-Oct 2026) the two were a median 0.8 seconds apart; 196 of the 1,378 objectives with a beacon came within 3 seconds of one.
+    /// </summary>
+    public static readonly TimeSpan Reaching = TimeSpan.FromSeconds(5);
+
+    /// <summary>An arrival line this soon after he reached an objective is the jump that brought him there (the area line comes before the arrival line).</summary>
+    public static readonly TimeSpan ReachedArrival = TimeSpan.FromSeconds(30);
+
     /// <summary>How long a death stays on the map as a skull where it happened (Frank, 31 Oct 2026: a quarter of an hour; #410).</summary>
     public static readonly TimeSpan DeathAge = TimeSpan.FromMinutes(15);
 
@@ -147,12 +156,43 @@ public static class LocationTracker
         bool? inArea = null, pickedInArea = null;   // inArea: inside an area now, not out in open space (null: no area line yet)
         HangarState? hangar = null;
         var moves = new List<AreaChange>();
-        var steps = qt.Select(e => (e.Time, Qt: (QtEvent?)e, Seen: (LocationSeen?)null, Area: (AreaChange?)null))
-            .Concat((seen ?? Array.Empty<LocationSeen>()).Select(s => (s.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)s, Area: (AreaChange?)null)))
-            .Concat((areas ?? Array.Empty<AreaChange>()).Select(a => (a.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)null, Area: (AreaChange?)a)))
+        // the objectives he reached: the game took the marker away from him as he came into an area (not open space), also when it wrote no quantum line
+        // for the jump there (zzoega, 1 Nov 2026: from Levski to an asteroid mining base, no pick and no arrival line; the map kept him at Levski)
+        var reached = (missions ?? Array.Empty<MissionPoint>())
+            .Where(p => p.Reached is { } r && (areas ?? Array.Empty<AreaChange>()).Any(a => !a.Landed && !space.Contains(a.To) && (a.Time - r).Duration() <= Reaching))
+            .ToList();
+        var steps = qt.Select(e => (e.Time, Qt: (QtEvent?)e, Seen: (LocationSeen?)null, Area: (AreaChange?)null, Reach: (MissionPoint?)null))
+            .Concat((seen ?? Array.Empty<LocationSeen>()).Select(s => (s.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)s, Area: (AreaChange?)null, Reach: (MissionPoint?)null)))
+            .Concat((areas ?? Array.Empty<AreaChange>()).Select(a => (a.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)null, Area: (AreaChange?)a, Reach: (MissionPoint?)null)))
+            .Concat(reached.Select(p => (Time: p.Reached!.Value, Qt: (QtEvent?)null, Seen: (LocationSeen?)null, Area: (AreaChange?)null, Reach: (MissionPoint?)p)))
             .OrderBy(s => s.Time);
+
+        // he is where the jump went (to, toMission): null both, somewhere the map does not know (a party member, an asteroid)
+        void Arrive(DateTime time)
+        {
+            var left = at;
+            (at, since) = (to, time);
+            atMission = toMission;
+            jumped = to == null && toMission == null;
+            lastPing = jumped ? left ?? lastPing : null;   // off the grid: where he was before (or before that, jump after jump)
+            if (to != null) system = to.System;
+            else if (toMission?.System != null) system = toMission.System;
+            picked = null;
+            from = to = null;
+            toMission = null;
+            moves = new List<AreaChange>();
+            hangar = null;   // out in space where he jumped to, until a line says he landed (inside an area or not: his last area line says)
+        }
+
         foreach (var step in steps)
         {
+            if (step.Reach is { } reach)
+            {
+                if (atMission == reach) continue;
+                (toMission, to) = (reach, reach.Place);
+                Arrive(step.Time);   // at the mission's objective, at its place when the map knows it
+                continue;
+            }
             if (step.Area is { } area)
             {
                 // the first area line since he picked says where he was when he picked, when no line before the pick did (a tracker updated since, or a
@@ -234,24 +274,15 @@ public static class LocationTracker
                 // nobody jumps from a hangar: an arrival with no destination picked while the area lines have him landed is the jump that brought him
                 // there, written late (zzoega's log, 31 Oct 2026: landed at Levski at 10:25:25, the arrival line at 10:26:46 took him "off the grid")
                 if (picked == null && hangar == HangarState.Landed) continue;
+                // he reached a mission's objective a moment ago (the game took its marker away as he came into its area): this is the jump that brought him
+                if (picked == null && atMission != null && since is { } reachedAt && e.Time >= reachedAt && e.Time - reachedAt <= ReachedArrival) continue;
                 if (picked == null)
                 {
                     // no destination picked: he jumped at a marker he looked at (a mission's objective going on, the latest), or somewhere the map does not know
                     toMission = missions?.Where(p => p.On(e.Time)).OrderBy(p => p.From).LastOrDefault();
                     to = toMission?.Place;
                 }
-                var left = at;
-                (at, since) = (to, e.Time);   // null: somewhere the map does not know (a party member, an asteroid), or a mission's objective
-                atMission = toMission;
-                jumped = to == null && toMission == null;
-                lastPing = jumped ? left ?? lastPing : null;   // off the grid: where he was before (or before that, jump after jump)
-                if (to != null) system = to.System;
-                else if (toMission?.System != null) system = toMission.System;
-                picked = null;
-                from = to = null;
-                toMission = null;
-                moves = new List<AreaChange>();
-                hangar = null;   // out in space where he jumped to, until a line says he landed (inside an area or not: his last area line says)
+                Arrive(e.Time);
             }
         }
         return new PlayerLocation(system, at, since, picked, from, to, atMission, toMission, jumped, lastPing,
@@ -499,8 +530,11 @@ public static class LocationTracker
             var until = m.EndedAt;
             if (m.Events.TryGetValue(b.Objective, out var events) && events.FirstOrDefault(x => IsOver(x.State)) is { } over && (until == null || over.Time < until))
                 until = over.Time;
+            // reached: done for him then (a "Go to" objective local to his game has no state from the server)
+            DateTime? reached = m.Reached.TryGetValue(b.Objective, out var r) ? r : null;
+            if (reached != null && (until == null || reached < until)) until = reached;
             var text = m.ObjText.GetValueOrDefault(b.Objective) ?? "an objective";
-            points.Add(new MissionPoint(b.NavPoint, b.Marker, title(m), text, m.System, NamedIn(text, m.System, atlas), b.Time, until));
+            points.Add(new MissionPoint(b.NavPoint, b.Marker, title(m), text, m.System, NamedIn(text, m.System, atlas), b.Time, until, reached));
         }
         return points;
     }

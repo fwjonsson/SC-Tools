@@ -47,9 +47,11 @@ public sealed class MapService
     /// <summary>
     /// Is an objective done in this log, so it is off the map: its last state is over, or it is a pickup of one of the Hauling Planner's contracts that the
     /// planner counts as picked up (SessionBuilder.PickedUp: a COMPLETED or an INPROGRESS event). So the diamond goes when the planner credits the pickup, not later.
+    /// Or the game took its marker away from him (Mission.Reached): a "Go to" objective local to his game gets no state from the server.
     /// </summary>
     static bool Done(Mission m, string objective) =>
-        (m.Events.TryGetValue(objective, out var events) && events.Count > 0 && LocationTracker.IsOver(events[^1].State)) || (m.IsHauling && SessionBuilder.PickedUp(m, objective));
+        (m.Events.TryGetValue(objective, out var events) && events.Count > 0 && LocationTracker.IsOver(events[^1].State)) || (m.IsHauling && SessionBuilder.PickedUp(m, objective))
+        || m.Reached.ContainsKey(objective);
 
     /// <summary>Everything the page draws, now: the systems, the players (where the location tracker has them), the objectives, the missions.</summary>
     public object Snapshot(DateTime nowUtc)

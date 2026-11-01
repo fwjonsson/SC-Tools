@@ -26,6 +26,11 @@ public sealed class HaulingLog
         @"PairWithMissionNavpoint> MissionObjectiveMarker_(?<e>\d+)\[\d+\] - Paired with NavPoint: (?<n>\S+?)\[\d+\]",
         RegexOptions.Compiled);
 
+    // the game takes an objective's marker away from a player: the objective is done for him ("Objective Complete"), Mission.Reached
+    static readonly Regex MarkerRemoved = new(
+        @"RemovePlayer - (?<p>[^\[\s]+)\[\d+\] added to removed player list.*missionId\[(?<m>[0-9a-f-]{36})\], objectiveId\[(?<o>[^\]]+)\]",
+        RegexOptions.Compiled);
+
     // the star system a contract is in, when its name says: "BountyHuntersGuild_ShipWaveAttack_DrawOutBoss_Nyx_Super"
     static readonly Regex ContractSystem = new(@"_(?<s>Stanton|Pyro|Nyx)(?:_|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -728,6 +733,14 @@ public sealed class HaulingLog
                     Beacons.Add(new MissionBeacon(t, nav, x.Groups["e"].Value, mo.Mission, mo.Objective));
                 Touch(t);
             }
+            return;
+        }
+
+        x = MarkerRemoved.Match(line);
+        if (x.Success)
+        {
+            // his own marker only: the game writes it for the others of his party too
+            if (Player != null && PlayerNames.SameName(x.Groups["p"].Value, Player)) Get(x.Groups["m"].Value).Reached.TryAdd(x.Groups["o"].Value, t);
             return;
         }
 

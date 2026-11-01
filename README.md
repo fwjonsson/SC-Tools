@@ -365,7 +365,12 @@ admin (done), then going live.
   MissionObjectiveMarker_21517[21517] - Paired with NavPoint: MISSION_QT_Quantum_Beacon_LongRange_…`, `HaulingLog.Beacons`, with the objective's
   text from its popup, "New Objective: Go to Asteroid Cluster", and the contract's system from its name, `…_DrawOutBoss_Nyx_Super`): a destination
   that is a beacon, or an arrival with no destination while one is going on (the latest; until a minute after it was done), puts him "at the
-  mission: Go to Asteroid Cluster" (at the place its text names, when it names one). A mission's beacon or marker is never a place to list on Map
+  mission: Go to Asteroid Cluster" (at the place its text names, when it names one). So does reaching the objective: the game takes its marker away
+  from him (`<CObjectiveMarkerComponent::RemovePlayer> MissionObjectiveMarker_1952 - RemovePlayer - zzoega … objectiveId[…]`, `Mission.Reached`; it comes
+  with the "Objective Complete" notification, which a "Go to" objective local to his game gets instead of a state from the server), and when that is
+  within 5 seconds of a line of his into an area (not open space), he is at that mission's objective, also when the game wrote no quantum line for the
+  jump there (zzoega, 1 Nov 2026: Levski to an asteroid mining base with no pick and no arrival in his log; the map had kept him at Levski). A completion
+  with no area line of his that close (a party member got there, he rides as crew) does not move him; a reached objective is done, off the map. A mission's beacon or marker is never a place to list on Map
   places. **A beacon is placed by its route's fuel estimate** (#403, `BeaconRanging`; Frank, 31 Oct 2026): every route the game works out writes
   "Successfully calculated route to … fuel estimate 738770.25" (`QtEvent.FuelEstimate`, a `[QuantumTravel]` line the trackers already sent), and the
   estimate is the drive's fuel burn per km (as the game shows it in Vehicles) times the distance in Gm times 268.2 (his C2 and Perseus agree to 0.03 %).
