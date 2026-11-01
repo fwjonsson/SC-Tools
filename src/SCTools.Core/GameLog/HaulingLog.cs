@@ -21,6 +21,14 @@ public sealed class HaulingLog
         @"Added notification ""New Objective: (?<x>[^""]*?):?\s*"" \[\d+\] to queue.*MissionId: \[(?<m>[0-9a-f-]{36})\], ObjectiveId: \[(?<o>[^\]]+)\]",
         RegexOptions.Compiled);
 
+    // The end of an objective, from its popup: "Objective Withdrawn: Return to Asteroid Mining Base: " on one line, or the queue line of an "Objective Complete:
+    // Go to Asteroid Mining Base" or "Objective Failed: ..." popup, whose text ends on the line before (": " [32] to queue. ..."). That second line is the one
+    // the trackers send (the first has no "Mission" in it), and in zzoega's 345 logs to 1 Nov 2026 every popup that ends there was one of these two (1537
+    // complete, 12 failed; a new objective or a withdrawn one is on one line). The game's own objectives (a "go to") get no state from the server, only this.
+    static readonly Regex ObjectiveEnd = new(
+        @"^<[^>]+> (?:.*Added notification ""Objective (?:Complete|Withdrawn|Failed): [^""]*""|: "") \[\d+\] to queue\..*MissionId: \[(?<m>[0-9a-f-]{36})\], ObjectiveId: \[(?<o>[^\]]+)\]",
+        RegexOptions.Compiled);
+
     // the quantum beacon of an objective's marker (MissionBeacon)
     static readonly Regex Beacon = new(
         @"PairWithMissionNavpoint> MissionObjectiveMarker_(?<e>\d+)\[\d+\] - Paired with NavPoint: (?<n>\S+?)\[\d+\]",
@@ -304,6 +312,8 @@ public sealed class HaulingLog
                 if (t.OutDrops == 0) t.OutDrops = m.OutDrops;
                 foreach (var kv in m.ObjScu) t.ObjScu.TryAdd(kv.Key, kv.Value);
                 foreach (var kv in m.ObjText) t.ObjText.TryAdd(kv.Key, kv.Value);
+                foreach (var kv in m.ObjEnded)
+                    if (!t.ObjEnded.TryGetValue(kv.Key, out var ended) || kv.Value < ended) t.ObjEnded[kv.Key] = kv.Value;
                 foreach (var kv in m.ObjPos) t.ObjPos.TryAdd(kv.Key, kv.Value);
                 t.Title = SCTools.Missions.MissionKinds.Better(t.Title, m.Title);
                 t.System ??= m.System;
@@ -676,6 +686,19 @@ public sealed class HaulingLog
                 if (kind is not (PartyEventKind.Connected or PartyEventKind.Disconnected or PartyEventKind.Invited)) Version++;
                 return;
             }
+        }
+
+        x = ObjectiveEnd.Match(line);
+        if (x.Success)
+        {
+            // only an objective the log has seen: one it never gave him cannot end
+            var o = x.Groups["o"].Value;
+            if (Missions.TryGetValue(x.Groups["m"].Value, out var em) && (em.ObjZone.ContainsKey(o) || em.ObjText.ContainsKey(o) || em.Events.ContainsKey(o)))
+            {
+                em.ObjEnded.TryAdd(o, t);
+                Touch(t);
+            }
+            return;
         }
 
         x = Marker.Match(line);

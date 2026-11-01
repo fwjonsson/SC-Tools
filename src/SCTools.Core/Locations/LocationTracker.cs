@@ -499,6 +499,7 @@ public static class LocationTracker
             var until = m.EndedAt;
             if (m.Events.TryGetValue(b.Objective, out var events) && events.FirstOrDefault(x => IsOver(x.State)) is { } over && (until == null || over.Time < until))
                 until = over.Time;
+            if (m.ObjEnded.TryGetValue(b.Objective, out var ended) && (until == null || ended < until)) until = ended;   // its popup said so (a "go to")
             var text = m.ObjText.GetValueOrDefault(b.Objective) ?? "an objective";
             points.Add(new MissionPoint(b.NavPoint, b.Marker, title(m), text, m.System, NamedIn(text, m.System, atlas), b.Time, until));
         }

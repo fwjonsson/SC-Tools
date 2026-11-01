@@ -56,6 +56,12 @@ public sealed class Mission
     public Dictionary<string, string> ObjText = new();
 
     /// <summary>
+    /// When an objective's popup said it ended ("Objective Complete: Go to Asteroid Mining Base", Withdrawn, Failed): objective id to the time. The game's own
+    /// objectives (a "go to" it checks itself) get no state from the server (Events), only this; in zzoega's logs most completed objectives are of that kind.
+    /// </summary>
+    public Dictionary<string, DateTime> ObjEnded = new();
+
+    /// <summary>
     /// The contract's own name and id as the objective markers say ("RedWind_Pyro_..._Multi4ToSingle", contractDefinitionId): the Star Citizen Wiki API's
     /// debug_name and uuid of the mission (whatever names a string mod shows in the game).
     /// </summary>

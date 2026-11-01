@@ -85,6 +85,37 @@ public class MapPageTests
     }
 
     [Fact]
+    public async Task The_objectives_list_follows_the_contract_to_its_next_objective()
+    {
+        using var f = new ServerFactory();
+        var now = DateTime.UtcNow;
+        var m = GameLogWriter.MissionId(6);
+        static string?[] Where(JsonElement map) => map.GetProperty("objectives").EnumerateArray().Select(o => o.GetProperty("where").GetString()).ToArray();
+        // zzoega's Protect Fuel Tanks (1 Nov 2026): first to the asteroid base
+        var his = new GameLogWriter().At(now.AddMinutes(-10)).Login("zzoega")
+            .MissionMarker(m, GameLogWriter.BountyContract, "goto", "11835").ObjectivePopup(m, "goto", "Go to Asteroid Mining Base");
+        Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-10)), 0, 1000, his.Lines.ToList(), now).Ok);
+        var admin = await f.Admin();
+        Assert.Equal(new[] { "Go to Asteroid Mining Base" }, Where(JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement));
+
+        // he got there (only the popup says so) and the game gave him the next objective, with no marker: that one is in the list now, the "go to" is not
+        var more = new GameLogWriter().At(now.AddMinutes(-4)).ObjectiveEndPopup(m, "goto", "Go to Asteroid Mining Base")
+            .Seconds(3).Objective(m, "protect", "INPROGRESS").ObjectivePopup(m, "protect", "Protect Remaining Fuel Tanks");
+        Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-10)), 1000, 2000, more.Lines.Where(l => new LineFilter().Keep(l)).ToList(), now).Ok);
+        var map = JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement;
+        Assert.Equal(new[] { "Protect Remaining Fuel Tanks" }, Where(map));
+        Assert.Equal((1, "nyx"), (map.GetProperty("unplaced").GetInt32(), map.GetProperty("objectives")[0].GetProperty("system").GetString()));   // only in the list
+        Assert.Equal(1, Assert.Single(map.GetProperty("missions").EnumerateArray()).GetProperty("open").GetInt32());
+
+        // that one done too (the server says so): none open
+        var done = new GameLogWriter().At(now.AddMinutes(-2)).Objective(m, "protect", "COMPLETED");
+        Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-10)), 2000, 3000, done.Lines.ToList(), now).Ok);
+        map = JsonDocument.Parse(await admin.GetStringAsync("/admin/map/map.json")).RootElement;
+        Assert.Empty(Where(map));
+        Assert.Equal(0, Assert.Single(map.GetProperty("missions").EnumerateArray()).GetProperty("open").GetInt32());
+    }
+
+    [Fact]
     public async Task The_planners_pickups_place_a_member_when_they_are_newer_than_his_jumps()
     {
         using var f = new ServerFactory { Data = PlayedSession.Data() };
