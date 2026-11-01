@@ -75,6 +75,18 @@ sealed class GameLogWriter
     public GameLogWriter ObjectivePopup(string mission, string objective, string text) =>
         Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"New Objective: {text}: \" [12] to queue. New queue size: 2, MissionId: [{mission}], ObjectiveId: [{objective}] [Team_CoreGameplayFeatures][Missions][Comms]");
 
+    /// <summary>
+    /// The popup of a finished objective ("Complete" or "Failed"), as the game writes it: the text ends on the first line, the queue with the mission and the
+    /// objective is the second (zzoega, 1 Nov 2026). The trackers send only the second.
+    /// </summary>
+    public GameLogWriter ObjectiveEndPopup(string mission, string objective, string text, string kind = "Complete") =>
+        Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"Objective {kind}: {text}")
+        .Add($"{Ts} : \" [32] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [{objective}] [Team_CoreGameplayFeatures][Missions][Comms]");
+
+    /// <summary>The popup of a withdrawn objective: on one line.</summary>
+    public GameLogWriter ObjectiveWithdrawnPopup(string mission, string objective, string text) =>
+        Add($"{Ts} [Notice] <SHUDEvent_OnNotification> Added notification \"Objective Withdrawn: {text}: \" [34] to queue. New queue size: 1, MissionId: [{mission}], ObjectiveId: [{objective}] [Team_CoreGameplayFeatures][Missions][Comms]");
+
     /// <summary>The game pairs an objective's marker with its quantum beacon (the destination a player jumps to).</summary>
     public GameLogWriter BeaconPaired(string marker, string navPoint) =>
         Add($"{Ts} [Notice] <CObjectiveMarkerComponent::PairWithMissionNavpoint> MissionObjectiveMarker_{marker}[{marker}] - Paired with NavPoint: {navPoint}[865476577647] [Team_MissionFeatures][Missions]");

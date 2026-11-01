@@ -45,11 +45,20 @@ public sealed class MapService
     }
 
     /// <summary>
-    /// Is an objective done in this log, so it is off the map: its last state is over, or it is a pickup of one of the Hauling Planner's contracts that the
-    /// planner counts as picked up (SessionBuilder.PickedUp: a COMPLETED or an INPROGRESS event). So the diamond goes when the planner credits the pickup, not later.
+    /// Is an objective done in this log, so it is off the map: its last state is over, its popup said it ended (a "go to" gets no state, only that), or it is
+    /// a pickup of one of the Hauling Planner's contracts that the planner counts as picked up (SessionBuilder.PickedUp: a COMPLETED or an INPROGRESS event).
+    /// So the diamond goes when the planner credits the pickup, not later.
     /// </summary>
     static bool Done(Mission m, string objective) =>
-        (m.Events.TryGetValue(objective, out var events) && events.Count > 0 && LocationTracker.IsOver(events[^1].State)) || (m.IsHauling && SessionBuilder.PickedUp(m, objective));
+        (m.Events.TryGetValue(objective, out var events) && events.Count > 0 && LocationTracker.IsOver(events[^1].State)) || m.ObjEnded.ContainsKey(objective)
+        || (m.IsHauling && SessionBuilder.PickedUp(m, objective));
+
+    /// <summary>
+    /// The objectives of a mission, with the zone of their marker: the ones with one, and the ones the game only gave a popup ("Protect Remaining Fuel Tanks":
+    /// more than half of all in zzoega's logs, never with a place), so the list says what he is to do now and not the "go to" before it (1 Nov 2026).
+    /// </summary>
+    static IEnumerable<(string Objective, string? Zone)> Objectives(Mission m) =>
+        m.ObjZone.Select(kv => (kv.Key, (string?)kv.Value)).Concat(m.ObjText.Keys.Where(o => !m.ObjZone.ContainsKey(o)).Select(o => (o, (string?)null)));
 
     /// <summary>Everything the page draws, now: the systems, the players (where the location tracker has them), the objectives, the missions.</summary>
     public object Snapshot(DateTime nowUtc)
@@ -95,7 +104,7 @@ public sealed class MapService
         var done = new HashSet<(string, string)>();
         foreach (var p in playing)
             foreach (var m in p.Missions.Values)
-                foreach (var objective in m.ObjZone.Keys)
+                foreach (var (objective, _) in Objectives(m))
                     if (Done(m, objective)) done.Add((m.Id.ToLowerInvariant(), objective));
 
         foreach (var p in playing)
@@ -108,7 +117,7 @@ public sealed class MapService
             {
                 if (m.EndState != null || m.Dropped || (m.FirstSeen ?? m.Accepted ?? DateTime.MinValue) < nowUtc - LocationTracker.MissionAge) continue;
                 if (seen.TryGetValue(m.Id, out var s2) && s2.Outcome != null) continue;
-                var open = m.ObjZone.Keys.Count(o => !done.Contains((m.Id.ToLowerInvariant(), o)));
+                var open = Objectives(m).Count(o => !done.Contains((m.Id.ToLowerInvariant(), o.Objective)));
                 if (!going.TryGetValue(m.Id, out var row)) going[m.Id] = row = new GoingMission(Title(m), new List<string>(), open);
                 if (!row.Who.Contains(name)) row.Who.Add(name);
             }
@@ -119,7 +128,7 @@ public sealed class MapService
                 seen.TryGetValue(m.Id, out var s);
                 if (s?.Outcome != null) continue;   // it ended (the notifications say so)
                 var title = Title(m);
-                foreach (var (objective, zone) in m.ObjZone)
+                foreach (var (objective, zone) in Objectives(m))
                 {
                     var id = (m.Id.ToLowerInvariant(), objective);
                     if (done.Contains(id)) continue;
@@ -130,13 +139,13 @@ public sealed class MapService
                     }
                     var text = m.ObjText.GetValueOrDefault(objective);
                     MapObjective o;
-                    if (atlas.OfPyroStation(StationIds.Of(zone)) is { } station)   // at one of the Pyro stations the Hauling Planner knows
+                    if (zone != null && atlas.OfPyroStation(StationIds.Of(zone)) is { } station)   // at one of the Pyro stations the Hauling Planner knows
                         o = new MapObjective(name, title, station.System, station.Key, null, null, station.Name);
                     else if (where.System != null && m.ObjPos.TryGetValue(objective, out var pos) && (Math.Abs(pos.X) > 1e9 || Math.Abs(pos.Y) > 1e9))
                         o = new MapObjective(name, title, where.System, null, pos.X / 1e9, pos.Y / 1e9, text ?? "in space");   // in the system's own frame (metres): where it is in the system he is in
                     else if (text != null && LocationTracker.NamedIn(text, m.System, atlas) is { } named)   // "Go to a debris field above Daymar": at Daymar
                         o = new MapObjective(name, title, named.System, named.Key, null, null, text);
-                    else if ((beaconOf.TryGetValue(id, out var nav) && byBeacon.TryGetValue(nav, out var ranged) ? ranged : byZone.GetValueOrDefault(zone)) is { } spot)
+                    else if ((beaconOf.TryGetValue(id, out var nav) && byBeacon.TryGetValue(nav, out var ranged) ? ranged : zone == null ? null : byZone.GetValueOrDefault(zone)) is { } spot)
                     {
                         // its beacon was placed by somebody's route to it (or another objective in the same cluster's was): at that hidden spot
                         o = new MapObjective(name, title, spot.System, spot.Key, null, null, text ?? spot.Name);

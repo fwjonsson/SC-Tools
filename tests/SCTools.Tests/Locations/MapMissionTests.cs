@@ -48,6 +48,32 @@ public class MapMissionTests
     }
 
     [Fact]
+    public void A_go_to_objective_ends_with_its_popup()
+    {
+        // zzoega's Protect Fuel Tanks in Nyx (1 Nov 2026): the "go to" gets no state from the server, only the "Objective Complete" popup on two lines; then
+        // the next objective, with no marker
+        var m = GameLogWriter.MissionId(8);
+        var w = new GameLogWriter().At(T).Login("zzoega").MissionMarker(m, GameLogWriter.BountyContract, "goto", "11835")
+            .ObjectivePopup(m, "goto", "Go to Asteroid Mining Base").BeaconPaired("11835", Beacon)
+            .Minutes(5).ObjectiveEndPopup(m, "goto", "Go to Asteroid Mining Base")
+            .Seconds(3).Objective(m, "protect", "INPROGRESS").ObjectivePopup(m, "protect", "Protect Remaining Fuel Tanks")
+            .Minutes(3).MissionMarker(m, GameLogWriter.BountyContract, "return", "12440").ObjectiveWithdrawnPopup(m, "return", "Return to Asteroid Mining Base")
+            .ObjectiveEndPopup(m, "never-given", "Something Else", "Failed");
+        // the trackers send the popup's second line (it has the mission), not its first: that is enough
+        var sent = w.Lines.Where(l => new LineFilter().Keep(l)).ToList();
+        Assert.Equal(w.Lines.Count - 2, sent.Count);
+        var log = new HaulingLog();
+        foreach (var line in sent) log.ProcessLine(line);
+        var mission = log.Missions[m];
+        Assert.Equal(new Dictionary<string, DateTime> { ["goto"] = T.AddMinutes(5), ["return"] = T.AddMinutes(8).AddSeconds(3) }, mission.ObjEnded);   // not one it never gave
+        Assert.Equal("Protect Remaining Fuel Tanks", mission.ObjText["protect"]);
+
+        // the jump to its beacon is to the objective until then
+        var p = Assert.Single(Points(log.Beacons, log.Missions, _ => "Protect Fuel Tanks", Atlas.Default));
+        Assert.Equal(T.AddMinutes(5), p.Until);
+    }
+
+    [Fact]
     public void A_jump_with_no_destination_picked_is_to_the_objective_going_on()
     {
         var qt = new List<QtEvent> { Arrived(T.AddMinutes(4)) };
