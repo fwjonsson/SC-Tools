@@ -33,7 +33,9 @@ planned, what was decided and why, tool by tool. The to-do list is GitHub Issues
 - Force-push, rewrite history, or delete a branch that is not merged.
 - Deploy by hand: a merge to `main` deploys. Server commands are Frank's to run (he gets them written out).
 - Read the clipboard or capture the screen: Frank does not want tools that do. (A screenshot the admin pastes himself into the Mission Library's paste
-  box is his own doing, Frank 31 Oct 2026: the page reads only what he pastes.)
+  box is his own doing, Frank 31 Oct 2026: the page reads only what he pastes. One exception, Frank 1 Nov 2026: the SC Tools Tracker looks at the
+  clipboard only for the game's own /showlocation result, a text that is exactly `Coordinates: x:… y:… z:…`, and sends those three numbers and the time;
+  any other text is not looked at further, kept or sent. Nothing beyond that.)
 
 ## Where things are
 

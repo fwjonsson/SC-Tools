@@ -64,14 +64,16 @@ public sealed class MapPlaces
     }
 
     static Place ToPlace(MapPlaceRow r) =>
-        new(r.System, r.Key[(r.Key.IndexOf('/') + 1)..], r.Name, r.Short, Enum.TryParse<PlaceKind>(r.Kind, out var k) ? k : PlaceKind.Station, r.Parent, r.X, r.Y);
+        new(r.System, r.Key[(r.Key.IndexOf('/') + 1)..], r.Name, r.Short, Enum.TryParse<PlaceKind>(r.Kind, out var k) ? k : PlaceKind.Station, r.Parent, r.X, r.Y, r.Hidden);
 
     void Build()
     {
         var renamed = _places!.Where(r => !r.Added).ToDictionary(r => r.Key, StringComparer.OrdinalIgnoreCase);
         var places = StarMap.Places.Select(p => renamed.TryGetValue(p.Key, out var r) ? p with { Name = r.Name, Short = r.Short } : p)
-            .Concat(_places!.Where(r => r.Added).Select(ToPlace));
-        _atlas = new Atlas(places, _aliases!.Select(a => new PlaceAlias(a.Text, a.PlaceKey)));
+            .Concat(_places!.Where(r => r.Added && !r.Hidden).Select(ToPlace));
+        // the hidden spots: the game data's, and the missions' sites saved from the players' /showlocation
+        var spots = HiddenSpots.All.Concat(_places!.Where(r => r.Added && r.Hidden).Select(ToPlace));
+        _atlas = new Atlas(places, _aliases!.Select(a => new PlaceAlias(a.Text, a.PlaceKey)), spots);
     }
 
     /// <summary>The places as the site has them now, without waiting for them to be read (null before the first time): for the tracker, which must not wait here.</summary>
@@ -90,11 +92,40 @@ public sealed class MapPlaces
         }
     }
 
-    /// <summary>Every place, by system, the way the map has them.</summary>
+    /// <summary>Every place, by system, the way the map has them, and the missions' sites saved from the players' /showlocation (hidden spots).</summary>
     public List<PlaceEntry> Entries()
     {
         var atlas = Atlas;
-        return atlas.Places.Select(p => new PlaceEntry(p, StarMap.Find(p.Key), StarMap.Find(p.Key) == null)).ToList();
+        return atlas.Places.Concat(atlas.Spots.Where(s => !HiddenSpots.All.Contains(s)))
+            .Select(p => new PlaceEntry(p, StarMap.Find(p.Key), StarMap.Find(p.Key) == null)).ToList();
+    }
+
+    /// <summary>
+    /// Saves a mission's site where a player used /showlocation at it (MissionSpots): a hidden spot by this name at X, Y (Gm), unless a place or a spot is
+    /// within LocationTracker.SpotRadius of it already (that one is the site). Its key, and whether it was saved now.
+    /// </summary>
+    public (string Key, bool Saved) AddSpot(string system, string name, double x, double y, DateTime nowUtc)
+    {
+        lock (_lock)
+        {
+            Load();
+            var there = LocationTracker.SpotAt(_atlas!, system, new PositionFix(nowUtc, x * 1e9, y * 1e9, 0));
+            if (there != null) return (there.Key, false);
+            var n = NameOf(name) ?? "Mission site";
+            var slug = StarMap.Slug(n);
+            if (slug.Length == 0) slug = "mission-site";
+            var key = system + "/" + slug;
+            for (var i = 2; _atlas!.Find(key) != null; i++) key = system + "/" + slug + "-" + i;
+            using var db = _store.Open();
+            db.MapPlaces.Add(new MapPlaceRow
+            {
+                Key = key, System = system, Name = n, Short = n, Kind = PlaceKind.Station.ToString(), X = x, Y = y, Added = true, Hidden = true, ChangedUtc = nowUtc,
+            });
+            db.SaveChanges();
+            _places = db.MapPlaces.AsNoTracking().ToList();
+            Build();
+            return (key, true);
+        }
     }
 
     /// <summary>The aliases, the newest first.</summary>

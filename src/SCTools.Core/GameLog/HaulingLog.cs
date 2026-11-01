@@ -239,6 +239,9 @@ public sealed class HaulingLog
     /// <summary>The areas the player of this log went into (off a pad, out of a station's area, into the area of where he jumped to), in the order of the log.</summary>
     public List<AreaChange> Areas { get; } = new();
 
+    /// <summary>Where the player was, to the metre, when he used /showlocation (his tracker sends it: LogUploads.AddFix), in order. Not in the game's log.</summary>
+    public List<PositionFix> Fixes { get; } = new();
+
     /// <summary>When the player of this log died (the first line of the burst of item recovery lines).</summary>
     public List<DateTime> Deaths { get; } = new();
 

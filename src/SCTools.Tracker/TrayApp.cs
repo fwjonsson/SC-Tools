@@ -9,7 +9,9 @@ namespace SCTools.Tracker;
 /// <summary>
 /// The SC Tools Tracker in the tray: every three seconds it uploads what is new in the Game.log (and the backup logs of the last day) to the server, it sends
 /// the old backup logs the server does not have yet (HistorySender: all of them the first time, then the new ones), and it updates itself from the latest
-/// release on GitHub. The menu shows how each goes and its version, opens the site, the settings, and starts it with Windows.
+/// release on GitHub. The menu shows how each goes and its version, opens the site, the settings, and starts it with Windows. When the game's /showlocation
+/// puts "Coordinates: x:… y:… z:…" on the clipboard, it sends that position to the map (Frank, 1 Nov 2026): it looks at nothing else on the clipboard, and
+/// nothing else leaves the PC.
 /// </summary>
 sealed class TrayApp : ApplicationContext
 {
@@ -21,6 +23,9 @@ sealed class TrayApp : ApplicationContext
     readonly ToolStripMenuItem _status = new() { Enabled = false };
     readonly ToolStripMenuItem _history = new("Old logs: not looked yet") { Enabled = false };
     readonly ToolStripMenuItem _version = new() { Enabled = false };
+    readonly ToolStripMenuItem _location = new("Location: /showlocation in the game sends it") { Enabled = false };
+    readonly ClipboardWatcher _clipboard = new();
+    string? _lastCoordinates;   // the last /showlocation text sent: the same again (the clipboard changes twice now and then) is not sent again
     readonly ToolStripMenuItem _startWithWindows = new("Start with Windows") { CheckOnClick = true };
     readonly CancellationTokenSource _stop = new();
 
@@ -39,6 +44,7 @@ sealed class TrayApp : ApplicationContext
         menu.Items.Add(_status);
         menu.Items.Add(_history);
         menu.Items.Add(_version);
+        menu.Items.Add(_location);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Open SC Tools", null, (_, _) => Open(_settings.ServerUrl.Trim().TrimEnd('/') + "/"));
         menu.Items.Add("Open my page (location, colour, ship)", null, async (_, _) => await OpenMyPageAsync());
@@ -59,6 +65,7 @@ sealed class TrayApp : ApplicationContext
         if (updated) _icon.ShowBalloonTip(5000, AppName.Tracker.Title, "Updated to version " + Version + ".", ToolTipIcon.Info);
 
         if (!_settings.Complete) ShowSettings();
+        _clipboard.Changed += OnClipboard;
         _ = SendLoopAsync();
         _ = HistoryLoopAsync();
         _ = UpdateLoopAsync();
@@ -340,9 +347,47 @@ sealed class TrayApp : ApplicationContext
         else key.DeleteValue(RunName, false);
     }
 
+    /// <summary>
+    /// The clipboard changed: when it holds exactly the game's /showlocation result, that position goes to the server (it places him on the map, and saves a
+    /// mission's site he is at). Any other text is not looked at further, kept or sent.
+    /// </summary>
+    void OnClipboard()
+    {
+        string? text;
+        try { text = Clipboard.ContainsText() ? Clipboard.GetText() : null; }
+        catch (System.Runtime.InteropServices.ExternalException) { return; }   // another program has it open: the next change
+        if (PositionFix.Parse(text, DateTime.UtcNow) is not { } fix || text == _lastCoordinates) return;
+        _lastCoordinates = text;
+        _ = SendPositionAsync(fix);
+    }
+
+    /// <summary>Sends a position, again a few times while the server cannot be reached; the menu says when it went.</summary>
+    async Task SendPositionAsync(PositionFix fix)
+    {
+        if (!_settings.Complete) return;
+        for (var attempt = 0; attempt < 6 && !_stop.IsCancellationRequested; attempt++)
+        {
+            try
+            {
+                using var server = new HttpLogServer(_settings.ServerUrl.Trim(), _settings.Key.Trim());
+                await server.SendPositionAsync(fix, _stop.Token);
+                var (x, y) = fix.Gm;
+                _location.Text = $"Location sent {fix.Time.ToLocalTime():HH:mm} ({x:0.00}, {y:0.00} Gm)";
+                return;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UnauthorizedAccessException or UriFormatException)
+            {
+                _location.Text = "Location not sent yet: " + ex.Message;
+                try { await Task.Delay(TimeSpan.FromSeconds(10), _stop.Token); }
+                catch (TaskCanceledException) { return; }
+            }
+        }
+    }
+
     protected override void ExitThreadCore()
     {
         _stop.Cancel();
+        _clipboard.Dispose();
         _icon.Visible = false;
         _icon.Dispose();
         _server?.Dispose();

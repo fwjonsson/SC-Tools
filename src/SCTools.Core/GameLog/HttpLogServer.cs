@@ -29,6 +29,7 @@ public sealed class HttpLogServer : ILogServer, IHistoryServer, IDisposable
     sealed record Piece(string file, long from, long to, IReadOnlyList<string> lines, DateTime? last);
     sealed record Files(IReadOnlyList<string> files);
     sealed record Missing(List<string>? missing);
+    sealed record Fix(DateTime time, double x, double y, double z);
     sealed record OldPiece(string file, long from, IReadOnlyList<string> lines, bool done, DateTime? last, string? build, int version);
 
     /// <summary>The player of this key, or null when the server does not know it.</summary>
@@ -66,6 +67,13 @@ public sealed class HttpLogServer : ILogServer, IHistoryServer, IDisposable
         if (resp.StatusCode == HttpStatusCode.Conflict) return new UploadResult(false, (await resp.Content.ReadFromJsonAsync<At>(ct))?.at ?? from);
         Check(resp);
         return new UploadResult(true, (await resp.Content.ReadFromJsonAsync<At>(ct))?.at ?? to);
+    }
+
+    /// <summary>Where the player is to the metre (/showlocation): the server places him there, and saves a mission's site (POST api/position).</summary>
+    public async Task SendPositionAsync(PositionFix fix, CancellationToken ct)
+    {
+        using var resp = await _http.PostAsJsonAsync("api/position", new Fix(fix.Time, fix.X, fix.Y, fix.Z), ct);
+        Check(resp);
     }
 
     public async Task<IReadOnlyList<string>> MissingAsync(IReadOnlyList<string> files, CancellationToken ct)

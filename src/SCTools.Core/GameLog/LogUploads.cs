@@ -98,6 +98,31 @@ public sealed class LogUploads
         }
     }
 
+    /// <summary>
+    /// Where this player was, to the metre (/showlocation, sent by his tracker): it goes with his log (HaulingLog.Fixes) and is kept next to it
+    /// (positions.txt), so a restart of the server reads it again. The same fix twice is once.
+    /// </summary>
+    public void AddFix(string player, PositionFix fix)
+    {
+        if (string.IsNullOrWhiteSpace(player)) throw new ArgumentException("A player is needed.");
+        lock (Sync)
+        {
+            var feed = FeedOf(player);
+            if (feed.Log.Fixes.Contains(fix)) return;
+            feed.Log.Fixes.Add(fix);
+            feed.Log.Fixes.Sort((a, b) => a.Time.CompareTo(b.Time));
+            _pieces++;   // something new to look at: the location tracker works it out again
+            if (_dir == null) return;
+            var dir = Path.Combine(_dir, SafeName(player));
+            Directory.CreateDirectory(dir);
+            File.AppendAllLines(Path.Combine(dir, Positions), new[] { string.Join("|", fix.Time.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
+                fix.X.ToString("R", CultureInfo.InvariantCulture), fix.Y.ToString("R", CultureInfo.InvariantCulture), fix.Z.ToString("R", CultureInfo.InvariantCulture)) });
+        }
+    }
+
+    /// <summary>The file a player's position fixes are kept in, next to his uploaded logs.</summary>
+    const string Positions = "positions.txt";
+
     /// <summary>Every mission in what each player uploaded (and is still kept), by player (the ones the Hauling Planner reads with their contract line).</summary>
     public Dictionary<string, IReadOnlyList<MissionSeen>> MissionsSeen()
     {
@@ -210,6 +235,18 @@ public sealed class LogUploads
                     DateTime? last = kept.Length >= 3 && DateTime.TryParse(kept[2], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var l) ? l : LastTime(File.ReadLines(path));
                     Seen(feed.Log, kept[0], last, feed.Quit.Contains(kept[0]));
                 }
+                // where he was to the metre (/showlocation), as long ago as the logs
+                var positions = Path.Combine(playerDir, Positions);
+                if (File.Exists(positions))
+                    foreach (var line in File.ReadLines(positions))
+                    {
+                        var p = line.Split('|');
+                        if (p.Length == 4 && DateTime.TryParse(p[0], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var t) && t >= since
+                            && double.TryParse(p[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
+                            && double.TryParse(p[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var y)
+                            && double.TryParse(p[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var z))
+                            feed.Log.Fixes.Add(new PositionFix(t.ToUniversalTime(), x, y, z));
+                    }
             }
         }
     }
