@@ -208,9 +208,11 @@ admin (done), then going live.
   data, never saved, which the Hauling Planner does not take), and the map follows him on from there; and the next jump he picks is measured from
   exactly there (a mission's beacon placed by its fuel estimate, `BeaconRanging`, also when the game names only the system as the start). A beacon is
   placed only when the spots that fit its distance lie within 5 Gm of each other (`BeaconRanging.SameArea`): many bases are "Asteroid Mining Base",
-  and two far apart on the circle of a distance would be a guess. Used at a mission's site (the location tracker has him at its objective, inside an
-  area that is not open space, or out in open space within 15 minutes of reaching it), it saves the site (`MissionSpots`; nothing is saved from open
-  space otherwise, Frank 1 Nov 2026): a hidden place on Map places (`MapPlaceRow.Hidden`) named after the objective ("Go to Asteroid Mining
+  and two far apart on the circle of a distance would be a guess. Used at a mission's site, it saves the site (`MissionSpots`). At the site is what the
+  game says, not a time (Frank's rules, 1 Nov 2026): the location tracker has him at the mission's objective with no jump since, the mission is still
+  going (not completed, failed or abandoned: then there is no telling where he is), its "Go to" objective is done, and no "Return to" objective of it
+  is open (the game gives one when he leaves the mission's area; `Mission.ObjGiven` keeps when each objective came). Anything else saves nothing, so
+  no random places pile up on the server. The site is a hidden place on Map places (`MapPlaceRow.Hidden`) named after the objective ("Go to Asteroid Mining
   Base": Asteroid Mining Base), which the map knows but draws only where a player is; a later fix within 50 km of it is that site, and a beacon at
   its distance from a known start is placed there. The game writes none of this in its log. It only sends the lines the
   tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money transfers, the freight elevator and the loading platform, and the

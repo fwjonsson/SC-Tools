@@ -586,7 +586,7 @@ public static class LocationTracker
             if (m.ObjEnded.TryGetValue(b.Objective, out var ended) && (until == null || ended < until)) until = ended;   // its popup said so (a "go to")
             DateTime? reached = m.Reached.TryGetValue(b.Objective, out var r) ? r : null;   // he got there (where he is: Follow)
             var text = m.ObjText.GetValueOrDefault(b.Objective) ?? "an objective";
-            points.Add(new MissionPoint(b.NavPoint, b.Marker, title(m), text, m.System, NamedIn(text, m.System, atlas), b.Time, until, reached));
+            points.Add(new MissionPoint(b.NavPoint, b.Marker, title(m), text, m.System, NamedIn(text, m.System, atlas), b.Time, until, reached, m.Id, b.Objective));
         }
         return points;
     }

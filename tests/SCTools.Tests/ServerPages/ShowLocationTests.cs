@@ -80,10 +80,16 @@ public class ShowLocationTests
         Assert.Equal((X / 1e9, true), (spot.GetProperty("x").GetDouble(), spot.GetProperty("hidden").GetBoolean()));
     }
 
-    [Fact]
-    public async Task A_showlocation_long_after_a_mission_out_in_open_space_saves_nothing()
+    [Theory]
+    [InlineData("going", true)]           // the mission still going, the "Go to" done, no "Return to": at the site
+    [InlineData("completed", false)]      // the mission over: no telling where he is now
+    [InlineData("abandoned", false)]
+    [InlineData("return-open", false)]    // the game told him to return to the mission's area: he is outside it
+    [InlineData("return-done", true)]     // he came back to it
+    [InlineData("not-reached", false)]    // the "Go to" not done: he did not get there
+    public async Task A_showlocation_saves_a_site_only_by_what_the_game_says_about_the_mission(string story, bool saved)
     {
-        // he reached the base, then flew out of its area into open space; half an hour later, still with no jump, /showlocation is not at the site
+        // Frank's rules, 1 Nov 2026: no time limit, the mission's own objectives say whether he is at its site
         using var f = new ServerFactory();
         var now = DateTime.UtcNow;
         var m = GameLogWriter.MissionId(12);
@@ -91,12 +97,19 @@ public class ShowLocationTests
         var w = new GameLogWriter().At(now.AddMinutes(-40)).Login("zzoega").Inventory("zzoega", "Nyx_Levski")
             .MissionMarker(m, GameLogWriter.BountyContract, "go-to", "1952").ObjectivePopup(m, "go-to", "Go to Asteroid Mining Base").BeaconPaired("1952", Beacon)
             .Minutes(1).AreaChange("zzoega", Levski, 0, Levski, NyxSpace)
-            .Minutes(3.5).AreaChange("zzoega", Levski, 0, NyxSpace, BaseArea).Seconds(0.6).MarkerRemoved("zzoega", "1952", m, "go-to")
-            .Minutes(5).AreaChange("zzoega", Levski, 0, BaseArea, NyxSpace);
+            .Minutes(3.5).AreaChange("zzoega", Levski, 0, NyxSpace, BaseArea);
+        if (story != "not-reached") w.Seconds(0.6).MarkerRemoved("zzoega", "1952", m, "go-to").ObjectiveEndPopup(m, "go-to", "Go to Asteroid Mining Base");
+        w.Minutes(20);
+        if (story == "completed") w.MissionEnded(m, "SUCCEEDED");
+        if (story == "abandoned") w.Abandoned(m, "zzoega");
+        if (story.StartsWith("return")) w.ObjectivePopup(m, "back", "Return to Asteroid Mining Base");
+        if (story == "return-done") w.Minutes(2).ObjectiveEndPopup(m, "back", "Return to Asteroid Mining Base");
         Assert.True(f.Live.Uploads.Add("zzoega", Id(now.AddMinutes(-40)), 0, 1000, w.Lines.ToList(), now).Ok);
+
         var res = await f.Tracker(f.AddKey("zzoega")).PostAsJsonAsync("/api/position", new { time = now, x = X, y = Y, z = 0.0 });
-        Assert.Equal(JsonValueKind.Null, JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement.GetProperty("site").ValueKind);
-        Assert.DoesNotContain(f.Services.GetRequiredService<MapPlaces>().Atlas.Spots, s => !HiddenSpots.All.Contains(s));
+        var site = JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement.GetProperty("site");
+        Assert.Equal(saved ? "nyx/asteroid-mining-base" : null, site.ValueKind == JsonValueKind.Null ? null : site.GetString());
+        Assert.Equal(saved, f.Services.GetRequiredService<MapPlaces>().Atlas.Spots.Any(s => !HiddenSpots.All.Contains(s)));
     }
 
     [Theory]

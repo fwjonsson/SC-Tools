@@ -279,7 +279,8 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       fraction of a percent) once it was picked from three known places; in Aug-Oct 2026 none of Pyro's encounters had been.
     - **/showlocation** (Frank, 1 Nov 2026): the game's command puts the exact position on the clipboard (not in its log); the tracker sends it (the one
       exception to the clipboard rule, that text only). A fix places him (within 50 km of a place or a spot), is the start the next jump is measured from,
-      and at a mission's site saves the site as a hidden spot, so beacons there are placed by their fuel estimate from then on. The game data has no
+      and at a mission's site saves the site as a hidden spot, so beacons there are placed by their fuel estimate from then on. At the site is what the
+      game says, not a time (Frank's rules): the mission still going, its "Go to" done, no "Return to" open, no jump since. The game data has no
       place for most missions' sites (the asteroid mining bases of the Keeger Belt): the players fill them in by using it there, as close to the beacon
       as they can.
     - **Reached objectives** (Frank, 1 Nov 2026): the game sometimes writes no quantum line for a jump at all (Levski to an asteroid mining base), but it

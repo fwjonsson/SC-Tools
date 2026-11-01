@@ -852,7 +852,9 @@ public sealed class HaulingLog
         x = NewObjective.Match(line);
         if (x.Success && x.Groups["x"].Value.Length > 0)
         {
-            Get(x.Groups["m"].Value).ObjText[x.Groups["o"].Value] = x.Groups["x"].Value.Trim();
+            var given = Get(x.Groups["m"].Value);
+            given.ObjText[x.Groups["o"].Value] = x.Groups["x"].Value.Trim();
+            given.ObjGiven[x.Groups["o"].Value] = t;
             Touch(t);
         }
     }
