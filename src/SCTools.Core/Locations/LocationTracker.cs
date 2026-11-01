@@ -530,9 +530,8 @@ public static class LocationTracker
             var until = m.EndedAt;
             if (m.Events.TryGetValue(b.Objective, out var events) && events.FirstOrDefault(x => IsOver(x.State)) is { } over && (until == null || over.Time < until))
                 until = over.Time;
-            // reached: done for him then (a "Go to" objective local to his game has no state from the server)
-            DateTime? reached = m.Reached.TryGetValue(b.Objective, out var r) ? r : null;
-            if (reached != null && (until == null || reached < until)) until = reached;
+            if (m.ObjEnded.TryGetValue(b.Objective, out var ended) && (until == null || ended < until)) until = ended;   // its popup said so (a "go to")
+            DateTime? reached = m.Reached.TryGetValue(b.Objective, out var r) ? r : null;   // he got there (where he is: Follow)
             var text = m.ObjText.GetValueOrDefault(b.Objective) ?? "an objective";
             points.Add(new MissionPoint(b.NavPoint, b.Marker, title(m), text, m.System, NamedIn(text, m.System, atlas), b.Time, until, reached));
         }

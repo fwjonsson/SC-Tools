@@ -56,10 +56,17 @@ public sealed class Mission
     public Dictionary<string, string> ObjText = new();
 
     /// <summary>
+    /// When an objective's popup said it ended ("Objective Complete: Go to Asteroid Mining Base", Withdrawn, Failed): objective id to the time. The game's own
+    /// objectives (a "go to" it checks itself) get no state from the server (Events), only this; in zzoega's logs most completed objectives are of that kind.
+    /// </summary>
+    public Dictionary<string, DateTime> ObjEnded = new();
+
+    /// <summary>
     /// When the game took an objective's marker away from the player of this log, the objective done for him ("Objective Complete": objective id to the
     /// time). A "Go to" objective is often local to his game (LocalOnlyObjective) and gets no COMPLETED state from the server, so this line is all there is.
-    /// In the three accounts' logs (Aug-Oct 2026) it came with the "Objective Complete" notification for 1,377 of the 1,378 objectives with a beacon.
-    /// Only in his own log, not merged.
+    /// In the three accounts' logs (Aug-Oct 2026) it came with the "Objective Complete" popup for 1,377 of the 1,378 objectives with a beacon. Unlike the
+    /// popup (ObjEnded) it names whose marker it was, and the game writes it for the others of his party too: it says he got there, for where he is
+    /// (LocationTracker.Follow); whether an objective is over goes by ObjEnded. Only in his own log, not merged.
     /// </summary>
     public Dictionary<string, DateTime> Reached = new();
 

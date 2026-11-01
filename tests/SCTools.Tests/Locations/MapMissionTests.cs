@@ -58,14 +58,14 @@ public class MapMissionTests
         var w = new GameLogWriter().At(T).Login("zzoega").Inventory("zzoega", "Nyx_Levski")
             .MissionMarker(m, GameLogWriter.BountyContract, "go-to", "1952").ObjectivePopup(m, "go-to", "Go to Asteroid Mining Base").BeaconPaired("1952", Beacon)
             .Minutes(1).AreaChange("zzoega", Levski, 0, Levski, NyxSpace)
-            .Minutes(3.5).AreaChange("zzoega", Levski, 0, NyxSpace, BaseArea).Seconds(0.6).MarkerRemoved("zzoega", "1952", m, "go-to")
+            .Minutes(3.5).AreaChange("zzoega", Levski, 0, NyxSpace, BaseArea).Seconds(0.6).MarkerRemoved("zzoega", "1952", m, "go-to").ObjectiveEndPopup(m, "go-to", "Go to Asteroid Mining Base")
             .MarkerRemoved("zzatvo", "1953", m, "other");   // somebody else's marker: not his
-        Assert.All(w.Lines, l => Assert.True(new LineFilter().Keep(l), l));   // the trackers send all of these lines
+        Assert.True(new LineFilter().Keep(w.Lines.Single(l => l.Contains("RemovePlayer - zzoega"))));   // the trackers send it
         var log = w.Read();
         Assert.Equal(new[] { "go-to" }, log.Missions[m].Reached.Keys);
         var points = Points(log.Beacons, log.Missions, _ => "Restore Order", Atlas.Default);
         var p = Assert.Single(points);
-        Assert.Equal((T.AddMinutes(4.5).AddSeconds(0.6), (DateTime?)T.AddMinutes(4.5).AddSeconds(0.6)), (p.Until!.Value, p.Reached));   // reached: done for him
+        Assert.Equal((T.AddMinutes(4.5).AddSeconds(0.6), (DateTime?)T.AddMinutes(4.5).AddSeconds(0.6)), (p.Until!.Value, p.Reached));   // reached by him, and over (the popup)
 
         var where = Follow(log.Qt, Atlas.Default, null, log.Locations, points, log.Areas);
         Assert.Equal(("Go to Asteroid Mining Base", (Place?)null, false), (where.AtMission?.Text, where.At, where.Jumped));
@@ -79,6 +79,32 @@ public class MapMissionTests
         // the objective done while he came into no area (a party member got there, or he rides as crew): it does not move him
         var far = log.Areas.Where(a => a.To != BaseArea).ToList();
         Assert.Equal("nyx/levski", Follow(log.Qt, Atlas.Default, null, log.Locations, points, far).At?.Key);
+    }
+
+    [Fact]
+    public void A_go_to_objective_ends_with_its_popup()
+    {
+        // zzoega's Protect Fuel Tanks in Nyx (1 Nov 2026): the "go to" gets no state from the server, only the "Objective Complete" popup on two lines; then
+        // the next objective, with no marker
+        var m = GameLogWriter.MissionId(8);
+        var w = new GameLogWriter().At(T).Login("zzoega").MissionMarker(m, GameLogWriter.BountyContract, "goto", "11835")
+            .ObjectivePopup(m, "goto", "Go to Asteroid Mining Base").BeaconPaired("11835", Beacon)
+            .Minutes(5).ObjectiveEndPopup(m, "goto", "Go to Asteroid Mining Base")
+            .Seconds(3).Objective(m, "protect", "INPROGRESS").ObjectivePopup(m, "protect", "Protect Remaining Fuel Tanks")
+            .Minutes(3).MissionMarker(m, GameLogWriter.BountyContract, "return", "12440").ObjectiveWithdrawnPopup(m, "return", "Return to Asteroid Mining Base")
+            .ObjectiveEndPopup(m, "never-given", "Something Else", "Failed");
+        // the trackers send the popup's second line (it has the mission), not its first: that is enough
+        var sent = w.Lines.Where(l => new LineFilter().Keep(l)).ToList();
+        Assert.Equal(w.Lines.Count - 2, sent.Count);
+        var log = new HaulingLog();
+        foreach (var line in sent) log.ProcessLine(line);
+        var mission = log.Missions[m];
+        Assert.Equal(new Dictionary<string, DateTime> { ["goto"] = T.AddMinutes(5), ["return"] = T.AddMinutes(8).AddSeconds(3) }, mission.ObjEnded);   // not one it never gave
+        Assert.Equal("Protect Remaining Fuel Tanks", mission.ObjText["protect"]);
+
+        // the jump to its beacon is to the objective until then
+        var p = Assert.Single(Points(log.Beacons, log.Missions, _ => "Protect Fuel Tanks", Atlas.Default));
+        Assert.Equal(T.AddMinutes(5), p.Until);
     }
 
     [Fact]

@@ -370,7 +370,8 @@ admin (done), then going live.
   with the "Objective Complete" notification, which a "Go to" objective local to his game gets instead of a state from the server), and when that is
   within 5 seconds of a line of his into an area (not open space), he is at that mission's objective, also when the game wrote no quantum line for the
   jump there (zzoega, 1 Nov 2026: Levski to an asteroid mining base with no pick and no arrival in his log; the map had kept him at Levski). A completion
-  with no area line of his that close (a party member got there, he rides as crew) does not move him; a reached objective is done, off the map. A mission's beacon or marker is never a place to list on Map
+  with no area line of his that close (a party member got there, he rides as crew) does not move him. The line names whose marker it was, so it says
+  where he is; whether an objective is over goes by its popup (`Mission.ObjEnded`, below). A mission's beacon or marker is never a place to list on Map
   places. **A beacon is placed by its route's fuel estimate** (#403, `BeaconRanging`; Frank, 31 Oct 2026): every route the game works out writes
   "Successfully calculated route to … fuel estimate 738770.25" (`QtEvent.FuelEstimate`, a `[QuantumTravel]` line the trackers already sent), and the
   estimate is the drive's fuel burn per km (as the game shows it in Vehicles) times the distance in Gm times 268.2 (his C2 and Perseus agree to 0.03 %).
@@ -393,7 +394,11 @@ admin (done), then going live.
   are one under the other. Objectives: at a station when their zone is one of the Pyro stations
   (`StationIds`), where they are when the marker is in the system's own frame (in the system the player is in), at the place their text names
   ("Go to a debris field above Daymar": `LocationTracker.NamedIn`), else only in the list, by what they say and the contract's system (a bounty's marker
-  is at 0, 0, 0). Only for the admin until it is shown on the Tools page.
+  is at 0, 0, 0). The objectives the game gives no marker ("Protect Remaining Fuel Tanks", "Defeat Hostile Ships": more than half of all in zzoega's
+  logs) are in the list too, by their popup. An objective is off the map when its state from the server is over, or when its popup said it ended
+  (`Mission.ObjEnded`): the game's own "go to" objectives get no state from the server, only an "Objective Complete" popup, whose second line (the
+  one with the mission, which the trackers send) is read (1 Nov 2026: before, the list kept saying "Go to Asteroid Mining Base" after he got there).
+  Only for the admin until it is shown on the Tools page.
   **One map engine** (Frank, 29 Oct 2026): the map itself is `wwwroot/systemmap.js`, a file of the site both the Map tool's page and the Hauling
   Planner's page load before their own script (with its version in the address, so a browser keeps it until it changes). The Trip Planner's map is the Companion's size (820 px wide, the Map tool's until #380; Frank, 29 Oct 2026), smaller on a
   narrower window so the workers' tables keep their columns. `SystemMap.create(box)` draws a system (`show`: the places of map.json's
