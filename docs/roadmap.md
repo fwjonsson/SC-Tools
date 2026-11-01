@@ -277,6 +277,11 @@ All the tools track at the same time, all the time. The tracking runs on the ser
       moons by their letter, an outpost or a mine on the planet or moon its code names, a few one-offs. Not placed, for want of a position: the Castra and
       Magnus gateways, Pyro's encounter sites, asteroid clusters. Working an encounter's place out from the routes' fuel estimates works (precise to a
       fraction of a percent) once it was picked from three known places; in Aug-Oct 2026 none of Pyro's encounters had been.
+    - **Reached objectives** (Frank, 1 Nov 2026): the game sometimes writes no quantum line for a jump at all (Levski to an asteroid mining base), but it
+      takes the objective's marker away from the player as he comes into its area; within 5 seconds of his own area line, he is at that mission's
+      objective. In the three accounts' logs 196 completions came within 3 seconds of such a line, 128 of them with no quantum arrival near (the map had
+      nothing else). Where an objective is, when the game data has no place for it, stays unknown: a jump picked from there (the 96 Gm one across the
+      Keeger Belt that night) can only be placed when the start is known.
     - **Open space** (Frank, 31 Oct 2026): a jump picked inside any area (a station, a mission's encounter site, near a planet) starts when he leaves into
       the system's open space (`OpenSpace`, learned like the station areas), and one picked out in open space 47 seconds after the pick (was 10: rather
       late than early). A hop that never goes into open space (between a planet's orbital markers, to its moon) is not drawn: the arrival puts him there.

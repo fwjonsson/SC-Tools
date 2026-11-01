@@ -48,6 +48,40 @@ public class MapMissionTests
     }
 
     [Fact]
+    public void Reaching_an_objective_as_he_comes_into_its_area_puts_him_at_the_mission_also_with_no_quantum_line()
+    {
+        // zzoega, 1 Nov 2026: he took "Restore Order at Asteroid Mining Base" at Levski, flew out into Nyx's open space and quantum jumped to the base, and
+        // the game wrote no quantum line for that jump at all; as he came into the base's area the game took the objective's marker away from him ("Objective
+        // Complete: Go to Asteroid Mining Base"), 0.6 seconds after the area line. The map kept him at Levski
+        var m = GameLogWriter.MissionId(9);
+        const long Levski = 3723364946, NyxSpace = 2627827560, BaseArea = 126935608;
+        var w = new GameLogWriter().At(T).Login("zzoega").Inventory("zzoega", "Nyx_Levski")
+            .MissionMarker(m, GameLogWriter.BountyContract, "go-to", "1952").ObjectivePopup(m, "go-to", "Go to Asteroid Mining Base").BeaconPaired("1952", Beacon)
+            .Minutes(1).AreaChange("zzoega", Levski, 0, Levski, NyxSpace)
+            .Minutes(3.5).AreaChange("zzoega", Levski, 0, NyxSpace, BaseArea).Seconds(0.6).MarkerRemoved("zzoega", "1952", m, "go-to").ObjectiveEndPopup(m, "go-to", "Go to Asteroid Mining Base")
+            .MarkerRemoved("zzatvo", "1953", m, "other");   // somebody else's marker: not his
+        Assert.True(new LineFilter().Keep(w.Lines.Single(l => l.Contains("RemovePlayer - zzoega"))));   // the trackers send it
+        var log = w.Read();
+        Assert.Equal(new[] { "go-to" }, log.Missions[m].Reached.Keys);
+        var points = Points(log.Beacons, log.Missions, _ => "Restore Order", Atlas.Default);
+        var p = Assert.Single(points);
+        Assert.Equal((T.AddMinutes(4.5).AddSeconds(0.6), (DateTime?)T.AddMinutes(4.5).AddSeconds(0.6)), (p.Until!.Value, p.Reached));   // reached by him, and over (the popup)
+
+        var where = Follow(log.Qt, Atlas.Default, null, log.Locations, points, log.Areas);
+        Assert.Equal(("Go to Asteroid Mining Base", (Place?)null, false), (where.AtMission?.Text, where.At, where.Jumped));
+        var now = Now(where, QuantumDrives.All[0], T.AddMinutes(10));
+        Assert.Equal((PlayerState.Mission, "the mission: Go to Asteroid Mining Base"), (now.State, now.AtName));
+
+        // the arrival line of that jump, when the game writes it a few seconds later, is the same jump: still at the mission, not off the grid
+        var withArrival = log.Qt.Append(Arrived(T.AddMinutes(4.5).AddSeconds(8))).ToList();
+        Assert.Equal("Go to Asteroid Mining Base", Follow(withArrival, Atlas.Default, null, log.Locations, points, log.Areas).AtMission?.Text);
+
+        // the objective done while he came into no area (a party member got there, or he rides as crew): it does not move him
+        var far = log.Areas.Where(a => a.To != BaseArea).ToList();
+        Assert.Equal("nyx/levski", Follow(log.Qt, Atlas.Default, null, log.Locations, points, far).At?.Key);
+    }
+
+    [Fact]
     public void A_go_to_objective_ends_with_its_popup()
     {
         // zzoega's Protect Fuel Tanks in Nyx (1 Nov 2026): the "go to" gets no state from the server, only the "Objective Complete" popup on two lines; then
