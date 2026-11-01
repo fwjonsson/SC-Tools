@@ -96,6 +96,10 @@ public sealed class MapService
         var spots = playing.SelectMany(p => new[] { p.Where.At, p.Where.From, p.Where.To, p.Where.LastPing })
             .Concat(book.Deaths.SelectMany(d => new[] { d.Where.At, d.Where.From, d.Where.To, d.Where.LastPing }))
             .Where(x => x is { Hidden: true }).Select(x => x!.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // the /showlocation spots somebody is at in open space (or flies from, or died at): only theirs, so the map has them for them
+        var fixSpots = playing.SelectMany(p => new[] { p.Where.At, p.Where.From, p.Where.LastPing })
+            .Concat(book.Deaths.SelectMany(d => new[] { d.Where.At, d.Where.From, d.Where.LastPing }))
+            .Where(LocationTracker.IsFix).Select(x => x!).DistinctBy(x => x.Key).ToList();
         // the deaths of the last while, each where it happened: a skull on the map (#410; Frank, 31 Oct 2026)
         var deaths = book.Deaths.Select(Death).Where(d => d != null).ToList();
 
@@ -166,7 +170,7 @@ public sealed class MapService
         return new
         {
             updated = nowUtc,
-            systems = StarMap.Systems.Select(s => atlas.SystemData(s, spots)).ToList(),
+            systems = StarMap.Systems.Select(s => atlas.SystemData(s, spots, fixSpots)).ToList(),
             players,
             objectives,
             unplaced,

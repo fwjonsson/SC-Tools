@@ -62,6 +62,12 @@ public sealed class Mission
     public Dictionary<string, DateTime> ObjEnded = new();
 
     /// <summary>
+    /// When an objective's popup came ("New Objective: Return to Asteroid Mining Base": objective id to the time; the latest when it came again). The game
+    /// gives a "Return to" objective when the player leaves the mission's area and ends it when he is back: one open means he is outside it (MissionSpots).
+    /// </summary>
+    public Dictionary<string, DateTime> ObjGiven = new();
+
+    /// <summary>
     /// When the game took an objective's marker away from the player of this log, the objective done for him ("Objective Complete": objective id to the
     /// time). A "Go to" objective is often local to his game (LocalOnlyObjective) and gets no COMPLETED state from the server, so this line is all there is.
     /// In the three accounts' logs (Aug-Oct 2026) it came with the "Objective Complete" popup for 1,377 of the 1,378 objectives with a beacon. Unlike the

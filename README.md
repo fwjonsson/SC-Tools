@@ -199,7 +199,22 @@ admin (done), then going live.
   24 seconds... up to two minutes), and a minute when the server does not know the key, until a try works or the settings change (`RetryDelay`; the menu
   says how long). A tick with nothing new opens one file, the Game.log, and reads nothing from it: a backup log sent to its end is never opened again.
   While the game is closed (its Game.log has not grown for 3 minutes) it looks every 15 seconds, and every 3 again at the game's first new line; the
-  ticks run off the tray's thread. It only sends the lines the
+  ticks run off the tray's thread. **/showlocation** (Frank, 1 Nov 2026): the game's command puts "Coordinates: x:-43498588585.727356
+  y:-18397314648.922775 z:33676.674324" on the clipboard (where he is in the system's own frame, in metres: the map's frame), and the tracker sends that
+  position the moment it is there (`ClipboardWatcher`: Windows' clipboard notice, no polling; `PositionFix.Parse` takes only that exact text, anything
+  else is not looked at further, kept or sent; the menu says when the last one went). The server keeps it with his log (`POST /api/position`,
+  `LogUploads.AddFix`, `positions.txt` next to his uploads) and the location tracker uses it: within 50 km of a place or a hidden spot
+  (`LocationTracker.SpotRadius`) he is there; out in open space, near nothing the map knows, he is exactly there (a spot of its own for the map's
+  data, never saved, which the Hauling Planner does not take), and the map follows him on from there; and the next jump he picks is measured from
+  exactly there (a mission's beacon placed by its fuel estimate, `BeaconRanging`, also when the game names only the system as the start). A beacon is
+  placed only when the spots that fit its distance lie within 5 Gm of each other (`BeaconRanging.SameArea`): many bases are "Asteroid Mining Base",
+  and two far apart on the circle of a distance would be a guess. Used at a mission's site, it saves the site (`MissionSpots`). At the site is what the
+  game says, not a time (Frank's rules, 1 Nov 2026): the location tracker has him at the mission's objective with no jump since, the mission is still
+  going (not completed, failed or abandoned: then there is no telling where he is), its "Go to" objective is done, and no "Return to" objective of it
+  is open (the game gives one when he leaves the mission's area; `Mission.ObjGiven` keeps when each objective came). Anything else saves nothing, so
+  no random places pile up on the server. The site is a hidden place on Map places (`MapPlaceRow.Hidden`) named after the objective ("Go to Asteroid Mining
+  Base": Asteroid Mining Base), which the map knows but draws only where a player is; a later fix within 50 km of it is that site, and a beacon at
+  its distance from a known start is placed there. The game writes none of this in its log. It only sends the lines the
   tracker reads (the kinds in `HaulingLog.LineKinds`: missions, quantum travel, money transfers, the freight elevator and the loading platform, and the
   game's "You've Earned: N Rewards" after a completed mission, since 31 Oct 2026); the rest
   of the game's log stays on the PC. It can start with Windows, and it updates itself (it looks when it starts and every half hour, so a new kind of line

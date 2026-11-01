@@ -12,6 +12,9 @@ public sealed record LogPiece(string File, long From, long To, List<string>? Lin
 /// <summary>The names of a tracker's backup logs (the time of each one's first line), to hear which the server does not have.</summary>
 public sealed record HistoryList(List<string>? Files);
 
+/// <summary>Where the player was to the metre, from the game's /showlocation (the tracker reads it off the clipboard): when, and X, Y, Z in metres.</summary>
+public sealed record PositionPiece(DateTime Time, double X, double Y, double Z);
+
 /// <summary>A piece of an old log (HistorySender): its lines from line number From on; the last piece is Done, with the time of the log's last line and its build.</summary>
 /// <param name="Version">the tracker's HistorySender.Version: what kinds of lines it sends (a tracker from before 31 Oct 2026 says none: 2)</param>
 public sealed record HistoryPiece(string File, long From, List<string>? Lines, bool Done, DateTime? Last = null, string? Build = null, int? Version = null);
@@ -29,9 +32,11 @@ public sealed class LogController : ControllerBase
     readonly LoginLinks _links;
     readonly HistoryStore _history;
     readonly TrackerVersions _versions;
+    readonly MissionSpots _spots;
 
-    public LogController(LogUploads uploads, TrackerKeys keys, LoginLinks links, HistoryStore history, TrackerVersions versions)
+    public LogController(LogUploads uploads, TrackerKeys keys, LoginLinks links, HistoryStore history, TrackerVersions versions, MissionSpots spots)
     {
+        _spots = spots;
         _uploads = uploads;
         _keys = keys;
         _links = links;
@@ -74,6 +79,23 @@ public sealed class LogController : ControllerBase
         if (string.IsNullOrWhiteSpace(piece.File)) return BadRequest();
         var result = _uploads.Add(player, piece.File, piece.From, piece.To, piece.Lines ?? new List<string>(), piece.Last?.ToUniversalTime());
         return result.Ok ? Ok(new { at = result.At }) : Conflict(new { at = result.At });
+    }
+
+    /// <summary>
+    /// Where the player was to the metre (/showlocation): it goes with his log (the location tracker places him by it), and at a mission's site it saves the
+    /// site (MissionSpots). The site's key, when it was one.
+    /// </summary>
+    [HttpPost("position")]
+    public IActionResult Position([FromBody] PositionPiece fix)
+    {
+        if (Player() is not { } player) return Unauthorized();
+        if (!double.IsFinite(fix.X) || !double.IsFinite(fix.Y) || !double.IsFinite(fix.Z) || Math.Abs(fix.X) > 1e12 || Math.Abs(fix.Y) > 1e12) return BadRequest();
+        var now = DateTime.UtcNow;
+        var time = fix.Time.ToUniversalTime();
+        if (time > now.AddMinutes(5) || time < now.AddDays(-2)) time = now;   // a clock far off: now
+        var position = new PositionFix(time, fix.X, fix.Y, fix.Z);
+        _uploads.AddFix(player, position);
+        return Ok(new { site = _spots.Learn(player, position, now) });
     }
 
     /// <summary>Which of these old logs the server does not have yet (the tracker sends those, once).</summary>

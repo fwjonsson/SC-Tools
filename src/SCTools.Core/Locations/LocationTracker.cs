@@ -45,6 +45,12 @@ public static class LocationTracker
     /// </summary>
     public static readonly TimeSpan Reaching = TimeSpan.FromSeconds(5);
 
+    /// <summary>
+    /// A position fix (/showlocation) this close to a place or a spot (Gm: 50 km) is there: a mission's site is about this big around its beacon, and a
+    /// station's place is within a few km of where the game puts it (Frank, 1 Nov 2026).
+    /// </summary>
+    public const double SpotRadius = 0.00005;
+
     /// <summary>An arrival line this soon after he reached an objective is the jump that brought him there (the area line comes before the arrival line).</summary>
     public static readonly TimeSpan ReachedArrival = TimeSpan.FromSeconds(30);
 
@@ -89,7 +95,7 @@ public static class LocationTracker
             var rides = Rides(log, otherLogs, ships, nowUtc);   // the jumps he rode that his own log has no arrival of
             if (rides.Count > 0) qt = qt.Concat(rides).OrderBy(e => e.Time).ToList();
             if (AboardJump(log, otherLogs, ships) is { } aboard) qt.Add(aboard);   // riding in a pilot's ship that is on its way: on the pilot's jump
-            var where = Follow(qt, atlas, null, log.Locations, points, log.Areas, stations, fuel == null ? null : e => fuel(name, e), space);
+            var where = Follow(qt, atlas, null, log.Locations, points, log.Areas, stations, fuel == null ? null : e => fuel(name, e), space, log.Fixes);
             // the Hauling Planner saw him pick up, deliver or hand in later than the jumps say anything: he is at that station
             if (planner?.Invoke(name) is { } clue && clue.At > (where.Since ?? DateTime.MinValue) && clue.At > (where.Picked?.Time ?? DateTime.MinValue)
                 && atlas.OfPyroStation(clue.Station) is { } there && !Equals(there, where.At))
@@ -101,7 +107,7 @@ public static class LocationTracker
             {
                 if (died < nowUtc - DeathAge || died > nowUtc) continue;
                 var then = Follow(qt.Where(e => e.Time <= died).ToList(), atlas, null, log.Locations.Where(l => l.Time <= died).ToList(), points,
-                    log.Areas.Where(a => a.Time <= died).ToList(), stations, fuel == null ? null : e => fuel(name, e), space);
+                    log.Areas.Where(a => a.Time <= died).ToList(), stations, fuel == null ? null : e => fuel(name, e), space, log.Fixes.Where(f => f.Time <= died).ToList());
                 book.Deaths.Add(new PlayerDeath(name, died, then));
             }
         }
@@ -139,7 +145,7 @@ public static class LocationTracker
     /// </summary>
     public static PlayerLocation Follow(IReadOnlyList<QtEvent> qt, Atlas atlas, Action<DateTime, string, UnknownKind, string?>? unknown = null,
         IReadOnlyList<LocationSeen>? seen = null, IReadOnlyList<MissionPoint>? missions = null, IReadOnlyList<AreaChange>? areas = null,
-        IReadOnlySet<long>? stations = null, Func<QtEvent, double?>? fuelPerGm = null, IReadOnlySet<long>? space = null)
+        IReadOnlySet<long>? stations = null, Func<QtEvent, double?>? fuelPerGm = null, IReadOnlySet<long>? space = null, IReadOnlyList<PositionFix>? fixes = null)
     {
         var perGm = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);   // a ship's route fuel estimate per Gm, learnt from his jumps
         var ranged = new Dictionary<string, Place>(StringComparer.OrdinalIgnoreCase);   // a beacon placed by its fuel estimate, by its destination id
@@ -161,11 +167,13 @@ public static class LocationTracker
         var reached = (missions ?? Array.Empty<MissionPoint>())
             .Where(p => p.Reached is { } r && (areas ?? Array.Empty<AreaChange>()).Any(a => !a.Landed && !space.Contains(a.To) && (a.Time - r).Duration() <= Reaching))
             .ToList();
-        var steps = qt.Select(e => (e.Time, Qt: (QtEvent?)e, Seen: (LocationSeen?)null, Area: (AreaChange?)null, Reach: (MissionPoint?)null))
-            .Concat((seen ?? Array.Empty<LocationSeen>()).Select(s => (s.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)s, Area: (AreaChange?)null, Reach: (MissionPoint?)null)))
-            .Concat((areas ?? Array.Empty<AreaChange>()).Select(a => (a.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)null, Area: (AreaChange?)a, Reach: (MissionPoint?)null)))
-            .Concat(reached.Select(p => (Time: p.Reached!.Value, Qt: (QtEvent?)null, Seen: (LocationSeen?)null, Area: (AreaChange?)null, Reach: (MissionPoint?)p)))
+        var steps = qt.Select(e => (e.Time, Qt: (QtEvent?)e, Seen: (LocationSeen?)null, Area: (AreaChange?)null, Reach: (MissionPoint?)null, Fix: (PositionFix?)null))
+            .Concat((seen ?? Array.Empty<LocationSeen>()).Select(s => (s.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)s, Area: (AreaChange?)null, Reach: (MissionPoint?)null, Fix: (PositionFix?)null)))
+            .Concat((areas ?? Array.Empty<AreaChange>()).Select(a => (a.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)null, Area: (AreaChange?)a, Reach: (MissionPoint?)null, Fix: (PositionFix?)null)))
+            .Concat(reached.Select(p => (Time: p.Reached!.Value, Qt: (QtEvent?)null, Seen: (LocationSeen?)null, Area: (AreaChange?)null, Reach: (MissionPoint?)p, Fix: (PositionFix?)null)))
+            .Concat((fixes ?? Array.Empty<PositionFix>()).Select(f => (f.Time, Qt: (QtEvent?)null, Seen: (LocationSeen?)null, Area: (AreaChange?)null, Reach: (MissionPoint?)null, Fix: (PositionFix?)f)))
             .OrderBy(s => s.Time);
+        PositionFix? fixHere = null;   // where he was to the metre since his last jump (/showlocation): the start of the next jump he picks
 
         // he is where the jump went (to, toMission): null both, somewhere the map does not know (a party member, an asteroid)
         void Arrive(DateTime time)
@@ -182,10 +190,30 @@ public static class LocationTracker
             toMission = null;
             moves = new List<AreaChange>();
             hangar = null;   // out in space where he jumped to, until a line says he landed (inside an area or not: his last area line says)
+            fixHere = null;   // he is somewhere else now
         }
 
         foreach (var step in steps)
         {
+            if (step.Fix is { } fix)
+            {
+                // where he was to the metre (/showlocation): at the place or the spot within SpotRadius (a mission's site saved before: the server's
+                // MissionSpots), and in any case where the next jump he picks starts (a beacon's distance from exactly here: BeaconRanging). The coordinates
+                // are in the system's own frame, so his log must say which system
+                fixHere = fix;
+                if (system == null) continue;
+                // out in open space, near nothing the map knows: there, exactly (a spot of its own, never saved), and the map follows him on from there
+                var spot = SpotAt(atlas, system, fix) ?? FixPlace(system, fix);
+                if (!Equals(spot, at) || jumped)
+                {
+                    (at, since) = (spot, fix.Time);
+                    jumped = false;
+                    lastPing = null;
+                    if (!spot.Hidden) atMission = null;   // a station or a place of the map: not at a mission's site (a hidden spot can be the site)
+                }
+                if (picked != null) from = spot;   // the jump he picked starts here
+                continue;
+            }
             if (step.Reach is { } reach)
             {
                 if (atMission == reach) continue;
@@ -256,9 +284,11 @@ public static class LocationTracker
                     if (to != null && from != null && !to.Hidden && !from.Hidden && to.System == from.System && e.Ship.Length > 0
                         && StarMap.JumpGm(from, to) is >= BeaconRanging.LearnGm and var gm)
                         perGm[e.Ship] = estimate / gm;
-                    if (to == null && toMission != null && from != null && !ranged.ContainsKey(e.Destination)
+                    // from where he is to the metre when he used /showlocation since his last jump, else from the place he is at
+                    var start = fixHere != null && system != null ? FixPlace(system, fixHere) : from;
+                    if (to == null && toMission != null && start != null && !ranged.ContainsKey(e.Destination)
                         && (perGm.TryGetValue(e.Ship, out var learnt) ? learnt : fuelPerGm?.Invoke(e)) is > 0 and var rate
-                        && BeaconRanging.Pick(atlas, from, estimate / rate) is { } spot)
+                        && BeaconRanging.Pick(atlas, start, estimate / rate) is { } spot)
                         ranged[e.Destination] = spot;
                 }
                 if (to == null && toMission != null && ranged.TryGetValue(e.Destination, out var placed)) to = placed;
@@ -286,8 +316,31 @@ public static class LocationTracker
             }
         }
         return new PlayerLocation(system, at, since, picked, from, to, atMission, toMission, jumped, lastPing,
-            picked != null ? moves : null, picked != null ? pickedInArea : null, Hangar: hangar, Ranged: ranged.Count > 0 ? ranged : null, Space: space);
+            Moves: picked != null ? moves : null, PickedInArea: picked != null ? pickedInArea : null, Hangar: hangar, Ranged: ranged.Count > 0 ? ranged : null,
+            Space: space, Fix: fixHere, InArea: inArea);
     }
+
+    /// <summary>The place of the map or the hidden spot (Atlas.Spots: the game data's, and the mission sites saved from fixes) within SpotRadius of a fix, the nearest; or null.</summary>
+    public static Place? SpotAt(Atlas atlas, string system, PositionFix fix)
+    {
+        var (x, y) = fix.Gm;
+        return atlas.Places.Where(p => p.System == system && p.Kind != PlaceKind.Star).Concat(atlas.Spots.Where(s => s.System == system))
+            .Select(p => (Place: p, D: Math.Sqrt((p.X - x) * (p.X - x) + (p.Y - y) * (p.Y - y))))
+            .Where(p => p.D <= SpotRadius).OrderBy(p => p.D).Select(p => p.Place).FirstOrDefault();
+    }
+
+    /// <summary>
+    /// A fix as a place of its own: where he is to the metre, near nothing the map knows (open space). Hidden (the map draws him there, nothing for the spot),
+    /// never saved, its key his fix's own (IsFix); the Hauling Planner does not take it (PlayerLocation.ForPlanner).
+    /// </summary>
+    static Place FixPlace(string system, PositionFix fix) =>
+        new(system, FixId + fix.Time.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture), "the /showlocation spot", "/showlocation",
+            PlaceKind.Station, null, fix.Gm.X, fix.Gm.Y, Hidden: true);
+
+    const string FixId = "showlocation-";
+
+    /// <summary>Is this a fix's own place (FixPlace), not one of the map's?</summary>
+    public static bool IsFix(Place? place) => place != null && place.Id.StartsWith(FixId, StringComparison.Ordinal);
 
     /// <summary>
     /// A crew's jumps with the pilot's destinations: everybody aboard a ship has its arrival in his log at the same moment (the same ship id), only the pilot
@@ -533,7 +586,7 @@ public static class LocationTracker
             if (m.ObjEnded.TryGetValue(b.Objective, out var ended) && (until == null || ended < until)) until = ended;   // its popup said so (a "go to")
             DateTime? reached = m.Reached.TryGetValue(b.Objective, out var r) ? r : null;   // he got there (where he is: Follow)
             var text = m.ObjText.GetValueOrDefault(b.Objective) ?? "an objective";
-            points.Add(new MissionPoint(b.NavPoint, b.Marker, title(m), text, m.System, NamedIn(text, m.System, atlas), b.Time, until, reached));
+            points.Add(new MissionPoint(b.NavPoint, b.Marker, title(m), text, m.System, NamedIn(text, m.System, atlas), b.Time, until, reached, m.Id, b.Objective));
         }
         return points;
     }

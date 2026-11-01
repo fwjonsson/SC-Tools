@@ -23,6 +23,12 @@ public sealed class MapPlaceRow
     public double Y { get; set; }
 
     public bool Added { get; set; }
+
+    /// <summary>
+    /// A mission's site saved from a player's /showlocation there (MissionSpots): a hidden spot like the game data's (HiddenSpots), which the map knows but
+    /// draws only where a player is, and where a mission's beacon at that distance is placed (BeaconRanging).
+    /// </summary>
+    public bool Hidden { get; set; }
     public DateTime ChangedUtc { get; set; }
 }
 

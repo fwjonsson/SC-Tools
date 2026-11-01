@@ -239,6 +239,9 @@ public sealed class HaulingLog
     /// <summary>The areas the player of this log went into (off a pad, out of a station's area, into the area of where he jumped to), in the order of the log.</summary>
     public List<AreaChange> Areas { get; } = new();
 
+    /// <summary>Where the player was, to the metre, when he used /showlocation (his tracker sends it: LogUploads.AddFix), in order. Not in the game's log.</summary>
+    public List<PositionFix> Fixes { get; } = new();
+
     /// <summary>When the player of this log died (the first line of the burst of item recovery lines).</summary>
     public List<DateTime> Deaths { get; } = new();
 
@@ -849,7 +852,9 @@ public sealed class HaulingLog
         x = NewObjective.Match(line);
         if (x.Success && x.Groups["x"].Value.Length > 0)
         {
-            Get(x.Groups["m"].Value).ObjText[x.Groups["o"].Value] = x.Groups["x"].Value.Trim();
+            var given = Get(x.Groups["m"].Value);
+            given.ObjText[x.Groups["o"].Value] = x.Groups["x"].Value.Trim();
+            given.ObjGiven[x.Groups["o"].Value] = t;
             Touch(t);
         }
     }

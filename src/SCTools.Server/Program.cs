@@ -58,6 +58,7 @@ builder.Services.AddSingleton<DataViews>();    // data.json as each viewer may s
 builder.Services.AddSingleton<MapPlaces>();
 builder.Services.AddSingleton<UnknownPlaceAlerts>();   // the admin's notice of unknown places (#414)
 builder.Services.AddSingleton<MapService>();
+builder.Services.AddSingleton<MissionSpots>();   // the missions' sites the players show with /showlocation
 builder.Services.AddSingleton<CompanionService>();   // the Companion: a player's own map, contracts and game session (#380)
 builder.Services.AddSingleton<HistoryStore>();
 builder.Services.AddSingleton<MissionLibrary>();

@@ -8,18 +8,21 @@ namespace SCTools.Locations;
 /// (a station's hangar or area, a mission's site, the area around a planet; null: the log does not say, a tracker from before 31 Oct 2026); Space: the
 /// open spaces it was followed with (OpenSpace; the known ones when null). Hangar: landed or taking off now (null: neither).
 /// ByPlanner: the Hauling Planner's pickups, deliveries or hand-ins put him at that station, being newer than anything his jumps say.
+/// Fix: where he was to the metre since his last jump (/showlocation; null: none), the start of the next jump he picks. InArea: is he inside an area now,
+/// not out in open space, by his last area line (null: the log does not say).
 /// Ranged: the missions' beacons he set a route to that were placed by the route's fuel estimate (BeaconRanging), by the beacon's id: the Map tool puts
 /// their objectives there.
 /// </summary>
 public sealed record PlayerLocation(string? System, Place? At, DateTime? Since, QtEvent? Picked, Place? From, Place? To,
     MissionPoint? AtMission = null, MissionPoint? ToMission = null, bool Jumped = false, Place? LastPing = null,
     IReadOnlyList<AreaChange>? Moves = null, bool? PickedInArea = null, bool ByPlanner = false, HangarState? Hangar = null,
-    IReadOnlyDictionary<string, Place>? Ranged = null, IReadOnlySet<long>? Space = null)
+    IReadOnlyDictionary<string, Place>? Ranged = null, IReadOnlySet<long>? Space = null, PositionFix? Fix = null, bool? InArea = null)
 {
     /// <summary>
     /// Where he is for the Hauling Planner, as its ids (a Pyro station's id, else the place's key: StarRoutes): the place he is at and since when, and the
     /// one he is flying to and since when he picked it (null where the tracker has him at no place, or on his way nowhere it knows).
     /// </summary>
-    public PlannerPlace ForPlanner => new(At != null ? StarRoutes.IdOf(At) : null, At != null ? Since : null,
-        To != null ? StarRoutes.IdOf(To) : null, To != null ? Picked?.Time : null);
+    public PlannerPlace ForPlanner => At != null && !LocationTracker.IsFix(At)
+        ? new(StarRoutes.IdOf(At), Since, To != null ? StarRoutes.IdOf(To) : null, To != null ? Picked?.Time : null)
+        : new(null, null, To != null ? StarRoutes.IdOf(To) : null, To != null ? Picked?.Time : null);   // a /showlocation spot is no place of the planner's
 }
