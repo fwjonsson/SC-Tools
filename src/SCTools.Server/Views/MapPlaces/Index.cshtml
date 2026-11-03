@@ -10,10 +10,10 @@
     // every place to pick, by system and by name
     async Task PlaceOptions(string? selected)
     {
-        foreach (var s in StarMap.Systems)
+        foreach (var g in MapPlaces.PickGroups(Model.Atlas))
         {
-            <optgroup label="@s.Name">
-              @foreach (var p in Model.Atlas.Of(s.Id).Where(p => p.Kind != PlaceKind.Star).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase))
+            <optgroup label="@g.Name">
+              @foreach (var p in g.Places)
               {
                 <option value="@p.Key" selected="@(p.Key == selected)">@p.Name@(p.Short != p.Name ? " (" + p.Short + ")" : "")</option>
               }

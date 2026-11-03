@@ -395,7 +395,10 @@ admin (done), then going live.
   268.2. The beacon is the hidden spot of the game data at that distance, within 0.3 % (`HiddenSpots`: the 310 places the game hides in its starmap
   but a jump can go to, from the ScApiTool download: Nyx's 31 Glaciem ring and 30 Keeger belt mission spots, the hidden Breaker stations BRK-235,
   267, 304, 521, 608, the Moraine Bases, the QV Logistics Stations, Pyro's Derelict Outposts and Contested Zones, Stanton's hidden places; not
-  found by a name or a destination of the log). That night's two bounties came out at BRK-304 and at a Glaciem ring spot, 1.2 and 0.4 Mm off, the
+  found by a name or a destination of the log), and Pyro's 115 asteroid bases (`AsteroidBases`, Frank 3 Nov 2026: "they're surrounded by missions"):
+  the 29 RAB bases a jump can go to and the 86 RMB bases, with the game's positions. Their names are their own, so the log's "RAB-GULF" is that base,
+  and the admin's drop-downs for an unknown code have them under "Pyro: asteroid bases" (`MapPlaces.PickGroups`): a mission's encounter code at a base
+  ("RegionB_2base_ab_pyro_final_set_encounter-001" is RAB-GULF, by every fuel estimate to it) is his to name. That night's two bounties came out at BRK-304 and at a Glaciem ring spot, 1.2 and 0.4 Mm off, the
   next spot over 370 Mm away. The map knows the spots but draws none of them: map.json's systems carry a spot only while a player is at it or flies
   to it (`hidden`; the engine places him there and draws nothing for it), so he flies there and stands there "at the mission". At such a spot the
   game names only the system as the start of his next route ("Projected Start Location is Nyx"): he is still there. A beacon with no spot at that

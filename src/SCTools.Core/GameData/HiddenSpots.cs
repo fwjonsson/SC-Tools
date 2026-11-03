@@ -7,11 +7,12 @@ namespace SCTools.GameData;
 /// Derelict Outposts and Contested Zones, Stanton's hidden places. The clinics and hangars inside stations are left out, and a spot the data has again at
 /// another height is one spot. The map knows them but does not draw them: a mission's quantum beacon is placed at one by the fuel estimate of the route
 /// (BeaconRanging), and a player there is drawn there (Frank, 31 Oct 2026: the map should know where we are going without drawing a bunch of random stops).
-/// Made by a script from the download (310 spots); the names are the game's, so several spots have the same name and a number in their id.
+/// Made by a script from the download (310 spots); the names are the game's, so several spots have the same name and a number in their id. All has
+/// Pyro's asteroid bases too (AsteroidBases).
 /// </summary>
 public static class HiddenSpots
 {
-    public static readonly Place[] All =
+    static readonly Place[] Starmap =
     {
         // Pyro: 14
         new("pyro", "contested-zone-1", "Contested Zone", "Contested Zone", PlaceKind.Station, null, -8.9004, -15.4178, Hidden: true),
@@ -327,4 +328,7 @@ public static class HiddenSpots
         new("nyx", "qv-logistics-station-19", "QV Logistics Station", "QV Logistics Station", PlaceKind.Station, null, -13.5433, 6.4449, Hidden: true),
         new("nyx", "qv-logistics-station-20", "QV Logistics Station", "QV Logistics Station", PlaceKind.Station, null, -13.8608, 5.7360, Hidden: true),
     };
+
+    /// <summary>Every hidden spot: the starmap's hidden places and Pyro's asteroid bases.</summary>
+    public static readonly Place[] All = Starmap.Concat(AsteroidBases.All).ToArray();
 }

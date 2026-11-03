@@ -10,7 +10,8 @@ public sealed record PlaceAlias(string Text, string? Key);
 /// The places of the map as the site has them: the game data's (StarMap) with the admin's changes (MapPlaces in the server): his own names for places, the
 /// places he added, and what a destination or a start name of the log is when the game data does not say (PlaceAlias). Also which place a quantum destination
 /// of the log is and what a name the game says is. A place he renamed is still found by the game's name. Spots: the hidden places of the game data
-/// (HiddenSpots), found by their key but not by a name or a destination of the log, and drawn only where a player is (SystemData).
+/// (HiddenSpots), found by their key but not by a name or a destination of the log (except Pyro's asteroid bases, whose names are their own: AsteroidBases),
+/// and drawn only where a player is (SystemData).
 /// </summary>
 public sealed class Atlas
 {
@@ -48,6 +49,9 @@ public sealed class Atlas
 
     /// <summary>The places of a system.</summary>
     public IEnumerable<Place> Of(string system) => Places.Where(p => p.System == system);
+
+    /// <summary>The asteroid bases of a system the map knows (AsteroidBases; hidden spots).</summary>
+    public IEnumerable<Place> BasesOf(string system) => Spots.Where(p => p.System == system && AsteroidBases.Is(p));
 
     /// <summary>
     /// A system as the map engine of the pages (systemmap.js) draws it: its id and name, how the game's starmap turns it (StarSystem.Turn), and its places with their key, name, short name (the label), kind,
@@ -174,6 +178,7 @@ public sealed class Atlas
     {
         var t = text.Trim();
         if (StarMap.Codes.TryGetValue(t, out var key)) return Find(key);
+        if (AsteroidBases.Named(t) is { } asteroidBase) return Find(asteroidBase.Key);   // "RAB-GULF"
         var m = StarMap.OrbitLeo.Match(t);
         if (m.Success) return Find(StarMap.StantonLeo[m.Groups["p"].Value.ToUpperInvariant()]);
         m = StarMap.PyroStop.Match(t);

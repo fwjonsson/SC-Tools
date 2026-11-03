@@ -80,11 +80,10 @@ public sealed class MapPlacesController : Controller
             seq = news.Seq,
             alerts = news.Alerts.Select(a => new { seq = a.Seq, text = a.Text, kind = a.KindText, player = a.Player, his = a.His, system = a.System }),
             here = news.Here.Select(s => new { text = s.Text, kindKey = s.Kind.ToString(), kind = s.KindText, player = s.Player, when = s.TimeUtc, system = s.System }),
-            places = news.Here.Count == 0 ? null : StarMap.Systems.Select(sys => new
+            places = news.Here.Count == 0 ? null : MapPlaces.PickGroups(atlas).Select(g => new
             {
-                name = sys.Name,
-                places = atlas.Of(sys.Id).Where(p => p.Kind != PlaceKind.Star).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-                    .Select(p => new { key = p.Key, name = p.Name + (p.Short != p.Name ? " (" + p.Short + ")" : "") }),
+                name = g.Name,
+                places = g.Places.Select(p => new { key = p.Key, name = p.Name + (p.Short != p.Name ? " (" + p.Short + ")" : "") }),
             }),
             notAPlace = MapPlaces.NotAPlace,
         });
