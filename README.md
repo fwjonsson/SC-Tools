@@ -12,6 +12,20 @@ program on 30 Oct 2026).
 This file says how it all works. `docs/roadmap.md` says what is planned, what was decided and why; `docs/partial-submits.md` has the test notes on
 what a hauling contract pays when it is handed in short; `docs/map-sightings.md` is the list of places seen in the game that the map does not have yet; `CLAUDE.md` says how we work on it (branches, CI, migrations, what never to commit).
 
+## How this is built
+
+SC Tools is built with an AI coding agent (Claude Code), and the commit history shows it: the agent writes most of the code.
+My part is everything around the code. I decide what each tool should do and why, and I investigate how the game actually
+behaves, from the Game.log lines and from testing in the game on three accounts at once. I turn that into issues with clear
+acceptance criteria, read what each pull request says it changes and why before I merge it, and check the result in the game.
+
+The agent works under the rules in `CLAUDE.md`: one branch and one pull request per change, tests with every change, plain
+commit messages that say what and why, and never a secret or a player's data in the repository. CI builds the tracker and
+runs the 400+ tests on every pull request, and only a green merge to `main` deploys the site.
+
+The hard problems have mostly been detective work rather than code: for example, working out from three accounts' logs which
+player really took a shared contract, so that its money is split correctly.
+
 ## Build and run
 
 You need the .NET 10 SDK.
