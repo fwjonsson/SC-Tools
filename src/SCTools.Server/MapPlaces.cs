@@ -92,6 +92,16 @@ public sealed class MapPlaces
         }
     }
 
+    /// <summary>
+    /// The places to pick from for a text of the log the map does not know (Map places, the Companion's card), in groups: each system's places by name,
+    /// then its asteroid bases ("Pyro: asteroid bases", AsteroidBases) when it has any.
+    /// </summary>
+    public static IEnumerable<(string Name, List<Place> Places)> PickGroups(Atlas atlas) => StarMap.Systems.SelectMany(s => new[]
+    {
+        (s.Name, atlas.Of(s.Id).Where(p => p.Kind != PlaceKind.Star).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList()),
+        (s.Name + ": asteroid bases", atlas.BasesOf(s.Id).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList()),
+    }).Where(g => g.Item2.Count > 0);
+
     /// <summary>Every place, by system, the way the map has them, and the missions' sites saved from the players' /showlocation (hidden spots).</summary>
     public List<PlaceEntry> Entries()
     {

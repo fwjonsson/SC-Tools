@@ -124,7 +124,7 @@ All the tools track at the same time, all the time. The tracking runs on the ser
     - **The mission** (Star Citizen Wiki): Bit Zeros, Pyro, costs 33,000 aUEC to accept and pays nothing itself; a loaded Freelancer locked in an
       asteroid base's hangar (debug name `UnafilliatedCFP_Pyro_RegionD_M_2steroidBase_Criminals_ShipHeist`).
     - **The bases**: the ScApiTool download of 20 Oct has all of them with positions in Pyro: 29 RAB (`Asteroid_ValidQT`, quantum targets) and 86
-      RMB (`Asteroid`).
+      RMB (`Asteroid`). On the map since 3 Nov 2026 as hidden spots (`AsteroidBases`), and in the admin's drop-downs for unknown codes.
     - **Waiting (28 Oct)**: Frank will run the mission and sell the gold, then run copy-sc-logs; the lines for the base, the pickup and the
       commodity-terminal sale are not known yet. The Mission Library has a "Goods for the Getting" row (no reward: the mission pays nothing itself).
 11. **Hauling of every system** (Frank, 29 Oct: "make the Hauling Planner work with all missions"; he chose every system).
